@@ -19,17 +19,26 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
+import { useAuth } from '../contexts/AuthContext';
+import { User } from '../types';
 
-const NAV_ITEMS = [
+interface NavItem {
+  icon: React.ElementType;
+  label: string;
+  path: string;
+  allowedRoles?: User['role'][];
+}
+
+const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: FileText, label: 'Lançamentos', path: '/data-entry' },
-  { icon: BarChart3, label: 'Financeiro DRE', path: '/finance' },
-  { icon: Calculator, label: 'CMV & Fichas', path: '/cmv' },
-  { icon: Package, label: 'Estoque', path: '/inventory' },
+  { icon: FileText, label: 'Lançamentos', path: '/data-entry', allowedRoles: ['ADMIN', 'FINANCIAL'] },
+  { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: ['ADMIN', 'MANAGER', 'FINANCIAL'] },
+  { icon: Calculator, label: 'CMV & Fichas', path: '/cmv', allowedRoles: ['ADMIN', 'MANAGER'] },
+  { icon: Package, label: 'Estoque', path: '/inventory', allowedRoles: ['ADMIN', 'MANAGER'] },
   { icon: PieChart, label: 'Análise de Vendas', path: '/analysis' },
-  { icon: Zap, label: 'Insights IA', path: '/insights' },
-  { icon: FileText, label: 'Relatórios', path: '/reports' },
-  { icon: Users, label: 'Equipe', path: '/team' },
+  { icon: Zap, label: 'Insights IA', path: '/insights', allowedRoles: ['ADMIN'] },
+  { icon: FileText, label: 'Relatórios', path: '/reports', allowedRoles: ['ADMIN', 'MANAGER'] },
+  { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
 ];
 
 const LOGO_URL = "https://storage.googleapis.com/aistudio-build-artifacts/7060b66b-6db6-4a04-a679-19b7ec364245/image_generation_1720546313.png";
@@ -37,9 +46,17 @@ const LOGO_URL = "https://storage.googleapis.com/aistudio-build-artifacts/7060b6
 export default function Layout({ children }: { children?: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const { currentStore, setStore, isDarkMode, brandColors } = useStore();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => navigate('/login');
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const filteredNavItems = NAV_ITEMS.filter(item => 
+    !item.allowedRoles || (user && item.allowedRoles.includes(user.role))
+  );
 
   const STORES = [
     { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU' as const, location: 'Centro', code: 'B32' },
@@ -134,7 +151,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         )}
 
         <nav className="flex-1 px-4 space-y-1">
-          {NAV_ITEMS.map((item) => (
+          {filteredNavItems.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
@@ -195,8 +212,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             <div className="h-4 w-px bg-slate-200 dark:bg-[#333]" />
             
             <div className="text-right">
-              <div className="text-sm font-bold dark:text-white">Rennan Inácio</div>
-              <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Diretor de Operações</div>
+              <div className="text-sm font-bold dark:text-white uppercase tracking-tighter italic">
+                {user?.name || 'Visitante'}
+              </div>
+              <div className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] italic">
+                {user?.role === 'ADMIN' ? 'Diretor de Operações' : user?.role === 'MANAGER' ? 'Gerente Geral' : 'Analista Financeiro'}
+              </div>
             </div>
           </div>
         </header>

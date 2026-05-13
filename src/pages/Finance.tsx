@@ -386,23 +386,6 @@ export default function Finance() {
                               </div>
                             </div>
                           ))}
-
-                          {group.subgroups && group.subgroups.map(sub => (
-                            <div key={sub.label} className="space-y-1 mt-2 mb-4">
-                              <div className="px-8 py-1 text-[9px] font-black uppercase tracking-widest text-[#0066FF] opacity-70 italic">{sub.label}</div>
-                              {sub.items.map(item => (
-                                 <div key={item.label} className="flex items-center justify-between px-10 py-2 rounded-lg hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                                   <span className="text-[10px] font-medium text-slate-400 italic lowercase">{item.label}</span>
-                                   <div className="flex gap-10">
-                                     <span className="text-[8px] font-bold text-slate-400 w-10 text-right">
-                                       {((Math.abs(item.valor) / currentMonthData.faturamento) * 100).toFixed(1)}%
-                                     </span>
-                                     <span className="text-[10px] font-bold w-32 text-right text-red-400 opacity-80">{formatValue(item.valor)}</span>
-                                   </div>
-                                 </div>
-                              ))}
-                            </div>
-                          ))}
                         </motion.div>
                       )}
                     </AnimatePresence>

@@ -5,6 +5,8 @@
 
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { StoreProvider } from './contexts/StoreContext';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import SelectStore from './pages/SelectStore';
@@ -36,30 +38,41 @@ export default function App() {
   const Router = isPreview ? HashRouter : BrowserRouter;
 
   return (
-    <StoreProvider>
-      <Router>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/select-store" element={<SelectStore />} />
-          
-          <Route element={<Layout />}>
-             <Route index element={<Navigate to="/dashboard" replace />} />
-             <Route path="/dashboard" element={<Dashboard />} />
-             <Route path="/data-entry" element={<DataEntry />} />
-             <Route path="/finance" element={<Finance />} />
-             <Route path="/cmv" element={<CMV />} />
-             <Route path="/insights" element={<AIInsights />} />
-             <Route path="/inventory" element={<CMV />} />
-             <Route path="/analysis" element={<Dashboard />} />
-             <Route path="/reports" element={<Dashboard />} />
-             <Route path="/team" element={<Dashboard />} />
-          </Route>
+    <AuthProvider>
+      <StoreProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            
+            <Route path="/select-store" element={
+              <ProtectedRoute>
+                <SelectStore />
+              </ProtectedRoute>
+            } />
+            
+            <Route element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }>
+               <Route index element={<Navigate to="/dashboard" replace />} />
+               <Route path="/dashboard" element={<Dashboard />} />
+               <Route path="/data-entry" element={<DataEntry />} />
+               <Route path="/finance" element={<Finance />} />
+               <Route path="/cmv" element={<CMV />} />
+               <Route path="/insights" element={<AIInsights />} />
+               <Route path="/inventory" element={<CMV />} />
+               <Route path="/analysis" element={<Dashboard />} />
+               <Route path="/reports" element={<Dashboard />} />
+               <Route path="/team" element={<Dashboard />} />
+            </Route>
 
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
-    </StoreProvider>
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Router>
+      </StoreProvider>
+    </AuthProvider>
   );
 }
 
