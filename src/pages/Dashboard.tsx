@@ -10,13 +10,6 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
-  mockMetrics, 
-  dreTimeline, 
-  topProducts, 
-  deliveryChannels,
-  metaVsRealizado,
-  salesByHour,
-  salesByDay,
   mostProfitable,
   lowMarginProducts
 } from '../lib/mockData';
@@ -26,7 +19,28 @@ const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function Dashboard() {
-  const { isDarkMode, currentStore } = useStore();
+  const { 
+    isDarkMode, 
+    currentStore, 
+    brandColors,
+    metrics, 
+    dreTimeline, 
+    metaVsRealizado, 
+    operationalMetrics, 
+    topProducts, 
+    yearlyHistory,
+    deliveryChannels,
+    salesByHour,
+    salesByDay,
+    peakHour
+  } = useStore();
+  
+  const currentMonthData = dreTimeline[dreTimeline.length - 1];
+  const yearlyComparisonData = [
+    { year: '2024', faturamento: yearlyHistory['2024'] || currentMonthData.faturamento * 0.78, color: isDarkMode ? '#333' : '#cbd5e1' },
+    { year: '2025', faturamento: yearlyHistory['2025'] || currentMonthData.faturamento * 0.89, color: '#6366f1' },
+    { year: '2026', faturamento: currentMonthData.faturamento, color: '#4f46e5' },
+  ];
 
   return (
     <div className="space-y-8 pb-10">
@@ -34,15 +48,18 @@ export default function Dashboard() {
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className={`p-6 rounded-3xl border flex flex-col md:flex-row items-center justify-between gap-6 transition-all duration-500 ${
-          isDarkMode 
-            ? 'bg-gradient-to-r from-[#E63946]/10 to-transparent border-[#E63946]/20' 
-            : 'bg-gradient-to-r from-[#0066FF]/5 to-transparent border-[#0066FF]/10'
-        }`}
+        className={`p-6 rounded-3xl border flex flex-col md:flex-row items-center justify-between gap-6 transition-all duration-500`}
+        style={currentStore.brand === 'BEBELU' 
+          ? { backgroundColor: '#FFCB0510', borderColor: '#FFCB0530' }
+          : { backgroundColor: isDarkMode ? '#E6394610' : '#0066FF05', borderColor: isDarkMode ? '#E6394620' : '#0066FF10' }
+        }
       >
         <div className="flex items-center gap-4">
-          <div className={`p-4 rounded-2xl ${isDarkMode ? 'bg-[#E63946] shadow-red-500/20' : 'bg-[#0066FF] shadow-blue-500/20'} shadow-lg`}>
-            <Zap className="w-6 h-6 text-white animate-pulse" />
+          <div 
+            className={`p-4 rounded-2xl shadow-lg transition-colors duration-500`}
+            style={{ backgroundColor: brandColors.button, boxShadow: `0 10px 15px -3px ${brandColors.button}30` }}
+          >
+            <Zap className={`w-6 h-6 animate-pulse ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
           </div>
           <div>
             <h2 className="text-2xl font-bold dark:text-white leading-tight">Insight da IA</h2>
@@ -60,7 +77,7 @@ export default function Dashboard() {
 
       {/* Main KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {mockMetrics.map((metric, i) => {
+        {metrics.map((metric, i) => {
           const isHealthy = metric.trend === 'up' && metric.label !== 'CMV Médio' || (metric.label === 'CMV Médio' && metric.trend === 'down');
           const statusColor = isHealthy ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10';
           
@@ -82,7 +99,7 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="text-lg font-black dark:text-white truncate">
-                {metric.format === 'currency' ? formatCurrency(metric.value as number) : `${metric.value}${metric.format === 'percent' ? '%' : ''}`}
+                {metric.format === 'currency' ? formatCurrency(metric.valor as number) : `${metric.valor}${metric.format === 'percent' ? '%' : ''}`}
               </div>
               <div className="text-[9px] text-slate-400 mt-1 italic">vs. mês anterior</div>
             </motion.div>
@@ -96,11 +113,11 @@ export default function Dashboard() {
         <div className={`lg:col-span-2 p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold dark:text-white flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-indigo-500" /> Crescimento Mensal
+              <TrendingUp className="w-5 h-5" style={{ color: brandColors.primary }} /> Crescimento Mensal
             </h3>
             <div className="flex gap-2">
               <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-                <span className="w-3 h-3 rounded-full bg-indigo-500" /> Faturamento
+                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: brandColors.primary }} /> Faturamento
               </div>
             </div>
           </div>
@@ -111,7 +128,7 @@ export default function Dashboard() {
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
                 <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.1)' }} />
-                <Area type="monotone" dataKey="revenue" stroke="#0066FF" strokeWidth={3} fill="#0066FF" fillOpacity={0.1} />
+                <Area type="monotone" dataKey="faturamento" stroke={brandColors.button} strokeWidth={3} fill={brandColors.button} fillOpacity={0.1} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -125,7 +142,7 @@ export default function Dashboard() {
               <BarChart data={metaVsRealizado}>
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
                 <Tooltip />
-                <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
                   {metaVsRealizado.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
@@ -135,8 +152,18 @@ export default function Dashboard() {
           </div>
           <div className="mt-6 p-4 rounded-xl bg-slate-50 dark:bg-black/20 text-center">
             <div className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-1">Atingimento</div>
-            <div className={`text-3xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>89.5%</div>
-            <p className="text-[10px] text-red-500 font-bold mt-1">Faltam R$ 14.570 para a meta</p>
+            <div className={`text-3xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              {((metaVsRealizado[1].valor / metaVsRealizado[0].valor) * 100).toFixed(1)}%
+            </div>
+            {metaVsRealizado[1].valor < metaVsRealizado[0].valor ? (
+              <p className="text-[10px] text-red-500 font-bold mt-1">
+                Faltam {formatCurrency(metaVsRealizado[0].valor - metaVsRealizado[1].valor)} para a meta
+              </p>
+            ) : (
+              <p className="text-[10px] text-green-500 font-bold mt-1">
+                Meta batida! {formatCurrency(metaVsRealizado[1].valor - metaVsRealizado[0].valor)} acima do esperado
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -153,24 +180,64 @@ export default function Dashboard() {
               <AreaChart data={salesByHour}>
                 <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 10}} />
                 <Tooltip />
-                <Area type="monotone" dataKey="sales" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.1} strokeWidth={2} />
+                <Area type="monotone" dataKey="vendas" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.1} strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-[10px] text-slate-500 mt-4 text-center italic">Horário de pico detectado: <span className="font-bold text-slate-900 dark:text-white">21:00h</span></p>
+          <p className="text-[10px] text-slate-500 mt-4 text-center italic">Horário de pico detectado: <span className="font-bold text-slate-900 dark:text-white">{peakHour}h</span></p>
         </div>
 
-        {/* Daily Sales */}
+        {/* Comparativo Mensal YoY */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className="text-lg font-bold dark:text-white mb-6 flex items-center gap-2">
-            <Calendar className="w-5 h-5 text-indigo-500" /> Faturamento por Dia
-          </h3>
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col">
+              <h3 className="text-lg font-bold dark:text-white flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-indigo-500" /> Histórico de {currentMonthData.month}
+              </h3>
+              <p className="text-[10px] text-slate-500 font-medium italic">Evolução do mesmo mês em 2024, 2025 e 2026</p>
+            </div>
+            <div className="flex gap-3">
+               {yearlyComparisonData.map(item => (
+                 <div key={item.year} className="flex items-center gap-1.5">
+                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color }} />
+                   <span className="text-[9px] font-bold text-slate-500">{item.year}</span>
+                 </div>
+               ))}
+            </div>
+          </div>
           <div className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={salesByDay}>
-                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
-                <Bar dataKey="value" fill="#0066FF" radius={[5, 5, 0, 0]} />
-                <Tooltip />
+              <BarChart data={yearlyComparisonData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }} barSize={50}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
+                <XAxis 
+                  dataKey="year" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fill: '#888', fontSize: 11, fontWeight: 700}} 
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fill: '#888', fontSize: 11, fontWeight: 700}}
+                  tickFormatter={(val) => `R$ ${val/1000}k`}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    borderRadius: '16px', 
+                    border: 'none', 
+                    backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
+                    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                    fontSize: '11px',
+                    fontWeight: 'bold'
+                  }}
+                  formatter={(val: number) => [formatCurrency(val), 'Faturamento']}
+                />
+                <Bar dataKey="faturamento" radius={[12, 12, 0, 0]}>
+                  {yearlyComparisonData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -224,16 +291,16 @@ export default function Dashboard() {
           <h3 className="text-lg font-bold dark:text-white mb-6">DRE Resumido</h3>
           <div className="space-y-3">
              {[
-               { label: 'Receita Bruta', value: 125430, color: 'text-indigo-600' },
-               { label: 'Custos Variáveis', value: -48125, color: 'text-red-500' },
-               { label: 'Margem de Contrib.', value: 77305, bold: true },
-               { label: 'Custos Fixos', value: -45065, color: 'text-red-500' },
-               { label: 'Resultado Líquido', value: 32240, color: 'text-green-500', bold: true, big: true }
+               { label: 'Receita Bruta', valor: currentMonthData.faturamento, color: 'text-indigo-600' },
+               { label: 'Custos Variáveis', valor: -(currentMonthData.cmv + currentMonthData.taxes), color: 'text-red-500' },
+               { label: 'Margem de Contrib.', valor: currentMonthData.faturamento - currentMonthData.cmv - currentMonthData.taxes, bold: true },
+               { label: 'Custos Fixos', valor: -(currentMonthData.payroll + currentMonthData.rent + currentMonthData.marketing + currentMonthData.operational), color: 'text-red-500' },
+               { label: 'Resultado Líquido', valor: currentMonthData.netProfit, color: 'text-green-500', bold: true, big: true }
              ].map((item) => (
                <div key={item.label} className={`flex items-center justify-between py-1 ${item.big ? 'border-t dark:border-[#333] pt-4 mt-2' : ''}`}>
                  <span className={`text-[10px] font-bold uppercase tracking-wider ${item.bold ? 'dark:text-white' : 'text-slate-500'}`}>{item.label}</span>
                  <span className={`text-sm font-black ${item.color || 'dark:text-white'} ${item.big ? 'text-lg' : ''}`}>
-                   {formatCurrency(item.value)}
+                   {formatCurrency(item.valor)}
                  </span>
                </div>
              ))}
@@ -258,7 +325,7 @@ export default function Dashboard() {
                     innerRadius={60}
                     outerRadius={80}
                     paddingAngle={5}
-                    dataKey="value"
+                    dataKey="valor"
                   >
                     {deliveryChannels.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -280,7 +347,7 @@ export default function Dashboard() {
                     <span className="text-xs font-bold dark:text-slate-300 uppercase">{channel.name}</span>
                   </div>
                   <div className="text-xs font-black dark:text-white">
-                    {formatCurrency(channel.value)}
+                    {formatCurrency(channel.valor)}
                   </div>
                 </div>
               ))}
@@ -296,30 +363,28 @@ export default function Dashboard() {
             <Zap className="w-5 h-5 text-yellow-500" /> Indicadores Operacionais
           </h3>
           <div className="space-y-6">
-            {[
-              { label: 'Tempo de Produção', value: '18 min', target: '20 min', percent: 85, icon: Clock },
-              { label: 'Desperdício / Perda', value: '1.2%', target: '1.0%', percent: 40, icon: ShoppingBag, critical: true },
-              { label: 'Satisfação (NPS)', value: '8.8', target: '9.0', percent: 92, icon: Target },
-            ].map((op) => (
-              <div key={op.label}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <op.icon className="w-4 h-4 text-slate-400" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{op.label}</span>
+            {operationalMetrics.map((op) => {
+              const Icon = op.icon === 'Clock' ? Clock : op.icon === 'ShoppingBag' ? ShoppingBag : Target;
+              return (
+                <div key={op.label}>
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Icon className="w-4 h-4 text-slate-400" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{op.label}</span>
+                    </div>
+                    <span className="text-sm font-black dark:text-white">{op.valor}</span>
                   </div>
-                  <span className="text-sm font-black dark:text-white">{op.value}</span>
+                  <div className="h-1.5 bg-slate-100 dark:bg-[#333] rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${op.percent}%` }}
+                      className={`h-full rounded-full transition-colors duration-500`}
+                      style={{ backgroundColor: op.critical ? '#EF4444' : brandColors.button }}
+                    />
+                  </div>
                 </div>
-                <div className="h-1.5 bg-slate-100 dark:bg-[#333] rounded-full overflow-hidden">
-                  <motion.div 
-                    initial={{ width: 0 }}
-                    animate={{ width: `${op.percent}%` }}
-                    className={`h-full rounded-full ${
-                      op.critical ? 'bg-red-500' : isDarkMode ? 'bg-[#E63946]' : 'bg-[#0066FF]'
-                    }`}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>
@@ -361,8 +426,8 @@ export default function Dashboard() {
                       </div>
                     </td>
                     <td className="py-4">
-                      <div className="font-bold text-sm dark:text-white">{p.salesCount} un</div>
-                      <div className="text-xs text-slate-500">{formatCurrency(p.revenue)}</div>
+                      <div className="font-bold text-sm dark:text-white">{p.quantidadeVendas} un</div>
+                      <div className="text-xs text-slate-500">{formatCurrency(p.faturamento)}</div>
                     </td>
                     <td className="py-4">
                       <div className={`text-sm font-bold ${p.margin > 60 ? 'text-green-500' : 'text-yellow-500'}`}>

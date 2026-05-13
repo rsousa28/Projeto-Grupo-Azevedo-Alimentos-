@@ -19,7 +19,7 @@ const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function CMV() {
-  const { isDarkMode } = useStore();
+  const { isDarkMode, brandColors, currentStore } = useStore();
 
   return (
     <div className="space-y-8 pb-10">
@@ -35,9 +35,12 @@ export default function CMV() {
           }`}>
             <Download className="w-5 h-5" /> Exportar CSV
           </button>
-          <button className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg ${
-            isDarkMode ? 'bg-[#E63946] text-white shadow-red-500/20' : 'bg-[#0066FF] text-white shadow-blue-500/20'
-          }`}>
+          <button 
+            className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg ${
+              currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'
+            }`}
+            style={{ backgroundColor: brandColors.button, boxShadow: `0 10px 15px -3px ${brandColors.button}30` }}
+          >
             <Plus className="w-5 h-5" /> Novo Insumo
           </button>
         </div>
@@ -56,7 +59,7 @@ export default function CMV() {
             </span>
           </div>
           <div className="mt-4 h-2 bg-slate-100 dark:bg-[#333] rounded-full overflow-hidden">
-            <div className={`h-full w-[32.4%] ${isDarkMode ? 'bg-[#E63946]' : 'bg-[#0066FF]'}`} />
+            <div className="h-full w-[32.4%] transition-colors duration-500" style={{ backgroundColor: brandColors.button }} />
           </div>
         </div>
 

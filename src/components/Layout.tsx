@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BarChart3, 
@@ -22,6 +22,7 @@ import { useStore } from '../contexts/StoreContext';
 
 const NAV_ITEMS = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+  { icon: FileText, label: 'Lançamentos', path: '/data-entry' },
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance' },
   { icon: Calculator, label: 'CMV & Fichas', path: '/cmv' },
   { icon: Package, label: 'Estoque', path: '/inventory' },
@@ -33,17 +34,17 @@ const NAV_ITEMS = [
 
 const LOGO_URL = "https://storage.googleapis.com/aistudio-build-artifacts/7060b66b-6db6-4a04-a679-19b7ec364245/image_generation_1720546313.png";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children }: { children?: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
-  const { currentStore, setStore, isDarkMode } = useStore();
+  const { currentStore, setStore, isDarkMode, brandColors } = useStore();
   const navigate = useNavigate();
 
   const handleLogout = () => navigate('/login');
 
   const STORES = [
-    { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU' as const, location: 'Centro' },
-    { id: '2', name: 'Bebelu Rio Mar', brand: 'BEBELU' as const, location: 'Rio Mar Shopping' },
-    { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS' as const, location: 'Avenida Principal' },
+    { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU' as const, location: 'Centro', code: 'B32' },
+    { id: '2', name: 'Bebelu Rio Mar', brand: 'BEBELU' as const, location: 'Rio Mar Shopping', code: 'B28' },
+    { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS' as const, location: 'Avenida Principal', code: '4E09' },
   ];
 
   return (
@@ -94,10 +95,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             }`}>
               <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-2">Unidade Ativa</div>
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
-                  currentStore.brand === '4ESTYLOS' ? 'bg-[#E63946]' : 'bg-[#0066FF]'
-                }`}>
-                  <StoreIcon className="w-5 h-5 text-white" />
+                <div 
+                  className="w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-500"
+                  style={{ backgroundColor: brandColors.button }}
+                >
+                  {currentStore.code ? (
+                    <span className={`text-[10px] font-black tracking-tighter ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`}>
+                      {currentStore.code}
+                    </span>
+                  ) : (
+                    <StoreIcon className={`w-5 h-5 ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
+                  )}
                 </div>
                 <div className="flex-1 overflow-hidden">
                   <div className="font-bold text-sm truncate dark:text-white">{currentStore.name}</div>
@@ -110,13 +118,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   <button
                     key={s.id}
                     onClick={() => setStore(s)}
-                    className={`text-[10px] font-bold py-1.5 rounded-lg border transition-all ${
-                      currentStore.id === s.id 
-                        ? (s.brand === '4ESTYLOS' ? 'border-[#E63946] text-[#E63946] bg-[#E63946]/10' : 'border-[#0066FF] text-[#0066FF] bg-[#0066FF]/10')
-                        : 'border-slate-200 dark:border-[#333] text-slate-400'
-                    }`}
+                    className={`text-[10px] font-bold py-1.5 rounded-lg border transition-all`}
+                    style={{ 
+                      borderColor: currentStore.id === s.id ? (s.brand === 'BEBELU' ? '#FFCB05' : '#E63946') : (isDarkMode ? '#333' : '#E2E8F0'),
+                      color: currentStore.id === s.id ? (s.brand === 'BEBELU' ? '#B8860B' : (s.brand === '4ESTYLOS' ? '#E63946' : '#0066FF')) : '#94A3B8',
+                      backgroundColor: currentStore.id === s.id ? (s.brand === 'BEBELU' ? '#FFCB0520' : (s.brand === '4ESTYLOS' ? '#E6394610' : '#0066FF10')) : 'transparent'
+                    }}
                   >
-                    {s.name.split(' ')[0]}
+                    {s.code || s.name.split(' ')[0]}
                   </button>
                 ))}
               </div>
@@ -129,14 +138,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <NavLink
               key={item.path}
               to={item.path}
+              style={({ isActive }) => isActive ? { 
+                backgroundColor: brandColors.button,
+                color: currentStore.brand === 'BEBELU' ? '#000' : '#fff',
+                boxShadow: `0 10px 15px -3px ${brandColors.button}30`
+              } : {}}
               className={({ isActive }) => `
                 flex items-center gap-4 px-4 py-3.5 rounded-xl font-medium transition-all group
-                ${isActive 
-                  ? (isDarkMode ? 'bg-[#E63946] text-white shadow-lg shadow-red-500/20' : 'bg-[#0066FF] text-white shadow-lg shadow-blue-500/20')
-                  : (isDarkMode ? 'text-slate-400 hover:bg-[#1E1E1E] hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600')}
+                ${!isActive 
+                  ? (isDarkMode ? 'text-slate-400 hover:bg-[#1E1E1E] hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600')
+                  : ''}
               `}
             >
-              <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110`} />
+              <item.icon className="w-5 h-5 transition-transform group-hover:scale-110" />
               {!collapsed && <span>{item.label}</span>}
             </NavLink>
           ))}
@@ -188,7 +202,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          {children}
+          {children || <Outlet />}
         </div>
       </main>
     </div>

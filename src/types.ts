@@ -11,11 +11,12 @@ export interface Store {
   name: string;
   brand: '4ESTYLOS' | 'BEBELU';
   location: string;
+  code?: string;
 }
 
 export interface Metric {
   label: string;
-  value: number | string;
+  valor: number | string;
   change: number;
   trend: 'up' | 'down' | 'neutral';
   format: 'currency' | 'percent' | 'number';
@@ -23,7 +24,7 @@ export interface Metric {
 
 export interface DREData {
   month: string;
-  revenue: number;
+  faturamento: number;
   taxes: number;
   cmv: number;
   payroll: number;
@@ -33,14 +34,17 @@ export interface DREData {
   operational: number;
   ebitda: number;
   netProfit: number;
+  // Sub-totals for the detailed model
+  despesasVariaveis?: number;
+  resultadoFinanceiro?: number;
 }
 
 export interface ProductPerformance {
   id: string;
   name: string;
   category: string;
-  salesCount: number;
-  revenue: number;
+  quantidadeVendas: number;
+  faturamento: number;
   margin: number;
   cmv: number;
 }

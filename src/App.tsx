@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import SelectStore from './pages/SelectStore';
 import Dashboard from './pages/Dashboard';
 import Finance from './pages/Finance';
+import DataEntry from './pages/DataEntry';
 import CMV from './pages/CMV';
 import AIInsights from './pages/AIInsights';
 
@@ -41,16 +42,17 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/select-store" element={<SelectStore />} />
           
-          <Route element={<Layout children={<Navigate to="/dashboard" />} />}>
-             <Route path="/dashboard" element={<Layout><Dashboard /></Layout>} />
-             <Route path="/finance" element={<Layout><Finance /></Layout>} />
-             <Route path="/cmv" element={<Layout><CMV /></Layout>} />
-             <Route path="/insights" element={<Layout><AIInsights /></Layout>} />
-             {/* Add placeholders for other routes */}
-             <Route path="/inventory" element={<Layout><CMV /></Layout>} />
-             <Route path="/analysis" element={<Layout><Dashboard /></Layout>} />
-             <Route path="/reports" element={<Layout><Dashboard /></Layout>} />
-             <Route path="/team" element={<Layout><Dashboard /></Layout>} />
+          <Route element={<Layout />}>
+             <Route index element={<Navigate to="/dashboard" replace />} />
+             <Route path="/dashboard" element={<Dashboard />} />
+             <Route path="/data-entry" element={<DataEntry />} />
+             <Route path="/finance" element={<Finance />} />
+             <Route path="/cmv" element={<CMV />} />
+             <Route path="/insights" element={<AIInsights />} />
+             <Route path="/inventory" element={<CMV />} />
+             <Route path="/analysis" element={<Dashboard />} />
+             <Route path="/reports" element={<Dashboard />} />
+             <Route path="/team" element={<Dashboard />} />
           </Route>
 
           <Route path="/" element={<Navigate to="/login" replace />} />
