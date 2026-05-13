@@ -59,7 +59,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   );
 
   const STORES = [
-    { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU' as const, location: 'Centro', code: 'B32' },
+    { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU' as const, location: 'Espaço Fan', code: 'B32' },
     { id: '2', name: 'Bebelu Rio Mar', brand: 'BEBELU' as const, location: 'Rio Mar Shopping', code: 'B28' },
     { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS' as const, location: 'Avenida Principal', code: '4E09' },
   ];

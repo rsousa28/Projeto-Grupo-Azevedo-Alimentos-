@@ -10,9 +10,9 @@ export default function SelectStore() {
   const { setStore } = useStore();
 
   const stores: Store[] = [
-    { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU', location: 'Centro' },
-    { id: '2', name: 'Bebelu Rio Mar', brand: 'BEBELU', location: 'Rio Mar Shopping' },
-    { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS', location: 'Avenida Principal' },
+    { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU', location: 'Espaço Fan', code: 'B32' },
+    { id: '2', name: 'Bebelu Rio Mar', brand: 'BEBELU', location: 'Rio Mar Shopping', code: 'B28' },
+    { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS', location: 'Avenida Principal', code: '4E09' },
   ];
 
   const handleSelect = (store: Store) => {
@@ -55,13 +55,19 @@ export default function SelectStore() {
               className={`group relative p-8 rounded-[2.5rem] border bg-white transition-all text-left hover:shadow-2xl hover:-translate-y-2 flex flex-col items-start ${
                 store.brand === '4ESTYLOS' 
                   ? 'hover:border-[#E63946]' 
-                  : 'hover:border-[#0066FF]'
+                  : 'hover:border-[#FFCB05]'
               }`}
             >
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-transform group-hover:scale-110 ${
-                store.brand === '4ESTYLOS' ? 'bg-[#E63946] shadow-lg shadow-red-500/20' : 'bg-[#0066FF] shadow-lg shadow-blue-500/20'
+                store.brand === '4ESTYLOS' ? 'bg-[#E63946] shadow-lg shadow-red-500/20' : 'bg-[#FFCB05] shadow-lg shadow-yellow-500/20'
               }`}>
-                <StoreIcon className="w-7 h-7 text-white" />
+                {store.code ? (
+                  <span className={`text-sm font-black italic tracking-tighter ${store.brand === 'BEBELU' ? 'text-black' : 'text-white'}`}>
+                    {store.code}
+                  </span>
+                ) : (
+                  <StoreIcon className={`w-7 h-7 ${store.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
+                )}
               </div>
 
               <div className="flex-1">
@@ -74,13 +80,17 @@ export default function SelectStore() {
                 </div>
               </div>
 
-              <div className="mt-8 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-[#0066FF] group-hover:gap-4 transition-all">
+              <div 
+                className={`mt-8 flex items-center gap-2 text-xs font-black uppercase tracking-widest group-hover:gap-4 transition-all ${
+                  store.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-[#0066FF]'
+                }`}
+              >
                 Acessar Painel <ArrowRight className="w-4 h-4" />
               </div>
               
               {/* Decorative Brand Accent */}
               <div className={`absolute top-6 right-6 w-2 h-2 rounded-full ${
-                 store.brand === '4ESTYLOS' ? 'bg-[#E63946]' : 'bg-[#0066FF]'
+                 store.brand === '4ESTYLOS' ? 'bg-[#E63946]' : 'bg-[#FFCB05]'
               }`} />
             </motion.button>
           ))}
