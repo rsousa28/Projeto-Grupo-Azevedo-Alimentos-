@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Mail, Lock, Loader2, TrendingUp, Info } from 'lucide-react';
@@ -13,7 +13,13 @@ export default function Login() {
   const [recoverySent, setRecoverySent] = useState(false);
   const navigate = useNavigate();
   const { isDarkMode } = useStore();
-  const { login } = useAuth();
+  const { login, user } = useAuth();
+
+  useEffect(() => {
+    if (user) {
+      navigate('/select-store');
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

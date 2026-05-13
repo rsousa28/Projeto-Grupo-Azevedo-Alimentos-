@@ -41,11 +41,10 @@ export default function Finance() {
   const currentMonthData = dreTimeline[2];
   const prevMonthData = dreTimeline[1];
 
-  const formatValue = (val: number) => {
+  const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL',
-      signDisplay: 'auto'
     }).format(val);
   };
 
@@ -61,8 +60,8 @@ export default function Finance() {
       label: '1. RECEITA BRUTA',
       isTotal: false,
       items: [
-        { label: 'Venda Balcão', valor: currentMonthData.faturamento * 0.45 },
-        { label: 'Venda Delivery', valor: currentMonthData.faturamento * 0.55 },
+        { label: 'Venda Balcão', valor: currentMonthData.receitaBalcao ?? (currentMonthData.faturamento * 0.45) },
+        { label: 'Venda Delivery', valor: currentMonthData.receitaDelivery ?? (currentMonthData.faturamento * 0.55) },
       ],
       total: currentMonthData.faturamento
     },
@@ -359,7 +358,7 @@ export default function Finance() {
                            {((Math.abs(group.total) / currentMonthData.faturamento) * 100).toFixed(1)}%
                          </span>
                          <span className={`text-sm font-black w-32 text-right ${group.isTotal ? (group.color || 'dark:text-white') : (isDarkMode ? 'text-slate-300' : 'text-slate-900')}`}>
-                           {formatValue(group.total)}
+                           {formatCurrency(group.total)}
                          </span>
                       </div>
                     </div>
@@ -381,7 +380,7 @@ export default function Finance() {
                                    {((Math.abs(item.valor) / currentMonthData.faturamento) * 100).toFixed(1)}%
                                  </span>
                                  <span className={`text-[11px] font-bold w-32 text-right ${item.valor < 0 ? 'text-red-400' : 'text-slate-400'}`}>
-                                   {formatValue(item.valor)}
+                                   {formatCurrency(item.valor)}
                                  </span>
                               </div>
                             </div>
@@ -406,9 +405,9 @@ export default function Finance() {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                {[
-                 { name: 'Burger Classic', margin: '63%', value: 'R$ 21,50', color: 'bg-green-500' },
-                 { name: 'Batata G', margin: '76%', value: 'R$ 13,80', color: 'bg-indigo-500' },
-                 { name: 'Soda Italiana', margin: '82%', value: 'R$ 15,40', color: 'bg-blue-500' },
+                 { name: 'Burger Classic', margin: '63%', value: 21.50, color: 'bg-green-500' },
+                 { name: 'Batata G', margin: '76%', value: 13.80, color: 'bg-indigo-500' },
+                 { name: 'Soda Italiana', margin: '82%', value: 15.40, color: 'bg-blue-500' },
                ].map((item, i) => (
                  <div key={i} className={`p-5 rounded-3xl border transition-all hover:scale-105 cursor-pointer ${isDarkMode ? 'bg-black/20 border-white/5' : 'bg-slate-50 border-slate-100'}`}>
                     <div className="flex items-center justify-between mb-4">
@@ -416,7 +415,7 @@ export default function Finance() {
                       <span className="text-[10px] font-black text-green-500">{item.margin} mrg</span>
                     </div>
                     <div className="text-xs font-black dark:text-white uppercase tracking-tighter mb-1">{item.name}</div>
-                    <div className="text-[10px] text-slate-500 font-bold italic">{item.value} lucro liq.</div>
+                    <div className="text-[10px] text-slate-500 font-bold italic">{formatCurrency(item.value)} lucro liq.</div>
                  </div>
                ))}
             </div>

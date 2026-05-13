@@ -46,6 +46,13 @@ export default function DataEntry() {
     peakHour: globalPeakHour,
     setPeakHour
   } = useStore();
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(val);
+  };
   const [activeTab, setActiveTab ] = useState<'financial' | 'products' | 'history' | 'goals' | 'channels'>('financial');
   const [saved, setSaved] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio
@@ -182,8 +189,7 @@ export default function DataEntry() {
 
   // Channels states
   const [receitaBalcao, setReceitaBalcao] = useState(deliveryChannels.find(c => c.name === 'Balcão')?.valor || 0);
-  const [receitaIfood, setReceitaIfood] = useState(deliveryChannels.find(c => c.name === 'iFood')?.valor || 0);
-  const [receitaWedo, setReceitaWedo] = useState(deliveryChannels.find(c => c.name === 'WEDO')?.valor || 0);
+  const [receitaDelivery, setReceitaDelivery] = useState((deliveryChannels.find(c => c.name === 'iFood')?.valor || 0) + (deliveryChannels.find(c => c.name === 'WEDO')?.valor || 0) + (deliveryChannels.find(c => c.name === 'Delivery')?.valor || 0));
   const [horarioPico, setHorarioPico] = useState(globalPeakHour);
   
   // Products state (local for editing)
@@ -208,7 +214,7 @@ export default function DataEntry() {
 
   const handleSave = () => {
     // 0. Recalculate total revenue from channels
-    const totalRevenue = receitaBalcao + receitaIfood + receitaWedo;
+    const totalRevenue = receitaBalcao + receitaDelivery;
     setRevenue(totalRevenue);
 
     // 1. Update Metas & Performance
@@ -241,6 +247,8 @@ export default function DataEntry() {
     const newDRE: DREData = {
       month: currentMonthLabel || '',
       faturamento: totalRevenue,
+      receitaBalcao,
+      receitaDelivery: receitaDelivery,
       taxes: totalTaxes,
       cmv: totalCMV,
       payroll: totalPayroll,
@@ -265,8 +273,7 @@ export default function DataEntry() {
 
     // 5. Update Channels & Peak Hour
     setDeliveryChannels([
-      { name: 'iFood', valor: receitaIfood, color: '#EA1D2C' },
-      { name: 'WEDO', valor: receitaWedo, color: '#0066FF' },
+      { name: 'Delivery', valor: receitaDelivery, color: '#EA1D2C' },
       { name: 'Balcão', valor: receitaBalcao, color: isDarkMode ? '#333' : '#FFB800' }
     ]);
     setPeakHour(horarioPico);
@@ -404,20 +411,20 @@ export default function DataEntry() {
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
                        <input 
                          type="number" 
-                         value={receitaBalcao}
-                         onChange={(e) => setReceitaBalcao(Number(e.target.value))}
+                         value={receitaBalcao || ''}
+                         onChange={(e) => setReceitaBalcao(e.target.value === '' ? 0 : Number(e.target.value))}
                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
                      </div>
                    </div>
                    <div className="space-y-2">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Delivery (iFood + Próprio)</label>
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Delivery</label>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
                        <input 
                          type="number" 
-                         value={receitaIfood + receitaWedo}
-                         onChange={(e) => setReceitaIfood(Number(e.target.value))}
+                         value={receitaDelivery || ''}
+                         onChange={(e) => setReceitaDelivery(e.target.value === '' ? 0 : Number(e.target.value))}
                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
                      </div>
@@ -702,7 +709,7 @@ export default function DataEntry() {
                   <div className="w-1.5 h-6 bg-[#0066FF] rounded-full" />
                   <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Canais de Venda</h4>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-2">
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Balcão</label>
                      <div className="relative">
@@ -716,25 +723,13 @@ export default function DataEntry() {
                      </div>
                    </div>
                    <div className="space-y-2">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda iFood</label>
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Delivery</label>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
                        <input 
                          type="number" 
-                         value={receitaIfood}
-                         onChange={(e) => setReceitaIfood(Number(e.target.value))}
-                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
-                       />
-                     </div>
-                   </div>
-                   <div className="space-y-2">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda WEDO</label>
-                     <div className="relative">
-                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
-                       <input 
-                         type="number" 
-                         value={receitaWedo}
-                         onChange={(e) => setReceitaWedo(Number(e.target.value))}
+                         value={receitaDelivery}
+                         onChange={(e) => setReceitaDelivery(Number(e.target.value))}
                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
                      </div>
@@ -835,9 +830,9 @@ export default function DataEntry() {
                                 className={`bg-transparent border-none outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 w-full`}
                               />
                             </td>
-                            <td className="px-6 py-4">R$ {(p.faturamento / (p.quantidadeVendas || 1) * 0.4).toFixed(2)}</td>
-                            <td className="px-6 py-4">R$ {(p.faturamento / p.quantidadeVendas).toFixed(2)}</td>
-                            <td className="px-6 py-4 text-green-500">R$ {(p.faturamento / p.quantidadeVendas * 0.6).toFixed(2)}</td>
+                            <td className="px-6 py-4">{formatCurrency(p.faturamento / (p.quantidadeVendas || 1) * 0.4)}</td>
+                            <td className="px-6 py-4">{formatCurrency(p.faturamento / p.quantidadeVendas)}</td>
+                            <td className="px-6 py-4 text-green-500">{formatCurrency(p.faturamento / p.quantidadeVendas * 0.6)}</td>
                             <td className="px-6 py-4">
                               <span className="px-2 py-1 rounded bg-green-500/10 text-green-500">{p.margin}%</span>
                             </td>

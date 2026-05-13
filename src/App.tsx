@@ -16,6 +16,8 @@ import DataEntry from './pages/DataEntry';
 import CMV from './pages/CMV';
 import AIInsights from './pages/AIInsights';
 
+import { useAuth } from './contexts/AuthContext';
+
 /**
  * Detects if the current environment is a preview/proxy environment.
  */
@@ -27,50 +29,61 @@ function checkPreviewEnvironment(): boolean {
     '.goog',
     'scf.usercontent',
     'stackblitz',
-    'codesandbox'
+    'codesandbox',
+    'run.app'
   ];
   const host = window.location.hostname;
   return identifiers.some(id => host.includes(id));
 }
 
-export default function App() {
-  const isPreview = checkPreviewEnvironment();
-  const Router = isPreview ? HashRouter : BrowserRouter;
+const isPreview = checkPreviewEnvironment();
+const Router = isPreview ? HashRouter : BrowserRouter;
 
+function AppRoutes() {
+  const { user } = useAuth();
+
+  return (
+    <Router>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        
+        <Route path="/select-store" element={
+          <ProtectedRoute>
+            <SelectStore />
+          </ProtectedRoute>
+        } />
+        
+        <Route element={
+          <ProtectedRoute>
+            <Layout />
+          </ProtectedRoute>
+        }>
+           <Route index element={<Navigate to="/dashboard" replace />} />
+           <Route path="/dashboard" element={<Dashboard />} />
+           <Route path="/data-entry" element={<DataEntry />} />
+           <Route path="/finance" element={<Finance />} />
+           <Route path="/cmv" element={<CMV />} />
+           <Route path="/insights" element={<AIInsights />} />
+           <Route path="/inventory" element={<CMV />} />
+           <Route path="/analysis" element={<Dashboard />} />
+           <Route path="/reports" element={<Dashboard />} />
+           <Route path="/team" element={<Dashboard />} />
+        </Route>
+
+        <Route path="/" element={
+          user ? <Navigate to="/select-store" replace /> : <Navigate to="/login" replace />
+        } />
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </Router>
+  );
+}
+
+export default function App() {
   return (
     <AuthProvider>
       <StoreProvider>
-        <Router>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            
-            <Route path="/select-store" element={
-              <ProtectedRoute>
-                <SelectStore />
-              </ProtectedRoute>
-            } />
-            
-            <Route element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }>
-               <Route index element={<Navigate to="/dashboard" replace />} />
-               <Route path="/dashboard" element={<Dashboard />} />
-               <Route path="/data-entry" element={<DataEntry />} />
-               <Route path="/finance" element={<Finance />} />
-               <Route path="/cmv" element={<CMV />} />
-               <Route path="/insights" element={<AIInsights />} />
-               <Route path="/inventory" element={<CMV />} />
-               <Route path="/analysis" element={<Dashboard />} />
-               <Route path="/reports" element={<Dashboard />} />
-               <Route path="/team" element={<Dashboard />} />
-            </Route>
-
-            <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        </Router>
+        <AppRoutes />
       </StoreProvider>
     </AuthProvider>
   );

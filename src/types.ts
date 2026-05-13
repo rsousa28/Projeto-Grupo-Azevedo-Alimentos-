@@ -25,6 +25,8 @@ export interface Metric {
 export interface DREData {
   month: string;
   faturamento: number;
+  receitaBalcao?: number;
+  receitaDelivery?: number;
   taxes: number;
   cmv: number;
   payroll: number;
