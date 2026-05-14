@@ -24,6 +24,7 @@ export interface Metric {
 
 export interface DREData {
   month: string;
+  year?: string;
   faturamento: number;
   receitaBalcao?: number;
   receitaDelivery?: number;
@@ -31,6 +32,8 @@ export interface DREData {
   receitaWedo?: number;
   taxes: number;
   cmv: number;
+  cmvBalcao?: number;
+  cmvDelivery?: number;
   payroll: number;
   royalties: number;
   rent: number;
@@ -43,9 +46,10 @@ export interface DREData {
   despesasVariaveis?: number;
   resultadoFinanceiro?: number;
   
-  // Detailed breakdown breakdown
+  // Detailed breakdown
   details?: {
     deducoes?: Record<string, number>;
+    cmvDetailed?: Record<string, number>;
     despesasVariaveis?: Record<string, number>;
     colaboradores?: Record<string, number>;
     funcionamento?: Record<string, number>;
@@ -65,14 +69,13 @@ export interface ProductPerformance {
   faturamento: number;
   margin: number;
   cmv: number;
+  active?: boolean;
 }
 
 export interface Insumo {
   id: string;
   name: string;
   unit: string;
-  stock: number;
-  minStock: number;
   price: number;
   supplier: string;
 }

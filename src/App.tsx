@@ -64,7 +64,6 @@ function AppRoutes() {
            <Route path="/finance" element={<Finance />} />
            <Route path="/cmv" element={<CMV />} />
            <Route path="/insights" element={<AIInsights />} />
-           <Route path="/inventory" element={<CMV />} />
            <Route path="/analysis" element={<Dashboard />} />
            <Route path="/reports" element={<Dashboard />} />
            <Route path="/team" element={<Dashboard />} />

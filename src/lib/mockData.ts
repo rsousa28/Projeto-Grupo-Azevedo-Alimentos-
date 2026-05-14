@@ -51,23 +51,99 @@ export const lowMarginProducts = [
 ];
 
 export const dreTimeline: DREData[] = [
-  { month: 'Janeiro', faturamento: 110000, receitaBalcao: 49500, receitaDelivery: 60500, receitaIfood: 45000, receitaWedo: 15500, taxes: 6600, cmv: 35000, payroll: 22000, royalties: 5500, rent: 8000, marketing: 3000, operational: 5000, ebitda: 24900, netProfit: 19900, quantidadePedidos: 1650 },
-  { month: 'Fevereiro', faturamento: 115000, receitaBalcao: 51750, receitaDelivery: 63250, receitaIfood: 48000, receitaWedo: 15250, taxes: 6900, cmv: 36000, payroll: 22000, royalties: 5750, rent: 8000, marketing: 3000, operational: 5000, ebitda: 28350, netProfit: 23350, quantidadePedidos: 1720 },
-  { month: 'Março', faturamento: 125430, receitaBalcao: 56443, receitaDelivery: 68987, receitaIfood: 52000, receitaWedo: 16987, taxes: 7525, cmv: 40600, payroll: 22000, royalties: 6271, rent: 8000, marketing: 4000, operational: 5500, ebitda: 31534, netProfit: 32240, quantidadePedidos: 1831 },
+  { 
+    month: 'Janeiro', 
+    faturamento: 110000, 
+    receitaBalcao: 49500, 
+    receitaDelivery: 60500, 
+    receitaIfood: 45000, 
+    receitaWedo: 15500, 
+    taxes: 6600, 
+    cmv: 35000, 
+    cmvBalcao: 14000,
+    cmvDelivery: 21000,
+    payroll: 22000, 
+    royalties: 5500, 
+    rent: 8000, 
+    marketing: 3000, 
+    operational: 5000, 
+    ebitda: 24900, 
+    netProfit: 19900, 
+    quantidadePedidos: 1650,
+    despesasVariaveis: 12000,
+    resultadoFinanceiro: 1500,
+    details: {
+      deducoes: { darfSimples: 6600 },
+      cmvDetailed: { balcao: 14000, delivery: 21000 },
+      despesasVariaveis: { taxaCartao: 2200, taxaMotoqueiro: 3000, taxaIfood: 4500, royalties: 2300 },
+      colaboradores: { salarios: 15000, encargos: 4000, beneficios: 3000 },
+      funcionamento: { aluguel: 6000, energia: 2000 },
+      administrativas: { contabilidade: 800, limpeza: 500 }
+    }
+  },
+  { 
+    month: 'Fevereiro', 
+    faturamento: 115000, 
+    receitaBalcao: 51750, 
+    receitaDelivery: 63250, 
+    receitaIfood: 48000, 
+    receitaWedo: 15250, 
+    taxes: 6900, 
+    cmv: 36000, 
+    cmvBalcao: 14400,
+    cmvDelivery: 21600,
+    payroll: 22000, 
+    royalties: 5750, 
+    rent: 8000, 
+    marketing: 3000, 
+    operational: 5000, 
+    ebitda: 28350, 
+    netProfit: 23350, 
+    quantidadePedidos: 1720,
+    despesasVariaveis: 12500,
+    resultadoFinanceiro: 1600,
+    details: {
+      deducoes: { darfSimples: 6900 },
+      cmvDetailed: { balcao: 14400, delivery: 21600 },
+      despesasVariaveis: { taxaCartao: 2300, taxaMotoqueiro: 3100, taxaIfood: 4700, royalties: 2400 },
+      colaboradores: { salarios: 15000, encargos: 4000, beneficios: 3000 },
+      funcionamento: { aluguel: 6000, energia: 2000 }
+    }
+  },
+  { 
+    month: 'Março', 
+    faturamento: 125430, 
+    receitaBalcao: 56443, 
+    receitaDelivery: 68987, 
+    receitaIfood: 52000, 
+    receitaWedo: 16987, 
+    taxes: 7525, 
+    cmv: 40600, 
+    cmvBalcao: 16240,
+    cmvDelivery: 24360,
+    payroll: 22000, 
+    royalties: 6271, 
+    rent: 8000, 
+    marketing: 4000, 
+    operational: 5500, 
+    ebitda: 31534, 
+    netProfit: 32240, 
+    quantidadePedidos: 1831,
+    despesasVariaveis: 13500,
+    resultadoFinanceiro: 1700,
+    details: {
+      deducoes: { darfSimples: 7525 },
+      cmvDetailed: { balcao: 16240, delivery: 24360 },
+      despesasVariaveis: { taxaCartao: 2500, taxaMotoqueiro: 3200, taxaIfood: 5600, royalties: 2200 },
+      colaboradores: { salarios: 15000, encargos: 4000, beneficios: 3000 },
+      funcionamento: { aluguel: 6000, energia: 2000 }
+    }
+  },
 ];
 
-export const topProducts: ProductPerformance[] = [
-  { id: '1', name: 'Pizza Calabresa G', category: 'Pizzas', quantidadeVendas: 450, faturamento: 26550, margin: 68, cmv: 12.50 },
-  { id: '2', name: 'Burger Artesanal Duo', category: 'Lanches', quantidadeVendas: 380, faturamento: 18240, margin: 62, cmv: 14.80 },
-  { id: '3', name: 'Combo Casal 4E', category: 'Combos', quantidadeVendas: 290, faturamento: 25810, margin: 58, cmv: 35.00 },
-  { id: '4', name: 'Pizza Frango Catupiry', category: 'Pizzas', quantidadeVendas: 210, faturamento: 14490, margin: 65, cmv: 15.20 },
-];
+export const topProducts: ProductPerformance[] = [];
 
-export const inventoryItems: Insumo[] = [
-  { id: '1', name: 'Farinha de Trigo Especial', unit: 'kg', stock: 120, minStock: 50, price: 4.50, supplier: 'Moinho Real' },
-  { id: '2', name: 'Queijo Muçarela', unit: 'kg', stock: 45, minStock: 60, price: 32.90, supplier: 'Laticínios Vale' },
-  { id: '3', name: 'Tomate Pelado Italian', unit: 'un', stock: 180, minStock: 100, price: 8.90, supplier: 'Distribuidora Food' },
-];
+export const inventoryItems: Insumo[] = [];
 
 export const deliveryChannels = [
   { name: 'iFood', valor: 65400, color: '#EA1D2C' },

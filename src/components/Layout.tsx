@@ -3,7 +3,6 @@ import { NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BarChart3, 
-  Package, 
   Calculator, 
   PieChart, 
   Users, 
@@ -33,7 +32,6 @@ const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: ['ADMIN', 'MANAGER', 'FINANCIAL'] },
   { icon: Calculator, label: 'CMV & Fichas', path: '/cmv', allowedRoles: ['ADMIN', 'MANAGER'] },
-  { icon: Package, label: 'Estoque', path: '/inventory', allowedRoles: ['ADMIN', 'MANAGER'] },
   { icon: PieChart, label: 'Análise de Vendas', path: '/analysis' },
   { icon: Zap, label: 'Insights IA', path: '/insights', allowedRoles: ['ADMIN'] },
   { icon: FileText, label: 'Relatórios', path: '/reports', allowedRoles: ['ADMIN', 'MANAGER'] },
@@ -124,7 +122,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                   )}
                 </div>
                 <div className="flex-1 overflow-hidden">
-                  <div className="font-bold text-sm truncate dark:text-white">{currentStore.name}</div>
+                  <div className="font-bold text-sm truncate text-black">{currentStore.name}</div>
                   <div className="text-xs text-slate-500">{currentStore.location}</div>
                 </div>
               </div>

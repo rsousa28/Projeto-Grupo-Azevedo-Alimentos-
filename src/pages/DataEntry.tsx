@@ -394,7 +394,7 @@ export default function DataEntry() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold dark:text-white">Lançamentos - {currentMonthLabel}/{selectedYear}</h2>
-          <p className="text-slate-500">Alimente o sistema com dados reais para atualizar os dashboards</p>
+          <p className="text-slate-800 dark:text-slate-400">Alimente o sistema com dados reais para atualizar os dashboards</p>
         </div>
         <button 
           onClick={handleSave}
@@ -434,7 +434,7 @@ export default function DataEntry() {
               className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                 activeTab === tab.id 
                   ? (currentStore.brand === 'BEBELU' ? 'text-black shadow-lg' : (isDarkMode ? 'bg-[#E63946] text-white shadow-lg' : 'bg-white text-slate-900 shadow-md'))
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  : 'text-slate-800 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'
               }`}
               style={activeTab === tab.id && currentStore.brand === 'BEBELU' ? { backgroundColor: brandColors.button } : {}}
             >
@@ -446,7 +446,7 @@ export default function DataEntry() {
         <div className="flex items-center gap-3 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl w-full lg:w-auto">
           <div className="flex items-center gap-2 px-3">
             <Calendar className="w-4 h-4 text-slate-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Período:</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-400">Período:</span>
           </div>
           <select 
             value={selectedMonth}
@@ -526,7 +526,7 @@ export default function DataEntry() {
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-2">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">DARF / SIMPLES</label>
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-700 dark:text-slate-400">DARF / SIMPLES</label>
                      <input 
                         type="number" 
                         value={deducoes.darfSimples}
@@ -535,7 +535,7 @@ export default function DataEntry() {
                      />
                    </div>
                    <div className="space-y-2">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Custo Variável das Mercadorias (CMV Total)</label>
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-700 dark:text-slate-400">Custo Variável das Mercadorias (CMV Total)</label>
                      <input 
                         type="number" 
                         value={cmvTotal}
@@ -567,7 +567,7 @@ export default function DataEntry() {
                      { label: 'Despesas Ifood', key: 'despesasIfood' }
                    ].map(item => (
                      <div key={item.key} className="space-y-1">
-                       <label className="text-[8px] font-black uppercase text-slate-500 truncate block">{item.label}</label>
+                       <label className="text-[8px] font-black uppercase text-slate-800 dark:text-slate-400 truncate block">{item.label}</label>
                        <input 
                           type="number" 
                           value={(despesasVariaveis as any)[item.key]}
@@ -612,7 +612,7 @@ export default function DataEntry() {
                       { label: 'Outros', key: 'outros' }
                     ].map(item => (
                       <div key={item.key}>
-                        <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
+                        <label className="text-[8px] font-bold text-slate-800 dark:text-slate-400 block mb-1">{item.label}</label>
                         <input 
                            type="number" 
                            value={(colaboradores as any)[item.key]}
@@ -897,14 +897,11 @@ export default function DataEntry() {
                      <Plus className="w-8 h-8 text-slate-400" />
                    </div>
                    <p className="text-sm font-bold dark:text-white mb-1">Importar Planilha de Fichas Técnicas</p>
-                   <p className="text-xs text-slate-500">O sistema cruzará estes dados com o faturamento para calcular o Top Lucratividade.</p>
-                </div>
-
-                <div className="space-y-4 pt-6">
-                  <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 italic">Top Lucratividade (Simulação)</h4>
+                   <p className="text-xs text-slate-500">O sistema cruzará estes dados com o faturamen                 <div className="space-y-4 pt-6">
+                  <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-400 italic">Top Lucratividade (Simulação)</h4>
                   <div className={`overflow-hidden rounded-2xl border ${isDarkMode ? 'border-[#333]' : 'border-slate-100'}`}>
                     <table className="w-full text-left text-xs">
-                      <thead className={`font-bold uppercase tracking-widest ${isDarkMode ? 'bg-black/20 text-slate-500' : 'bg-slate-50 text-slate-400'}`}>
+                      <thead className={`font-bold uppercase tracking-widest ${isDarkMode ? 'bg-black/20 text-slate-500' : 'bg-slate-50 text-slate-800'}`}>
                         <tr>
                           <th className="px-6 py-4 italic">Produto</th>
                           <th className="px-6 py-4 italic">Custo (FT)</th>
@@ -915,7 +912,7 @@ export default function DataEntry() {
                       </thead>
                       <tbody className="divide-y dark:divide-[#333]">
                         {localProducts.map((p, i) => (
-                          <tr key={p.id || i} className={`font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                          <tr key={p.id || i} className={`font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-900'}`}>me={`font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                             <td className="px-6 py-4 italic text-indigo-500 uppercase">
                               <input 
                                 type="text"

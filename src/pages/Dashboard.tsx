@@ -7,7 +7,7 @@ import {
 import { 
   TrendingUp, TrendingDown, DollarSign, PieChart as PieIcon, 
   ShoppingBag, Clock, Users, ArrowUpRight, ArrowDownRight,
-  Zap, Info, Target, Calendar, ArrowRight, ArrowLeft
+  Zap, Info, Target, Calendar, ArrowRight, ArrowLeft, Sparkles
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
@@ -22,7 +22,6 @@ const formatCurrency = (val: number) =>
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [showEntry, setShowEntry] = useState(false);
   const { 
     isDarkMode, 
     currentStore, 
@@ -38,48 +37,118 @@ export default function Dashboard() {
     salesByDay,
     peakHour
   } = useStore();
+
+  const [showEntry, setShowEntry] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('05');
+  const [selectedYear, setSelectedYear] = useState('2026');
+
+  const months = [
+    { value: '01', label: 'Janeiro' },
+    { value: '02', label: 'Fevereiro' },
+    { value: '03', label: 'Março' },
+    { value: '04', label: 'Abril' },
+    { value: '05', label: 'Maio' },
+    { value: '06', label: 'Junho' },
+    { value: '07', label: 'Julho' },
+    { value: '08', label: 'Agosto' },
+    { value: '09', label: 'Setembro' },
+    { value: '10', label: 'Outubro' },
+    { value: '11', label: 'Novembro' },
+    { value: '12', label: 'Dezembro' },
+  ];
+
+  const currentMonthLabel = months.find(m => m.value === selectedMonth)?.label;
   
-  const currentMonthData = dreTimeline[dreTimeline.length - 1];
+  const currentMonthData = dreTimeline.find(d => 
+    d.month === currentMonthLabel && (d.year === selectedYear || (!d.year && selectedYear === '2026'))
+  ) || {
+    month: currentMonthLabel || 'Não Iniciado',
+    faturamento: 0,
+    receitaBalcao: 0,
+    receitaDelivery: 0,
+    receitaIfood: 0,
+    receitaWedo: 0,
+    taxes: 0,
+    cmv: 0,
+    payroll: 0,
+    royalties: 0,
+    rent: 0,
+    marketing: 0,
+    operational: 0,
+    ebitda: 0,
+    netProfit: 0,
+    quantidadePedidos: 0
+  };
   
   const dynamicDeliveryChannels = [
-    { name: 'iFood', valor: currentMonthData.receitaIfood || (currentMonthData.faturamento * 0.40), color: '#EA1D2C' },
-    { name: 'WEDO', valor: currentMonthData.receitaWedo || (currentMonthData.faturamento * 0.15), color: '#0066FF' },
-    { name: 'Balcão', valor: currentMonthData.receitaBalcao || (currentMonthData.faturamento * 0.45), color: isDarkMode ? '#64748b' : '#FFB800' }
+    { name: 'iFood', valor: currentMonthData.receitaIfood || 0, color: '#EA1D2C' },
+    { name: 'WEDO', valor: currentMonthData.receitaWedo || 0, color: '#0066FF' },
+    { name: 'Balcão', valor: currentMonthData.receitaBalcao || 0, color: isDarkMode ? '#64748b' : '#FFB800' }
   ];
 
   const yearlyComparisonData = [
-    { year: '2024', faturamento: yearlyHistory['2024'] || currentMonthData.faturamento * 0.78, color: isDarkMode ? '#333' : '#cbd5e1' },
-    { year: '2025', faturamento: yearlyHistory['2025'] || currentMonthData.faturamento * 0.89, color: '#6366f1' },
-    { year: '2026', faturamento: currentMonthData.faturamento, color: '#4f46e5' },
+    { year: '2024', faturamento: yearlyHistory['2024'] || 0, color: isDarkMode ? '#333' : '#cbd5e1' },
+    { year: '2025', faturamento: yearlyHistory['2025'] || 0, color: '#6366f1' },
+    { year: '2026', faturamento: currentMonthData.faturamento || 0, color: '#4f46e5' },
+  ];
+
+  const currentTopProducts = topProducts.length > 0 ? topProducts : [];
+  const dynamicMostProfitable = [...currentTopProducts]
+    .sort((a, b) => b.margin - a.margin)
+    .slice(0, 3)
+    .map(p => ({ name: p.name, profit: p.faturamento * (p.margin/100) / p.quantidadeVendas, margin: p.margin }));
+    
+  const dynamicLowMargin = [...currentTopProducts]
+    .sort((a, b) => a.margin - b.margin)
+    .slice(0, 3)
+    .map(p => ({ name: p.name, margin: p.margin, status: p.margin < 30 ? 'crítico' : 'atenção' }));
+
+  const faturamento = currentMonthData.faturamento || 0;
+  const netProfit = currentMonthData.netProfit || 0;
+  const cmvRate = faturamento > 0 ? (currentMonthData.cmv / faturamento) * 100 : 0;
+  const ticketMedio = currentMonthData.quantidadePedidos > 0 ? faturamento / currentMonthData.quantidadePedidos : 0;
+  const totalPedidos = currentMonthData.quantidadePedidos || 0;
+  const margemOperacional = faturamento > 0 ? (currentMonthData.ebitda / faturamento) * 100 : 0;
+
+  const displayMetrics = [
+    { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: 'up', change: '0' },
+    { label: 'Lucro Líquido', valor: netProfit, format: 'currency', trend: 'up', change: '0' },
+    { label: 'CMV Médio', valor: cmvRate, format: 'percent', trend: 'down', change: '0' },
+    { label: 'Ticket Médio', valor: ticketMedio, format: 'currency', trend: 'up', change: '0' },
+    { label: 'Pedidos Totais', valor: totalPedidos, format: 'number', trend: 'up', change: '0' },
+    { label: 'Margem Operac.', valor: margemOperacional, format: 'percent', trend: 'up', change: '0' },
   ];
 
   return (
     <div className="space-y-8 pb-10">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black dark:text-white uppercase italic tracking-tighter">
+          <h2 className="text-2xl font-black text-black uppercase italic tracking-tighter">
             {showEntry ? 'Lançamentos Dashboard' : 'Performance de Vendas'}
           </h2>
-          <p className="text-sm text-slate-500 font-medium italic">
+          <p className="text-sm text-slate-800 dark:text-slate-400 font-medium italic">
             {showEntry ? 'Preencha os dados da unidade' : 'Dados consolidados da unidade selecionada'}
           </p>
         </div>
-        <button 
-          onClick={() => setShowEntry(!showEntry)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
-        >
-          {showEntry ? (
-            <>
-              <ArrowLeft className="w-4 h-4" />
-              Voltar ao Dashboard
-            </>
-          ) : (
-            <>
-              Lançamentos Dashboard
-              <ArrowRight className="w-4 h-4" />
-            </>
-          )}
-        </button>
+        
+        <div className="flex flex-wrap items-center gap-3">
+          <button 
+            onClick={() => setShowEntry(!showEntry)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
+          >
+            {showEntry ? (
+              <>
+                <ArrowLeft className="w-4 h-4" />
+                Voltar ao Dashboard
+              </>
+            ) : (
+              <>
+                Lançamentos Dashboard
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {showEntry ? (
@@ -87,7 +156,14 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <DataEntrySection isEmbedded={true} mode="dashboard" />
+          <DataEntrySection 
+            isEmbedded={true} 
+            mode="dashboard" 
+            initialMonth={selectedMonth}
+            initialYear={selectedYear}
+            onMonthChange={setSelectedMonth}
+            onYearChange={setSelectedYear}
+          />
         </motion.div>
       ) : (
         <>
@@ -109,22 +185,27 @@ export default function Dashboard() {
             <Zap className={`w-6 h-6 animate-pulse ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold dark:text-white leading-tight">Insight da IA</h2>
-            <p className="text-slate-500 dark:text-slate-400 max-w-lg">
-              Seu faturamento em <span className="font-bold dark:text-white">Pizza de Calabresa</span> cresceu 15% este mês. Sugerimos um combo promocional com bebida para aumentar o ticket médio.
+            <h2 className="text-2xl font-bold text-black leading-tight">Insight da IA</h2>
+            <p className="text-slate-800 dark:text-slate-400 max-w-lg">
+              {topProducts.length > 0 ? (
+                <>Seu faturamento em <span className="font-bold text-black">{topProducts[0].name}</span> cresceu {topProducts[0].margin > 60 ? 'consistentemente' : 'recentemente'}. Sugerimos um combo promocional para aumentar o ticket médio.</>
+              ) : (
+                <>Alimente o sistema com seus dados de vendas e produtos para receber insights personalizados e alertas de margem em tempo real.</>
+              )}
             </p>
           </div>
         </div>
-        <button className={`px-6 py-3 rounded-xl font-bold transition-all hover:scale-105 active:scale-95 ${
-          isDarkMode ? 'bg-white text-black' : 'bg-slate-900 text-white'
-        }`}>
+        <button 
+          onClick={() => navigate('/insights')}
+          className="px-6 py-3 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
+        >
           Ver Mais Insights
         </button>
       </motion.div>
 
       {/* Main KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {metrics.map((metric, i) => {
+        {displayMetrics.map((metric, i) => {
           const isHealthy = metric.trend === 'up' && metric.label !== 'CMV Médio' || (metric.label === 'CMV Médio' && metric.trend === 'down');
           const statusColor = isHealthy ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10';
           
@@ -139,16 +220,16 @@ export default function Dashboard() {
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{metric.label}</span>
+                <span className="text-[10px] font-bold text-slate-800 dark:text-slate-400 uppercase tracking-wider">{metric.label}</span>
                 <div className={`flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor}`}>
                   {metric.trend === 'up' ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
                   {metric.change}%
                 </div>
               </div>
-              <div className="text-lg font-black dark:text-white truncate">
+              <div className="text-lg font-black text-black truncate">
                 {metric.format === 'currency' ? formatCurrency(metric.valor as number) : `${metric.valor}${metric.format === 'percent' ? '%' : ''}`}
               </div>
-              <div className="text-[9px] text-slate-400 mt-1 italic">vs. mês anterior</div>
+              <div className="text-[9px] text-slate-600 dark:text-slate-500 mt-1 italic">vs. mês anterior</div>
             </motion.div>
           );
         })}
@@ -159,7 +240,7 @@ export default function Dashboard() {
         {/* Revenue Trend */}
         <div className={`lg:col-span-2 p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold dark:text-white flex items-center gap-2">
+            <h3 className="text-lg font-bold text-black flex items-center gap-2">
               <TrendingUp className="w-5 h-5" style={{ color: brandColors.primary }} /> Crescimento Mensal
             </h3>
             <div className="flex gap-2">
@@ -183,7 +264,7 @@ export default function Dashboard() {
 
         {/* Meta vs Realizado */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className="text-lg font-bold dark:text-white mb-6">Meta vs. Realizado</h3>
+          <h3 className="text-lg font-bold text-black mb-6">Meta vs. Realizado</h3>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={metaVsRealizado}>
@@ -198,7 +279,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
           <div className="mt-6 p-4 rounded-xl bg-slate-50 dark:bg-black/20 text-center">
-            <div className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-1">Atingimento</div>
+            <div className="text-xs text-slate-800 dark:text-slate-400 uppercase font-bold tracking-widest mb-1">Atingimento</div>
             <div className={`text-3xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
               {((metaVsRealizado[1].valor / metaVsRealizado[0].valor) * 100).toFixed(1)}%
             </div>
@@ -219,7 +300,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Hourly Sales */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className="text-lg font-bold dark:text-white mb-6 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-black mb-6 flex items-center gap-2">
             <Clock className="w-5 h-5 text-orange-500" /> Fluxo por Horário
           </h3>
           <div className="h-[250px]">
@@ -231,7 +312,7 @@ export default function Dashboard() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-[10px] text-slate-500 mt-4 text-center italic">Horário de pico detectado: <span className="font-bold text-slate-900 dark:text-white">{peakHour}h</span></p>
+          <p className="text-[10px] text-slate-800 mt-4 text-center italic">Horário de pico detectado: <span className="font-bold text-slate-900 dark:text-white">{peakHour}h</span></p>
         </div>
 
         {/* Comparativo Mensal YoY */}
@@ -241,7 +322,7 @@ export default function Dashboard() {
               <h3 className="text-lg font-bold dark:text-white flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-indigo-500" /> Histórico de {currentMonthData.month}
               </h3>
-              <p className="text-[10px] text-slate-500 font-medium italic">Evolução do mesmo mês em 2024, 2025 e 2026</p>
+              <p className="text-[10px] text-slate-800 dark:text-slate-400 font-medium italic">Evolução do mesmo mês em 2024, 2025 e 2026</p>
             </div>
             <div className="flex gap-3">
                {yearlyComparisonData.map(item => (
@@ -297,18 +378,20 @@ export default function Dashboard() {
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center gap-2 mb-6">
             <TrendingUp className="w-5 h-5 text-green-500" />
-            <h3 className="text-lg font-bold dark:text-white">Top Lucratividade</h3>
+            <h3 className="text-lg font-bold text-black">Top Lucratividade</h3>
           </div>
           <div className="space-y-4">
-            {mostProfitable.map((p, i) => (
+            {dynamicMostProfitable.length > 0 ? dynamicMostProfitable.map((p, i) => (
               <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
-                <div>
-                  <div className="text-xs font-bold dark:text-white uppercase italic">{p.name}</div>
-                  <div className="text-[10px] text-slate-500">Margem: {p.margin}%</div>
+                <div className="overflow-hidden">
+                  <div className="text-xs font-bold dark:text-white uppercase italic truncate">{p.name}</div>
+                  <div className="text-[10px] text-slate-800 dark:text-slate-400">Margem: {p.margin}%</div>
                 </div>
-                <div className="text-sm font-black text-green-500">+{formatCurrency(p.profit)}</div>
+                <div className="text-sm font-black text-green-500 whitespace-nowrap">+{formatCurrency(p.profit)}</div>
               </div>
-            ))}
+            )) : (
+              <div className="text-center py-8 text-slate-400 text-xs italic">Nenhum produto cadastrado</div>
+            )}
           </div>
         </div>
 
@@ -316,26 +399,28 @@ export default function Dashboard() {
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center gap-2 mb-6">
             <TrendingDown className="w-5 h-5 text-red-500" />
-            <h3 className="text-lg font-bold dark:text-white">Alerta de Margem</h3>
+            <h3 className="text-lg font-bold text-black">Alerta de Margem</h3>
           </div>
           <div className="space-y-4">
-            {lowMarginProducts.map((p, i) => (
+            {dynamicLowMargin.length > 0 ? dynamicLowMargin.map((p, i) => (
               <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
-                <div>
-                  <div className="text-xs font-bold dark:text-white uppercase italic">{p.name}</div>
-                  <div className="text-[10px] text-slate-500">Status: {p.status}</div>
+                <div className="overflow-hidden">
+                  <div className="text-xs font-bold dark:text-white uppercase italic truncate">{p.name}</div>
+                  <div className="text-[10px] text-slate-800 dark:text-slate-400">Status: {p.status}</div>
                 </div>
                 <div className={`text-sm font-black ${p.status === 'crítico' ? 'text-red-500' : 'text-yellow-500'}`}>
                   {p.margin}%
                 </div>
               </div>
-            ))}
+            )) : (
+              <div className="text-center py-8 text-slate-400 text-xs italic">Nenhum produto cadastrado</div>
+            )}
           </div>
         </div>
 
         {/* Resumo DRE */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className="text-lg font-bold dark:text-white mb-6">DRE Resumido</h3>
+          <h3 className="text-lg font-bold text-black mb-6">DRE Resumido</h3>
           <div className="space-y-3">
              {[
                { label: 'Receita Bruta', valor: currentMonthData.faturamento, color: 'text-indigo-600' },
@@ -408,7 +493,7 @@ export default function Dashboard() {
         <div className={`p-6 rounded-3xl border transition-colors duration-500 ${
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <h3 className="text-lg font-bold dark:text-white mb-6 flex items-center gap-2">
+          <h3 className="text-lg font-bold text-black mb-6 flex items-center gap-2">
             <Zap className="w-5 h-5 text-yellow-500" /> Indicadores Operacionais
           </h3>
           <div className="space-y-6">
@@ -418,8 +503,8 @@ export default function Dashboard() {
                 <div key={op.label}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4 text-slate-400" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{op.label}</span>
+                      <Icon className="w-4 h-4 text-slate-600" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-black dark:text-slate-400">{op.label}</span>
                     </div>
                     <span className="text-sm font-black dark:text-white">{op.valor}</span>
                   </div>
@@ -445,7 +530,7 @@ export default function Dashboard() {
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'
         }`}>
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-lg font-bold dark:text-white">Engenharia de Cardápio</h3>
+            <h3 className="text-lg font-bold text-black">Engenharia de Cardápio</h3>
             <button className="text-sm font-bold text-indigo-600 hover:underline">Ver Tabela ABC</button>
           </div>
           <div className="overflow-x-auto">
@@ -459,7 +544,7 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-[#333]">
-                {topProducts.map((p) => (
+                {topProducts.length > 0 ? topProducts.map((p) => (
                   <tr key={p.id} className="group">
                     <td className="py-4">
                       <div className="flex items-center gap-3">
@@ -469,14 +554,14 @@ export default function Dashboard() {
                           {p.name[0]}
                         </div>
                         <div>
-                          <div className="font-bold text-sm dark:text-white group-hover:text-indigo-600 transition-colors uppercase italic">{p.name}</div>
-                          <div className="text-xs text-slate-500">{p.category}</div>
+                          <div className="font-bold text-sm text-black group-hover:text-indigo-600 transition-colors uppercase italic">{p.name}</div>
+                          <div className="text-xs text-slate-800 dark:text-slate-400">{p.category}</div>
                         </div>
                       </div>
                     </td>
                     <td className="py-4">
                       <div className="font-bold text-sm dark:text-white">{p.quantidadeVendas} un</div>
-                      <div className="text-xs text-slate-500">{formatCurrency(p.faturamento)}</div>
+                      <div className="text-xs text-slate-800 dark:text-slate-400">{formatCurrency(p.faturamento)}</div>
                     </td>
                     <td className="py-4">
                       <div className={`text-sm font-bold ${p.margin > 60 ? 'text-green-500' : 'text-yellow-500'}`}>
@@ -491,7 +576,13 @@ export default function Dashboard() {
                       </span>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-slate-400 text-xs italic">
+                      Nenhum produto cadastrado para análise. Use a seção de lançamentos.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -506,9 +597,9 @@ export default function Dashboard() {
           }`}>
             <div className="flex items-center gap-2 mb-3">
               <Info className="w-4 h-4 text-indigo-600" />
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Dica Operacional</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-400">Dica Operacional</span>
             </div>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">
+            <p className="text-xs text-slate-900 dark:text-slate-300 leading-relaxed italic">
               Reduzindo o CMV em 2%, seu lucro operacional mensal pode crescer aproximadamente R$ 2.500,00 na unidade atual.
             </p>
           </div>
@@ -516,6 +607,7 @@ export default function Dashboard() {
       </div>
         </>
       )}
+
     </div>
   );
 }

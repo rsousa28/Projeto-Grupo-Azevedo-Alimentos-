@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "Store": {
+      "title": "Store",
+      "description": "Restaurant units",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "brand": { "type": "string" },
+        "location": { "type": "string" },
+        "code": { "type": "string" }
+      },
+      "required": ["id", "name", "brand"]
+    },
+    "CMVPeriod": {
+      "title": "CMV Period Data",
+      "description": "CMV and product margem data for a specific month/year",
+      "type": "object",
+      "properties": {
+        "month": { "type": "string" },
+        "year": { "type": "string" },
+        "inventoryItems": { "type": "array" },
+        "topProducts": { "type": "array" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["month", "year", "inventoryItems", "topProducts"]
+    }
+  },
+  "firestore": {
+    "/stores/{storeId}": {
+      "schema": "Store",
+      "description": "Store profile"
+    },
+    "/stores/{storeId}/cmv_periods/{periodId}": {
+      "schema": "CMVPeriod",
+      "description": "Historical CMV data by period"
+    },
+    "/stores/{storeId}/dre_periods/{periodId}": {
+      "schema": "object",
+      "description": "DRE data by period"
+    }
+  }
+}

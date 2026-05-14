@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { 
   Save, 
   Plus, 
+  Trash2,
   DollarSign, 
   PieChart, 
   Target, 
-  Package, 
   ArrowRight,
   TrendingUp,
   FileText,
@@ -20,7 +20,21 @@ import { motion } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
 import { DREData } from '../types';
 
-export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: { isEmbedded?: boolean, mode?: 'dashboard' | 'finance' | 'full' }) {
+export default function DataEntrySection({ 
+  isEmbedded = false, 
+  mode = 'full',
+  initialMonth = '05',
+  initialYear = '2026',
+  onMonthChange,
+  onYearChange
+}: { 
+  isEmbedded?: boolean, 
+  mode?: 'dashboard' | 'finance' | 'full',
+  initialMonth?: string,
+  initialYear?: string,
+  onMonthChange?: (m: string) => void,
+  onYearChange?: (y: string) => void
+}) {
   const { 
     isDarkMode, 
     brandColors,
@@ -44,7 +58,9 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
     salesByDay,
     setSalesByDay,
     peakHour: globalPeakHour,
-    setPeakHour
+    setPeakHour,
+    saveCMVPeriod,
+    saveDREPeriod,
   } = useStore();
 
   const formatCurrency = (val: number) => {
@@ -73,8 +89,8 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
     mode === 'dashboard' ? 'channels' : 'financial'
   );
   const [saved, setSaved] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('05'); // Maio
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const [selectedMonth, setSelectedMonth] = useState(initialMonth); // Maio
+  const [selectedYear, setSelectedYear] = useState(initialYear);
 
   // Metas & Performance states
   const [faturamentoMeta, setFaturamentoMeta] = useState(metaVsRealizado[0]?.valor || 140000);
@@ -95,6 +111,8 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
   });
 
   const [cmvTotal, setCmvTotal] = useState(0);
+  const [cmvBalcao, setCmvBalcao] = useState(0);
+  const [cmvDelivery, setCmvDelivery] = useState(0);
 
   const [despesasVariaveis, setDespesasVariaveis] = useState<Record<string, number>>({
     taxaCartao: 0,
@@ -107,6 +125,7 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
     taxaPix: 0,
     bonificacoes: 0,
     descontos: 0,
+    griSecretaria: 0,
     despesasIfood: 0
   });
 
@@ -129,7 +148,7 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
     pos: 0,
     atestadoExame: 0,
     uniformesEPI: 0,
-    outros: 0
+    outrosBeneficios: 0
   });
 
   const [funcionamento, setFuncionamento] = useState<Record<string, number>>({
@@ -148,7 +167,7 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
     locacaoMaq: 0,
     manutencaoSist: 0,
     manutencaoEquip: 0,
-    outros: 0
+    outrosManutencao: 0
   });
 
   const [comerciais, setComerciais] = useState<Record<string, number>>({
@@ -176,7 +195,7 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
     ronyXimenes: 0,
     seguros: 0,
     taxaAlvara: 0,
-    despesasOperacionais: 0,
+    despesasOperacionales: 0,
     despesasGerais: 0
   });
 
@@ -224,7 +243,7 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
 
   // EFFECT: Load data when month changes
   useEffect(() => {
-    const monthData = dreTimeline.find(d => d.month === currentMonthLabel);
+    const monthData = dreTimeline.find(d => d.month === currentMonthLabel && (d.year === selectedYear || (!d.year && selectedYear === '2026')));
     if (monthData) {
       setRevenue(monthData.faturamento);
       setReceitaBalcao(monthData.receitaBalcao || 0);
@@ -233,10 +252,16 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
       setReceitaDelivery(monthData.receitaDelivery || 0);
       setQuantidadePedidos(monthData.quantidadePedidos || 0);
       setCmvTotal(monthData.cmv);
+      setCmvBalcao(monthData.cmvBalcao || 0);
+      setCmvDelivery(monthData.cmvDelivery || 0);
       setDeducoes({ darfSimples: monthData.taxes });
       
       if (monthData.details) {
         if (monthData.details.deducoes) setDeducoes(monthData.details.deducoes);
+        if (monthData.details.cmvDetailed) {
+          setCmvBalcao(monthData.details.cmvDetailed.balcao || 0);
+          setCmvDelivery(monthData.details.cmvDetailed.delivery || 0);
+        }
         if (monthData.details.despesasVariaveis) setDespesasVariaveis(monthData.details.despesasVariaveis);
         if (monthData.details.colaboradores) setColaboradores(monthData.details.colaboradores);
         if (monthData.details.funcionamento) setFuncionamento(monthData.details.funcionamento);
@@ -260,22 +285,24 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
       setReceitaDelivery(0);
       setQuantidadePedidos(0);
       setCmvTotal(0);
+      setCmvBalcao(0);
+      setCmvDelivery(0);
       setDeducoes({ darfSimples: 0 });
       setDespesasVariaveis({
         taxaCartao: 0, taxaMotoqueiro: 0, taxaIfood: 0, freteCompras: 0, fundoMarketing: 0, 
-        royalties: 0, taxaBancariaJuros: 0, taxaPix: 0, bonificacoes: 0, descontos: 0, despesasIfood: 0
+        royalties: 0, taxaBancariaJuros: 0, taxaPix: 0, bonificacoes: 0, descontos: 0, griSecretaria: 0, despesasIfood: 0
       });
       setColaboradores({
         salarios: 0, proLabore: 0, avulso: 0, diarias: 0, premiacao: 0, gratificacoes: 0,
         decimoTerceiro: 0, ferias: 0, INSS: 0, FGTS: 0, rescisorias: 0, cortesia: 0,
-        valeTransp: 0, valeAlim: 0, alimentacao: 0, pos: 0, atestadoExame: 0, uniformesEPI: 0, outros: 0
+        valeTransp: 0, valeAlim: 0, alimentacao: 0, pos: 0, atestadoExame: 0, uniformesEPI: 0, outrosBeneficios: 0
       });
       setFuncionamento({ aluguel: 0, condominio: 0, energiaCâmaraFria: 0, iptu: 0, energiaEletrica: 0, agua: 0, arCondicionado: 0, internetTelefonia: 0 });
-      setManutencao({ escritorios: 0, locacaoMaq: 0, manutencaoSist: 0, manutencaoEquip: 0, outros: 0 });
+      setManutencao({ escritorios: 0, locacaoMaq: 0, manutencaoSist: 0, manutencaoEquip: 0, outrosManutencao: 0 });
       setComerciais({ aplicativo: 0, marketing: 0, frete: 0 });
       setAdministrativas({
         sindicato: 0, limpeza: 0, taxaCallCenter: 0, sistemaBERP: 0, consultoria: 0, contabilidade: 0, premiacao: 0, dedetizacao: 0, certificado: 0,
-        fretesDiversos: 0, utensilios: 0, materialConsumo: 0, materialEscritorio: 0, materialLimpeza: 0, combustiveis: 0, ronyXimenes: 0, seguros: 0, taxaAlvara: 0, despesasOperacionais: 0, despesasGerais: 0
+        fretesDiversos: 0, utensilios: 0, materialConsumo: 0, materialEscritorio: 0, materialLimpeza: 0, combustiveis: 0, ronyXimenes: 0, seguros: 0, taxaAlvara: 0, despesasOperacionales: 0, despesasGerais: 0
       });
       setResultadoFinanceiro({ taxasIfood: 0, tarifasBancarias: 0, taxasBancarias: 0, jurosRecebidos: 0 });
       setGriFinal(0);
@@ -284,11 +311,13 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
 
   const years = ['2023', '2024', '2025', '2026'];
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const totalDelivery = receitaIfood + receitaWedo;
     const totalRevenue = receitaBalcao + totalDelivery;
+    const currentCmvTotal = cmvBalcao + cmvDelivery;
     setReceitaDelivery(totalDelivery);
     setRevenue(totalRevenue);
+    setCmvTotal(currentCmvTotal);
 
     const totalTaxes = (deducoes.darfSimples || 0);
     const totalVariaveis = (Object.values(despesasVariaveis) as number[]).reduce((a, b) => a + b, 0);
@@ -317,20 +346,23 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
       '2025': receita2025,
     });
     
-    const margemContribuicao = totalRevenue - totalTaxes - cmvTotal - totalVariaveis;
+    const margemContribuicao = totalRevenue - totalTaxes - currentCmvTotal - totalVariaveis;
     const ebitda = margemContribuicao - totalOperacionalFixa;
     const resultadoAntesGRI = ebitda - totalFinanc;
     const netProfit = resultadoAntesGRI - griFinal;
     
     const newDRE: DREData = {
       month: currentMonthLabel || '',
+      year: selectedYear,
       faturamento: totalRevenue,
       receitaBalcao,
       receitaIfood,
       receitaWedo,
       receitaDelivery: totalDelivery,
       taxes: totalTaxes,
-      cmv: cmvTotal,
+      cmv: currentCmvTotal,
+      cmvBalcao,
+      cmvDelivery,
       quantidadePedidos: quantidadePedidos,
       payroll: totalPayroll,
       royalties: Number(despesasVariaveis.royalties) || 0,
@@ -343,6 +375,10 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
       netProfit,
       details: {
         deducoes,
+        cmvDetailed: {
+          balcao: cmvBalcao,
+          delivery: cmvDelivery
+        },
         despesasVariaveis,
         colaboradores,
         funcionamento,
@@ -355,7 +391,9 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
     };
 
     const updatedTimeline = [...dreTimeline];
-    const existingIndex = updatedTimeline.findIndex(d => d.month === currentMonthLabel);
+    const existingIndex = updatedTimeline.findIndex(d => 
+      d.month === currentMonthLabel && (d.year === selectedYear || (!d.year && selectedYear === '2026'))
+    );
     if (existingIndex >= 0) {
       updatedTimeline[existingIndex] = newDRE;
     } else {
@@ -393,6 +431,15 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
     setTopProducts(localProducts);
     
     setSaved(true);
+    
+    // Save to Firebase
+    try {
+      await saveDREPeriod(selectedMonth, selectedYear, newDRE);
+      await saveCMVPeriod(selectedMonth, selectedYear, [], localProducts); // Inventory handling could be added later if needed
+    } catch (err) {
+      console.error('Error saving to Firebase:', err);
+    }
+
     setTimeout(() => setSaved(false), 3000);
   };
 
@@ -401,8 +448,8 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
       {!isEmbedded && (
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold dark:text-white">Lançamentos - {currentMonthLabel}/{selectedYear}</h2>
-            <p className="text-slate-500">Alimente o sistema com dados reais para atualizar os dashboards</p>
+            <h2 className="text-3xl font-bold text-black font-black">Lançamentos - {currentMonthLabel}/{selectedYear}</h2>
+            <p className="text-slate-500 font-medium">Alimente o sistema com dados reais para atualizar os dashboards</p>
           </div>
           <button 
             onClick={handleSave}
@@ -451,7 +498,11 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
           </div>
           <select 
             value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedMonth(val);
+              onMonthChange?.(val);
+            }}
             className={`px-4 py-2 rounded-xl text-xs font-bold outline-none transition-all cursor-pointer ${
               isDarkMode ? 'bg-[#1E1E1E] text-white' : 'bg-white text-slate-900'
             }`}
@@ -462,7 +513,11 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
           </select>
           <select 
             value={selectedYear}
-            onChange={(e) => setSelectedYear(e.target.value)}
+            onChange={(e) => {
+              const val = e.target.value;
+              setSelectedYear(val);
+              onYearChange?.(val);
+            }}
             className={`px-4 py-2 rounded-xl text-xs font-bold outline-none transition-all cursor-pointer ${
               isDarkMode ? 'bg-[#1E1E1E] text-white' : 'bg-white text-slate-900'
             }`}
@@ -483,7 +538,7 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: brandColors.primary }} />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">1. Receita Bruta</h4>
+                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">1. Receita Bruta</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-2">
@@ -494,7 +549,7 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
                      </div>
                    </div>
                    <div className="space-y-2">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Delivery (Soma iFood + WEDO)</label>
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Delivery</label>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
                        <input type="number" value={receitaDelivery || ''} readOnly className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold cursor-not-allowed opacity-75 ${isDarkMode ? 'bg-black/40 border-[#333] text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500'}`} />
@@ -506,16 +561,33 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: brandColors.secondary }} />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">2 & 3. Deduções e CMV</h4>
+                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">2. Deduções da Receita</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-2">
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">DARF / SIMPLES</label>
                      <input type="number" value={deducoes.darfSimples} onChange={(e) => setDeducoes({...deducoes, darfSimples: Number(e.target.value)})} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
                    </div>
+                </div>
+              </section>
+
+              <section className="space-y-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-1.5 h-6 rounded-full bg-red-500" />
+                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">3. Custos Variáveis das Mercadorias</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="space-y-2">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Custo Variável das Mercadorias (CMV Total)</label>
-                     <input type="number" value={cmvTotal} onChange={(e) => setCmvTotal(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">CMV Total</label>
+                     <input type="number" value={cmvBalcao + cmvDelivery} readOnly className={`w-full px-4 py-3 rounded-xl border outline-none font-bold opacity-75 ${isDarkMode ? 'bg-black/40 border-[#333] text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500'}`} />
+                   </div>
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">CMV - Balcão</label>
+                     <input type="number" value={cmvBalcao} onChange={(e) => setCmvBalcao(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                   </div>
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">CMV - Delivery</label>
+                     <input type="number" value={cmvDelivery} onChange={(e) => setCmvDelivery(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
                    </div>
                 </div>
               </section>
@@ -523,11 +595,22 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-orange-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">4. Despesas Variáveis</h4>
+                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">4. Despesas Variáveis</h4>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                    {[
-                     { label: 'Taxas Cartão', key: 'taxaCartao' }, { label: 'Taxa Motoqueiro', key: 'taxaMotoqueiro' }, { label: 'Taxa Ifood', key: 'taxaIfood' }, { label: 'Frete Compras', key: 'freteCompras' }, { label: 'Fundo Marketing', key: 'fundoMarketing' }, { label: 'Royalties', key: 'royalties' }, { label: 'Taxa Bancária + Juros', key: 'taxaBancariaJuros' }, { label: 'Taxas PIX', key: 'taxaPix' }, { label: 'Bonificações/Comissões', key: 'bonificacoes' }, { label: 'Descontos/Cortesia', key: 'descontos' }, { label: 'Despesas Ifood', key: 'despesasIfood' }
+                     { label: 'Taxas Cartão', key: 'taxaCartao' }, 
+                     { label: 'Taxa Motoqueiro', key: 'taxaMotoqueiro' }, 
+                     { label: 'Taxa Ifood', key: 'taxaIfood' }, 
+                     { label: 'Frete Compras', key: 'freteCompras' }, 
+                     { label: 'Fundo Marketing - Franquia', key: 'fundoMarketing' }, 
+                     { label: 'Royalties - Franquia', key: 'royalties' }, 
+                     { label: 'Taxa Bancária + Juros', key: 'taxaBancariaJuros' }, 
+                     { label: 'Taxas PIX', key: 'taxaPix' }, 
+                     { label: 'Bonificações/Comissões', key: 'bonificacoes' }, 
+                     { label: 'Descontos/Cortesia', key: 'descontos' }, 
+                     { label: 'GRI - Sec. Fazenda', key: 'griSecretaria' },
+                     { label: 'Despesas Ifood', key: 'despesasIfood' }
                    ].map(item => (
                      <div key={item.key} className="space-y-1">
                        <label className="text-[8px] font-black uppercase text-slate-500 truncate block">{item.label}</label>
@@ -540,13 +623,13 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
               <section className="space-y-10">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-slate-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Despesas Fixas Operacionais</h4>
+                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">5. Despesas Fixas Operacionais</h4>
                 </div>
                 <div className="space-y-4">
-                  <h5 className="text-[10px] font-black uppercase text-indigo-500 bg-indigo-500/5 px-3 py-1 rounded w-fit">Colaboradores e Encargos</h5>
+                  <h5 className="text-[10px] font-black uppercase text-indigo-500 bg-indigo-500/5 px-3 py-1 rounded w-fit">Despesas com Colaboradores e Encargos</h5>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {[
-                      { label: 'Salários', key: 'salarios' }, { label: 'Pro Labore', key: 'proLabore' }, { label: 'Avulso', key: 'avulso' }, { label: 'Diárias', key: 'diarias' }, { label: 'Premiação', key: 'premiacao' }, { label: 'Gratificações', key: 'gratificacoes' }, { label: '13o. salário', key: 'decimoTerceiro' }, { label: 'Férias', key: 'ferias' }, { label: 'INSS', key: 'INSS' }, { label: 'FGTS', key: 'FGTS' }, { label: 'Rescisórias', key: 'rescisorias' }, { label: 'Cortesia', key: 'cortesia' }, { label: 'Vale Transp.', key: 'valeTransp' }, { label: 'Vale Alim.', key: 'valeAlim' }, { label: 'Alimentação', key: 'alimentacao' }, { label: 'POS', key: 'pos' }, { label: 'Atestado/Exame', key: 'atestadoExame' }, { label: 'Uniformes/EPI', key: 'uniformesEPI' }, { label: 'Outros', key: 'outros' }
+                      { label: 'Salários', key: 'salarios' }, { label: 'Pro Labore', key: 'proLabore' }, { label: 'Avulso', key: 'avulso' }, { label: 'Diárias', key: 'diarias' }, { label: 'Premiação', key: 'premiacao' }, { label: 'Gratificações', key: 'gratificacoes' }, { label: '13o. salário', key: 'decimoTerceiro' }, { label: 'Férias', key: 'ferias' }, { label: 'INSS', key: 'INSS' }, { label: 'FGTS', key: 'FGTS' }, { label: 'Verbas Rescisórias', key: 'rescisorias' }, { label: 'Cortesia', key: 'cortesia' }, { label: 'Vale Transp.', key: 'valeTransp' }, { label: 'Vale Alim.', key: 'valeAlim' }, { label: 'Alimentação', key: 'alimentacao' }, { label: 'POS', key: 'pos' }, { label: 'Atestado/Exame', key: 'atestadoExame' }, { label: 'Uniformes/EPI', key: 'uniformesEPI' }, { label: 'Outros Benefícios', key: 'outrosBeneficios' }
                     ].map(item => (
                       <div key={item.key}>
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
@@ -568,10 +651,47 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
                     ))}
                   </div>
                 </div>
+                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-white/5">
+                  <h5 className="text-[10px] font-black uppercase text-green-500 bg-green-500/5 px-3 py-1 rounded w-fit">Despesas com Manutenção</h5>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Escritórios', key: 'escritorios' }, { label: 'Locação Maq.', key: 'locacaoMaq' }, { label: 'Manutenção Sist.', key: 'manutencaoSist' }, { label: 'Manutenção Equip.', key: 'manutencaoEquip' }, { label: 'Outros Gastos', key: 'outrosManutencao' }
+                    ].map(item => (
+                      <div key={item.key}>
+                        <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
+                        <input type="number" value={(manutencao as any)[item.key]} onChange={(e) => setManutencao({...manutencao, [item.key]: Number(e.target.value)})} className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-white/5">
+                  <h5 className="text-[10px] font-black uppercase text-blue-500 bg-blue-500/5 px-3 py-1 rounded w-fit">Despesas Comerciais</h5>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {[
+                      { label: 'Aplicativo', key: 'aplicativo' }, { label: 'Marketing', key: 'marketing' }, { label: 'Frete', key: 'frete' }
+                    ].map(item => (
+                      <div key={item.key}>
+                        <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
+                        <input type="number" value={(comerciais as any)[item.key]} onChange={(e) => setComerciais({...comerciais, [item.key]: Number(e.target.value)})} className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="space-y-4 pt-4 border-t border-slate-100 dark:border-white/5">
+                  <h5 className="text-[10px] font-black uppercase text-purple-500 bg-purple-500/5 px-3 py-1 rounded w-fit">Despesas Administrativas</h5>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Sindicato', key: 'sindicato' }, { label: 'Limpeza', key: 'limpeza' }, { label: 'Taxa Call Center', key: 'taxaCallCenter' }, { label: 'Sistema BERP', key: 'sistemaBERP' }, { label: 'Consultoria', key: 'consultoria' }, { label: 'Contabilidade', key: 'contabilidade' }, { label: 'Premiação', key: 'premiacao' }, { label: 'Dedetização', key: 'dedetizacao' }, { label: 'Certificado', key: 'certificado' }, { label: 'Fretes Diversos', key: 'fretesDiversos' }, { label: 'Utensílios', key: 'utensilios' }, { label: 'Material Consumo', key: 'materialConsumo' }, { label: 'Material Escritório', key: 'materialEscritorio' }, { label: 'Material Limpeza', key: 'materialLimpeza' }, { label: 'Combustíveis', key: 'combustiveis' }, { label: 'Retirado P. Rony', key: 'ronyXimenes' }, { label: 'Seguros', key: 'seguros' }, { label: 'Taxa Alvará', key: 'taxaAlvara' }, { label: 'Despesas Operacionais', key: 'despesasOperacionales' }, { label: 'Despesas Gerais', key: 'despesasGerais' }
+                    ].map(item => (
+                      <div key={item.key}>
+                        <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
+                        <input type="number" value={(administrativas as any)[item.key]} onChange={(e) => setAdministrativas({...administrativas, [item.key]: Number(e.target.value)})} className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </section>
 
-              {/* OUTRAS SECOES... (omitindo para brevidade, mas o ideal seria copiar todas) */}
-              {/* Para garantir que nada mude, vou copiar as secoes de canais e o resto */}
             </motion.div>
           )}
 
@@ -580,7 +700,7 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
                <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-[#0066FF] rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Canais de Venda</h4>
+                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">Canais de Venda</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="space-y-2">
@@ -609,7 +729,7 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-yellow-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Picos de Venda</h4>
+                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">Picos de Venda</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -629,7 +749,7 @@ export default function DataEntrySection({ isEmbedded = false, mode = 'full' }: 
           {activeTab === 'products' && (
              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Fichas Técnicas & Engenharia de Cardápio</h4>
+                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">Fichas Técnicas & Engenharia de Cardápio</h4>
                   <button onClick={() => setLocalProducts([...localProducts, { id: Math.random().toString(), name: 'Novo Produto ' + (localProducts.length + 1), quantidadeVendas: 100, faturamento: 5000, margin: 65, category: 'Comida' }])} className="text-[10px] font-black uppercase tracking-widest text-[#0066FF] hover:underline">+ Simular Novo Produto</button>
                 </div>
                 <div className={`p-10 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center text-center transition-all ${isDarkMode ? 'border-[#333] hover:border-[#E63946]' : 'border-slate-200 hover:border-[#0066FF]'}`}>
