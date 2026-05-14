@@ -74,10 +74,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, [currentStore.brand, isDarkMode]);
   const [topProducts, setTopProducts] = useState<any[]>(mockTopProducts);
-  const [deliveryChannels, setDeliveryChannels] = useState<any[]>([
-    { name: 'Delivery', valor: 57000, color: '#EA1D2C' },
-    { name: 'Balcão', valor: 28000, color: '#FFB800' },
-  ]);
+  const [deliveryChannels, setDeliveryChannels] = useState<any[]>(mockDeliveryChannels);
   const [salesByHour, setSalesByHour] = useState<any[]>(mockSalesByHour);
   const [salesByDay, setSalesByDay] = useState<any[]>(mockSalesByDay);
   const [peakHour, setPeakHour] = useState<string>('21:00');

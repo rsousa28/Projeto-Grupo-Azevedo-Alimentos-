@@ -27,6 +27,8 @@ export interface DREData {
   faturamento: number;
   receitaBalcao?: number;
   receitaDelivery?: number;
+  receitaIfood?: number;
+  receitaWedo?: number;
   taxes: number;
   cmv: number;
   payroll: number;
@@ -36,9 +38,23 @@ export interface DREData {
   operational: number;
   ebitda: number;
   netProfit: number;
+  quantidadePedidos?: number;
   // Sub-totals for the detailed model
   despesasVariaveis?: number;
   resultadoFinanceiro?: number;
+  
+  // Detailed breakdown breakdown
+  details?: {
+    deducoes?: Record<string, number>;
+    despesasVariaveis?: Record<string, number>;
+    colaboradores?: Record<string, number>;
+    funcionamento?: Record<string, number>;
+    manutencao?: Record<string, number>;
+    comerciais?: Record<string, number>;
+    administrativas?: Record<string, number>;
+    resultadoFinanceiro?: Record<string, number>;
+    griFinal?: number;
+  };
 }
 
 export interface ProductPerformance {

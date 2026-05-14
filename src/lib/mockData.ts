@@ -51,9 +51,9 @@ export const lowMarginProducts = [
 ];
 
 export const dreTimeline: DREData[] = [
-  { month: 'Jan', faturamento: 110000, taxes: 6600, cmv: 35000, payroll: 22000, royalties: 5500, rent: 8000, marketing: 3000, operational: 5000, ebitda: 24900, netProfit: 19900 },
-  { month: 'Fev', faturamento: 115000, taxes: 6900, cmv: 36000, payroll: 22000, royalties: 5750, rent: 8000, marketing: 3000, operational: 5000, ebitda: 28350, netProfit: 23350 },
-  { month: 'Mar', faturamento: 125430, taxes: 7525, cmv: 40600, payroll: 22000, royalties: 6271, rent: 8000, marketing: 4000, operational: 5500, ebitda: 31534, netProfit: 32240 },
+  { month: 'Janeiro', faturamento: 110000, receitaBalcao: 49500, receitaDelivery: 60500, receitaIfood: 45000, receitaWedo: 15500, taxes: 6600, cmv: 35000, payroll: 22000, royalties: 5500, rent: 8000, marketing: 3000, operational: 5000, ebitda: 24900, netProfit: 19900, quantidadePedidos: 1650 },
+  { month: 'Fevereiro', faturamento: 115000, receitaBalcao: 51750, receitaDelivery: 63250, receitaIfood: 48000, receitaWedo: 15250, taxes: 6900, cmv: 36000, payroll: 22000, royalties: 5750, rent: 8000, marketing: 3000, operational: 5000, ebitda: 28350, netProfit: 23350, quantidadePedidos: 1720 },
+  { month: 'Março', faturamento: 125430, receitaBalcao: 56443, receitaDelivery: 68987, receitaIfood: 52000, receitaWedo: 16987, taxes: 7525, cmv: 40600, payroll: 22000, royalties: 6271, rent: 8000, marketing: 4000, operational: 5500, ebitda: 31534, netProfit: 32240, quantidadePedidos: 1831 },
 ];
 
 export const topProducts: ProductPerformance[] = [
@@ -71,6 +71,6 @@ export const inventoryItems: Insumo[] = [
 
 export const deliveryChannels = [
   { name: 'iFood', valor: 65400, color: '#EA1D2C' },
-  { name: 'Balcão', valor: 28200, color: '#1E1E1E' },
-  { name: 'App Próprio', valor: 31830, color: '#D4A373' },
+  { name: 'WEDO', valor: 31830, color: '#0066FF' },
+  { name: 'Balcão', valor: 28200, color: '#FFB800' },
 ];

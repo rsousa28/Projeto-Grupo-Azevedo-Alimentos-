@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Save, 
   Plus, 
@@ -61,135 +61,123 @@ export default function DataEntry() {
   // Metas & Performance states
   const [faturamentoMeta, setFaturamentoMeta] = useState(metaVsRealizado[0]?.valor || 140000);
   const [cmvAlvo, setCmvAlvo] = useState(31);
-  const [tempoMedio, setTempoMedio] = useState(parseInt(operationalMetrics[0]?.valor) || 25);
-  const [satisfacaoMeta, setSatisfacaoMeta] = useState(parseFloat(operationalMetrics[2]?.valor) || 9.0);
+  const [tempoMedio, setTempoMedio] = useState(25);
+  const [satisfacaoMeta, setSatisfacaoMeta] = useState(9.0);
 
   // History states
   const [receita2025, setReceita2025] = useState(yearlyHistory['2025'] || 0);
   const [receita2024, setReceita2024] = useState(yearlyHistory['2024'] || 0);
 
   // Financial / DRE states
-  const latestDRE = dreTimeline[dreTimeline.length - 1];
-  const [revenue, setRevenue] = useState(latestDRE.faturamento);
+  const [revenue, setRevenue] = useState(0);
 
   // Detailed states
   const [deducoes, setDeducoes] = useState<Record<string, number>>({
-    darfSimples: latestDRE.taxes,
+    darfSimples: 0,
   });
 
-  const [cmvTotal, setCmvTotal] = useState(latestDRE.cmv);
+  const [cmvTotal, setCmvTotal] = useState(0);
   const [cmvPerc, setCmvPerc] = useState(32);
 
   const [despesasVariaveis, setDespesasVariaveis] = useState<Record<string, number>>({
-    taxaCartao: 2500,
-    taxaMotoqueiro: 3200,
-    taxaIfood: 5600,
-    freteCompras: 800,
-    fundoMarketing: 1500,
-    royalties: latestDRE.royalties,
-    taxaBancariaJuros: 450,
-    taxaPix: 120,
-    bonificacoes: 300,
-    descontos: 200,
-    despesasIfood: 150
+    taxaCartao: 0,
+    taxaMotoqueiro: 0,
+    taxaIfood: 0,
+    freteCompras: 0,
+    fundoMarketing: 0,
+    royalties: 0,
+    taxaBancariaJuros: 0,
+    taxaPix: 0,
+    bonificacoes: 0,
+    descontos: 0,
+    despesasIfood: 0
   });
 
   const [colaboradores, setColaboradores] = useState<Record<string, number>>({
-    salarios: latestDRE.payroll * 0.5,
-    proLabore: latestDRE.payroll * 0.15,
-    avulso: 500,
-    diarias: 800,
-    premiacao: 300,
-    gratificacoes: 200,
+    salarios: 0,
+    proLabore: 0,
+    avulso: 0,
+    diarias: 0,
+    premiacao: 0,
+    gratificacoes: 0,
     decimoTerceiro: 0,
     ferias: 0,
-    INSS: latestDRE.payroll * 0.1,
-    FGTS: latestDRE.payroll * 0.05,
+    INSS: 0,
+    FGTS: 0,
     rescisorias: 0,
-    cortesia: 100,
-    valeTransp: 400,
-    valeAlim: 600,
-    alimentacao: 500,
-    pos: 150,
-    atestadoExame: 80,
-    uniformesEPI: 120,
-    outros: 100
+    cortesia: 0,
+    valeTransp: 0,
+    valeAlim: 0,
+    alimentacao: 0,
+    pos: 0,
+    atestadoExame: 0,
+    uniformesEPI: 0,
+    outros: 0
   });
 
   const [funcionamento, setFuncionamento] = useState<Record<string, number>>({
-    aluguel: latestDRE.rent * 0.8,
-    condominio: latestDRE.rent * 0.2,
-    energiaCâmaraFria: 1200,
-    iptu: 300,
-    energiaEletrica: 2800,
-    agua: 600,
-    arCondicionado: 200,
-    internetTelefonia: 250
+    aluguel: 0,
+    condominio: 0,
+    energiaCâmaraFria: 0,
+    iptu: 0,
+    energiaEletrica: 0,
+    agua: 0,
+    arCondicionado: 0,
+    internetTelefonia: 0
   });
 
   const [manutencao, setManutencao] = useState<Record<string, number>>({
-    escritorios: 150,
-    locacaoMaq: 400,
-    manutencaoSist: 450,
-    manutencaoEquip: 600,
-    outros: 100
+    escritorios: 0,
+    locacaoMaq: 0,
+    manutencaoSist: 0,
+    manutencaoEquip: 0,
+    outros: 0
   });
 
   const [comerciais, setComerciais] = useState<Record<string, number>>({
-    aplicativo: 300,
-    marketing: 1500,
-    frete: 200
+    aplicativo: 0,
+    marketing: 0,
+    frete: 0
   });
 
   const [administrativas, setAdministrativas] = useState<Record<string, number>>({
-    sindicato: 120,
-    limpeza: 500,
-    taxaCallCenter: 800,
-    sistemaBERP: 450,
-    consultoria: 1200,
-    contabilidade: 850,
+    sindicato: 0,
+    limpeza: 0,
+    taxaCallCenter: 0,
+    sistemaBERP: 0,
+    consultoria: 0,
+    contabilidade: 0,
     premiacao: 0,
-    dedetizacao: 250,
-    certificado: 100,
-    fretesDiversos: 150,
-    utensilios: 300,
-    materialConsumo: 800,
-    materialEscritorio: 150,
-    materialLimpeza: 400,
-    combustiveis: 600,
+    dedetizacao: 0,
+    certificado: 0,
+    fretesDiversos: 0,
+    utensilios: 0,
+    materialConsumo: 0,
+    materialEscritorio: 0,
+    materialLimpeza: 0,
+    combustiveis: 0,
     ronyXimenes: 0,
-    seguros: 200,
-    taxaAlvara: 300,
-    despesasOperacionais: 500,
-    despesasGerais: 200
+    seguros: 0,
+    taxaAlvara: 0,
+    despesasOperacionais: 0,
+    despesasGerais: 0
   });
 
   const [resultadoFinanceiro, setResultadoFinanceiro] = useState<Record<string, number>>({
-    taxasIfood: 1200,
-    tarifasBancarias: 250,
-    taxasBancarias: 150,
-    jurosRecebidos: -50
+    taxasIfood: 0,
+    tarifasBancarias: 0,
+    taxasBancarias: 0,
+    jurosRecebidos: 0
   });
 
   const [griFinal, setGriFinal] = useState(0);
 
-  // Derived totals
-  const totalTaxes = (deducoes.darfSimples || 0);
-  const totalCMV = cmvTotal;
-  const totalVariaveis = (Object.values(despesasVariaveis) as number[]).reduce((a, b) => a + b, 0);
-  
-  const totalPayroll = (Object.values(colaboradores) as number[]).reduce((a, b) => a + b, 0);
-  const totalFunc = (Object.values(funcionamento) as number[]).reduce((a, b) => a + b, 0);
-  const totalManut = (Object.values(manutencao) as number[]).reduce((a, b) => a + b, 0);
-  const totalComer = (Object.values(comerciais) as number[]).reduce((a, b) => a + b, 0);
-  const totalAdmin = (Object.values(administrativas) as number[]).reduce((a, b) => a + b, 0);
-  
-  const totalOperacionalFixa = totalPayroll + totalFunc + totalManut + totalComer + totalAdmin;
-  const totalFinanc = (Object.values(resultadoFinanceiro) as number[]).reduce((a, b) => a + b, 0);
-
   // Channels states
-  const [receitaBalcao, setReceitaBalcao] = useState(deliveryChannels.find(c => c.name === 'Balcão')?.valor || 0);
-  const [receitaDelivery, setReceitaDelivery] = useState((deliveryChannels.find(c => c.name === 'iFood')?.valor || 0) + (deliveryChannels.find(c => c.name === 'WEDO')?.valor || 0) + (deliveryChannels.find(c => c.name === 'Delivery')?.valor || 0));
+  const [receitaBalcao, setReceitaBalcao] = useState(0);
+  const [receitaIfood, setReceitaIfood] = useState(0);
+  const [receitaWedo, setReceitaWedo] = useState(0);
+  const [receitaDelivery, setReceitaDelivery] = useState(0);
+  const [quantidadePedidos, setQuantidadePedidos] = useState(0);
   const [horarioPico, setHorarioPico] = useState(globalPeakHour);
   
   // Products state (local for editing)
@@ -210,12 +198,92 @@ export default function DataEntry() {
     { value: '12', label: 'Dezembro' },
   ];
 
+  const currentMonthLabel = months.find(m => m.value === selectedMonth)?.label;
+
+  // EFFECT: Sync Delivery Revenue with Ifood + Wedo
+  useEffect(() => {
+    setReceitaDelivery(receitaIfood + receitaWedo);
+  }, [receitaIfood, receitaWedo]);
+
+  // EFFECT: Load data when month changes
+  useEffect(() => {
+    const monthData = dreTimeline.find(d => d.month === currentMonthLabel);
+    if (monthData) {
+      setRevenue(monthData.faturamento);
+      setReceitaBalcao(monthData.receitaBalcao || 0);
+      setReceitaIfood(monthData.receitaIfood || 0);
+      setReceitaWedo(monthData.receitaWedo || 0);
+      setReceitaDelivery(monthData.receitaDelivery || 0);
+      setQuantidadePedidos(monthData.quantidadePedidos || 0);
+      setCmvTotal(monthData.cmv);
+      setDeducoes({ darfSimples: monthData.taxes });
+      
+      if (monthData.details) {
+        if (monthData.details.deducoes) setDeducoes(monthData.details.deducoes);
+        if (monthData.details.despesasVariaveis) setDespesasVariaveis(monthData.details.despesasVariaveis);
+        if (monthData.details.colaboradores) setColaboradores(monthData.details.colaboradores);
+        if (monthData.details.funcionamento) setFuncionamento(monthData.details.funcionamento);
+        if (monthData.details.manutencao) setManutencao(monthData.details.manutencao);
+        if (monthData.details.comerciais) setComerciais(monthData.details.comerciais);
+        if (monthData.details.administrativas) setAdministrativas(monthData.details.administrativas);
+        if (monthData.details.resultadoFinanceiro) setResultadoFinanceiro(monthData.details.resultadoFinanceiro);
+        if (monthData.details.griFinal !== undefined) setGriFinal(monthData.details.griFinal);
+      } else {
+        // Fallback for mock data without details
+        setDespesasVariaveis(prev => ({ ...prev, royalties: monthData.royalties }));
+        setColaboradores(prev => ({ ...prev, salarios: monthData.payroll }));
+        setFuncionamento(prev => ({ ...prev, aluguel: monthData.rent }));
+      }
+    } else {
+      // Reset form for fresh entry
+      setRevenue(0);
+      setReceitaBalcao(0);
+      setReceitaIfood(0);
+      setReceitaWedo(0);
+      setReceitaDelivery(0);
+      setQuantidadePedidos(0);
+      setCmvTotal(0);
+      setDeducoes({ darfSimples: 0 });
+      setDespesasVariaveis({
+        taxaCartao: 0, taxaMotoqueiro: 0, taxaIfood: 0, freteCompras: 0, fundoMarketing: 0, 
+        royalties: 0, taxaBancariaJuros: 0, taxaPix: 0, bonificacoes: 0, descontos: 0, despesasIfood: 0
+      });
+      setColaboradores({
+        salarios: 0, proLabore: 0, avulso: 0, diarias: 0, premiacao: 0, gratificacoes: 0,
+        decimoTerceiro: 0, ferias: 0, INSS: 0, FGTS: 0, rescisorias: 0, cortesia: 0,
+        valeTransp: 0, valeAlim: 0, alimentacao: 0, pos: 0, atestadoExame: 0, uniformesEPI: 0, outros: 0
+      });
+      setFuncionamento({ aluguel: 0, condominio: 0, energiaCâmaraFria: 0, iptu: 0, energiaEletrica: 0, agua: 0, arCondicionado: 0, internetTelefonia: 0 });
+      setManutencao({ escritorios: 0, locacaoMaq: 0, manutencaoSist: 0, manutencaoEquip: 0, outros: 0 });
+      setComerciais({ aplicativo: 0, marketing: 0, frete: 0 });
+      setAdministrativas({
+        sindicato: 0, limpeza: 0, taxaCallCenter: 0, sistemaBERP: 0, consultoria: 0, contabilidade: 0, premiacao: 0, dedetizacao: 0, certificado: 0,
+        fretesDiversos: 0, utensilios: 0, materialConsumo: 0, materialEscritorio: 0, materialLimpeza: 0, combustiveis: 0, ronyXimenes: 0, seguros: 0, taxaAlvara: 0, despesasOperacionais: 0, despesasGerais: 0
+      });
+      setResultadoFinanceiro({ taxasIfood: 0, tarifasBancarias: 0, taxasBancarias: 0, jurosRecebidos: 0 });
+      setGriFinal(0);
+    }
+  }, [selectedMonth, dreTimeline]);
+
   const years = ['2023', '2024', '2025', '2026'];
 
   const handleSave = () => {
     // 0. Recalculate total revenue from channels
-    const totalRevenue = receitaBalcao + receitaDelivery;
+    const totalDelivery = receitaIfood + receitaWedo;
+    const totalRevenue = receitaBalcao + totalDelivery;
+    setReceitaDelivery(totalDelivery);
     setRevenue(totalRevenue);
+
+    // Derived totals for calculations
+    const totalTaxes = (deducoes.darfSimples || 0);
+    const totalVariaveis = (Object.values(despesasVariaveis) as number[]).reduce((a, b) => a + b, 0);
+    const totalPayroll = (Object.values(colaboradores) as number[]).reduce((a, b) => a + b, 0);
+    const totalFunc = (Object.values(funcionamento) as number[]).reduce((a, b) => a + b, 0);
+    const totalManut = (Object.values(manutencao) as number[]).reduce((a, b) => a + b, 0);
+    const totalComer = (Object.values(comerciais) as number[]).reduce((a, b) => a + b, 0);
+    const totalAdmin = (Object.values(administrativas) as number[]).reduce((a, b) => a + b, 0);
+    const totalOperacionalFixa = totalPayroll + totalFunc + totalManut + totalComer + totalAdmin;
+    const totalFinanc = (Object.values(resultadoFinanceiro) as number[]).reduce((a, b) => a + b, 0);
 
     // 1. Update Metas & Performance
     const updatedMeta = [
@@ -238,8 +306,7 @@ export default function DataEntry() {
     });
  
     // 4. Update Financial (DRE Timeline)
-    // Following the 11 sections logic requested:
-    const margemContribuicao = totalRevenue - totalTaxes - totalCMV - totalVariaveis;
+    const margemContribuicao = totalRevenue - totalTaxes - cmvTotal - totalVariaveis;
     const ebitda = margemContribuicao - totalOperacionalFixa;
     const resultadoAntesGRI = ebitda - totalFinanc;
     const netProfit = resultadoAntesGRI - griFinal;
@@ -248,9 +315,12 @@ export default function DataEntry() {
       month: currentMonthLabel || '',
       faturamento: totalRevenue,
       receitaBalcao,
-      receitaDelivery: receitaDelivery,
+      receitaIfood,
+      receitaWedo,
+      receitaDelivery: totalDelivery,
       taxes: totalTaxes,
-      cmv: totalCMV,
+      cmv: cmvTotal,
+      quantidadePedidos: quantidadePedidos,
       payroll: totalPayroll,
       royalties: Number(despesasVariaveis.royalties) || 0,
       rent: (funcionamento.aluguel || 0) + (funcionamento.condominio || 0),
@@ -259,7 +329,18 @@ export default function DataEntry() {
       despesasVariaveis: totalVariaveis,
       resultadoFinanceiro: totalFinanc,
       ebitda,
-      netProfit
+      netProfit,
+      details: {
+        deducoes,
+        despesasVariaveis,
+        colaboradores,
+        funcionamento,
+        manutencao,
+        comerciais,
+        administrativas,
+        resultadoFinanceiro,
+        griFinal
+      }
     };
 
     const updatedTimeline = [...dreTimeline];
@@ -273,7 +354,8 @@ export default function DataEntry() {
 
     // 5. Update Channels & Peak Hour
     setDeliveryChannels([
-      { name: 'Delivery', valor: receitaDelivery, color: '#EA1D2C' },
+      { name: 'iFood', valor: receitaIfood, color: '#EA1D2C' },
+      { name: 'WEDO', valor: receitaWedo, color: '#0066FF' },
       { name: 'Balcão', valor: receitaBalcao, color: isDarkMode ? '#333' : '#FFB800' }
     ]);
     setPeakHour(horarioPico);
@@ -288,7 +370,13 @@ export default function DataEntry() {
         return { ...m, valor: netProfit };
       }
       if (m.label === 'CMV Médio') {
-         return { ...m, valor: (totalCMV / totalRevenue) * 100 };
+         return { ...m, valor: (cmvTotal / totalRevenue) * 100 };
+      }
+      if (m.label === 'Pedidos Totais') {
+        return { ...m, valor: quantidadePedidos };
+      }
+      if (m.label === 'Ticket Médio') {
+        return { ...m, valor: totalRevenue / (quantidadePedidos || 1) };
       }
       return m;
     });
@@ -300,8 +388,6 @@ export default function DataEntry() {
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
-
-  const currentMonthLabel = months.find(m => m.value === selectedMonth)?.label;
 
   return (
     <div className="space-y-8 pb-10">
@@ -418,15 +504,15 @@ export default function DataEntry() {
                      </div>
                    </div>
                    <div className="space-y-2">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Delivery</label>
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Delivery (Soma iFood + WEDO)</label>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
                        <input 
                          type="number" 
                          value={receitaDelivery || ''}
-                         onChange={(e) => setReceitaDelivery(e.target.value === '' ? 0 : Number(e.target.value))}
-                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
-                       />
+                          readOnly
+                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold cursor-not-allowed opacity-75 ${isDarkMode ? 'bg-black/40 border-[#333] text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500'}`} 
+                        />
                      </div>
                    </div>
                 </div>
@@ -709,7 +795,7 @@ export default function DataEntry() {
                   <div className="w-1.5 h-6 bg-[#0066FF] rounded-full" />
                   <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Canais de Venda</h4>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="space-y-2">
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Balcão</label>
                      <div className="relative">
@@ -723,13 +809,25 @@ export default function DataEntry() {
                      </div>
                    </div>
                    <div className="space-y-2">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Delivery</label>
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda iFood</label>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
                        <input 
                          type="number" 
-                         value={receitaDelivery}
-                         onChange={(e) => setReceitaDelivery(Number(e.target.value))}
+                         value={receitaIfood}
+                         onChange={(e) => setReceitaIfood(Number(e.target.value))}
+                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
+                       />
+                     </div>
+                   </div>
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda WEDO</label>
+                     <div className="relative">
+                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
+                       <input 
+                         type="number" 
+                         value={receitaWedo}
+                         onChange={(e) => setReceitaWedo(Number(e.target.value))}
                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
                      </div>
@@ -961,6 +1059,21 @@ export default function DataEntry() {
                             step="0.1"
                             value={satisfacaoMeta}
                             onChange={(e) => setSatisfacaoMeta(Number(e.target.value))}
+                            className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">Pedidos Totais no Mês</div>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                            <TrendingUp className="w-4 h-4" />
+                          </span>
+                          <input 
+                            type="number" 
+                            value={quantidadePedidos || ''}
+                            onChange={(e) => setQuantidadePedidos(e.target.value === '' ? 0 : Number(e.target.value))}
                             className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                           />
                         </div>

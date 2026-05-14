@@ -31,7 +31,6 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: FileText, label: 'Lançamentos', path: '/data-entry', allowedRoles: ['ADMIN', 'FINANCIAL'] },
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: ['ADMIN', 'MANAGER', 'FINANCIAL'] },
   { icon: Calculator, label: 'CMV & Fichas', path: '/cmv', allowedRoles: ['ADMIN', 'MANAGER'] },
   { icon: Package, label: 'Estoque', path: '/inventory', allowedRoles: ['ADMIN', 'MANAGER'] },

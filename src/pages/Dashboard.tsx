@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, PieChart, Pie
@@ -6,7 +7,7 @@ import {
 import { 
   TrendingUp, TrendingDown, DollarSign, PieChart as PieIcon, 
   ShoppingBag, Clock, Users, ArrowUpRight, ArrowDownRight,
-  Zap, Info, Target, Calendar
+  Zap, Info, Target, Calendar, ArrowRight, ArrowLeft
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { 
@@ -14,11 +15,14 @@ import {
   lowMarginProducts
 } from '../lib/mockData';
 import { useStore } from '../contexts/StoreContext';
+import DataEntrySection from '../components/DataEntrySection';
 
 const formatCurrency = (val: number) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function Dashboard() {
+  const navigate = useNavigate();
+  const [showEntry, setShowEntry] = useState(false);
   const { 
     isDarkMode, 
     currentStore, 
@@ -36,6 +40,13 @@ export default function Dashboard() {
   } = useStore();
   
   const currentMonthData = dreTimeline[dreTimeline.length - 1];
+  
+  const dynamicDeliveryChannels = [
+    { name: 'iFood', valor: currentMonthData.receitaIfood || (currentMonthData.faturamento * 0.40), color: '#EA1D2C' },
+    { name: 'WEDO', valor: currentMonthData.receitaWedo || (currentMonthData.faturamento * 0.15), color: '#0066FF' },
+    { name: 'Balcão', valor: currentMonthData.receitaBalcao || (currentMonthData.faturamento * 0.45), color: isDarkMode ? '#64748b' : '#FFB800' }
+  ];
+
   const yearlyComparisonData = [
     { year: '2024', faturamento: yearlyHistory['2024'] || currentMonthData.faturamento * 0.78, color: isDarkMode ? '#333' : '#cbd5e1' },
     { year: '2025', faturamento: yearlyHistory['2025'] || currentMonthData.faturamento * 0.89, color: '#6366f1' },
@@ -44,7 +55,43 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 pb-10">
-      {/* Welcome & Insights Banner */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-black dark:text-white uppercase italic tracking-tighter">
+            {showEntry ? 'Lançamentos Dashboard' : 'Performance de Vendas'}
+          </h2>
+          <p className="text-sm text-slate-500 font-medium italic">
+            {showEntry ? 'Preencha os dados da unidade' : 'Dados consolidados da unidade selecionada'}
+          </p>
+        </div>
+        <button 
+          onClick={() => setShowEntry(!showEntry)}
+          className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
+        >
+          {showEntry ? (
+            <>
+              <ArrowLeft className="w-4 h-4" />
+              Voltar ao Dashboard
+            </>
+          ) : (
+            <>
+              Lançamentos Dashboard
+              <ArrowRight className="w-4 h-4" />
+            </>
+          )}
+        </button>
+      </div>
+
+      {showEntry ? (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <DataEntrySection isEmbedded={true} mode="dashboard" />
+        </motion.div>
+      ) : (
+        <>
+          {/* Welcome & Insights Banner */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -321,13 +368,13 @@ export default function Dashboard() {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={deliveryChannels}
+                    data={dynamicDeliveryChannels}
                     innerRadius={60}
                     outerRadius={80}
                     paddingAngle={5}
                     dataKey="valor"
                   >
-                    {deliveryChannels.map((entry, index) => (
+                    {dynamicDeliveryChannels.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -335,12 +382,14 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className="text-xl font-black dark:text-white">R$ 125k</div>
+                <div className="text-xl font-black dark:text-white">
+                  R$ {(dynamicDeliveryChannels.reduce((sum, channel) => sum + channel.valor, 0) / 1000).toFixed(0)}k
+                </div>
                 <div className="text-[8px] text-slate-500 uppercase font-black">Total</div>
               </div>
             </div>
             <div className="w-full md:w-1/2 space-y-4">
-              {deliveryChannels.map((channel) => (
+              {dynamicDeliveryChannels.map((channel) => (
                 <div key={channel.name} className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channel.color }} />
@@ -465,6 +514,8 @@ export default function Dashboard() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }

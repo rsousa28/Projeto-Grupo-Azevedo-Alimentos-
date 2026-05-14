@@ -13,7 +13,8 @@ import {
   BarChart3,
   ChevronDown,
   AlertCircle,
-  FileText
+  FileText,
+  ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -29,6 +30,7 @@ import {
   Cell
 } from 'recharts';
 import { useStore } from '../contexts/StoreContext';
+import DataEntrySection from '../components/DataEntrySection';
 
 const formatCurrency = (val: number) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -36,6 +38,7 @@ const formatCurrency = (val: number) =>
 export default function Finance() {
   const { isDarkMode, dreTimeline, brandColors, currentStore } = useStore();
   const [selectedPeriod, setSelectedPeriod] = useState('Março 2024');
+  const [showEntry, setShowEntry] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['receita', 'deducoes', 'cmv', 'despesas_var', 'despesas_fixas_5', 'despesas_fixas_6', 'despesas_fixas_7', 'despesas_fixas_8', 'despesas_fixas_9', 'financeiro']);
   
   const currentMonthData = dreTimeline[2];
@@ -229,22 +232,55 @@ export default function Finance() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold dark:text-white italic tracking-tighter">DRE Inteligente - {selectedPeriod}</h2>
-          <p className="text-slate-500 font-medium lowercase">Demonstrativo de Resultados do Exercício Detalhado</p>
+          <h2 className="text-3xl font-bold dark:text-white italic tracking-tighter">
+            {showEntry ? 'Lançamentos DRE' : `DRE Inteligente - ${selectedPeriod}`}
+          </h2>
+          <p className="text-slate-500 font-medium lowercase">
+            {showEntry ? 'Preencha os dados financeiros da unidade' : 'Demonstrativo de Resultados do Exercício Detalhado'}
+          </p>
         </div>
         <div className="flex gap-3">
-          <div className={`relative flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${isDarkMode ? 'bg-[#1E1E1E] border-[#333] text-white' : 'bg-white border-slate-200'}`}>
-            <BarChart3 className="w-4 h-4" style={{ color: brandColors.primary }} />
-            <span className="text-xs font-black uppercase tracking-widest">Comparativo Ativo</span>
-            <ChevronDown className="w-4 h-4 text-slate-400" />
-          </div>
-          <button className={`p-2 rounded-xl border transition-all active:scale-95 ${isDarkMode ? 'bg-[#333] border-[#444] text-white' : 'bg-white border-slate-200 shadow-sm'}`}>
-            <Download className="w-5 h-5" />
+          <button 
+            onClick={() => setShowEntry(!showEntry)}
+            className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
+          >
+            {showEntry ? (
+              <>
+                <ArrowLeft className="w-4 h-4" />
+                Voltar à DRE
+              </>
+            ) : (
+              <>
+                Lançamentos DRE
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
           </button>
+          {!showEntry && (
+            <>
+              <div className={`relative flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${isDarkMode ? 'bg-[#1E1E1E] border-[#333] text-white' : 'bg-white border-slate-200'}`}>
+                <BarChart3 className="w-4 h-4" style={{ color: brandColors.primary }} />
+                <span className="text-xs font-black uppercase tracking-widest">Comparativo Ativo</span>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </div>
+              <button className={`p-2 rounded-xl border transition-all active:scale-95 ${isDarkMode ? 'bg-[#333] border-[#444] text-white' : 'bg-white border-slate-200 shadow-sm'}`}>
+                <Download className="w-5 h-5" />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Summary Cards */}
+      {showEntry ? (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <DataEntrySection isEmbedded={true} mode="finance" />
+        </motion.div>
+      ) : (
+        <>
+          {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
          {[
            { label: 'Margem Bruta', value: `${marginBruta.toFixed(1)}%`, trend: '+2.1%', color: 'text-indigo-600' },
@@ -475,6 +511,8 @@ export default function Finance() {
            </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }
