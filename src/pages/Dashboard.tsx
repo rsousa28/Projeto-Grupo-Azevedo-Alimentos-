@@ -126,7 +126,7 @@ export default function Dashboard() {
           <h2 className="text-2xl font-black text-black uppercase italic tracking-tighter">
             {showEntry ? 'Lançamentos Dashboard' : 'Performance de Vendas'}
           </h2>
-          <p className="text-sm text-slate-800 dark:text-slate-400 font-medium italic">
+          <p className="text-sm text-slate-500 font-medium italic">
             {showEntry ? 'Preencha os dados da unidade' : 'Dados consolidados da unidade selecionada'}
           </p>
         </div>
@@ -186,7 +186,7 @@ export default function Dashboard() {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-black leading-tight">Insight da IA</h2>
-            <p className="text-slate-800 dark:text-slate-400 max-w-lg">
+            <p className="text-slate-500 dark:text-slate-400 max-w-lg">
               {topProducts.length > 0 ? (
                 <>Seu faturamento em <span className="font-bold text-black">{topProducts[0].name}</span> cresceu {topProducts[0].margin > 60 ? 'consistentemente' : 'recentemente'}. Sugerimos um combo promocional para aumentar o ticket médio.</>
               ) : (
@@ -220,7 +220,7 @@ export default function Dashboard() {
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold text-slate-800 dark:text-slate-400 uppercase tracking-wider">{metric.label}</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{metric.label}</span>
                 <div className={`flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor}`}>
                   {metric.trend === 'up' ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
                   {metric.change}%
@@ -229,7 +229,7 @@ export default function Dashboard() {
               <div className="text-lg font-black text-black truncate">
                 {metric.format === 'currency' ? formatCurrency(metric.valor as number) : `${metric.valor}${metric.format === 'percent' ? '%' : ''}`}
               </div>
-              <div className="text-[9px] text-slate-600 dark:text-slate-500 mt-1 italic">vs. mês anterior</div>
+              <div className="text-[9px] text-slate-400 mt-1 italic">vs. mês anterior</div>
             </motion.div>
           );
         })}
@@ -279,7 +279,7 @@ export default function Dashboard() {
             </ResponsiveContainer>
           </div>
           <div className="mt-6 p-4 rounded-xl bg-slate-50 dark:bg-black/20 text-center">
-            <div className="text-xs text-slate-800 dark:text-slate-400 uppercase font-bold tracking-widest mb-1">Atingimento</div>
+            <div className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-1">Atingimento</div>
             <div className={`text-3xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
               {((metaVsRealizado[1].valor / metaVsRealizado[0].valor) * 100).toFixed(1)}%
             </div>
@@ -312,17 +312,17 @@ export default function Dashboard() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-          <p className="text-[10px] text-slate-800 mt-4 text-center italic">Horário de pico detectado: <span className="font-bold text-slate-900 dark:text-white">{peakHour}h</span></p>
+          <p className="text-[10px] text-slate-500 mt-4 text-center italic">Horário de pico detectado: <span className="font-bold text-slate-900 dark:text-white">{peakHour}h</span></p>
         </div>
 
         {/* Comparativo Mensal YoY */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center justify-between mb-6">
             <div className="flex flex-col">
-              <h3 className="text-lg font-bold dark:text-white flex items-center gap-2">
+              <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
                 <TrendingUp className="w-5 h-5 text-indigo-500" /> Histórico de {currentMonthData.month}
               </h3>
-              <p className="text-[10px] text-slate-800 dark:text-slate-400 font-medium italic">Evolução do mesmo mês em 2024, 2025 e 2026</p>
+              <p className="text-[10px] text-slate-500 font-medium italic">Evolução do mesmo mês em 2024, 2025 e 2026</p>
             </div>
             <div className="flex gap-3">
                {yearlyComparisonData.map(item => (
@@ -385,7 +385,7 @@ export default function Dashboard() {
               <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
                 <div className="overflow-hidden">
                   <div className="text-xs font-bold dark:text-white uppercase italic truncate">{p.name}</div>
-                  <div className="text-[10px] text-slate-800 dark:text-slate-400">Margem: {p.margin}%</div>
+                  <div className="text-[10px] text-slate-500">Margem: {p.margin}%</div>
                 </div>
                 <div className="text-sm font-black text-green-500 whitespace-nowrap">+{formatCurrency(p.profit)}</div>
               </div>
@@ -406,7 +406,7 @@ export default function Dashboard() {
               <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
                 <div className="overflow-hidden">
                   <div className="text-xs font-bold dark:text-white uppercase italic truncate">{p.name}</div>
-                  <div className="text-[10px] text-slate-800 dark:text-slate-400">Status: {p.status}</div>
+                  <div className="text-[10px] text-slate-500">Status: {p.status}</div>
                 </div>
                 <div className={`text-sm font-black ${p.status === 'crítico' ? 'text-red-500' : 'text-yellow-500'}`}>
                   {p.margin}%
@@ -444,9 +444,11 @@ export default function Dashboard() {
       {/* Distribution Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Delivery vs Counter */}
-        <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className="text-lg font-bold dark:text-white mb-6 flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-[#EA1D2C]" /> Origem dos Pedidos
+        <div className={`p-6 rounded-3xl border transition-colors duration-500 ${
+          isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-200 shadow-sm'
+        }`}>
+          <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
+            <ShoppingBag className="w-5 h-5" style={{ color: currentStore.brand === 'BEBELU' ? '#EA1D2C' : '#EA1D2C' }} /> Origem dos Pedidos
           </h3>
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="h-[200px] w-full md:w-1/2 relative">
@@ -467,7 +469,7 @@ export default function Dashboard() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className="text-xl font-black dark:text-white">
+                <div className={`text-xl font-black ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
                   R$ {(dynamicDeliveryChannels.reduce((sum, channel) => sum + channel.valor, 0) / 1000).toFixed(0)}k
                 </div>
                 <div className="text-[8px] text-slate-500 uppercase font-black">Total</div>
@@ -480,7 +482,7 @@ export default function Dashboard() {
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channel.color }} />
                     <span className="text-xs font-bold dark:text-slate-300 uppercase">{channel.name}</span>
                   </div>
-                  <div className="text-xs font-black dark:text-white">
+                  <div className={`text-xs font-black uppercase ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
                     {formatCurrency(channel.valor)}
                   </div>
                 </div>
@@ -503,10 +505,10 @@ export default function Dashboard() {
                 <div key={op.label}>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4 text-slate-600" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-black dark:text-slate-400">{op.label}</span>
+                      <Icon className="w-4 h-4 text-slate-400" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{op.label}</span>
                     </div>
-                    <span className="text-sm font-black dark:text-white">{op.valor}</span>
+                    <span className={`text-sm font-black ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>{op.valor}</span>
                   </div>
                   <div className="h-1.5 bg-slate-100 dark:bg-[#333] rounded-full overflow-hidden">
                     <motion.div 
@@ -554,14 +556,14 @@ export default function Dashboard() {
                           {p.name[0]}
                         </div>
                         <div>
-                          <div className="font-bold text-sm text-black group-hover:text-indigo-600 transition-colors uppercase italic">{p.name}</div>
-                          <div className="text-xs text-slate-800 dark:text-slate-400">{p.category}</div>
+                          <div className={`font-bold text-sm group-hover:text-amber-600 transition-colors uppercase italic ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>{p.name}</div>
+                          <div className="text-xs text-slate-500">{p.category}</div>
                         </div>
                       </div>
                     </td>
                     <td className="py-4">
-                      <div className="font-bold text-sm dark:text-white">{p.quantidadeVendas} un</div>
-                      <div className="text-xs text-slate-800 dark:text-slate-400">{formatCurrency(p.faturamento)}</div>
+                      <div className={`font-bold text-sm ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>{p.quantidadeVendas} un</div>
+                      <div className="text-xs text-slate-500">{formatCurrency(p.faturamento)}</div>
                     </td>
                     <td className="py-4">
                       <div className={`text-sm font-bold ${p.margin > 60 ? 'text-green-500' : 'text-yellow-500'}`}>
@@ -597,9 +599,9 @@ export default function Dashboard() {
           }`}>
             <div className="flex items-center gap-2 mb-3">
               <Info className="w-4 h-4 text-indigo-600" />
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-slate-400">Dica Operacional</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Dica Operacional</span>
             </div>
-            <p className="text-xs text-slate-900 dark:text-slate-300 leading-relaxed italic">
+            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed italic">
               Reduzindo o CMV em 2%, seu lucro operacional mensal pode crescer aproximadamente R$ 2.500,00 na unidade atual.
             </p>
           </div>

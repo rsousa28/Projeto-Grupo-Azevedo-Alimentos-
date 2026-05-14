@@ -327,7 +327,7 @@ export default function Finance() {
             {showEntry ? 'Lançamentos DRE' : `DRE Inteligente`}
           </h2>
           <div className="flex items-center gap-2 mt-1">
-            <p className="text-slate-800 dark:text-slate-400 font-medium lowercase">
+            <p className="text-slate-500 font-medium lowercase">
               {showEntry ? 'Preencha os dados financeiros da unidade' : 'Demonstrativo de Resultados do Exercício Detalhado'}
             </p>
             {!showEntry && (
@@ -335,7 +335,7 @@ export default function Finance() {
                 <select 
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-black dark:text-slate-300"
+                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-slate-600 dark:text-slate-300"
                 >
                   {months.map(m => (
                     <option key={m.value} value={m.value} className="dark:bg-[#1E1E1E]">{m.label}</option>
@@ -344,7 +344,7 @@ export default function Finance() {
                 <select 
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-black dark:text-slate-300"
+                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-slate-600 dark:text-slate-300"
                 >
                   <option value="2025" className="dark:bg-[#1E1E1E]">2025</option>
                   <option value="2026" className="dark:bg-[#1E1E1E]">2026</option>
@@ -405,7 +405,7 @@ export default function Finance() {
             { label: 'Ticket Médio', value: formatCurrency(ticketMedio), trend: ticketMedio > 0 ? (ticketMedio > 60 ? 'Alto' : 'Normal') : '---', color: 'text-blue-500' },
           ].map((stat) => (
            <div key={stat.label} className={`p-5 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-             <div className="text-[10px] font-black text-slate-800 dark:text-slate-400 uppercase tracking-widest mb-1">{stat.label}</div>
+             <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{stat.label}</div>
              <div className="flex items-center justify-between">
                <div className={`text-2xl font-black ${stat.color}`}>{stat.value}</div>
                <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stat.trend.startsWith('+') ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
@@ -423,13 +423,13 @@ export default function Finance() {
             <h3 className="font-black text-black uppercase tracking-tighter italic text-xl flex items-center gap-2">
               <TrendingUp className="w-5 h-5" style={{ color: brandColors.primary }} /> Comparativo Anual do Mês
             </h3>
-            <p className="text-[10px] text-slate-800 dark:text-slate-400 font-medium italic">Faturamento de Março em 2024, 2025 e 2026</p>
+            <p className="text-[10px] text-slate-500 font-medium italic">Faturamento de Março em 2024, 2025 e 2026</p>
           </div>
           <div className="flex gap-4">
              {yearlyComparisonData.map(item => (
                <div key={item.year} className="flex items-center gap-2">
                  <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: item.color }} />
-                 <span className="text-[10px] font-bold text-slate-600 dark:text-slate-400 uppercase">{item.year}</span>
+                 <span className="text-[10px] font-bold text-slate-400 uppercase">{item.year}</span>
                </div>
              ))}
           </div>
@@ -478,10 +478,10 @@ export default function Finance() {
         <div className="lg:col-span-2 space-y-8">
           <div className={`rounded-[2.5rem] border overflow-hidden ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
              <div className={`px-8 py-6 border-b flex items-center justify-between ${isDarkMode ? 'bg-black/20 border-[#333]' : 'bg-slate-50/50 border-slate-100'}`}>
-               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-400 italic">Estrutura de Resultados</span>
+               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">Estrutura de Resultados</span>
                <div className="flex gap-12">
-                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-400 italic">AV %</span>
-                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-400 italic">Valor Nominal</span>
+                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">AV %</span>
+                 <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">Valor Nominal</span>
                </div>
              </div>
 
@@ -501,7 +501,7 @@ export default function Finance() {
                         {!group.isTotal && (
                           <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandedGroups.includes(group.id) ? '' : '-rotate-90'}`} />
                         )}
-                        <span className={`text-xs font-black italic tracking-tighter ${group.isTotal ? (group.color || 'dark:text-white') : 'text-slate-500'}`}>
+                        <span className={`text-xs font-black italic tracking-tighter ${group.isTotal ? (group.color || (isDarkMode ? 'dark:text-white' : 'text-slate-900')) : 'text-slate-500'}`}>
                           {group.label}
                         </span>
                       </div>
@@ -509,7 +509,7 @@ export default function Finance() {
                          <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 w-10 text-right">
                            {((Math.abs(group.total) / currentMonthData.faturamento) * 100).toFixed(1)}%
                          </span>
-                         <span className={`text-sm font-black w-32 text-right ${group.isTotal ? (group.color || 'dark:text-white') : (isDarkMode ? 'text-slate-300' : 'text-slate-900')}`}>
+                         <span className={`text-sm font-black w-32 text-right ${group.isTotal ? (group.color || (isDarkMode ? 'dark:text-white' : 'text-slate-900')) : (isDarkMode ? 'text-slate-300' : 'text-slate-900')}`}>
                            {formatCurrency(group.total)}
                          </span>
                       </div>
@@ -526,12 +526,12 @@ export default function Finance() {
                         >
                           {group.items && group.items.map(item => (
                             <div key={item.label} className="flex items-center justify-between px-8 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                              <span className="text-[11px] font-medium text-slate-800 dark:text-slate-400 italic lowercase">{item.label}</span>
+                              <span className="text-[11px] font-medium text-slate-500 italic lowercase">{item.label}</span>
                               <div className="flex gap-10">
-                                 <span className="text-[9px] font-bold text-slate-600 dark:text-slate-500 w-10 text-right">
+                                 <span className="text-[9px] font-bold text-slate-400 w-10 text-right">
                                    {((Math.abs(item.valor) / currentMonthData.faturamento) * 100).toFixed(1)}%
                                  </span>
-                                 <span className={`text-[11px] font-bold w-32 text-right ${item.valor < 0 ? 'text-red-600' : 'text-slate-900 dark:text-slate-400'}`}>
+                                 <span className={`text-[11px] font-bold w-32 text-right ${item.valor < 0 ? 'text-red-400' : 'text-slate-400'}`}>
                                    {formatCurrency(item.valor)}
                                  </span>
                               </div>
@@ -550,7 +550,7 @@ export default function Finance() {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="font-black text-black uppercase tracking-tighter italic text-lg">Top Lucratividade</h3>
-                <p className="text-[10px] text-slate-800 dark:text-slate-400 font-medium italic">Baseado nas Fichas Técnicas importadas</p>
+                <p className="text-[10px] text-slate-500 font-medium italic">Baseado nas Fichas Técnicas importadas</p>
               </div>
               <TrendingUp className="w-6 h-6 text-green-500" />
             </div>
@@ -565,11 +565,11 @@ export default function Finance() {
                       <div className={`w-8 h-8 rounded-full ${i === 0 ? 'bg-green-500' : i === 1 ? 'bg-indigo-500' : 'bg-blue-500'} flex items-center justify-center text-[10px] font-black text-white`}>#{i+1}</div>
                       <span className="text-[10px] font-black text-green-500">{item.margin}% mrg</span>
                     </div>
-                    <div className="text-xs font-black dark:text-white uppercase tracking-tighter mb-1 truncate">{item.name}</div>
-                    <div className="text-[10px] text-slate-800 dark:text-slate-500 font-bold italic">{formatCurrency(item.faturamento * (item.margin/100) / (item.quantidadeVendas || 1))} lucro liq.</div>
+                    <div className={`text-xs font-black uppercase tracking-tighter mb-1 truncate ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>{item.name}</div>
+                    <div className="text-[10px] text-slate-500 font-bold italic">{formatCurrency(item.faturamento * (item.margin/100) / (item.quantidadeVendas || 1))} lucro liq.</div>
                  </div>
                )) : (
-                 <div className="col-span-3 py-10 text-center text-slate-600 text-xs italic uppercase tracking-widest font-black">
+                 <div className="col-span-3 py-10 text-center text-slate-400 text-xs italic">
                    Nenhum produto cadastrado para análise de lucratividade.
                  </div>
                )}
@@ -580,15 +580,15 @@ export default function Finance() {
         {/* Action Sidebar */}
         <div className="space-y-6">
            <div className={`p-8 rounded-[2.5rem] border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-700 dark:text-slate-400 mb-6 italic">Insights da Gestão</h4>
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 italic">Insights da Gestão</h4>
               <div className="space-y-6">
                  <div className="flex gap-4">
                    <div className="p-2 bg-indigo-500/10 rounded-xl">
                      <TrendingUp className="w-5 h-5 text-indigo-500" />
                    </div>
                    <div>
-                     <div className="text-xs font-black dark:text-white mb-1 uppercase tracking-tighter">Oportunidade Delivery</div>
-                     <p className="text-[10px] text-slate-800 dark:text-slate-400 italic leading-relaxed">As taxas iFood subiram 1.2% este mês. Considere incentivar o canal direto.</p>
+                     <div className={`text-xs font-black mb-1 uppercase tracking-tighter ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>Oportunidade Delivery</div>
+                     <p className="text-[10px] text-slate-500 italic leading-relaxed">As taxas iFood subiram 1.2% este mês. Considere incentivar o canal direto.</p>
                    </div>
                  </div>
                  {topProducts.some(p => p.margin < 30) && (
@@ -597,8 +597,8 @@ export default function Finance() {
                        <AlertCircle className="w-5 h-5 text-red-500" />
                      </div>
                      <div>
-                       <div className="text-xs font-black dark:text-white mb-1 uppercase tracking-tighter">Alerta Insumos</div>
-                       <p className="text-[10px] text-slate-800 dark:text-slate-400 italic leading-relaxed">Produtos com margem crítica detectados. Revise seus custos nas fichas técnicas.</p>
+                       <div className={`text-xs font-black mb-1 uppercase tracking-tighter ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>Alerta Insumos</div>
+                       <p className="text-[10px] text-slate-500 italic leading-relaxed">Produtos com margem crítica detectados. Revise seus custos nas fichas técnicas.</p>
                      </div>
                    </div>
                  )}
@@ -611,8 +611,8 @@ export default function Finance() {
                 isDarkMode ? 'bg-black/20 border-white/5 hover:bg-[#E63946]' : 'bg-slate-50 border-slate-100 hover:bg-[#0066FF]'
               }`}>
                  <div className="flex items-center gap-3">
-                   <FileText className="w-5 h-5 text-[#0066FF] dark:text-[#E63946] group-hover:text-white transition-colors" />
-                   <span className="text-[10px] font-black uppercase tracking-widest dark:text-white group-hover:text-white transition-colors">Exportar DRE PDF</span>
+                   <FileText className="w-5 h-5 text-amber-500 transition-colors" />
+                   <span className={`text-[10px] font-black uppercase tracking-widest group-hover:text-white transition-colors ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>Exportar DRE PDF</span>
                  </div>
                  <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
               </div>
@@ -620,7 +620,7 @@ export default function Finance() {
 
            <div className={`p-6 rounded-[2.5rem] border ${isDarkMode ? 'bg-indigo-600 border-indigo-500 shadow-xl shadow-indigo-500/20' : 'bg-slate-900 border-slate-800 shadow-xl shadow-slate-900/20'}`}>
               <div className="flex items-center gap-3 text-white mb-4">
-                <Zap className="w-5 h-5 fill-white" />
+                <Zap className={`w-5 h-5 fill-white ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
                 <span className="text-xs font-black uppercase tracking-[0.2em] italic">Consultoria Online</span>
               </div>
               <p className="text-white/60 text-[10px] leading-relaxed mb-6">

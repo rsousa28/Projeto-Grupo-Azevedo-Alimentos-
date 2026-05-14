@@ -163,8 +163,8 @@ export default function CMV() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h2 className="text-3xl font-bold text-black dark:text-white uppercase italic tracking-tighter">Engenharia de Cardápio (CMV)</h2>
-          <p className="text-slate-800 dark:text-slate-400 font-medium italic">Análise de rentabilidade e fichas técnicas por período</p>
+          <h2 className={`text-3xl font-bold uppercase italic tracking-tighter ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>Engenharia de Cardápio (CMV)</h2>
+          <p className="text-slate-500 font-medium italic">Análise de rentabilidade e fichas técnicas por período</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
@@ -173,7 +173,7 @@ export default function CMV() {
             <select 
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-black dark:text-white"
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
             >
               {months.map(m => (
                 <option key={m.value} value={m.value} className="dark:bg-[#1E1E1E]">{m.label}</option>
@@ -182,7 +182,7 @@ export default function CMV() {
             <select 
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-black dark:text-white"
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
             >
               <option value="2025" className="dark:bg-[#1E1E1E]">2025</option>
               <option value="2026" className="dark:bg-[#1E1E1E]">2026</option>
@@ -244,21 +244,21 @@ export default function CMV() {
               <AlertTriangle className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-black text-black dark:text-white uppercase italic tracking-tighter flex items-center gap-2">
+              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-2">
                 Alerta de Engenharia de Cardápio (IA)
               </h3>
-              <p className="text-sm text-slate-800 dark:text-slate-300 font-medium mb-4">
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-4">
                 Identificamos <span className="font-black text-red-500">{negativeMarginProducts.length} produtos</span> com margem de contribuição negativa. Estes itens estão gerando prejuízo direto a cada venda.
               </p>
               
               <div className="flex flex-wrap gap-2">
                 {negativeMarginProducts.slice(0, 3).map(p => (
                   <div key={p.id} className="flex items-center gap-3 bg-white dark:bg-black/40 px-4 py-2 rounded-xl border border-red-100 dark:border-red-900/30">
-                    <span className="text-xs font-black text-black dark:text-white uppercase italic">{p.name}</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white uppercase italic">{p.name}</span>
                     <span className="text-xs font-black text-red-500">{p.margin}%</span>
                     <button 
                       onClick={() => toggleProductStatus(p.id)}
-                      className="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-red-500 transition-all font-bold"
+                      className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-all"
                     >
                       Desativar
                     </button>
@@ -299,11 +299,11 @@ export default function CMV() {
         <div className={`p-6 rounded-3xl border transition-colors ${
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <div className="text-black dark:text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2">CMV Consolidado (Mês)</div>
+          <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">CMV Consolidado (Mês)</div>
           <div className="flex items-end gap-3">
-            <span className="text-3xl font-black text-black dark:text-white italic">{consolidatedCmvPercent.toFixed(1)}%</span>
+            <span className="text-3xl font-black text-slate-900 dark:text-white italic">{consolidatedCmvPercent.toFixed(1)}%</span>
             <div className="flex flex-col">
-              <span className="text-[10px] text-black dark:text-slate-400 font-bold uppercase tracking-widest">Valor do CMV</span>
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Valor do CMV</span>
               <span className="text-sm font-black text-amber-500">{formatCurrency(totalCmvValor)}</span>
             </div>
           </div>
@@ -315,9 +315,9 @@ export default function CMV() {
         <div className={`p-6 rounded-3xl border transition-colors ${
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <div className="text-black dark:text-slate-400 text-[10px] font-black uppercase tracking-widest mb-2">Margem Média Estimada</div>
+          <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Margem Média Estimada</div>
           <div className="flex items-end gap-3">
-            <span className="text-3xl font-black text-black dark:text-white italic">{avgMargin.toFixed(1)}%</span>
+            <span className="text-3xl font-black text-slate-900 dark:text-white italic">{avgMargin.toFixed(1)}%</span>
             <span className="text-blue-500 text-xs font-bold mb-1 italic">Sugestão: Min. 65%</span>
           </div>
           <div className="mt-4 h-2 bg-slate-100 dark:bg-[#333] rounded-full overflow-hidden">
@@ -332,20 +332,20 @@ export default function CMV() {
       }`}>
         <div className="p-6 border-b dark:border-[#333] flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-col">
-            <div className="text-[10px] font-black text-[#FFB800] uppercase tracking-[0.2em] italic">Análise Detalhada</div>
-            <div className="text-lg font-black text-black dark:text-white uppercase italic tracking-tighter">Produtos & Engenharia</div>
+            <div className={`text-[10px] font-black uppercase tracking-[0.2em] italic ${currentStore.brand === 'BEBELU' ? 'text-amber-500' : 'text-[#FFB800]'}`}>Análise Detalhada</div>
+            <div className={`text-lg font-black uppercase italic tracking-tighter ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>Produtos & Engenharia</div>
           </div>
 
           <div className="flex gap-2 w-full md:w-auto">
             <div className="relative flex-1 md:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input 
                 type="text" 
                 placeholder="Buscar produto..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={`w-full pl-10 pr-4 py-2 rounded-xl transition-all outline-none border text-xs font-bold ${
-                  isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100 text-black'
+                  isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100 text-slate-900'
                 }`}
               />
             </div>
@@ -355,15 +355,15 @@ export default function CMV() {
                 value={selectedCategory}
                 onChange={(e) => setSelectedCategory(e.target.value)}
                 className={`appearance-none pl-10 pr-10 py-2 rounded-xl border transition-all outline-none text-xs font-bold cursor-pointer ${
-                  isDarkMode ? 'bg-[#333] border-[#444] text-white' : 'bg-white border-slate-200 shadow-sm text-black'
+                  isDarkMode ? 'bg-[#333] border-[#444] text-white' : 'bg-white border-slate-200 shadow-sm text-slate-900'
                 }`}
               >
                 {categories.map(cat => (
                   <option key={cat} value={cat} className="dark:bg-[#1E1E1E]">{cat}</option>
                 ))}
               </select>
-              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 pointer-events-none" />
-              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600 pointer-events-none" />
+              <Filter className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 pointer-events-none" />
             </div>
           </div>
         </div>
@@ -371,7 +371,7 @@ export default function CMV() {
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className={`text-left text-[10px] uppercase tracking-[0.2em] font-black ${isDarkMode ? 'text-slate-400 bg-black/20' : 'text-black bg-slate-50/50'}`}>
+              <tr className={`text-left text-[10px] uppercase tracking-[0.2em] font-black ${isDarkMode ? 'text-slate-500 bg-black/20' : 'text-slate-400 bg-slate-50/50'}`}>
                 <th className="px-6 py-5">Status</th>
                 <th className="px-6 py-5">Produto</th>
                 <th className="px-3 py-5 text-center">Quant.</th>
@@ -410,25 +410,25 @@ export default function CMV() {
                       </button>
                     </td>
                     <td className="px-6 py-6 min-w-[180px]">
-                      <div className="font-black text-black dark:text-white uppercase italic tracking-tighter group-hover:text-[#FFB800] transition-colors line-clamp-1">{product.name}</div>
-                      <div className="text-[10px] text-slate-800 dark:text-slate-400 font-bold italic">{product.category || 'Geral'}</div>
+                      <div className="font-black text-slate-900 dark:text-white uppercase italic tracking-tighter group-hover:text-[#FFB800] transition-colors line-clamp-1">{product.name}</div>
+                      <div className="text-[10px] text-slate-400 font-bold italic">{product.category || 'Geral'}</div>
                     </td>
-                    <td className="px-3 py-6 text-center text-xs font-black text-black dark:text-slate-300 italic">
+                    <td className="px-3 py-6 text-center text-xs font-black dark:text-slate-300 italic">
                       {product.quantidadeVendas}
                     </td>
-                    <td className="px-3 py-6 text-right text-xs font-black text-black dark:text-slate-300">
+                    <td className="px-3 py-6 text-right text-xs font-black dark:text-slate-300">
                       {formatCurrency(pMedio)}
                     </td>
                     <td className="px-3 py-6 text-right text-xs font-black text-amber-500">
                       {formatCurrency(cmvMedio)}
                     </td>
-                    <td className="px-3 py-6 text-right text-xs font-black text-slate-800 dark:text-slate-400">
+                    <td className="px-3 py-6 text-right text-xs font-black text-slate-400">
                       {formatCurrency(cmvTotal)}
                     </td>
                     <td className="px-3 py-6 text-right text-xs font-black text-green-600">
                       {formatCurrency(lucroBrutoTotal)}
                     </td>
-                    <td className="px-3 py-6 text-right text-xs font-black text-black dark:text-slate-300">
+                    <td className="px-3 py-6 text-right text-xs font-black dark:text-slate-300">
                       {formatCurrency(lucroBrutoUnid)}
                     </td>
                     <td className="px-3 py-6 text-center text-[10px] font-black text-red-400 italic">
@@ -461,15 +461,15 @@ export default function CMV() {
         </div>
         
         <div className="p-8 border-t dark:border-[#333] flex items-center justify-between">
-          <div className="text-[10px] font-black text-slate-800 uppercase tracking-widest italic text-left">
+          <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic text-left">
             Mostrando {topProducts.length} produtos
           </div>
           <div className="flex gap-2">
-            <button className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-800 hover:text-black dark:hover:text-white transition-colors">Anterior</button>
+            <button className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-black dark:hover:text-white transition-colors">Anterior</button>
             <button className={`px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all ${
               isDarkMode ? 'bg-[#333] text-white' : 'bg-slate-100 text-black'
             }`}>1</button>
-            <button className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-800 hover:text-black dark:hover:text-white transition-colors">Próximo</button>
+            <button className="px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-black dark:hover:text-white transition-colors">Próximo</button>
           </div>
         </div>
       </div>
