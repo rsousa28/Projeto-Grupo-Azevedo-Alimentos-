@@ -12,7 +12,10 @@ import {
   Sparkles,
   Save,
   Check,
-  Loader2
+  Loader2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
@@ -27,10 +30,12 @@ export default function CMV() {
     isDarkMode, 
     brandColors, 
     currentStore, 
-    topProducts, 
+    topProducts,
+    inventoryItems,
     saveCMVPeriod, 
     loadCMVPeriod,
-    setTopProducts
+    setTopProducts,
+    setInventoryItems
   } = useStore();
 
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -43,6 +48,15 @@ export default function CMV() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
+  const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
 
   const categories = [
     'Todos',
@@ -100,10 +114,9 @@ export default function CMV() {
     const loadData = async () => {
       const hasData = await loadCMVPeriod(selectedMonth, selectedYear);
       if (!hasData) {
-        // Only clear if we explicitly changed periods and found nothing
-        // But for prototype, let's just leave what's there or clear
-        // setInventoryItems([]);
-        // setTopProducts([]);
+        // If no data exists for the period, clear the state to avoid "ghost data" from previous months
+        setTopProducts([]);
+        setInventoryItems([]);
       }
     };
     loadData();
@@ -112,7 +125,7 @@ export default function CMV() {
   const handleSavePeriod = async () => {
     setIsSaving(true);
     try {
-      await saveCMVPeriod(selectedMonth, selectedYear, [], topProducts);
+      await saveCMVPeriod(selectedMonth, selectedYear, inventoryItems, topProducts);
       setShowSavedFeedback(true);
       setTimeout(() => setShowSavedFeedback(false), 2000);
     } catch (err) {
@@ -156,6 +169,51 @@ export default function CMV() {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'Todos' || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
+  });
+
+  const sortedProducts = [...filteredProducts].sort((a, b) => {
+    if (!sortConfig) return 0;
+    const { key, direction } = sortConfig;
+
+    let aValue: any;
+    let bValue: any;
+
+    if (key === 'name') {
+      aValue = a.name.toLowerCase();
+      bValue = b.name.toLowerCase();
+    } else if (key === 'quantidadeVendas') {
+      aValue = a.quantidadeVendas || 0;
+      bValue = b.quantidadeVendas || 0;
+    } else if (key === 'pMedio') {
+      aValue = (a.faturamento || 0) / (a.quantidadeVendas || 1);
+      bValue = (b.faturamento || 0) / (b.quantidadeVendas || 1);
+    } else if (key === 'cmv') {
+      aValue = a.cmv || 0;
+      bValue = b.cmv || 0;
+    } else if (key === 'cmvTotal') {
+      aValue = (a.cmv || 0) * (a.quantidadeVendas || 0);
+      bValue = (b.cmv || 0) * (b.quantidadeVendas || 0);
+    } else if (key === 'lucroBrutoTotal') {
+      aValue = (a.faturamento || 0) - ((a.cmv || 0) * (a.quantidadeVendas || 0));
+      bValue = (b.faturamento || 0) - ((b.cmv || 0) * (b.quantidadeVendas || 0));
+    } else if (key === 'lucroBrutoUnid') {
+      const aMedio = (a.faturamento || 0) / (a.quantidadeVendas || 1);
+      const bMedio = (b.faturamento || 0) / (b.quantidadeVendas || 1);
+      aValue = aMedio - (a.cmv || 0);
+      bValue = bMedio - (b.cmv || 0);
+    } else if (key === 'cmvPercent') {
+      const aMedio = (a.faturamento || 0) / (a.quantidadeVendas || 1);
+      const bMedio = (b.faturamento || 0) / (b.quantidadeVendas || 1);
+      aValue = aMedio > 0 ? ((a.cmv || 0) / aMedio) * 100 : 0;
+      bValue = bMedio > 0 ? ((b.cmv || 0) / bMedio) * 100 : 0;
+    } else if (key === 'margin') {
+      aValue = a.margin || 0;
+      bValue = b.margin || 0;
+    }
+
+    if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+    if (aValue > bValue) return direction === 'asc' ? 1 : -1;
+    return 0;
   });
 
   return (
@@ -299,9 +357,9 @@ export default function CMV() {
         <div className={`p-6 rounded-3xl border transition-colors ${
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">CMV Consolidado (Mês)</div>
+          <div className={`text-[10px] font-black uppercase tracking-widest mb-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>CMV Consolidado (Mês)</div>
           <div className="flex items-end gap-3">
-            <span className="text-3xl font-black text-slate-900 dark:text-white italic">{consolidatedCmvPercent.toFixed(1)}%</span>
+            <span className={`text-3xl font-black italic ${isDarkMode ? 'dark:text-white' : 'text-black'}`}>{consolidatedCmvPercent.toFixed(1)}%</span>
             <div className="flex flex-col">
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Valor do CMV</span>
               <span className="text-sm font-black text-amber-500">{formatCurrency(totalCmvValor)}</span>
@@ -315,9 +373,9 @@ export default function CMV() {
         <div className={`p-6 rounded-3xl border transition-colors ${
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <div className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Margem Média Estimada</div>
+          <div className={`text-[10px] font-black uppercase tracking-widest mb-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>Margem Média Estimada</div>
           <div className="flex items-end gap-3">
-            <span className="text-3xl font-black text-slate-900 dark:text-white italic">{avgMargin.toFixed(1)}%</span>
+            <span className={`text-3xl font-black italic ${isDarkMode ? 'dark:text-white' : 'text-black'}`}>{avgMargin.toFixed(1)}%</span>
             <span className="text-blue-500 text-xs font-bold mb-1 italic">Sugestão: Min. 65%</span>
           </div>
           <div className="mt-4 h-2 bg-slate-100 dark:bg-[#333] rounded-full overflow-hidden">
@@ -333,7 +391,7 @@ export default function CMV() {
         <div className="p-6 border-b dark:border-[#333] flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-col">
             <div className={`text-[10px] font-black uppercase tracking-[0.2em] italic ${currentStore.brand === 'BEBELU' ? 'text-amber-500' : 'text-[#FFB800]'}`}>Análise Detalhada</div>
-            <div className={`text-lg font-black uppercase italic tracking-tighter ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>Produtos & Engenharia</div>
+            <div className={`text-lg font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-[#FFB800]' : 'text-slate-900'}`}>Produtos & Engenharia</div>
           </div>
 
           <div className="flex gap-2 w-full md:w-auto">
@@ -373,19 +431,64 @@ export default function CMV() {
             <thead>
               <tr className={`text-left text-[10px] uppercase tracking-[0.2em] font-black ${isDarkMode ? 'text-slate-500 bg-black/20' : 'text-slate-400 bg-slate-50/50'}`}>
                 <th className="px-6 py-5">Status</th>
-                <th className="px-6 py-5">Produto</th>
-                <th className="px-3 py-5 text-center">Quant.</th>
-                <th className="px-3 py-5 text-right">P. Médio</th>
-                <th className="px-3 py-5 text-right">CMV Méd.</th>
-                <th className="px-3 py-5 text-right">CMV Total</th>
-                <th className="px-3 py-5 text-right">L. Bruto</th>
-                <th className="px-3 py-5 text-right">L.B. Unid</th>
-                <th className="px-3 py-5 text-center">CMV%</th>
-                <th className="px-8 py-5 text-right whitespace-nowrap">Margem %</th>
+                <th className="px-6 py-5 cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('name')}>
+                  <div className="flex items-center gap-1">
+                    Produto
+                    {sortConfig?.key === 'name' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
+                <th className="px-3 py-5 text-center cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('quantidadeVendas')}>
+                  <div className="flex items-center justify-center gap-1">
+                    Quant.
+                    {sortConfig?.key === 'quantidadeVendas' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
+                <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('pMedio')}>
+                  <div className="flex items-center justify-end gap-1">
+                    P. Médio
+                    {sortConfig?.key === 'pMedio' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
+                <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('cmv')}>
+                  <div className="flex items-center justify-end gap-1">
+                    CMV Méd.
+                    {sortConfig?.key === 'cmv' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
+                <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('cmvTotal')}>
+                  <div className="flex items-center justify-end gap-1">
+                    CMV Total
+                    {sortConfig?.key === 'cmvTotal' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
+                <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('lucroBrutoTotal')}>
+                  <div className="flex items-center justify-end gap-1">
+                    L. Bruto
+                    {sortConfig?.key === 'lucroBrutoTotal' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
+                <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('lucroBrutoUnid')}>
+                  <div className="flex items-center justify-end gap-1">
+                    L.B. Unid
+                    {sortConfig?.key === 'lucroBrutoUnid' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
+                <th className="px-3 py-5 text-center cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('cmvPercent')}>
+                  <div className="flex items-center justify-center gap-1">
+                    CMV%
+                    {sortConfig?.key === 'cmvPercent' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
+                <th className="px-8 py-5 text-right whitespace-nowrap cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('margin')}>
+                  <div className="flex items-center justify-end gap-1">
+                    Margem %
+                    {sortConfig?.key === 'margin' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-[#333]">
-              {filteredProducts.length > 0 ? filteredProducts.map((product) => {
+              {sortedProducts.length > 0 ? sortedProducts.map((product) => {
                 const pMedio = product.faturamento / (product.quantidadeVendas || 1);
                 const cmvMedio = product.cmv || 0;
                 const cmvTotal = cmvMedio * product.quantidadeVendas;
@@ -410,7 +513,7 @@ export default function CMV() {
                       </button>
                     </td>
                     <td className="px-6 py-6 min-w-[180px]">
-                      <div className="font-black text-slate-900 dark:text-white uppercase italic tracking-tighter group-hover:text-[#FFB800] transition-colors line-clamp-1">{product.name}</div>
+                      <div className="font-black text-slate-900 dark:text-[#FFB800] uppercase italic tracking-tighter transition-colors line-clamp-1">{product.name}</div>
                       <div className="text-[10px] text-slate-400 font-bold italic">{product.category || 'Geral'}</div>
                     </td>
                     <td className="px-3 py-6 text-center text-xs font-black dark:text-slate-300 italic">

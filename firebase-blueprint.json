@@ -25,9 +25,27 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["month", "year", "inventoryItems", "topProducts"]
+    },
+    "User": {
+      "title": "Application User",
+      "description": "System user with specific role and permissions",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "username": { "type": "string" },
+        "password": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["ADMIN", "MANAGER", "FINANCIAL", "MANAGER_4ESTYLOS_MOSSORO", "MANAGER_BEBELU_MOSSORO", "MANAGER_BEBELU_RIOMAR_PAPICU"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "username", "password", "role"]
     }
   },
   "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Global collection of system users"
+    },
     "/stores/{storeId}": {
       "schema": "Store",
       "description": "Store profile"

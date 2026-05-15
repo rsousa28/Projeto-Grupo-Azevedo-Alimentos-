@@ -15,6 +15,7 @@ import Finance from './pages/Finance';
 import DataEntry from './pages/DataEntry';
 import CMV from './pages/CMV';
 import AIInsights from './pages/AIInsights';
+import Team from './pages/Team';
 
 import { useAuth } from './contexts/AuthContext';
 
@@ -66,7 +67,7 @@ function AppRoutes() {
            <Route path="/insights" element={<AIInsights />} />
            <Route path="/analysis" element={<Dashboard />} />
            <Route path="/reports" element={<Dashboard />} />
-           <Route path="/team" element={<Dashboard />} />
+           <Route path="/team" element={<Team />} />
         </Route>
 
         <Route path="/" element={

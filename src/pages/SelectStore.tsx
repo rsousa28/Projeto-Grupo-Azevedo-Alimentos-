@@ -3,6 +3,7 @@ import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Store as StoreIcon, ArrowRight, ChefHat, MapPin } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
+import { useAuth } from '../contexts/AuthContext';
 import { Store } from '../types';
 
 export default function SelectStore() {
@@ -11,9 +12,39 @@ export default function SelectStore() {
 
   const stores: Store[] = [
     { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU', location: 'Espaço Fan', code: 'B32' },
-    { id: '2', name: 'Bebelu Rio Mar', brand: 'BEBELU', location: 'Rio Mar Shopping', code: 'B28' },
+    { id: '2', name: 'Bebelu Riomar Papicu', brand: 'BEBELU', location: 'Rio Mar Shopping', code: 'B28' },
     { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS', location: 'Avenida Principal', code: '4E09' },
   ];
+
+  const { user } = useAuth();
+
+  const filteredStores = React.useMemo(() => {
+    if (!user) return [];
+    
+    // Admin sees everything + potentially a special "Global" option
+    if (user.role === 'ADMIN') {
+      const rootStore: Store = { id: 'admin-global', name: 'Administrador Raiz', brand: 'GRUPO AZEVEDO', location: 'Todas as Lojas', code: 'ROOT' };
+      return [
+        rootStore,
+        ...stores
+      ];
+    }
+    
+    if (user.role === 'FINANCIAL') return stores;
+
+    // Filter by specific Manager roles
+    if (user.role === 'MANAGER_BEBELU_MOSSORO') {
+      return stores.filter(s => s.code === 'B32');
+    }
+    if (user.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
+      return stores.filter(s => s.code === 'B28');
+    }
+    if (user.role === 'MANAGER_4ESTYLOS_MOSSORO') {
+      return stores.filter(s => s.code === '4E09');
+    }
+    
+    return [];
+  }, [user]);
 
   const handleSelect = (store: Store) => {
     setStore(store);
@@ -41,11 +72,11 @@ export default function SelectStore() {
             </div>
           </div>
           <h1 className="text-4xl font-black text-slate-900 tracking-tight mb-4 uppercase italic">Qual unidade acessar?</h1>
-          <p className="text-slate-500 font-medium">Escolha qual operação do Grupo Azevedo deseja gerenciar agora.</p>
+          <p className="text-slate-500 font-medium">Seja bem-vindo, <span className="text-indigo-600 font-bold">{user?.name}</span>. Escolha a sua unidade.</p>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {stores.map((store, i) => (
+        <div className={`grid gap-6 ${filteredStores.length === 1 ? 'max-w-md mx-auto grid-cols-1' : 'md:grid-cols-3'}`}>
+          {filteredStores.map((store, i) => (
             <motion.button
               key={store.id}
               initial={{ opacity: 0, y: 20 }}

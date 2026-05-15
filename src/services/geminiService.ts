@@ -67,3 +67,83 @@ export async function extractDataFromCSV(csvContent: string, type: 'products' | 
     throw error;
   }
 }
+
+export async function chatWithConsultant(message: string, dreContext: any, history: { role: 'user' | 'model', parts: { text: string }[] }[] = []) {
+  const systemInstruction = `
+    Você é um consultor financeiro sênior especializado em gestão de restaurantes e redes de Food Service. 
+    Seu objetivo é ajudar o dono do restaurante a otimizar suas margens, entender sua DRE e tomar decisões baseadas em dados.
+    
+    Contexto Atual do Negócio:
+    ${JSON.stringify(dreContext, null, 2)}
+    
+    Diretrizes:
+    1. Seja direto, técnico mas acessível, e focado em resultados (lucratividade).
+    2. Sempre que mencionar um valor, use o formato R$ 0,00.
+    3. Se o lucro estiver baixo, sugira ações específicas (negociar com fornecedores, revisar fichas técnicas, reduzir desperdício, etc).
+    4. Analise os principais grupos: Receita, CMV (atente-se para margens baixas), Despesas Variáveis e Fixas.
+    5. Se perguntarem algo fora do contexto financeiro de restaurante, gentilmente redirecione para a gestão do negócio.
+    6. Use seu conhecimento preditivo para sugerir o que pode acontecer no próximo mês se as tendências atuais continuarem.
+  `;
+
+  try {
+    const chat = ai.chats.create({
+      model: "gemini-3-flash-preview",
+      config: {
+        systemInstruction,
+      },
+      history: history.map(h => ({
+        role: h.role,
+        parts: h.parts
+      }))
+    });
+
+    const response = await chat.sendMessage({ message });
+    return response.text;
+  } catch (error) {
+    console.error("Gemini Chat Error:", error);
+    throw error;
+  }
+}
+
+export interface PredictiveInsight {
+  title: string;
+  description: string;
+  impact: 'Positivo' | 'Negativo' | 'Oportunidade';
+  category: string;
+  recommendation: string;
+}
+
+export async function generatePredictiveInsights(context: any): Promise<PredictiveInsight[]> {
+  const systemInstruction = `
+    Você é um analista de dados e inteligência artificial para restaurantes.
+    Com base nos dados fornecidos da unidade, gere 3 insights preditivos e estratégicos.
+    
+    Dados do Negócio:
+    ${JSON.stringify(context, null, 2)}
+
+    O retorno deve ser ESTRITAMENTE um JSON no formato de Array de objetos com:
+    {
+      "title": "Título curto",
+      "description": "Descrição detalhada do que os dados dizem",
+      "impact": "Positivo" | "Negativo" | "Oportunidade",
+      "category": "CMV" | "Vendas" | "Operação" | "Financeiro",
+      "recommendation": "O que o dono deve fazer hoje"
+    }
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: "Gere meus insights preditivos do mês.",
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+      },
+    });
+
+    return JSON.parse(response.text || "[]");
+  } catch (error) {
+    console.error("Gemini Insights Error:", error);
+    return []; // Return empty or fallback
+  }
+}

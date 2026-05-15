@@ -32,9 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: ['ADMIN', 'MANAGER', 'FINANCIAL'] },
   { icon: Calculator, label: 'CMV & Fichas', path: '/cmv', allowedRoles: ['ADMIN', 'MANAGER'] },
-  { icon: PieChart, label: 'Análise de Vendas', path: '/analysis' },
   { icon: Zap, label: 'Insights IA', path: '/insights', allowedRoles: ['ADMIN'] },
-  { icon: FileText, label: 'Relatórios', path: '/reports', allowedRoles: ['ADMIN', 'MANAGER'] },
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
 ];
 
@@ -185,8 +183,6 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       <main className={`flex-1 flex flex-col h-screen overflow-hidden transition-colors duration-500 ${isDarkMode ? 'bg-[#0F0F0F]' : 'bg-[#F8FAFC]'}`}>
         <header className={`h-20 flex items-center justify-between px-8 border-b transition-colors duration-500 ${isDarkMode ? 'bg-[#0F0F0F] border-[#1E1E1E]' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold dark:text-white">Gerência Regional</h1>
-            <div className="h-4 w-px bg-slate-200 dark:bg-[#333]" />
             <div className="flex items-center gap-2 text-sm text-slate-500 font-medium">
               <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               Sistema Online
@@ -194,26 +190,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           </div>
 
           <div className="flex items-center gap-6">
-            <div className="flex -space-x-2">
-              <div className="w-8 h-8 rounded-full border-2 border-white dark:border-[#0F0F0F] bg-slate-200 overflow-hidden">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="avatar" />
-              </div>
-              <div className="w-8 h-8 rounded-full border-2 border-white dark:border-[#0F0F0F] bg-slate-200 overflow-hidden">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Anya" alt="avatar" />
-              </div>
-              <div className="w-8 h-8 rounded-full border-2 border-white dark:border-[#0F0F0F] bg-indigo-500 flex items-center justify-center text-[10px] text-white font-bold">
-                +4
-              </div>
-            </div>
-            
-            <div className="h-4 w-px bg-slate-200 dark:bg-[#333]" />
-            
             <div className="text-right">
               <div className="text-sm font-bold dark:text-white uppercase tracking-tighter italic">
-                {user?.name || 'Visitante'}
+                {user?.username || user?.name || 'Visitante'}
               </div>
               <div className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] italic">
-                {user?.role === 'ADMIN' ? 'Diretor de Operações' : user?.role === 'MANAGER' ? 'Gerente Geral' : 'Analista Financeiro'}
+                {user?.role === 'ADMIN' ? 'CEO do Grupo Azevedo Alimentos' : user?.role === 'MANAGER' ? 'Gerente Geral' : 'Analista Financeiro'}
               </div>
             </div>
           </div>

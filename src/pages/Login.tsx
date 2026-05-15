@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { LogIn, Mail, Lock, Loader2, TrendingUp, Info } from 'lucide-react';
+import { LogIn, User as UserIcon, Lock, Loader2, TrendingUp, Info } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showRecovery, setShowRecovery] = useState(false);
-  const [recoverySent, setRecoverySent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { isDarkMode } = useStore();
   const { login, user } = useAuth();
@@ -24,23 +23,15 @@ export default function Login() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
     try {
-      await login(email, password);
-      navigate('/select-store');
-    } catch (err) {
+      await login(username, password);
+    } catch (err: any) {
       console.error(err);
+      setError(err.message || 'Credenciais incorretas.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleRecovery = (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setTimeout(() => {
-      setLoading(false);
-      setRecoverySent(true);
-    }, 1500);
   };
 
   return (
@@ -88,160 +79,105 @@ export default function Login() {
 
         {/* Form Side */}
         <div className="p-8 md:p-12 relative">
-          <AnimatePresence mode="wait">
-            {!showRecovery ? (
-              <motion.div
-                key="login"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
+          <div className="flex items-center gap-2 mb-8">
+            <div className="w-2 h-8 bg-[#FFCB05] rounded-full" />
+            <h2 className="text-2xl font-black italic dark:text-white uppercase tracking-tighter">Acesse o Painel</h2>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 italic">Usuário</label>
+              <div className="relative">
+                <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#FFCB05]" />
+                <input
+                  type="text"
+                  required
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (error) setError(null);
+                  }}
+                  className={`w-full pl-12 pr-4 py-4 rounded-2xl border outline-none transition-all font-bold text-sm ${
+                    isDarkMode 
+                      ? 'bg-[#121212] border-[#333] text-white focus:ring-[#FFCB05]/40' 
+                      : 'bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05]'
+                  }`}
+                  placeholder="adm"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 italic">Senha de Acesso</label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (error) setError(null);
+                  }}
+                  className={`w-full pl-12 pr-4 py-4 rounded-2xl border outline-none transition-all font-bold text-sm ${
+                    isDarkMode 
+                      ? 'bg-[#121212] border-[#333] text-white focus:ring-[#FFCB05]/40' 
+                      : 'bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05]'
+                  }`}
+                  placeholder="••••••••"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs">
+              <label className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-bold cursor-pointer hover:text-slate-900 transition-colors">
+                <input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-[#FFCB05]" defaultChecked />
+                Lembrar sessão
+              </label>
+            </div>
+
+            {error && (
+              <motion.div 
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`p-4 rounded-2xl border flex gap-3 items-center ${
+                  isDarkMode 
+                  ? 'bg-red-500/10 border-red-500/20 text-red-400' 
+                  : 'bg-red-50 border-red-100 text-red-600'
+                }`}
               >
-                <div className="flex items-center gap-2 mb-8">
-                  <div className="w-2 h-8 bg-[#FFCB05] rounded-full" />
-                  <h2 className="text-2xl font-black italic dark:text-white uppercase tracking-tighter">Acesse o Painel</h2>
-                </div>
-
-                <form onSubmit={handleLogin} className="space-y-5">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 italic">Username ou E-mail</label>
-                    <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 group-focus-within:text-[#FFCB05]" />
-                      <input
-                        type="email"
-                        required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        className={`w-full pl-12 pr-4 py-4 rounded-2xl border outline-none transition-all font-bold text-sm ${
-                          isDarkMode 
-                            ? 'bg-[#121212] border-[#333] text-white focus:ring-[#FFCB05]/40' 
-                            : 'bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05]'
-                        }`}
-                        placeholder="admin@grupoazevedo.com"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 italic">Senha de Acesso</label>
-                    <div className="relative">
-                      <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                      <input
-                        type="password"
-                        required
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className={`w-full pl-12 pr-4 py-4 rounded-2xl border outline-none transition-all font-bold text-sm ${
-                          isDarkMode 
-                            ? 'bg-[#121212] border-[#333] text-white focus:ring-[#FFCB05]/40' 
-                            : 'bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05]'
-                        }`}
-                        placeholder="••••••••"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between text-xs">
-                    <label className="flex items-center gap-2 text-slate-600 dark:text-slate-400 font-bold cursor-pointer hover:text-slate-900 transition-colors">
-                      <input type="checkbox" className="w-4 h-4 rounded border-slate-300 accent-[#FFCB05]" defaultChecked />
-                      Lembrar sessão
-                    </label>
-                    <button 
-                      type="button" 
-                      onClick={() => setShowRecovery(true)}
-                      className="text-[#7F300C] font-black uppercase tracking-widest italic hover:underline"
-                    >
-                      Esqueceu?
-                    </button>
-                  </div>
-
-                  <button
-                    disabled={loading}
-                    className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] italic flex items-center justify-center gap-3 transition-all scale-100 active:scale-95 shadow-xl ${
-                      loading 
-                      ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
-                      : 'bg-[#FFCB05] text-[#7F300C] hover:shadow-[#FFCB05]/30'
-                    }`}
-                  >
-                    {loading ? (
-                      <Loader2 className="w-6 h-6 animate-spin" />
-                    ) : (
-                      <>
-                        Entrar <LogIn className="w-5 h-5" />
-                      </>
-                    )}
-                  </button>
-                </form>
-
-                <div className={`mt-8 p-4 rounded-2xl flex gap-3 items-start border ${isDarkMode ? 'bg-[#121212] border-[#333]' : 'bg-slate-50 border-slate-100'}`}>
-                  <Info className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
-                  <div className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                    Níveis de acesso configurados: <br />
-                    <span className="font-black text-indigo-500">ADMIN</span> (Poder total) | <span className="font-black text-amber-600">GERENTE</span> (Operacional) | <span className="font-black text-emerald-600">FINANCEIRO</span> (Lançamentos)
-                  </div>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="recovery"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-              >
-                <div className="flex items-center gap-2 mb-8">
-                  <div className="w-2 h-8 bg-[#EF4444] rounded-full" />
-                  <h2 className="text-2xl font-black italic dark:text-white uppercase tracking-tighter">Recuperar Senha</h2>
-                </div>
-
-                {!recoverySent ? (
-                  <form onSubmit={handleRecovery} className="space-y-6">
-                    <p className="text-sm text-slate-500 dark:text-slate-400 italic">
-                      Insira o e-mail cadastrado para receber as instruções de redefinição.
-                    </p>
-                    <div className="space-y-2">
-                       <input
-                        type="email"
-                        required
-                        className={`w-full px-4 py-4 rounded-2xl border outline-none transition-all font-bold text-sm ${
-                          isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'
-                        }`}
-                        placeholder="seu@email.com"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-3">
-                      <button className="w-full py-5 rounded-2xl bg-slate-900 text-white font-black uppercase tracking-widest italic shadow-xl">
-                        Enviar Token
-                      </button>
-                      <button 
-                        type="button" 
-                        onClick={() => setShowRecovery(false)}
-                        className="text-[10px] font-black uppercase text-slate-400 tracking-widest hover:text-slate-600"
-                      >
-                        Voltar ao login
-                      </button>
-                    </div>
-                  </form>
-                ) : (
-                  <div className="text-center py-10">
-                    <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-4">
-                      <Mail className="w-8 h-8 text-emerald-600" />
-                    </div>
-                    <h3 className="text-xl font-bold dark:text-white mb-2">E-mail Enviado!</h3>
-                    <p className="text-sm text-slate-500 mb-8">Verifique sua caixa de entrada e spam.</p>
-                    <button 
-                      onClick={() => setShowRecovery(false)}
-                      className="text-[#7F300C] font-black uppercase tracking-widest italic border-b-2 border-[#7F300C]/20"
-                    >
-                      Voltar ao Login
-                    </button>
-                  </div>
-                )}
+                <motion.div
+                  initial={{ scale: 0.5, rotate: -45 }}
+                  animate={{ scale: 1, rotate: 0 }}
+                >
+                  <Info className="w-5 h-5 shrink-0" />
+                </motion.div>
+                <span className="text-xs font-bold">{error}</span>
               </motion.div>
             )}
-          </AnimatePresence>
+
+            <button
+              disabled={loading}
+              className={`w-full py-5 rounded-2xl font-black uppercase tracking-[0.2em] italic flex items-center justify-center gap-3 transition-all scale-100 active:scale-95 shadow-xl ${
+                loading 
+                ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                : 'bg-[#FFCB05] text-[#7F300C] hover:shadow-[#FFCB05]/30'
+              }`}
+            >
+              {loading ? (
+                <Loader2 className="w-6 h-6 animate-spin" />
+              ) : (
+                <>
+                  Entrar <LogIn className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </form>
 
           <div className="mt-8 pt-8 border-t dark:border-[#333] text-center">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">
-              Desenvolvido pelo <span className="text-[#7F300C]">Grupo Azevedo</span>
+              Acesso Restrito ao Administrador <br />
+              Desenvolvido por <span className="text-[#7F300C]">Rennan Inacio</span>
             </p>
           </div>
         </div>

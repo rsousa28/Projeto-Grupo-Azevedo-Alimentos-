@@ -89,8 +89,17 @@ export default function DataEntrySection({
     mode === 'dashboard' ? 'channels' : 'financial'
   );
   const [saved, setSaved] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState(initialMonth); // Maio
+  const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [selectedYear, setSelectedYear] = useState(initialYear);
+
+  // Sync with props
+  useEffect(() => {
+    setSelectedMonth(initialMonth);
+  }, [initialMonth]);
+
+  useEffect(() => {
+    setSelectedYear(initialYear);
+  }, [initialYear]);
 
   // Metas & Performance states
   const [faturamentoMeta, setFaturamentoMeta] = useState(metaVsRealizado[0]?.valor || 140000);
@@ -218,6 +227,11 @@ export default function DataEntrySection({
   
   // Products state (local for editing)
   const [localProducts, setLocalProducts] = useState(topProducts);
+
+  // Sync localProducts with topProducts when topProducts changes (loaded from Firestore)
+  useEffect(() => {
+    setLocalProducts(topProducts);
+  }, [topProducts]);
 
   const months = [
     { value: '01', label: 'Janeiro' },

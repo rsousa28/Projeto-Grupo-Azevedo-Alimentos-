@@ -57,6 +57,15 @@ export default function Dashboard() {
     { value: '12', label: 'Dezembro' },
   ];
 
+  const { loadDREPeriod, loadCMVPeriod } = useStore();
+
+  React.useEffect(() => {
+    if (currentStore.id !== 'admin-global') {
+      loadDREPeriod(selectedMonth, selectedYear);
+      loadCMVPeriod(selectedMonth, selectedYear);
+    }
+  }, [selectedMonth, selectedYear, currentStore.id]);
+
   const currentMonthLabel = months.find(m => m.value === selectedMonth)?.label;
   
   const currentMonthData = dreTimeline.find(d => 
@@ -96,12 +105,12 @@ export default function Dashboard() {
   const dynamicMostProfitable = [...currentTopProducts]
     .sort((a, b) => b.margin - a.margin)
     .slice(0, 3)
-    .map(p => ({ name: p.name, profit: p.faturamento * (p.margin/100) / p.quantidadeVendas, margin: p.margin }));
+    .map(p => ({ id: p.id, name: p.name, profit: (p.faturamento * (p.margin/100)) / (p.quantidadeVendas || 1), margin: p.margin }));
     
   const dynamicLowMargin = [...currentTopProducts]
     .sort((a, b) => a.margin - b.margin)
     .slice(0, 3)
-    .map(p => ({ name: p.name, margin: p.margin, status: p.margin < 30 ? 'crítico' : 'atenção' }));
+    .map(p => ({ id: p.id, name: p.name, margin: p.margin, status: p.margin < 30 ? 'crítico' : 'atenção' }));
 
   const faturamento = currentMonthData.faturamento || 0;
   const netProfit = currentMonthData.netProfit || 0;
@@ -109,6 +118,16 @@ export default function Dashboard() {
   const ticketMedio = currentMonthData.quantidadePedidos > 0 ? faturamento / currentMonthData.quantidadePedidos : 0;
   const totalPedidos = currentMonthData.quantidadePedidos || 0;
   const margemOperacional = faturamento > 0 ? (currentMonthData.ebitda / faturamento) * 100 : 0;
+
+  const getFeaturedInsight = () => {
+    if (cmvRate > 35) return `Seu CMV de ${cmvRate.toFixed(1)}% está acima do ideal. Verifique fichas técnicas de proteínas.`;
+    if (margemOperacional < 15 && faturamento > 0) return `Sua margem operacional está pressionada. Analise despesas fixas no financeiro.`;
+    if (ticketMedio < 45 && faturamento > 0) return `Ticket médio abaixo do esperado (R$ ${ticketMedio.toFixed(2)}). Sugerimos combos premium.`;
+    if (topProducts.length > 0) return `O produto ${topProducts[0].name} é seu maior destaque. Considere aumentar a exposição dele.`;
+    return "Analiso sua rede em tempo real. Alimente o sistema para receber insights acionáveis.";
+  };
+
+  const featuredInsight = getFeaturedInsight();
 
   const displayMetrics = [
     { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: 'up', change: '0' },
@@ -124,30 +143,34 @@ export default function Dashboard() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black text-black uppercase italic tracking-tighter">
-            {showEntry ? 'Lançamentos Dashboard' : 'Performance de Vendas'}
+            {currentStore.code === 'ROOT' ? 'Visão Consolidada - Root' : (showEntry ? 'Lançamentos Dashboard' : 'Performance de Vendas')}
           </h2>
-          <p className="text-sm text-slate-500 font-medium italic">
-            {showEntry ? 'Preencha os dados da unidade' : 'Dados consolidados da unidade selecionada'}
+          <p className={`text-sm font-medium italic ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>
+            {currentStore.code === 'ROOT' 
+              ? 'Métricas agregadas do Grupo Azevedo'
+              : (showEntry ? 'Preencha os dados da unidade' : 'Dados consolidados da unidade selecionada')}
           </p>
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <button 
-            onClick={() => setShowEntry(!showEntry)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
-          >
-            {showEntry ? (
-              <>
-                <ArrowLeft className="w-4 h-4" />
-                Voltar ao Dashboard
-              </>
-            ) : (
-              <>
-                Lançamentos Dashboard
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+          {currentStore.code !== 'ROOT' && (
+            <button 
+              onClick={() => setShowEntry(!showEntry)}
+              className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
+            >
+              {showEntry ? (
+                <>
+                  <ArrowLeft className="w-4 h-4" />
+                  Voltar ao Dashboard
+                </>
+              ) : (
+                <>
+                  Lançamentos Dashboard
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -185,13 +208,9 @@ export default function Dashboard() {
             <Zap className={`w-6 h-6 animate-pulse ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
           </div>
           <div>
-            <h2 className="text-2xl font-bold text-black leading-tight">Insight da IA</h2>
-            <p className="text-slate-500 dark:text-slate-400 max-w-lg">
-              {topProducts.length > 0 ? (
-                <>Seu faturamento em <span className="font-bold text-black">{topProducts[0].name}</span> cresceu {topProducts[0].margin > 60 ? 'consistentemente' : 'recentemente'}. Sugerimos um combo promocional para aumentar o ticket médio.</>
-              ) : (
-                <>Alimente o sistema com seus dados de vendas e produtos para receber insights personalizados e alertas de margem em tempo real.</>
-              )}
+            <h2 className={`text-2xl font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>Eficiência Operacional</h2>
+            <p className={`max-w-lg ${isDarkMode ? 'text-slate-400' : 'text-black'}`}>
+              {featuredInsight}
             </p>
           </div>
         </div>
@@ -199,7 +218,7 @@ export default function Dashboard() {
           onClick={() => navigate('/insights')}
           className="px-6 py-3 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
         >
-          Ver Mais Insights
+          Chat com Consultor IA
         </button>
       </motion.div>
 
@@ -220,13 +239,13 @@ export default function Dashboard() {
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{metric.label}</span>
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>{metric.label}</span>
                 <div className={`flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor}`}>
                   {metric.trend === 'up' ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
                   {metric.change}%
                 </div>
               </div>
-              <div className="text-lg font-black text-black truncate">
+              <div className={`text-lg font-black truncate ${isDarkMode ? 'text-white' : 'text-black'}`}>
                 {metric.format === 'currency' ? formatCurrency(metric.valor as number) : `${metric.valor}${metric.format === 'percent' ? '%' : ''}`}
               </div>
               <div className="text-[9px] text-slate-400 mt-1 italic">vs. mês anterior</div>
@@ -378,11 +397,11 @@ export default function Dashboard() {
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center gap-2 mb-6">
             <TrendingUp className="w-5 h-5 text-green-500" />
-            <h3 className="text-lg font-bold text-black">Top Lucratividade</h3>
+            <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>Oportunidade: Ticket Médio</h3>
           </div>
           <div className="space-y-4">
             {dynamicMostProfitable.length > 0 ? dynamicMostProfitable.map((p, i) => (
-              <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
+              <div key={p.id || `profit-${i}`} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
                 <div className="overflow-hidden">
                   <div className="text-xs font-bold dark:text-white uppercase italic truncate">{p.name}</div>
                   <div className="text-[10px] text-slate-500">Margem: {p.margin}%</div>
@@ -399,11 +418,11 @@ export default function Dashboard() {
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center gap-2 mb-6">
             <TrendingDown className="w-5 h-5 text-red-500" />
-            <h3 className="text-lg font-bold text-black">Alerta de Margem</h3>
+            <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>CMV Alerta: Proteínas</h3>
           </div>
           <div className="space-y-4">
             {dynamicLowMargin.length > 0 ? dynamicLowMargin.map((p, i) => (
-              <div key={p.name} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
+              <div key={p.id || `low-${i}`} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
                 <div className="overflow-hidden">
                   <div className="text-xs font-bold dark:text-white uppercase italic truncate">{p.name}</div>
                   <div className="text-[10px] text-slate-500">Status: {p.status}</div>
@@ -430,8 +449,8 @@ export default function Dashboard() {
                { label: 'Resultado Líquido', valor: currentMonthData.netProfit, color: 'text-green-500', bold: true, big: true }
              ].map((item) => (
                <div key={item.label} className={`flex items-center justify-between py-1 ${item.big ? 'border-t dark:border-[#333] pt-4 mt-2' : ''}`}>
-                 <span className={`text-[10px] font-bold uppercase tracking-wider ${item.bold ? 'dark:text-white' : 'text-slate-500'}`}>{item.label}</span>
-                 <span className={`text-sm font-black ${item.color || 'dark:text-white'} ${item.big ? 'text-lg' : ''}`}>
+                 <span className={`text-[10px] font-bold uppercase tracking-wider ${item.bold ? (isDarkMode ? 'dark:text-white' : 'text-black') : (isDarkMode ? 'text-slate-500' : 'text-slate-700')}`}>{item.label}</span>
+                 <span className={`text-sm font-black ${item.color || (isDarkMode ? 'dark:text-white' : 'text-black')} ${item.big ? 'text-lg' : ''}`}>
                    {formatCurrency(item.valor)}
                  </span>
                </div>
@@ -556,7 +575,7 @@ export default function Dashboard() {
                           {p.name[0]}
                         </div>
                         <div>
-                          <div className={`font-bold text-sm group-hover:text-amber-600 transition-colors uppercase italic ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>{p.name}</div>
+                          <div className={`font-bold text-sm group-hover:text-amber-600 transition-colors uppercase italic ${isDarkMode ? 'text-[#FFB800]' : 'text-slate-900'}`}>{p.name}</div>
                           <div className="text-xs text-slate-500">{p.category}</div>
                         </div>
                       </div>

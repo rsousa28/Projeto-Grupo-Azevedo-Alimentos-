@@ -2,14 +2,16 @@
 export interface User {
   id: string;
   name: string;
-  email: string;
-  role: 'ADMIN' | 'MANAGER' | 'FINANCIAL';
+  username: string;
+  email?: string;
+  role: 'ADMIN' | 'MANAGER' | 'FINANCIAL' | 'MANAGER_4ESTYLOS_MOSSORO' | 'MANAGER_BEBELU_MOSSORO' | 'MANAGER_BEBELU_RIOMAR_PAPICU';
+  password?: string;
 }
 
 export interface Store {
   id: string;
   name: string;
-  brand: '4ESTYLOS' | 'BEBELU';
+  brand: '4ESTYLOS' | 'BEBELU' | 'GRUPO AZEVEDO';
   location: string;
   code?: string;
 }
@@ -17,8 +19,8 @@ export interface Store {
 export interface Metric {
   label: string;
   valor: number | string;
-  change: number;
-  trend: 'up' | 'down' | 'neutral';
+  change: number | string;
+  trend: 'up' | 'down' | 'neutral' | string;
   format: 'currency' | 'percent' | 'number';
 }
 

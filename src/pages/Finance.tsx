@@ -17,9 +17,16 @@ import {
   ArrowLeft,
   Save,
   Loader2,
-  Check
+  Check,
+  MessagesSquare,
+  X,
+  Send,
+  Lightbulb
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -34,19 +41,27 @@ import {
 } from 'recharts';
 import { useStore } from '../contexts/StoreContext';
 import DataEntrySection from '../components/DataEntrySection';
+import { chatWithConsultant } from '../services/geminiService';
 
 const formatCurrency = (val: number) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function Finance() {
-  const { isDarkMode, dreTimeline, brandColors, currentStore, topProducts, loadDREPeriod } = useStore();
+  const { isDarkMode, dreTimeline, brandColors, currentStore, topProducts, loadDREPeriod, loadCMVPeriod } = useStore();
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio as default
   const [selectedYear, setSelectedYear] = useState('2026');
   const [showEntry, setShowEntry] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
+    { role: 'model', text: 'Como posso ajudar a otimizar sua margem este mês? Pergunte sobre qualquer conta da DRE e etc.' }
+  ]);
+  const [currentMessage, setCurrentMessage] = useState('');
+  const [isChatLoading, setIsChatLoading] = useState(false);
 
   // Auto-load data when period changes
   useEffect(() => {
     loadDREPeriod(selectedMonth, selectedYear);
+    loadCMVPeriod(selectedMonth, selectedYear);
   }, [selectedMonth, selectedYear, currentStore.id]);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['receita', 'deducoes', 'cmv', 'despesas_var', 'despesas_fixas_5', 'despesas_fixas_6', 'despesas_fixas_7', 'despesas_fixas_8', 'despesas_fixas_9', 'financeiro']);
 
@@ -310,6 +325,157 @@ export default function Finance() {
 
   const marginBruta = faturamentoVal > 0 ? ((currentMonthData.faturamento - currentMonthData.cmv) / faturamentoVal) * 100 : 0;
   const lucratividade = faturamentoVal > 0 ? (currentMonthData.netProfit / faturamentoVal) * 100 : 0;
+  const cmvPercent = faturamentoVal > 0 ? (currentMonthData.cmv / faturamentoVal) * 100 : 0;
+  const payrollPercent = faturamentoVal > 0 ? (currentMonthData.payroll / faturamentoVal) * 100 : 0;
+
+  const handleExportPDF = () => {
+    const doc = new jsPDF();
+    const title = `DRE - ${currentStore.name} - ${currentMonthLabel} ${selectedYear}`;
+    
+    doc.setFontSize(18);
+    doc.text(title, 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 14, 30);
+
+    const tableData = dreGroups.flatMap(group => {
+      const rows = [];
+      // Group header
+      rows.push([
+        { content: group.label, styles: { fontStyle: 'bold', fillColor: [240, 240, 240] } },
+        { content: `${((Math.abs(group.total) / faturamentoVal) * 100).toFixed(1)}%`, styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } },
+        { content: formatCurrency(group.total), styles: { fontStyle: 'bold', fillColor: [240, 240, 240], halign: 'right' } }
+      ]);
+      
+      // Items
+      if (group.items) {
+        group.items.forEach(item => {
+          rows.push([
+            `  ${item.label}`,
+            { content: `${((Math.abs(item.valor) / faturamentoVal) * 100).toFixed(1)}%`, styles: { halign: 'right' } },
+            { content: formatCurrency(item.valor), styles: { halign: 'right' } }
+          ]);
+        });
+      }
+      return rows;
+    });
+
+    autoTable(doc, {
+      startY: 40,
+      head: [['Descrição', 'AV %', 'Valor']],
+      body: tableData as any,
+      theme: 'plain',
+      styles: { fontSize: 9, cellPadding: 2 },
+      headStyles: { fillColor: [0, 0, 0], textColor: [255, 255, 255], fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 30, halign: 'right' },
+        2: { cellWidth: 40, halign: 'right' }
+      }
+    });
+
+    doc.save(`DRE_${currentStore.name.replace(/\s+/g, '_')}_${selectedMonth}_${selectedYear}.pdf`);
+  };
+
+  // Dynamic Insights
+  const getInsights = () => {
+    const insights = [];
+    
+    if (cmvPercent > 35) {
+      insights.push({
+        title: 'CMV Elevado',
+        desc: `Seu CMV está em ${cmvPercent.toFixed(1)}%. O ideal é abaixo de 32%. Verifique desperdícios e negocie insumos.`,
+        icon: <AlertCircle className="w-5 h-5 text-red-500" />,
+        color: 'bg-red-500/10'
+      });
+    } else if (cmvPercent > 0) {
+      insights.push({
+        title: 'CMV Saudável',
+        desc: `Parabéns! Sua margem bruta está protegida com CMV de ${cmvPercent.toFixed(1)}%.`,
+        icon: <Check className="w-5 h-5 text-green-500" />,
+        color: 'bg-green-500/10'
+      });
+    }
+
+    if (payrollPercent > 22) {
+      insights.push({
+        title: 'Ajuste de Escala',
+        desc: `Sua folha (${payrollPercent.toFixed(1)}%) ultrapassa o teto de 20%. Avalie a produtividade por colaborador.`,
+        icon: <Briefcase className="w-5 h-5 text-amber-500" />,
+        color: 'bg-amber-500/10'
+      });
+    }
+
+    if (lucratividade < 10 && faturamentoVal > 0) {
+      insights.push({
+        title: 'Margem de Lucro Baixa',
+        desc: `Lucratividade de ${lucratividade.toFixed(1)}% está abaixo da média de 15% do setor.`,
+        icon: <TrendingUp className="w-5 h-5 text-red-500" />,
+        color: 'bg-red-500/10'
+      });
+    }
+
+    if (insights.length === 0) {
+      insights.push({
+        title: 'Tudo em Ordem',
+        desc: 'Suas métricas principais estão dentro da normalidade para este período.',
+        icon: <Lightbulb className="w-5 h-5 text-indigo-500" />,
+        color: 'bg-indigo-500/10'
+      });
+    }
+
+    return insights;
+  };
+
+  const currentInsights = getInsights();
+
+  const handleSendMessage = async () => {
+    if (!currentMessage.trim() || isChatLoading) return;
+
+    const userMessage = currentMessage.trim();
+    setCurrentMessage('');
+    setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+    setIsChatLoading(true);
+
+    try {
+      // History should alternate between user and model, usually starting with user.
+      // If our first message is from the model (the welcome message), we might want to skip it for the API
+      // if it's the very first exchange.
+      const history = chatMessages
+        .filter((_, i) => i > 0 || chatMessages[i].role === 'user') // Simplified: if first is model, skip it for API history
+        .map(m => ({
+          role: m.role,
+          parts: [{ text: m.text }]
+        }));
+
+      const dreContext = {
+        month: currentMonthLabel,
+        year: selectedYear,
+        summary: {
+          faturamento: currentMonthData.faturamento,
+          ebitda: currentMonthData.ebitda,
+          netProfit: currentMonthData.netProfit,
+          mc: mc,
+          mcPercent: (mcPercent * 100).toFixed(1) + '%',
+          lucratividade: lucratividade.toFixed(1) + '%'
+        },
+        groups: dreGroups.map(g => ({
+          label: g.label,
+          total: g.total,
+          items: g.items?.map(i => ({ label: i.label, valor: i.valor }))
+        }))
+      };
+
+      const response = await chatWithConsultant(userMessage, dreContext, history);
+      setChatMessages(prev => [...prev, { role: 'model', text: response || 'Desculpe, tive um erro ao processar sua solicitação.' }]);
+    } catch (error) {
+      console.error(error);
+      setChatMessages(prev => [...prev, { role: 'model', text: 'Erro ao conectar-se ao consultor. Verifique sua chave de API.' }]);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
 
   // Simulate yearly data for the current month comparison
   const yearlyComparisonData = [
@@ -331,23 +497,23 @@ export default function Finance() {
               {showEntry ? 'Preencha os dados financeiros da unidade' : 'Demonstrativo de Resultados do Exercício Detalhado'}
             </p>
             {!showEntry && (
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-black/20 px-2 py-0.5 rounded-lg ml-2">
+              <div className="flex items-center gap-1 bg-black px-2 py-1 rounded-2xl ml-2">
                 <select 
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-slate-600 dark:text-slate-300"
+                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-white"
                 >
                   {months.map(m => (
-                    <option key={m.value} value={m.value} className="dark:bg-[#1E1E1E]">{m.label}</option>
+                    <option key={m.value} value={m.value} className="bg-[#1E1E1E] text-white font-bold">{m.label}</option>
                   ))}
                 </select>
                 <select 
                   value={selectedYear}
                   onChange={(e) => setSelectedYear(e.target.value)}
-                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-slate-600 dark:text-slate-300"
+                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-white"
                 >
-                  <option value="2025" className="dark:bg-[#1E1E1E]">2025</option>
-                  <option value="2026" className="dark:bg-[#1E1E1E]">2026</option>
+                  <option value="2025" className="bg-[#1E1E1E] text-white font-bold">2025</option>
+                  <option value="2026" className="bg-[#1E1E1E] text-white font-bold">2026</option>
                 </select>
               </div>
             )}
@@ -372,7 +538,10 @@ export default function Finance() {
           </button>
           {!showEntry && (
             <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl">
-              <button className={`p-2 rounded-xl border transition-all active:scale-95 ${isDarkMode ? 'bg-[#333] border-[#444] text-white' : 'bg-white border-slate-200 shadow-sm'}`}>
+              <button 
+                onClick={handleExportPDF}
+                className={`p-2 rounded-xl border transition-all active:scale-95 ${isDarkMode ? 'bg-[#333] border-[#444] text-white' : 'bg-white border-slate-200 shadow-sm'}`}
+              >
                 <Download className="w-5 h-5" />
               </button>
             </div>
@@ -501,15 +670,15 @@ export default function Finance() {
                         {!group.isTotal && (
                           <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${expandedGroups.includes(group.id) ? '' : '-rotate-90'}`} />
                         )}
-                        <span className={`text-xs font-black italic tracking-tighter ${group.isTotal ? (group.color || (isDarkMode ? 'dark:text-white' : 'text-slate-900')) : 'text-slate-500'}`}>
+                        <span className={`text-xs font-black italic tracking-tighter ${group.isTotal ? (group.color || (isDarkMode ? 'dark:text-white' : 'text-black')) : (isDarkMode ? 'text-slate-500' : 'text-slate-800')}`}>
                           {group.label}
                         </span>
                       </div>
                       <div className="flex gap-10 items-center">
-                         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 w-10 text-right">
+                         <span className={`text-[10px] font-bold w-10 text-right ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>
                            {((Math.abs(group.total) / currentMonthData.faturamento) * 100).toFixed(1)}%
                          </span>
-                         <span className={`text-sm font-black w-32 text-right ${group.isTotal ? (group.color || (isDarkMode ? 'dark:text-white' : 'text-slate-900')) : (isDarkMode ? 'text-slate-300' : 'text-slate-900')}`}>
+                         <span className={`text-sm font-black w-32 text-right ${group.isTotal ? (group.color || (isDarkMode ? 'dark:text-white' : 'text-black')) : (isDarkMode ? 'text-slate-300' : 'text-black')}`}>
                            {formatCurrency(group.total)}
                          </span>
                       </div>
@@ -526,12 +695,12 @@ export default function Finance() {
                         >
                           {group.items && group.items.map(item => (
                             <div key={item.label} className="flex items-center justify-between px-8 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors">
-                              <span className="text-[11px] font-medium text-slate-500 italic lowercase">{item.label}</span>
+                              <span className={`text-[11px] font-medium italic lowercase ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>{item.label}</span>
                               <div className="flex gap-10">
-                                 <span className="text-[9px] font-bold text-slate-400 w-10 text-right">
+                                 <span className={`text-[9px] font-bold w-10 text-right ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                                    {((Math.abs(item.valor) / currentMonthData.faturamento) * 100).toFixed(1)}%
                                  </span>
-                                 <span className={`text-[11px] font-bold w-32 text-right ${item.valor < 0 ? 'text-red-400' : 'text-slate-400'}`}>
+                                 <span className={`text-[11px] font-bold w-32 text-right ${item.valor < 0 ? 'text-red-400' : (isDarkMode ? 'text-slate-400' : 'text-slate-800')}`}>
                                    {formatCurrency(item.valor)}
                                  </span>
                               </div>
@@ -550,7 +719,7 @@ export default function Finance() {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h3 className="font-black text-black uppercase tracking-tighter italic text-lg">Top Lucratividade</h3>
-                <p className="text-[10px] text-slate-500 font-medium italic">Baseado nas Fichas Técnicas importadas</p>
+                <p className={`text-[10px] font-medium italic ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>Baseado nas Fichas Técnicas importadas</p>
               </div>
               <TrendingUp className="w-6 h-6 text-green-500" />
             </div>
@@ -565,7 +734,7 @@ export default function Finance() {
                       <div className={`w-8 h-8 rounded-full ${i === 0 ? 'bg-green-500' : i === 1 ? 'bg-indigo-500' : 'bg-blue-500'} flex items-center justify-center text-[10px] font-black text-white`}>#{i+1}</div>
                       <span className="text-[10px] font-black text-green-500">{item.margin}% mrg</span>
                     </div>
-                    <div className={`text-xs font-black uppercase tracking-tighter mb-1 truncate ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>{item.name}</div>
+                    <div className={`text-xs font-black uppercase tracking-tighter mb-1 truncate ${isDarkMode ? 'text-[#FFB800]' : 'text-slate-900'}`}>{item.name}</div>
                     <div className="text-[10px] text-slate-500 font-bold italic">{formatCurrency(item.faturamento * (item.margin/100) / (item.quantidadeVendas || 1))} lucro liq.</div>
                  </div>
                )) : (
@@ -580,34 +749,24 @@ export default function Finance() {
         {/* Action Sidebar */}
         <div className="space-y-6">
            <div className={`p-8 rounded-[2.5rem] border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 italic">Insights da Gestão</h4>
+              <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-6 italic ${isDarkMode ? 'text-slate-400' : 'text-black'}`}>Eficiência Operacional</h4>
               <div className="space-y-6">
-                 <div className="flex gap-4">
-                   <div className="p-2 bg-indigo-500/10 rounded-xl">
-                     <TrendingUp className="w-5 h-5 text-indigo-500" />
-                   </div>
-                   <div>
-                     <div className={`text-xs font-black mb-1 uppercase tracking-tighter ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>Oportunidade Delivery</div>
-                     <p className="text-[10px] text-slate-500 italic leading-relaxed">As taxas iFood subiram 1.2% este mês. Considere incentivar o canal direto.</p>
-                   </div>
-                 </div>
-                 {topProducts.some(p => p.margin < 30) && (
-                   <div className="flex gap-4">
-                     <div className="p-2 bg-red-500/10 rounded-xl">
-                       <AlertCircle className="w-5 h-5 text-red-500" />
+                 {currentInsights.map((insight, idx) => (
+                   <div key={idx} className="flex gap-4">
+                     <div className={`p-2 rounded-xl ${insight.color}`}>
+                       {insight.icon}
                      </div>
                      <div>
-                       <div className={`text-xs font-black mb-1 uppercase tracking-tighter ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>Alerta Insumos</div>
-                       <p className="text-[10px] text-slate-500 italic leading-relaxed">Produtos com margem crítica detectados. Revise seus custos nas fichas técnicas.</p>
+                       <div className={`text-xs font-black mb-1 uppercase tracking-tighter ${isDarkMode ? 'dark:text-white' : 'text-black'}`}>{insight.title}</div>
+                       <p className={`text-[10px] italic leading-relaxed ${isDarkMode ? 'text-slate-500' : 'text-black'}`}>{insight.desc}</p>
                      </div>
                    </div>
-                 )}
-                 {topProducts.length === 0 && (
-                   <p className="text-[10px] text-slate-400 italic">Configure seus produtos para receber alertas de margem e insumos.</p>
-                 )}
+                 ))}
               </div>
 
-              <div className={`mt-10 p-5 rounded-3xl border flex items-center justify-between group cursor-pointer active:scale-95 transition-all ${
+              <div 
+                onClick={handleExportPDF}
+                className={`mt-10 p-5 rounded-3xl border flex items-center justify-between group cursor-pointer active:scale-95 transition-all ${
                 isDarkMode ? 'bg-black/20 border-white/5 hover:bg-[#E63946]' : 'bg-slate-50 border-slate-100 hover:bg-[#0066FF]'
               }`}>
                  <div className="flex items-center gap-3">
@@ -618,25 +777,130 @@ export default function Finance() {
               </div>
            </div>
 
-           <div className={`p-6 rounded-[2.5rem] border ${isDarkMode ? 'bg-indigo-600 border-indigo-500 shadow-xl shadow-indigo-500/20' : 'bg-slate-900 border-slate-800 shadow-xl shadow-slate-900/20'}`}>
-              <div className="flex items-center gap-3 text-white mb-4">
-                <Zap className={`w-5 h-5 fill-white ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
-                <span className="text-xs font-black uppercase tracking-[0.2em] italic">Consultoria Online</span>
+           <div className={`p-6 rounded-[2.5rem] border ${isDarkMode ? 'bg-indigo-600 border-indigo-500 shadow-xl shadow-indigo-500/20' : 'bg-white border-slate-200'}`}>
+              <div className={`flex items-center gap-3 mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                <Zap className={`w-5 h-5 fill-current ${currentStore.brand === 'BEBELU' && !isDarkMode ? 'text-amber-500' : ''}`} />
+                <span className="text-xs font-black uppercase tracking-[0.2em] italic">Chat com Consultor IA</span>
               </div>
-              <p className="text-white/60 text-[10px] leading-relaxed mb-6">
+              <p className={`${isDarkMode ? 'text-white/60' : 'text-black'} text-[10px] leading-relaxed mb-6`}>
                 Como posso ajudar a otimizar sua margem este mês? Pergunte sobre qualquer conta da DRE.
               </p>
               <button 
-                className="w-full py-3 rounded-2xl bg-white text-slate-900 text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all"
-                style={currentStore.brand === 'BEBELU' ? { color: '#000', backgroundColor: '#FFCB05' } : {}}
+                onClick={() => setShowChat(true)}
+                className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all ${isDarkMode ? 'bg-white text-slate-900' : 'bg-black text-white'}`}
+                style={currentStore.brand === 'BEBELU' && isDarkMode ? { color: '#000', backgroundColor: '#FFCB05' } : {}}
               >
-                Falar com consultor IA
+                Chat com Consultor IA
               </button>
            </div>
         </div>
       </div>
       </>
       )}
+      {/* AI Chat Modal */}
+      <AnimatePresence>
+        {showChat && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowChat(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className={`relative w-full max-w-2xl h-[80vh] flex flex-col rounded-[2.5rem] border shadow-2xl overflow-hidden ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100'}`}
+            >
+              {/* Chat Header */}
+              <div className={`px-8 py-6 border-b flex items-center justify-between ${isDarkMode ? 'bg-black/20 border-[#333]' : 'bg-slate-50 border-slate-100'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-500 rounded-xl">
+                    <MessagesSquare className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-black dark:text-white uppercase tracking-tighter italic text-lg leading-tight">Consultor IA Financeiro</h3>
+                    <p className="text-[10px] text-slate-500 font-bold italic tracking-wider">Gestão & Otimização de Margem</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowChat(false)}
+                  className="p-2 hover:bg-slate-200 dark:hover:bg-white/10 rounded-xl transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-500" />
+                </button>
+              </div>
+
+              {/* Chat Messages */}
+              <div className="flex-1 overflow-y-auto p-8 space-y-6">
+                {chatMessages.length === 0 && (
+                  <div className="h-full flex flex-col items-center justify-center text-center space-y-4 px-10">
+                    <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mb-2">
+                      <Zap className="w-8 h-8 text-indigo-500" />
+                    </div>
+                    <p className="text-sm font-black dark:text-white uppercase italic tracking-tighter">Olá! Como posso te ajudar hoje?</p>
+                    <p className="text-xs text-slate-500 leading-relaxed max-w-xs">
+                      Tenho acesso aos seus dados de {currentMonthLabel} {selectedYear}. Pergunte sobre sua margem, despesas ou como aumentar seu lucro.
+                    </p>
+                  </div>
+                )}
+                {chatMessages.map((msg, idx) => (
+                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[85%] rounded-3xl p-5 text-sm ${
+                      msg.role === 'user' 
+                        ? (isDarkMode ? 'bg-indigo-600 text-white' : 'bg-black text-white rounded-tr-none')
+                        : (isDarkMode ? 'bg-black/40 text-slate-300 border border-white/5' : 'bg-slate-100 text-slate-800 rounded-tl-none')
+                    }`}>
+                      {msg.role === 'model' ? (
+                        <div className="markdown-body prose prose-sm dark:prose-invert max-w-none">
+                          <ReactMarkdown>{msg.text}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        msg.text
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isChatLoading && (
+                  <div className="flex justify-start">
+                    <div className={`rounded-3xl p-5 ${isDarkMode ? 'bg-black/40 border border-white/5' : 'bg-slate-100'}`}>
+                      <Loader2 className="w-5 h-5 text-indigo-500 animate-spin" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Chat Input */}
+              <div className={`p-6 border-t ${isDarkMode ? 'bg-black/20 border-[#333]' : 'bg-slate-50 border-slate-100'}`}>
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleSendMessage();
+                  }}
+                  className="relative"
+                >
+                  <input 
+                    type="text"
+                    value={currentMessage}
+                    onChange={(e) => setCurrentMessage(e.target.value)}
+                    placeholder="Pergunte sobre sua DRE..."
+                    className={`w-full bg-white dark:bg-[#1E1E1E] border ${isDarkMode ? 'border-[#333] text-white' : 'border-slate-200'} rounded-2xl py-4 pl-6 pr-14 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                  />
+                  <button 
+                    type="submit"
+                    disabled={!currentMessage.trim() || isChatLoading}
+                    className="absolute right-2 top-2 p-3 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl transition-all disabled:opacity-50 disabled:hover:bg-[#FFB800] disabled:hover:text-black"
+                  >
+                    <Send className="w-4 h-4" />
+                  </button>
+                </form>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

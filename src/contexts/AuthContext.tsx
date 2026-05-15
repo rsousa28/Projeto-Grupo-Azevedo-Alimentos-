@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
+import { db } from '../lib/firebase';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -14,46 +16,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Load from local storage on mount
   useEffect(() => {
-    // Check for persisted session
     const savedUser = localStorage.getItem('auth_user');
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (e) {
+        localStorage.removeItem('auth_user');
+      }
     }
     setIsLoading(false);
   }, []);
 
-  const login = async (email: string, password: string) => {
+  const login = async (username: string, password: string) => {
     setIsLoading(true);
-    // Simulate API call
-    return new Promise<void>((resolve, reject) => {
-      setTimeout(() => {
-        // Mock validation
-        if (email.includes('admin')) {
-          const newUser: User = { id: '1', name: 'Rennan Inácio', email, role: 'ADMIN' };
-          setUser(newUser);
-          localStorage.setItem('auth_user', JSON.stringify(newUser));
-          resolve();
-        } else if (email.includes('gerente')) {
-          const newUser: User = { id: '2', name: 'Gerente Loja', email, role: 'MANAGER' };
-          setUser(newUser);
-          localStorage.setItem('auth_user', JSON.stringify(newUser));
-          resolve();
-        } else if (email.includes('fin')) {
-          const newUser: User = { id: '3', name: 'Financeiro Dept', email, role: 'FINANCIAL' };
-          setUser(newUser);
-          localStorage.setItem('auth_user', JSON.stringify(newUser));
-          resolve();
-        } else {
-          // Default to admin for demo if not specified
-          const newUser: User = { id: '1', name: 'Rennan Inácio', email, role: 'ADMIN' };
-          setUser(newUser);
-          localStorage.setItem('auth_user', JSON.stringify(newUser));
-          resolve();
+    try {
+      const u = username?.trim().toLowerCase();
+      const p = password?.trim();
+
+      // 1. Check for root administrator fallback
+      if (u === 'adm' && p === 'adm123') {
+        const adminUser: User = { 
+          id: 'root-admin', 
+          name: 'Administrador Raiz', 
+          username: 'adm', 
+          role: 'ADMIN' 
+        };
+        setUser(adminUser);
+        localStorage.setItem('auth_user', JSON.stringify(adminUser));
+        return;
+      }
+
+      // 2. Check Firestore for custom users
+      try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('username', '==', u), limit(1));
+        const querySnapshot = await getDocs(q);
+
+        if (!querySnapshot.empty) {
+          const doc = querySnapshot.docs[0];
+          const userData = doc.data();
+          
+          // Verify password (stored in Firestore for this demo)
+          if (userData.password === p) {
+            const newUser: User = {
+              id: doc.id,
+              name: userData.name,
+              username: userData.username,
+              role: userData.role,
+              email: userData.email
+            };
+            setUser(newUser);
+            localStorage.setItem('auth_user', JSON.stringify(newUser));
+            return;
+          }
         }
-        setIsLoading(false);
-      }, 1000);
-    });
+      } catch (dbError) {
+        console.error("Database access error:", dbError);
+      }
+
+      throw new Error('Credenciais inválidas.');
+    } catch (error: any) {
+      console.error('Login error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {

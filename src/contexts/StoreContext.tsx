@@ -9,17 +9,17 @@ interface StoreContextType {
   setStore: (store: Store) => void;
   isDarkMode: boolean;
   metrics: Metric[];
-  setMetrics: (metrics: Metric[]) => void;
+  setMetrics: React.Dispatch<React.SetStateAction<Metric[]>>;
   dreTimeline: DREData[];
-  setDreTimeline: (data: DREData[]) => void;
+  setDreTimeline: React.Dispatch<React.SetStateAction<DREData[]>>;
   metaVsRealizado: any[];
-  setMetaVsRealizado: (data: any[]) => void;
+  setMetaVsRealizado: React.Dispatch<React.SetStateAction<any[]>>;
   operationalMetrics: any[];
-  setOperationalMetrics: (data: any[]) => void;
+  setOperationalMetrics: React.Dispatch<React.SetStateAction<any[]>>;
   topProducts: any[];
-  setTopProducts: (data: any[]) => void;
+  setTopProducts: React.Dispatch<React.SetStateAction<any[]>>;
   inventoryItems: any[];
-  setInventoryItems: (data: any[]) => void;
+  setInventoryItems: React.Dispatch<React.SetStateAction<any[]>>;
   yearlyHistory: { [year: string]: number };
   setYearlyHistory: (data: { [year: string]: number }) => void;
   deliveryChannels: any[];
@@ -44,15 +44,235 @@ interface StoreContextType {
 
 const STORES: Store[] = [
   { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU', location: 'Espaço Fan', code: 'B32' },
-  { id: '2', name: 'Bebelu Rio Mar', brand: 'BEBELU', location: 'Rio Mar Shopping', code: 'B28' },
+  { id: '2', name: 'Bebelu Riomar Papicu', brand: 'BEBELU', location: 'Rio Mar Shopping', code: 'B28' },
   { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS', location: 'Avenida Principal', code: '4E09' },
+  { id: 'admin-global', name: 'Administrador Raiz', brand: 'GRUPO AZEVEDO', location: 'Todas as Lojas', code: 'ROOT' },
 ];
+
+const PRODUCT_CATEGORY_MAP: Record<string, string> = {
+  // HotDog
+  'BELUSDOG BAC E CHED': 'HotDog',
+  'BELUSDOG CARNE DO SOL': 'HotDog',
+  'BELUSDOG FRANG DESF': 'HotDog',
+  'BELUSDOG CLASSICO': 'HotDog',
+
+  // Linha Catupiry
+  'FRANGO C/CATUPIRY': 'Linha Catupiry',
+  'FILE C/CATUPIRY': 'Linha Catupiry',
+  'LOMBO SUINO C/CATUPIRY': 'Linha Catupiry',
+
+  // Linha Especial
+  'PAI DEGUA GDE': 'Linha Especial',
+  'LOMBO SUINO': 'Linha Especial',
+  'FILET C/FRUTAS': 'Linha Especial',
+  'TOSCANESA': 'Linha Especial',
+  'CHICKEN ARABE': 'Linha Especial',
+  'BELUS BURGAO': 'Linha Especial',
+  'CHEESE ARABE': 'Linha Especial',
+  'FRANBACON': 'Linha Especial',
+
+  // Linha Imbativel
+  'CHEESEFRANGO SIMPLES': 'Linha Imbativel',
+  'SANDUICHE VACA E FRANGO': 'Linha Imbativel',
+  'PAI DEGUA SIMPLES': 'Linha Imbativel',
+  'CHEESEBURGER SIMPLES': 'Linha Imbativel',
+
+  // Linha Infantil
+  'KIT PLANETA': 'Linha Infantil',
+  'KIT HAMBUR LARAN': 'Linha Infantil',
+  'KIT HAMBUR SUCO': 'Linha Infantil',
+  'BRINDES': 'Linha Infantil',
+
+  // Linha Petisco
+  'MINI BOX TIRINHA': 'Linha Petisco',
+  'TIRINHA FRANGO': 'Linha Petisco',
+  'BOX BELLUS TIRINHA': 'Linha Petisco',
+  'PETISCO PEITO FRANGO': 'Linha Petisco',
+  'MINI BALDE TIRINHA': 'Linha Petisco',
+  'PETISCO CALABRESA': 'Linha Petisco',
+  'BOX FRANBAC TIRINH': 'Linha Petisco',
+  'PETISCO FILE MIGNON': 'Linha Petisco',
+
+  // Linha Super
+  'SUPER FRANGO': 'Linha Super',
+
+  // Linha Tradicional
+  'CHEESEBURGER': 'Linha Tradicional',
+  'SUPER CHEESE': 'Linha Tradicional',
+  'SALADA CHICKEN BURGUER': 'Linha Tradicional',
+  'CHEESE HAMB DUPLO': 'Linha Tradicional',
+  'HAMBURGER': 'Linha Tradicional',
+  'SUPER QUEIJO QUENTE': 'Linha Tradicional',
+
+  // Natural Light
+  'FRANGO C/CENOURA E PASSAS': 'Natural Light',
+  'SAND FGO ABACAXI': 'Natural Light',
+  'FRANGO RICOTA ESPECIAL': 'Natural Light',
+  'FRANGO C/RICOTA': 'Natural Light',
+  'FRANGO C/SALADA': 'Natural Light',
+  'SAND LEVE ATUM': 'Natural Light',
+  'RICOTA C/ CENOURA E PASSA': 'Natural Light',
+
+  // Opcionais
+  'ÁGUA MINERAL 500ML': 'Opcionais',
+  'BATATA FRITA GND': 'Opcionais',
+  'DIF BAT PEQ -> GND': 'Opcionais',
+  'BATATA FRITA MED': 'Opcionais',
+  'BATATA FRITA PEQ': 'Opcionais',
+  'DIF BOLA - ARABE': 'Opcionais',
+  'PORCAO MAIO TEMP EXTRA': 'Opcionais',
+  'PORÇÃO OVO': 'Opcionais',
+  'FATIA DE CHEDDAR': 'Opcionais',
+  'MACAXEIRA FRITA 125G': 'Opcionais',
+  'PORÇÃO BACON': 'Opcionais',
+  'PORÇÃO CALABRESA': 'Opcionais',
+  'PORÇÃO MUSSARELA': 'Opcionais',
+  'QUEIJO COALHO': 'Opcionais',
+  'EMB P/SALADA': 'Opcionais',
+  'PORÇ REQ CREMOSO': 'Opcionais',
+  'BATATA RUSTICA': 'Opcionais',
+  'DIF BAT-> MACAXEIRA': 'Opcionais',
+  'EMB. P/ VIAGEM': 'Opcionais',
+  'DIF ARABE INF-GRD': 'Opcionais',
+  'PORÇÃO MILHO': 'Opcionais',
+  'PORÇ APRESUNTADO': 'Opcionais',
+  'REF MIX 300 COCA-COLA': 'Opcionais',
+  'PORÇÃO ABACAXI': 'Opcionais',
+  'DIF BAT PEQ -> MED': 'Opcionais',
+  'DIF ARABE - BOLA': 'Opcionais',
+  'PORÇÃO PASSAS': 'Opcionais',
+  'PORCAO BARBECUE EXTRA': 'Opcionais',
+  'SACO VIAGEM GND': 'Opcionais',
+  'DIF ARABE-F. INT': 'Opcionais',
+  'PORÇÃO ERVILHA': 'Opcionais',
+  'MANDAR COPO E GUARDANAPOS': 'Opcionais',
+
+  // PROMO
+  'COMBO FRANG CROCAN': 'PROMO',
+  'FGO CROCANTE': 'PROMO',
+  'PROMO COMBO HAMBURGUER': 'PROMO',
+  'PROMO TOSCANESA': 'PROMO',
+  'PROMO FGO COM SALADA': 'PROMO',
+  'PROMO HAMBURGUER': 'PROMO',
+  'PROM FRANG CROCAN': 'PROMO',
+  'PROM BELUS DOG CLASSICO': 'PROMO',
+  'PROMO COMBO BELUSDOG': 'PROMO',
+  'PROMO MILK ACAI': 'PROMO',
+  'PROMO COMBO FGO C/SALADA': 'PROMO',
+  'ADICIONAL IFOOD': 'PROMO',
+  'FRANG C SALA': 'PROMO',
+  'PROM SUNDAE MORANGO': 'PROMO',
+  'PROMO SUNDAE CHOCOLATE': 'PROMO',
+  'PROMO SUNDAE AÇAI': 'PROMO',
+  'PROMO SUNDAE CHOCOLATE DDC': 'PROMO',
+  'PROM SUNDAE FRUTAS VERME': 'PROMO',
+  'PROM PETISCO CALABRESA': 'PROMO',
+  'PROMO CP DELICIA 5': 'PROMO',
+
+  // Saladas
+  'EXECUTIVO SALPICAO TIRINH': 'Saladas',
+  'EXECUTIVO TRADICIO TIRINH': 'Saladas',
+  'EXECUTIVO TRADICIO FRANGO': 'Saladas',
+  'EXECUTIVO SALPICAO FRANGO': 'Saladas',
+  'EXECUTIVO ESSENCIA TIRINH': 'Saladas',
+  'EXECUTIVO SALPICAO FILET': 'Saladas',
+  'EXECUTIVO ESSENCIA FILET': 'Saladas',
+  'SALADA CAESAR': 'Saladas',
+  'SALPICAO': 'Saladas',
+  'EXECUTIVO ESSENCIA FRANGO': 'Saladas',
+  'EXECUTIVO TRADICIO FILET': 'Saladas',
+  'SALADA ESP BEBELU': 'Saladas',
+  'SALADA ATUM': 'Saladas',
+
+  // Sobremesas
+  'MILK OVO MALT 500ML': 'Sobremesas',
+  'SORV MILK OVM 300': 'Sobremesas',
+  'MILK CHOCOL 500ML': 'Sobremesas',
+  'MILK FRUT VER 500': 'Sobremesas',
+  'MILK CHOCOL 300ML': 'Sobremesas',
+  'MILK ACAI 300ML': 'Sobremesas',
+  'SORV MILKSHAK 300': 'Sobremesas',
+  'MILK NEGRESCO 300': 'Sobremesas',
+  'MILK NEGRESCO 500': 'Sobremesas',
+  'MILK MORANG 500ML': 'Sobremesas',
+  'MILK ACAI 500': 'Sobremesas',
+  'MILK FRUT VER 300': 'Sobremesas',
+  'MILK MORANG 300ML': 'Sobremesas',
+  'MILK PISTACHE 500ML': 'Sobremesas',
+  'MILK SHAKE 500ML': 'Sobremesas',
+  'MILK PISTACHE 300ML': 'Sobremesas',
+  'MILK ABACAXI 300ML': 'Sobremesas',
+  'MILK SHAKE ACAI 300ML': 'Sobremesas',
+  'MILK NINHO 300ML': 'Sobremesas',
+  'MILK ACAI 500ML': 'Sobremesas',
+  'SUNDAE MORANGO': 'Sobremesas',
+  'MILK BAUNI 500ML': 'Sobremesas',
+  'SUNDAE CHOCOLATE': 'Sobremesas',
+  'MILK NINHO 500ML': 'Sobremesas',
+  'MILK ABACAXI 500ML': 'Sobremesas',
+  'SUNDAE BAUNI': 'Sobremesas',
+  'MILK BANANA 500ML': 'Sobremesas',
+  'SUNDAE NEGRESCO': 'Sobremesas',
+  'SUNDAE ABACAXI': 'Sobremesas',
+  'SUNDAE FRUTAS VER': 'Sobremesas',
+  'MILK BANANA 300ML': 'Sobremesas',
+  'SUNDAE DE PISTACHE': 'Sobremesas',
+  'SORVETE SUNDAE': 'Sobremesas',
+  'MILK BAUNI 300ML': 'Sobremesas',
+  'SUNDAE BANANA FLAMBADA': 'Sobremesas',
+  'SUNDAE ACAI': 'Sobremesas',
+  'COBERTURA MORANGO': 'Sobremesas',
+  'BOLA SORV MORANGO': 'Sobremesas',
+  'BOLA SORV BAUNILHA': 'Sobremesas',
+  'BOLA SORV CHOCOLATE': 'Sobremesas',
+  'COBERTURA CHOCOLATE': 'Sobremesas',
+
+  // Sucos
+  'SUCO GOIABA S/LEITE': 'Sucos',
+  'SUCO MANGA S/LEITE': 'Sucos',
+  'SUCO ACEROLA S/LEITE': 'Sucos',
+  'SUCO MARACUJA S/LEITE': 'Sucos',
+  'SUCO ACEROLA': 'Sucos',
+  'SUCO MARACUJA': 'Sucos',
+  'SUCO GOIABA': 'Sucos',
+  'SUCO MANGA': 'Sucos',
+  'SUCO CAJU S/LEI': 'Sucos',
+  'SUCO MORANGO': 'Sucos',
+
+  // Sucos Naturais
+  'SUCO LARANJA': 'Sucos Naturais',
+  'SUC LARANJA 500ML': 'Sucos Naturais',
+  'SUCO ABACAXI C/HORTELA': 'Sucos Naturais',
+  'SUCO LARANJA C/CENOURA': 'Sucos Naturais',
+  'S ABAX C/HORT 500': 'Sucos Naturais',
+  'S LARJ C/BETE 500': 'Sucos Naturais',
+  'SUCO LARANJA C/BETERRABA': 'Sucos Naturais',
+  'S LARAN C/CEN 500': 'Sucos Naturais',
+
+  // Delícias
+  'DELICIA 2': 'Delícias',
+  'DELICIA 6 C/ BAT': 'Delícias',
+  'DELICIA 1': 'Delícias',
+  'DELICIA 10': 'Delícias',
+  'DELICIA 3': 'Delícias',
+  'DELICIA 9': 'Delícias',
+  'DELICIA 4': 'Delícias',
+  'DELICIA 6': 'Delícias',
+  'DELICIA 5': 'Delícias',
+  'DELICIA 7': 'Delícias',
+  'DELICIA 13': 'Delícias',
+  'COMBO FRANGO CATUPIRY': 'Delícias',
+  'COMBO FILE CATUPIRY': 'Delícias',
+  'COMBO CHICKEN': 'Delícias',
+  'COMBO PERNIL CATUPIRY': 'Delícias',
+  'COMBO TOSCANESA': 'Delícias',
+};
 
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
-  const [currentStore, setCurrentStore] = useState<Store>(STORES[0]);
-  const isDarkMode = currentStore.brand === '4ESTYLOS';
+  const [currentStore, setCurrentStore] = useState<Store>(STORES[3]);
+  const isDarkMode = currentStore.brand === '4ESTYLOS' || currentStore.code === 'ROOT';
   const [metrics, setMetrics] = useState<Metric[]>(mockMetrics.map(m => ({ ...m, valor: 0, trend: 'neutral', change: '0%' })));
   const [dreTimeline, setDreTimeline] = useState<DREData[]>([]);
   const [metaVsRealizado, setMetaVsRealizado] = useState<any[]>([
@@ -80,6 +300,47 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, [currentStore.brand, isDarkMode, dreTimeline]);
   
   const [topProducts, setTopProducts] = useState<any[]>([]);
+
+  // Periodically ensure data normalization
+  useEffect(() => {
+    if (topProducts.length === 0) return;
+    
+    const needsCorrection = topProducts.some(p => {
+      const name = p.name.toUpperCase();
+      
+      // Check normalization map first
+      const normalizedCategory = PRODUCT_CATEGORY_MAP[name];
+      if (normalizedCategory && p.category !== normalizedCategory) return true;
+
+      // Special cases for partial matches
+      const isBeverage = (name.includes('KUAT') || name.includes('AQUARIUS')) && p.category !== 'Bebidas';
+      const isLojista = name.includes(' LJ') && p.category !== 'Combo Lojista' && !normalizedCategory;
+      
+      return isBeverage || isLojista;
+    });
+
+    if (needsCorrection) {
+      setTopProducts(prev => prev.map(p => {
+        const name = p.name.toUpperCase();
+        
+        const normalizedCategory = PRODUCT_CATEGORY_MAP[name];
+        if (normalizedCategory) {
+          return { ...p, category: normalizedCategory };
+        }
+
+        if ((name.includes('KUAT') || name.includes('AQUARIUS')) && p.category !== 'Bebidas') {
+          return { ...p, category: 'Bebidas' };
+        }
+
+        if (name.includes(' LJ') && p.category !== 'Combo Lojista') {
+          return { ...p, category: 'Combo Lojista' };
+        }
+
+        return p;
+      }));
+    }
+  }, [topProducts]);
+
   const [inventoryItems, setInventoryItems] = useState<any[]>([]);
   const [deliveryChannels, setDeliveryChannels] = useState<any[]>([
     { name: 'iFood', valor: 0, color: '#EA1D2C' },

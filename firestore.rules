@@ -1,6 +1,18 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Safety check for user ID format
+    function isValidId(id) {
+       return id is string && id.size() <= 128;
+    }
+
+    // Allow full access for simple control panel demo
+    // In production, this would be restricted to authenticated 'ADMIN' users
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
     match /{document=**} {
       allow read, write: if true;
     }

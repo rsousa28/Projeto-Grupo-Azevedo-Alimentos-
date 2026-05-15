@@ -44,7 +44,9 @@ export default function DataEntry() {
     salesByDay,
     setSalesByDay,
     peakHour: globalPeakHour,
-    setPeakHour
+    setPeakHour,
+    saveDREPeriod,
+    saveCMVPeriod
   } = useStore();
 
   const formatCurrency = (val: number) => {
@@ -351,6 +353,12 @@ export default function DataEntry() {
       updatedTimeline.push(newDRE);
     }
     setDreTimeline(updatedTimeline);
+
+    // PERSISTENCE TO FIRESTORE
+    if (currentStore.id !== 'admin-global') {
+      saveDREPeriod(selectedMonth, selectedYear, newDRE);
+      saveCMVPeriod(selectedMonth, selectedYear, [], localProducts);
+    }
 
     // 5. Update Channels & Peak Hour
     setDeliveryChannels([
