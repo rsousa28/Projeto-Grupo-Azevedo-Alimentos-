@@ -16,16 +16,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load from local storage on mount
+  // Clear user on mount to force login every time
   useEffect(() => {
-    const savedUser = localStorage.getItem('auth_user');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (e) {
-        localStorage.removeItem('auth_user');
-      }
-    }
+    localStorage.removeItem('auth_user');
     setIsLoading(false);
   }, []);
 

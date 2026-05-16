@@ -81,7 +81,7 @@ export default function Login() {
         <div className="p-8 md:p-12 relative">
           <div className="flex items-center gap-2 mb-8">
             <div className="w-2 h-8 bg-[#FFCB05] rounded-full" />
-            <h2 className="text-2xl font-black italic dark:text-white uppercase tracking-tighter">Acesse o Painel</h2>
+            <h2 className="text-2xl font-black italic text-black dark:text-black uppercase tracking-tighter">Acesse o Painel</h2>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
