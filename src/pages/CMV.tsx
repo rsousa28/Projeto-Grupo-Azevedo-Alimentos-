@@ -221,7 +221,7 @@ export default function CMV() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
-          <h2 className={`text-3xl font-bold uppercase italic tracking-tighter ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>Engenharia de Cardápio (CMV)</h2>
+          <h2 className={`text-3xl font-bold uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Engenharia de Cardápio (CMV)</h2>
           <p className="text-slate-500 font-medium italic">Análise de rentabilidade e fichas técnicas por período</p>
         </div>
         
@@ -291,32 +291,32 @@ export default function CMV() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className={`p-6 rounded-3xl border-2 border-red-500/20 bg-red-50/30 dark:bg-red-950/10 transition-colors relative overflow-hidden`}
+          className={`p-6 rounded-3xl border-2 border-red-700/20 bg-red-50/30 dark:bg-red-950/10 transition-colors relative overflow-hidden`}
         >
           <div className="absolute top-0 right-0 p-4 opacity-10">
-            <Sparkles className="w-20 h-20 text-red-500" />
+            <Sparkles className="w-20 h-20 text-red-700" />
           </div>
           
           <div className="flex items-start gap-4">
-            <div className="p-3 bg-red-500 rounded-2xl shadow-lg shadow-red-500/20">
+            <div className="p-3 bg-red-700 rounded-2xl shadow-lg shadow-red-700/20">
               <AlertTriangle className="w-6 h-6 text-white" />
             </div>
             <div className="flex-1">
-              <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase italic tracking-tighter flex items-center gap-2">
+              <h3 className={`text-lg font-black uppercase italic tracking-tighter flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                 Alerta de Engenharia de Cardápio (IA)
               </h3>
               <p className="text-sm text-slate-500 dark:text-slate-400 font-medium mb-4">
-                Identificamos <span className="font-black text-red-500">{negativeMarginProducts.length} produtos</span> com margem de contribuição negativa. Estes itens estão gerando prejuízo direto a cada venda.
+                Identificamos <span className="font-black text-red-700">{negativeMarginProducts.length} produtos</span> com margem de contribuição negativa. Estes itens estão gerando prejuízo direto a cada venda.
               </p>
               
               <div className="flex flex-wrap gap-2">
                 {negativeMarginProducts.slice(0, 3).map(p => (
                   <div key={p.id} className="flex items-center gap-3 bg-white dark:bg-black/40 px-4 py-2 rounded-xl border border-red-100 dark:border-red-900/30">
-                    <span className="text-xs font-black text-slate-900 dark:text-white uppercase italic">{p.name}</span>
-                    <span className="text-xs font-black text-red-500">{p.margin}%</span>
+                    <span className={`text-xs font-black uppercase italic ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{p.name}</span>
+                    <span className="text-xs font-black text-red-700">{p.margin}%</span>
                     <button 
                       onClick={() => toggleProductStatus(p.id)}
-                      className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-all"
+                      className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-red-700 transition-all"
                     >
                       Desativar
                     </button>
@@ -339,7 +339,7 @@ export default function CMV() {
                   animate={{ opacity: 1, height: 'auto' }}
                   className="mt-4 p-4 bg-white/50 dark:bg-black/30 rounded-2xl border border-red-200 dark:border-red-900/20 text-xs text-slate-700 dark:text-slate-300 font-medium leading-relaxed"
                 >
-                  <div className="flex items-center gap-2 mb-2 text-[10px] font-black text-red-500 uppercase tracking-widest">
+                  <div className="flex items-center gap-2 mb-2 text-[10px] font-black text-red-700 uppercase tracking-widest">
                     <Check className="w-3 h-3" /> Sugestões Estratégicas
                   </div>
                   <div className="whitespace-pre-line">
@@ -359,7 +359,7 @@ export default function CMV() {
         }`}>
           <div className={`text-[10px] font-black uppercase tracking-widest mb-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>CMV Consolidado (Mês)</div>
           <div className="flex items-end gap-3">
-            <span className={`text-3xl font-black italic ${isDarkMode ? 'dark:text-white' : 'text-black'}`}>{consolidatedCmvPercent.toFixed(1)}%</span>
+            <span className={`text-3xl font-black italic ${isDarkMode ? 'text-white' : 'text-black'}`}>{consolidatedCmvPercent.toFixed(1)}%</span>
             <div className="flex flex-col">
               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Valor do CMV</span>
               <span className="text-sm font-black text-amber-500">{formatCurrency(totalCmvValor)}</span>
@@ -375,7 +375,7 @@ export default function CMV() {
         }`}>
           <div className={`text-[10px] font-black uppercase tracking-widest mb-2 ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>Margem Média Estimada</div>
           <div className="flex items-end gap-3">
-            <span className={`text-3xl font-black italic ${isDarkMode ? 'dark:text-white' : 'text-black'}`}>{avgMargin.toFixed(1)}%</span>
+            <span className={`text-3xl font-black italic ${isDarkMode ? 'text-white' : 'text-black'}`}>{avgMargin.toFixed(1)}%</span>
             <span className="text-blue-500 text-xs font-bold mb-1 italic">Sugestão: Min. 65%</span>
           </div>
           <div className="mt-4 h-2 bg-slate-100 dark:bg-[#333] rounded-full overflow-hidden">
@@ -390,8 +390,8 @@ export default function CMV() {
       }`}>
         <div className="p-6 border-b dark:border-[#333] flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex flex-col">
-            <div className={`text-[10px] font-black uppercase tracking-[0.2em] italic ${currentStore.brand === 'BEBELU' ? 'text-amber-500' : 'text-[#FFB800]'}`}>Análise Detalhada</div>
-            <div className={`text-lg font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-[#FFB800]' : 'text-slate-900'}`}>Produtos & Engenharia</div>
+            <div className={`text-[10px] font-black uppercase tracking-[0.2em] italic ${currentStore.brand === 'BEBELU' || isDarkMode ? 'text-amber-500' : 'text-[#FFB800]'}`}>Análise Detalhada</div>
+            <div className={`text-lg font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Produtos & Engenharia</div>
           </div>
 
           <div className="flex gap-2 w-full md:w-auto">

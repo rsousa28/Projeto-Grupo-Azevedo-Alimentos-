@@ -220,7 +220,7 @@ export default function Team() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className={`text-3xl font-black text-black uppercase italic tracking-tighter ${isDarkMode ? 'dark:text-white' : ''}`}>Gestão de Equipe</h2>
+          <h2 className={`text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>Gestão de Equipe</h2>
           <p className={`text-sm font-bold italic ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>Controle de acesso e permissões do Grupo Azevedo</p>
         </div>
         
@@ -254,8 +254,8 @@ export default function Team() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center gap-3 mb-4">
-            <div className="p-2 bg-red-500/20 rounded-xl">
-              <ShieldCheck className="w-5 h-5 text-red-500" />
+            <div className="p-2 bg-red-700/20 rounded-xl">
+              <ShieldCheck className="w-5 h-5 text-red-700" />
             </div>
             <h4 className={`font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>ADMIN</h4>
           </div>
@@ -313,7 +313,7 @@ export default function Team() {
                   <td className="px-8 py-5">
                     <div className="flex items-center gap-4">
                       <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black italic shadow-lg ${
-                        u.role === 'ADMIN' ? 'bg-red-500 text-white' : 
+                        u.role === 'ADMIN' ? 'bg-red-700 text-white' : 
                         u.role === 'MANAGER' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
                       }`}>
                         {(u.name || 'U').charAt(0).toUpperCase()}
@@ -337,7 +337,7 @@ export default function Team() {
                       </button>
                       <button 
                         onClick={() => handleDelete(u.id)}
-                        className={`p-3 rounded-xl transition-all ${isDarkMode ? 'hover:bg-red-500/10 text-slate-400 hover:text-red-500' : 'hover:bg-red-50 text-slate-400 hover:text-red-600'}`}
+                        className={`p-3 rounded-xl transition-all ${isDarkMode ? 'hover:bg-red-700/10 text-slate-400 hover:text-red-700' : 'hover:bg-red-50 text-slate-400 hover:text-red-600'}`}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -455,7 +455,7 @@ export default function Team() {
                           onClick={() => setFormData({...formData, role})}
                           className={`flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${
                             formData.role === role 
-                              ? (role === 'ADMIN' ? 'bg-red-500 border-red-500 text-white shadow-lg shadow-red-500/20' : 
+                              ? (role === 'ADMIN' ? 'bg-red-700 border-red-700 text-white shadow-lg shadow-red-700/20' : 
                                  role === 'FINANCIAL' ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 
                                  'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20')
                               : (isDarkMode ? 'bg-black/20 border-[#333] text-slate-500' : 'bg-slate-50 border-slate-100 text-slate-400 hover:bg-slate-100')
@@ -522,8 +522,8 @@ export default function Team() {
                 isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-white'
               }`}
             >
-              <div className="p-4 bg-red-500/10 rounded-3xl mb-6">
-                <Trash2 className="w-10 h-10 text-red-500" />
+              <div className="p-4 bg-red-700/10 rounded-3xl mb-6">
+                <Trash2 className="w-10 h-10 text-red-700" />
               </div>
               
               <h3 className={`text-xl font-black uppercase italic tracking-tighter mb-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
@@ -537,7 +537,7 @@ export default function Team() {
                 <button 
                   onClick={confirmDelete}
                   disabled={loading}
-                  className="w-full py-5 rounded-2xl bg-red-500 text-white font-black uppercase tracking-widest text-[11px] hover:bg-red-600 transition-all active:scale-95 shadow-xl shadow-red-500/20 flex items-center justify-center gap-2"
+                  className="w-full py-5 rounded-2xl bg-red-700 text-white font-black uppercase tracking-widest text-[11px] hover:bg-red-800 transition-all active:scale-95 shadow-xl shadow-red-700/20 flex items-center justify-center gap-2"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
                   Confirmar Remoção

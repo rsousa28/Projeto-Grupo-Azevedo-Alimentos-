@@ -42,10 +42,10 @@ interface StoreContextType {
   };
 }
 
-const STORES: Store[] = [
+export const STORES: Store[] = [
   { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU', location: 'Espaço Fan', code: 'B32' },
   { id: '2', name: 'Bebelu Riomar Papicu', brand: 'BEBELU', location: 'Rio Mar Shopping', code: 'B28' },
-  { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS', location: 'Avenida Principal', code: '4E09' },
+  { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS', location: 'Espaço Fan', code: '4E09' },
   { id: 'admin-global', name: 'Administrador Raiz', brand: 'GRUPO AZEVEDO', location: 'Todas as Lojas', code: 'ROOT' },
 ];
 

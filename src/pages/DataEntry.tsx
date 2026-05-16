@@ -401,8 +401,8 @@ export default function DataEntry() {
     <div className="space-y-8 pb-10">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold dark:text-white">Lançamentos - {currentMonthLabel}/{selectedYear}</h2>
-          <p className="text-slate-500">Alimente o sistema com dados reais para atualizar os dashboards</p>
+          <h2 className={`text-3xl font-bold font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>Lançamentos - {currentMonthLabel}/{selectedYear}</h2>
+          <p className="text-slate-500 font-medium">Alimente o sistema com dados reais para atualizar os dashboards</p>
         </div>
         <button 
           onClick={handleSave}
@@ -496,7 +496,7 @@ export default function DataEntry() {
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: brandColors.primary }} />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">1. Receita Bruta</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>1. Receita Bruta</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-2">
@@ -530,7 +530,7 @@ export default function DataEntry() {
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: brandColors.secondary }} />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">2 & 3. Deduções e CMV</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>2 & 3. Deduções e CMV</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-2">
@@ -558,7 +558,7 @@ export default function DataEntry() {
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-orange-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">4. Despesas Variáveis</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>4. Despesas Variáveis</h4>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                    {[
@@ -591,7 +591,7 @@ export default function DataEntry() {
               <section className="space-y-10">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-slate-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Despesas Fixas Operacionais</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Despesas Fixas Operacionais</h4>
                 </div>
                 
                 {/* Colaboradores */}
@@ -749,7 +749,7 @@ export default function DataEntry() {
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-yellow-400 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Apuração Resultado Financeiro</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Apuração Resultado Financeiro</h4>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                    {[
@@ -775,7 +775,7 @@ export default function DataEntry() {
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-purple-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">GRI - Secretaria de Estado</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>GRI - Secretaria de Estado</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="space-y-2">
@@ -801,7 +801,7 @@ export default function DataEntry() {
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-[#0066FF] rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Canais de Venda</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Canais de Venda</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="space-y-2">
@@ -846,7 +846,7 @@ export default function DataEntry() {
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-yellow-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Picos de Venda</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Picos de Venda</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -879,7 +879,7 @@ export default function DataEntry() {
             >
               <div className="space-y-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] dark:text-white italic">Fichas Técnicas & Engenharia de Cardápio</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Fichas Técnicas & Engenharia de Cardápio</h4>
                   <button 
                     onClick={() => {
                       const newProd = {
@@ -975,7 +975,7 @@ export default function DataEntry() {
               <div className="space-y-6">
                 <div className="flex items-center gap-3 mb-6">
                   <div className="w-1.5 h-6 bg-indigo-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">Comparativo Histórico ({currentMonthLabel})</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-wider italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Comparativo Histórico ({currentMonthLabel})</h4>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -1028,7 +1028,7 @@ export default function DataEntry() {
                 <div className="p-6 rounded-[2rem] bg-indigo-500/5 border border-indigo-500/10">
                    <div className="flex items-center gap-3 mb-6">
                      <Target className="w-5 h-5 text-indigo-500" />
-                     <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">Metas de Unidade - Março</h4>
+                     <h4 className={`text-sm font-black uppercase tracking-wider italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Metas de Unidade - Março</h4>
                    </div>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-3">
@@ -1092,7 +1092,7 @@ export default function DataEntry() {
                 <div className="p-6 rounded-[2rem] bg-slate-500/5 border border-slate-500/10">
                   <div className="flex items-center gap-3 mb-6">
                     <Clock className="w-5 h-5 text-indigo-500" />
-                    <h4 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">Performance Operacional</h4>
+                    <h4 className={`text-sm font-black uppercase tracking-wider italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Performance Operacional</h4>
                   </div>
                   <div className="max-w-md">
                     <div className="space-y-3">

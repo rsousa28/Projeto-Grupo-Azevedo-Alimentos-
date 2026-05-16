@@ -2,7 +2,7 @@ import React from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { Store as StoreIcon, ArrowRight, ChefHat, MapPin } from 'lucide-react';
-import { useStore } from '../contexts/StoreContext';
+import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Store } from '../types';
 
@@ -10,40 +10,30 @@ export default function SelectStore() {
   const navigate = useNavigate();
   const { setStore } = useStore();
 
-  const stores: Store[] = [
-    { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU', location: 'Espaço Fan', code: 'B32' },
-    { id: '2', name: 'Bebelu Riomar Papicu', brand: 'BEBELU', location: 'Rio Mar Shopping', code: 'B28' },
-    { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS', location: 'Avenida Principal', code: '4E09' },
-  ];
-
   const { user } = useAuth();
 
   const filteredStores = React.useMemo(() => {
     if (!user) return [];
     
-    // Admin sees everything + potentially a special "Global" option
+    // Admin sees only the root option (Consolidated)
     if (user.role === 'ADMIN') {
-      const rootStore: Store = { id: 'admin-global', name: 'Administrador Raiz', brand: 'GRUPO AZEVEDO', location: 'Todas as Lojas', code: 'ROOT' };
-      return [
-        rootStore,
-        ...stores
-      ];
+      return STORES.filter(s => s.code === 'ROOT');
     }
     
-    if (user.role === 'FINANCIAL') return stores;
+    if (user.role === 'FINANCIAL') return STORES.filter(s => s.code !== 'ROOT');
 
     // Filter by specific Manager roles
     if (user.role === 'MANAGER_BEBELU_MOSSORO') {
-      return stores.filter(s => s.code === 'B32');
+      return STORES.filter(s => s.code === 'B32');
     }
     if (user.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
-      return stores.filter(s => s.code === 'B28');
+      return STORES.filter(s => s.code === 'B28');
     }
     if (user.role === 'MANAGER_4ESTYLOS_MOSSORO') {
-      return stores.filter(s => s.code === '4E09');
+      return STORES.filter(s => s.code === '4E09');
     }
     
-    return [];
+    return STORES.filter(s => s.code !== 'ROOT');
   }, [user]);
 
   const handleSelect = (store: Store) => {

@@ -9,7 +9,7 @@ import {
   ShoppingBag, Clock, Users, ArrowUpRight, ArrowDownRight,
   Zap, Info, Target, Calendar, ArrowRight, ArrowLeft, Sparkles
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   mostProfitable,
   lowMarginProducts
@@ -41,6 +41,27 @@ export default function Dashboard() {
   const [showEntry, setShowEntry] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('05');
   const [selectedYear, setSelectedYear] = useState('2026');
+  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
+
+  const businessQuotes = [
+    "O segredo do sucesso no food service é constância e qualidade.",
+    "Gestão é fazer as coisas bem; liderança é fazer as coisas certas.",
+    "O que não é medido não é gerenciado. Olhe seus números hoje.",
+    "A excelência não é um ato, mas um hábito diário na cozinha.",
+    "Um cliente satisfeito é a sua melhor estratégia de marketing.",
+    "Qualidade significa fazer certo quando ninguém está olhando.",
+    "Inovação separa um líder de um seguidor.",
+    "A disciplina é a ponte entre metas e realizações.",
+    "Sucesso é a soma de pequenos esforços repetidos dia após dia.",
+    "Grandes coisas nunca vêm de zonas de conforto."
+  ];
+
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentQuoteIndex((prev) => (prev + 1) % businessQuotes.length);
+    }, 10000); // Mudar a cada 10 segundos
+    return () => clearInterval(interval);
+  }, []);
 
   const months = [
     { value: '01', label: 'Janeiro' },
@@ -90,7 +111,7 @@ export default function Dashboard() {
   };
   
   const dynamicDeliveryChannels = [
-    { name: 'iFood', valor: currentMonthData.receitaIfood || 0, color: '#EA1D2C' },
+    { name: 'iFood', valor: currentMonthData.receitaIfood || 0, color: '#991B1B' },
     { name: 'WEDO', valor: currentMonthData.receitaWedo || 0, color: '#0066FF' },
     { name: 'Balcão', valor: currentMonthData.receitaBalcao || 0, color: isDarkMode ? '#64748b' : '#FFB800' }
   ];
@@ -142,7 +163,7 @@ export default function Dashboard() {
     <div className="space-y-8 pb-10">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black text-black uppercase italic tracking-tighter">
+          <h2 className={`text-2xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>
             {currentStore.code === 'ROOT' ? 'Visão Consolidada - Root' : (showEntry ? 'Lançamentos Dashboard' : 'Performance de Vendas')}
           </h2>
           <p className={`text-sm font-medium italic ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>
@@ -207,11 +228,21 @@ export default function Dashboard() {
           >
             <Zap className={`w-6 h-6 animate-pulse ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
           </div>
-          <div>
+          <div className="flex-1">
             <h2 className={`text-2xl font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>Eficiência Operacional</h2>
-            <p className={`max-w-lg ${isDarkMode ? 'text-slate-400' : 'text-black'}`}>
-              {featuredInsight}
-            </p>
+            <div className="h-10 flex items-center">
+              <AnimatePresence mode="wait">
+                <motion.p 
+                  key={currentQuoteIndex}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className={`text-sm font-bold italic line-clamp-2 ${isDarkMode ? 'text-slate-400' : 'text-slate-700'}`}
+                >
+                  {businessQuotes[currentQuoteIndex]}
+                </motion.p>
+              </AnimatePresence>
+            </div>
           </div>
         </div>
         <button 
@@ -226,7 +257,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {displayMetrics.map((metric, i) => {
           const isHealthy = metric.trend === 'up' && metric.label !== 'CMV Médio' || (metric.label === 'CMV Médio' && metric.trend === 'down');
-          const statusColor = isHealthy ? 'text-green-500 bg-green-500/10' : 'text-red-500 bg-red-500/10';
+          const statusColor = isHealthy ? 'text-green-500 bg-green-500/10' : 'text-red-700 bg-red-700/10';
           
           return (
             <motion.div
@@ -259,7 +290,7 @@ export default function Dashboard() {
         {/* Revenue Trend */}
         <div className={`lg:col-span-2 p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-black flex items-center gap-2">
+            <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
               <TrendingUp className="w-5 h-5" style={{ color: brandColors.primary }} /> Crescimento Mensal
             </h3>
             <div className="flex gap-2">
@@ -283,7 +314,7 @@ export default function Dashboard() {
 
         {/* Meta vs Realizado */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className="text-lg font-bold text-black mb-6">Meta vs. Realizado</h3>
+          <h3 className={`text-lg font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>Meta vs. Realizado</h3>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={metaVsRealizado}>
@@ -303,7 +334,7 @@ export default function Dashboard() {
               {((metaVsRealizado[1].valor / metaVsRealizado[0].valor) * 100).toFixed(1)}%
             </div>
             {metaVsRealizado[1].valor < metaVsRealizado[0].valor ? (
-              <p className="text-[10px] text-red-500 font-bold mt-1">
+              <p className="text-[10px] text-red-700 font-bold mt-1">
                 Faltam {formatCurrency(metaVsRealizado[0].valor - metaVsRealizado[1].valor)} para a meta
               </p>
             ) : (
@@ -319,7 +350,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Hourly Sales */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className="text-lg font-bold text-black mb-6 flex items-center gap-2">
+          <h3 className={`text-lg font-bold mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
             <Clock className="w-5 h-5 text-orange-500" /> Fluxo por Horário
           </h3>
           <div className="h-[250px]">
@@ -417,7 +448,7 @@ export default function Dashboard() {
         {/* Low Margin Products */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center gap-2 mb-6">
-            <TrendingDown className="w-5 h-5 text-red-500" />
+            <TrendingDown className="w-5 h-5 text-red-700" />
             <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>CMV Alerta: Proteínas</h3>
           </div>
           <div className="space-y-4">
@@ -427,7 +458,7 @@ export default function Dashboard() {
                   <div className="text-xs font-bold dark:text-white uppercase italic truncate">{p.name}</div>
                   <div className="text-[10px] text-slate-500">Status: {p.status}</div>
                 </div>
-                <div className={`text-sm font-black ${p.status === 'crítico' ? 'text-red-500' : 'text-yellow-500'}`}>
+                <div className={`text-sm font-black text-red-700 whitespace-nowrap`}>
                   {p.margin}%
                 </div>
               </div>
@@ -439,13 +470,13 @@ export default function Dashboard() {
 
         {/* Resumo DRE */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className="text-lg font-bold text-black mb-6">DRE Resumido</h3>
+          <h3 className={`text-lg font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>DRE Resumido</h3>
           <div className="space-y-3">
              {[
                { label: 'Receita Bruta', valor: currentMonthData.faturamento, color: 'text-indigo-600' },
-               { label: 'Custos Variáveis', valor: -(currentMonthData.cmv + currentMonthData.taxes), color: 'text-red-500' },
+               { label: 'Custos Variáveis', valor: -(currentMonthData.cmv + currentMonthData.taxes), color: 'text-red-700' },
                { label: 'Margem de Contrib.', valor: currentMonthData.faturamento - currentMonthData.cmv - currentMonthData.taxes, bold: true },
-               { label: 'Custos Fixos', valor: -(currentMonthData.payroll + currentMonthData.rent + currentMonthData.marketing + currentMonthData.operational), color: 'text-red-500' },
+               { label: 'Custos Fixos', valor: -(currentMonthData.payroll + currentMonthData.rent + currentMonthData.marketing + currentMonthData.operational), color: 'text-red-700' },
                { label: 'Resultado Líquido', valor: currentMonthData.netProfit, color: 'text-green-500', bold: true, big: true }
              ].map((item) => (
                <div key={item.label} className={`flex items-center justify-between py-1 ${item.big ? 'border-t dark:border-[#333] pt-4 mt-2' : ''}`}>
@@ -466,8 +497,8 @@ export default function Dashboard() {
         <div className={`p-6 rounded-3xl border transition-colors duration-500 ${
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
-            <ShoppingBag className="w-5 h-5" style={{ color: currentStore.brand === 'BEBELU' ? '#EA1D2C' : '#EA1D2C' }} /> Origem dos Pedidos
+          <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            <ShoppingBag className="w-5 h-5" style={{ color: '#991B1B' }} /> Origem dos Pedidos
           </h3>
           <div className="flex flex-col md:flex-row items-center gap-8">
             <div className="h-[200px] w-full md:w-1/2 relative">
@@ -514,7 +545,7 @@ export default function Dashboard() {
         <div className={`p-6 rounded-3xl border transition-colors duration-500 ${
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-200 shadow-sm'
         }`}>
-          <h3 className="text-lg font-bold text-black mb-6 flex items-center gap-2">
+          <h3 className={`text-lg font-bold mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
             <Zap className="w-5 h-5 text-yellow-500" /> Indicadores Operacionais
           </h3>
           <div className="space-y-6">
@@ -534,7 +565,7 @@ export default function Dashboard() {
                       initial={{ width: 0 }}
                       animate={{ width: `${op.percent}%` }}
                       className={`h-full rounded-full transition-colors duration-500`}
-                      style={{ backgroundColor: op.critical ? '#EF4444' : brandColors.button }}
+                      style={{ backgroundColor: op.critical ? '#991B1B' : brandColors.button }}
                     />
                   </div>
                 </div>
@@ -551,7 +582,7 @@ export default function Dashboard() {
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'
         }`}>
           <div className="flex items-center justify-between mb-8">
-            <h3 className="text-lg font-bold text-black">Engenharia de Cardápio</h3>
+            <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>Engenharia de Cardápio</h3>
             <button className="text-sm font-bold text-indigo-600 hover:underline">Ver Tabela ABC</button>
           </div>
           <div className="overflow-x-auto">

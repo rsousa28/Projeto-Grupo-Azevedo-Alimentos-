@@ -386,8 +386,8 @@ export default function Finance() {
       insights.push({
         title: 'CMV Elevado',
         desc: `Seu CMV está em ${cmvPercent.toFixed(1)}%. O ideal é abaixo de 32%. Verifique desperdícios e negocie insumos.`,
-        icon: <AlertCircle className="w-5 h-5 text-red-500" />,
-        color: 'bg-red-500/10'
+        icon: <AlertCircle className="w-5 h-5 text-red-700" />,
+        color: 'bg-red-700/10'
       });
     } else if (cmvPercent > 0) {
       insights.push({
@@ -411,8 +411,8 @@ export default function Finance() {
       insights.push({
         title: 'Margem de Lucro Baixa',
         desc: `Lucratividade de ${lucratividade.toFixed(1)}% está abaixo da média de 15% do setor.`,
-        icon: <TrendingUp className="w-5 h-5 text-red-500" />,
-        color: 'bg-red-500/10'
+        icon: <TrendingUp className="w-5 h-5 text-red-700" />,
+        color: 'bg-red-700/10'
       });
     }
 
@@ -489,7 +489,7 @@ export default function Finance() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-black italic tracking-tighter">
+          <h2 className={`text-3xl font-bold italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>
             {showEntry ? 'Lançamentos DRE' : `DRE Inteligente`}
           </h2>
           <div className="flex items-center gap-2 mt-1">
@@ -589,7 +589,7 @@ export default function Finance() {
       <div className={`p-8 rounded-[2.5rem] border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h3 className="font-black text-black uppercase tracking-tighter italic text-xl flex items-center gap-2">
+            <h3 className={`font-black uppercase tracking-tighter italic text-xl flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
               <TrendingUp className="w-5 h-5" style={{ color: brandColors.primary }} /> Comparativo Anual do Mês
             </h3>
             <p className="text-[10px] text-slate-500 font-medium italic">Faturamento de Março em 2024, 2025 e 2026</p>
@@ -718,7 +718,7 @@ export default function Finance() {
           <div className={`p-8 rounded-[2.5rem] border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h3 className="font-black text-black uppercase tracking-tighter italic text-lg">Top Lucratividade</h3>
+                <h3 className={`font-black uppercase tracking-tighter italic text-lg ${isDarkMode ? 'text-white' : 'text-black'}`}>Top Lucratividade</h3>
                 <p className={`text-[10px] font-medium italic ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>Baseado nas Fichas Técnicas importadas</p>
               </div>
               <TrendingUp className="w-6 h-6 text-green-500" />

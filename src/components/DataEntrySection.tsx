@@ -462,7 +462,7 @@ export default function DataEntrySection({
       {!isEmbedded && (
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-black font-black">Lançamentos - {currentMonthLabel}/{selectedYear}</h2>
+            <h2 className={`text-3xl font-bold font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>Lançamentos - {currentMonthLabel}/{selectedYear}</h2>
             <p className="text-slate-500 font-medium">Alimente o sistema com dados reais para atualizar os dashboards</p>
           </div>
           <button 
@@ -552,7 +552,7 @@ export default function DataEntrySection({
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: brandColors.primary }} />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">1. Receita Bruta</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>1. Receita Bruta</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-2">
@@ -575,7 +575,7 @@ export default function DataEntrySection({
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 rounded-full" style={{ backgroundColor: brandColors.secondary }} />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">2. Deduções da Receita</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>2. Deduções da Receita</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-2">
@@ -587,8 +587,8 @@ export default function DataEntrySection({
 
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1.5 h-6 rounded-full bg-red-500" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">3. Custos Variáveis das Mercadorias</h4>
+                  <div className="w-1.5 h-6 rounded-full bg-red-700" />
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>3. Custos Variáveis das Mercadorias</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="space-y-2">
@@ -609,7 +609,7 @@ export default function DataEntrySection({
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-orange-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">4. Despesas Variáveis</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>4. Despesas Variáveis</h4>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                    {[
@@ -637,7 +637,7 @@ export default function DataEntrySection({
               <section className="space-y-10">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-slate-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">5. Despesas Fixas Operacionais</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>5. Despesas Fixas Operacionais</h4>
                 </div>
                 <div className="space-y-4">
                   <h5 className="text-[10px] font-black uppercase text-indigo-500 bg-indigo-500/5 px-3 py-1 rounded w-fit">Despesas com Colaboradores e Encargos</h5>
@@ -714,7 +714,7 @@ export default function DataEntrySection({
                <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-[#0066FF] rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">Canais de Venda</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Canais de Venda</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                    <div className="space-y-2">
@@ -743,7 +743,7 @@ export default function DataEntrySection({
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-yellow-500 rounded-full" />
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">Picos de Venda</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Picos de Venda</h4>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
@@ -763,7 +763,7 @@ export default function DataEntrySection({
           {activeTab === 'products' && (
              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
                <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-sm font-black uppercase tracking-[0.2em] text-black italic">Fichas Técnicas & Engenharia de Cardápio</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Fichas Técnicas & Engenharia de Cardápio</h4>
                   <button onClick={() => setLocalProducts([...localProducts, { id: Math.random().toString(), name: 'Novo Produto ' + (localProducts.length + 1), quantidadeVendas: 100, faturamento: 5000, margin: 65, category: 'Comida' }])} className="text-[10px] font-black uppercase tracking-widest text-[#0066FF] hover:underline">+ Simular Novo Produto</button>
                 </div>
                 <div className={`p-10 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center text-center transition-all ${isDarkMode ? 'border-[#333] hover:border-[#E63946]' : 'border-slate-200 hover:border-[#0066FF]'}`}>

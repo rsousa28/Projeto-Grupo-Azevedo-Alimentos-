@@ -16,6 +16,7 @@ import DataEntry from './pages/DataEntry';
 import CMV from './pages/CMV';
 import AIInsights from './pages/AIInsights';
 import Team from './pages/Team';
+import CashClosing from './pages/CashClosing';
 
 import { useAuth } from './contexts/AuthContext';
 
@@ -61,6 +62,7 @@ function AppRoutes() {
         }>
            <Route index element={<Navigate to="/dashboard" replace />} />
            <Route path="/dashboard" element={<Dashboard />} />
+           <Route path="/cash-closing" element={<CashClosing />} />
            <Route path="/data-entry" element={<DataEntry />} />
            <Route path="/finance" element={<Finance />} />
            <Route path="/cmv" element={<CMV />} />

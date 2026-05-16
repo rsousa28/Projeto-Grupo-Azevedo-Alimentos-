@@ -111,7 +111,7 @@ export default function AIInsights() {
     <div className="space-y-8 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className={`text-3xl font-black text-black uppercase italic tracking-tighter ${isDarkMode ? 'dark:text-white' : ''}`}>Inteligência Artificial</h2>
+          <h2 className={`text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>Inteligência Artificial</h2>
           <p className={`text-sm font-bold italic ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>Insights automáticos e preditivos para sua rede Food Service</p>
         </div>
         <button 
@@ -140,7 +140,7 @@ export default function AIInsights() {
             <div className="flex items-center justify-between mb-6">
               <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] ${
                 insight.impact === 'Positivo' ? 'bg-green-500/10 text-green-500' : 
-                insight.impact === 'Negativo' ? 'bg-red-500/10 text-red-500' : 'bg-indigo-500/10 text-indigo-500'
+                insight.impact === 'Negativo' ? 'bg-red-700/10 text-red-700' : 'bg-indigo-500/10 text-indigo-500'
               }`}>
                 {insight.impact}
               </span>
@@ -149,7 +149,7 @@ export default function AIInsights() {
               </div>
             </div>
             
-            <h3 className={`text-xl font-black ${isDarkMode ? 'text-white' : 'text-black'} mb-2 italic uppercase tracking-tighter`}>{insight.title}</h3>
+            <h3 className={`text-xl font-black mb-2 italic uppercase tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>{insight.title}</h3>
             <p className={`text-sm mb-6 leading-relaxed font-bold italic ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>
               {insight.description}
             </p>
@@ -175,7 +175,7 @@ export default function AIInsights() {
                <div className="p-4 bg-indigo-600 rounded-3xl w-fit mb-6 shadow-xl shadow-indigo-600/30">
                  <MessageSquare className="w-8 h-8 text-white" />
                </div>
-               <h3 className={`text-3xl font-black ${isDarkMode ? 'text-white' : 'text-black'} mb-4 uppercase italic tracking-tighter leading-none`}>Consultor IA Food Service</h3>
+               <h3 className={`text-3xl font-black mb-4 uppercase italic tracking-tighter leading-none ${isDarkMode ? 'text-white' : 'text-black'}`}>Consultor IA Food Service</h3>
                <p className={`text-sm font-bold italic ${isDarkMode ? 'text-slate-500' : 'text-slate-600'} leading-relaxed`}>
                  Analiso sua rede em tempo real. Pergunte sobre metas, escala de funcionários ou novos combos.
                </p>

@@ -14,10 +14,11 @@ import {
   Store as StoreIcon,
   Zap,
   TrendingUp,
-  FileText
+  FileText,
+  Banknote
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useStore } from '../contexts/StoreContext';
+import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { User } from '../types';
 
@@ -30,6 +31,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+  { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: ['ADMIN', 'MANAGER'] },
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: ['ADMIN', 'MANAGER', 'FINANCIAL'] },
   { icon: Calculator, label: 'CMV & Fichas', path: '/cmv', allowedRoles: ['ADMIN', 'MANAGER'] },
   { icon: Zap, label: 'Insights IA', path: '/insights', allowedRoles: ['ADMIN'] },
@@ -53,11 +55,29 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     !item.allowedRoles || (user && item.allowedRoles.includes(user.role))
   );
 
-  const STORES = [
-    { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU' as const, location: 'Espaço Fan', code: 'B32' },
-    { id: '2', name: 'Bebelu Rio Mar', brand: 'BEBELU' as const, location: 'Rio Mar Shopping', code: 'B28' },
-    { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS' as const, location: 'Avenida Principal', code: '4E09' },
-  ];
+  const filteredStores = React.useMemo(() => {
+    if (!user) return [];
+    
+    // Admin sees everything
+    if (user.role === 'ADMIN') {
+      return STORES;
+    }
+    
+    if (user.role === 'FINANCIAL') return STORES.filter(s => s.code !== 'ROOT');
+
+    // Filter by specific Manager roles
+    if (user.role === 'MANAGER_BEBELU_MOSSORO') {
+      return STORES.filter(s => s.code === 'B32');
+    }
+    if (user.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
+      return STORES.filter(s => s.code === 'B28');
+    }
+    if (user.role === 'MANAGER_4ESTYLOS_MOSSORO') {
+      return STORES.filter(s => s.code === '4E09');
+    }
+    
+    return STORES.filter(s => s.code !== 'ROOT');
+  }, [user]);
 
   return (
     <div className="flex min-h-screen font-sans selection:bg-indigo-100">
@@ -120,13 +140,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                   )}
                 </div>
                 <div className="flex-1 overflow-hidden">
-                  <div className="font-bold text-sm truncate text-black">{currentStore.name}</div>
+                  <div className={`font-bold text-sm truncate ${isDarkMode ? 'text-white' : 'text-black'}`}>{currentStore.name}</div>
                   <div className="text-xs text-slate-500">{currentStore.location}</div>
                 </div>
               </div>
               
               <div className="grid grid-cols-2 gap-2 mt-4">
-                {STORES.map(s => (
+                {filteredStores.map(s => (
                   <button
                     key={s.id}
                     onClick={() => setStore(s)}
