@@ -1,6 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+import { Type } from "@google/genai";
 
 export interface ExtractedProduct {
   name: string;
@@ -16,6 +14,27 @@ export interface ExtractedInsumo {
   unit: string;
   price: number;
   supplier: string;
+}
+
+async function callAIApi(contents: any, model: string = "gemini-1.5-flash", config: any = {}) {
+  const response = await fetch("/api/ai/generate", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      contents,
+      config,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.error || "Failed to generate AI content");
+  }
+
+  return response.json();
 }
 
 export async function extractDataFromCSV(csvContent: string, type: 'products' | 'inventory') {
@@ -51,17 +70,13 @@ export async function extractDataFromCSV(csvContent: string, type: 'products' | 
   };
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: csvContent,
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-        responseSchema: responseSchema as any,
-      },
+    const result = await callAIApi(csvContent, "gemini-1.5-flash", {
+      systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: responseSchema as any,
     });
 
-    return JSON.parse(response.text || "[]");
+    return JSON.parse(result.text || "[]");
   } catch (error) {
     console.error("Gemini Extraction Error:", error);
     throw error;
@@ -86,19 +101,17 @@ export async function chatWithConsultant(message: string, dreContext: any, histo
   `;
 
   try {
-    const chat = ai.chats.create({
-      model: "gemini-3-flash-preview",
-      config: {
-        systemInstruction,
-      },
-      history: history.map(h => ({
-        role: h.role,
-        parts: h.parts
-      }))
+    // Note: History management is handled by the server proxy if we send the full history
+    const combinedContents = [
+      ...history,
+      { role: 'user', parts: [{ text: message }] }
+    ];
+
+    const result = await callAIApi(combinedContents, "gemini-1.5-flash", {
+      systemInstruction,
     });
 
-    const response = await chat.sendMessage({ message });
-    return response.text;
+    return result.text;
   } catch (error) {
     console.error("Gemini Chat Error:", error);
     throw error;
@@ -120,7 +133,7 @@ export async function generatePredictiveInsights(context: any): Promise<Predicti
     
     Dados do Negócio:
     ${JSON.stringify(context, null, 2)}
-
+    
     O retorno deve ser ESTRITAMENTE um JSON no formato de Array de objetos com:
     {
       "title": "Título curto",
@@ -132,18 +145,32 @@ export async function generatePredictiveInsights(context: any): Promise<Predicti
   `;
 
   try {
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: "Gere meus insights preditivos do mês.",
-      config: {
-        systemInstruction,
-        responseMimeType: "application/json",
-      },
+    const result = await callAIApi("Gere meus insights preditivos do mês.", "gemini-1.5-flash", {
+      systemInstruction,
+      responseMimeType: "application/json",
     });
 
-    return JSON.parse(response.text || "[]");
+    return JSON.parse(result.text || "[]");
   } catch (error) {
     console.error("Gemini Insights Error:", error);
-    return []; // Return empty or fallback
+    return [];
+  }
+}
+
+export async function analyzeMenuEngineering(negativeMarginProducts: any[]) {
+  if (negativeMarginProducts.length === 0) return "Nenhum produto com margem negativa para analisar.";
+  
+  const prompt = `Como um consultor de engenharia de cardápio, analise estes produtos que estão com margem negativa (prejuízo) na minha operação Bebelu/4Estylos (fast-food/pizzaria):
+  
+  ${negativeMarginProducts.map(p => `- ${p.name}: CMV R$${p.cmv}, Preço Médio R$${((p.faturamento || 0) / (p.quantidadeVendas || 1)).toFixed(2)}, Margem ${p.margin}%`).join('\n')}
+  
+  Para cada produto, dê uma recomendação estratégica ultra-curta (máximo 15 palavras por item) sobre o que fazer (ex: revisar gramatura, trocar insumo, descontinuar). Foque em ações práticas. Responda em Português.`;
+
+  try {
+    const result = await callAIApi(prompt, "gemini-1.5-flash");
+    return result.text;
+  } catch (error) {
+    console.error("Erro na análise IA:", error);
+    return "Não foi possível gerar a análise no momento.";
   }
 }

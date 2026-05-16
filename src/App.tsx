@@ -32,7 +32,11 @@ function checkPreviewEnvironment(): boolean {
     'scf.usercontent',
     'stackblitz',
     'codesandbox',
-    'run.app'
+    'run.app',
+    'localhost',
+    '127.0.0.1',
+    'vercel.app',
+    'netlify.app'
   ];
   const host = window.location.hostname;
   return identifiers.some(id => host.includes(id));

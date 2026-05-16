@@ -522,7 +522,11 @@ export default function CashClosing() {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                   <div className="space-y-6">
-                    <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-amber-500 border-amber-500/20' : 'text-white border-white/20'}`}>Finalizadores de Venda</h4>
+                    <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${
+                      storeInfo.brand?.toLowerCase().includes('bebelu') 
+                        ? 'text-[#7F300C] border-[#7F300C]/20' 
+                        : isDarkMode ? 'text-white border-white/20' : 'text-slate-900 border-slate-200'
+                    }`}>Finalizadores de Venda</h4>
                     {[
                       { label: 'DELIVERY', field: 'delivery' as const },
                       { label: 'CARTÃO CRÉDITO', field: 'creditCard' as const },
@@ -534,7 +538,7 @@ export default function CashClosing() {
                       <div key={item.field} className="flex items-center justify-between group">
                         <span className={`text-[11px] font-bold uppercase transition-colors ${
                           storeInfo.brand?.toLowerCase().includes('bebelu') 
-                            ? 'text-amber-500' 
+                            ? 'text-[#7F300C]' 
                             : isDarkMode ? 'text-white group-hover:text-amber-500' : 'text-slate-900 group-hover:text-amber-500'
                         }`}>{item.label}</span>
                         <input 
@@ -548,7 +552,7 @@ export default function CashClosing() {
                     ))}
                     
                     <div className="space-y-2 pt-6">
-                      <label className={`text-[10px] font-black uppercase italic ml-2 ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-amber-500/80' : (isDarkMode ? 'text-white' : 'text-slate-900')}`}>Observações / Notas</label>
+                      <label className={`text-[10px] font-black uppercase italic ml-2 ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-[#7F300C]' : (isDarkMode ? 'text-white' : 'text-slate-900')}`}>Observações / Notas</label>
                       <textarea 
                         value={formData.observations}
                         onChange={(e) => handleInputChange('observations', e.target.value)}
@@ -562,7 +566,11 @@ export default function CashClosing() {
 
                   <div className="space-y-8">
                     <div className="space-y-6">
-                      <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-amber-500 border-amber-500/20' : 'text-white border-white/20'}`}>Saídas e Despesas</h4>
+                      <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${
+                        storeInfo.brand?.toLowerCase().includes('bebelu') 
+                          ? 'text-[#7F300C] border-[#7F300C]/20' 
+                          : isDarkMode ? 'text-white border-white/20' : 'text-slate-900 border-slate-200'
+                      }`}>Saídas e Despesas</h4>
                       {[
                         { label: 'LANCHE FUNCIONÁRIOS', field: 'lancheFuncionarios' as const },
                         { label: 'DESPESAS (CAIXA)', field: 'despesas' as const },
@@ -572,7 +580,7 @@ export default function CashClosing() {
                         <div key={item.field} className="flex items-center justify-between group">
                           <span className={`text-[11px] font-bold uppercase transition-colors ${
                             storeInfo.brand?.toLowerCase().includes('bebelu') 
-                              ? 'text-amber-500' 
+                              ? 'text-[#7F300C]' 
                               : isDarkMode ? 'text-white group-hover:text-amber-500' : 'text-slate-900 group-hover:text-amber-500'
                           }`}>{item.label}</span>
                           <input 
@@ -587,7 +595,11 @@ export default function CashClosing() {
                     </div>
 
                     <div className="space-y-4">
-                      <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-amber-500 border-amber-500/20' : 'text-white border-white/20'}`}>Outros / Justificativas</h4>
+                      <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${
+                        storeInfo.brand?.toLowerCase().includes('bebelu') 
+                          ? 'text-[#7F300C] border-[#7F300C]/20' 
+                          : isDarkMode ? 'text-white border-white/20' : 'text-slate-900 border-slate-200'
+                      }`}>Outros / Justificativas</h4>
                       {[
                         { label: 'OUTROS (COD 50)', field: 'outros1' as const },
                         { label: 'OUTROS 2', field: 'outros2' as const },

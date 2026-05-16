@@ -20,7 +20,7 @@ import {
 import { motion } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
 import CSVImportModal from '../components/CSVImportModal';
-import { GoogleGenAI } from "@google/genai";
+import { analyzeMenuEngineering } from '../services/geminiService';
 
 const formatCurrency = (val: number) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -88,19 +88,8 @@ export default function CMV() {
     
     setIsAnalyzing(true);
     try {
-      const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
-      
-      const prompt = `Como um consultor de engenharia de cardápio, analise estes produtos que estão com margem negativa (prejuízo) na minha operação Bebelu/4Estylos (fast-food/pizzaria):
-      
-      ${negativeMarginProducts.map(p => `- ${p.name}: CMV R$${p.cmv}, Preço Médio R$${((p.faturamento || 0) / (p.quantidadeVendas || 1)).toFixed(2)}, Margem ${p.margin}%`).join('\n')}
-      
-      Para cada produto, dê uma recomendação estratégica ultra-curta (máximo 15 palavras por item) sobre o que fazer (ex: revisar gramatura, trocar insumo, descontinuar). Foque em ações práticas. Responda em Português.`;
-
-      const result = await genAI.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt
-      });
-      setAiAnalysis(result.text || "Sem análise disponível.");
+      const result = await analyzeMenuEngineering(negativeMarginProducts);
+      setAiAnalysis(result || "Sem análise disponível.");
     } catch (error) {
       console.error("Erro na análise IA:", error);
       setAiAnalysis("Não foi possível gerar a análise no momento. Verifique sua conexão ou tente novamente.");

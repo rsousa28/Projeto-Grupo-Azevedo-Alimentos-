@@ -1,6 +1,6 @@
 {
-  "name": "Hybrid Route Landing Page",
-  "description": "A landing page template featuring high-performance hybrid routing optimized for both development preview and production environments.",
+  "name": "Gestão Bebelu & 4Estylos",
+  "description": "Sistema de gestão financeira, fechamento de caixa e análise de CMV para as unidades Bebelu e 4Estylos.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
