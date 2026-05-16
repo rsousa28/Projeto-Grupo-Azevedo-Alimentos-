@@ -16,14 +16,32 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Health check and API status
+  app.get("/api/health", (req, res) => {
+    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    res.json({ 
+      status: "ok", 
+      apiConfigured: !!apiKey && apiKey.length > 10,
+      keyPrefix: apiKey ? apiKey.substring(0, 4) + "..." : "none"
+    });
+  });
+
   // Gemini API Proxy
   app.post("/api/ai/generate", async (req, res) => {
     try {
       const { model, contents, config } = req.body;
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = (process.env.GEMINI_API_KEY || 
+                     process.env.GOOGLE_API_KEY || 
+                     process.env.GOOGLE_GENAI_API_KEY ||
+                     process.env.VITE_GEMINI_API_KEY ||
+                     process.env.API_KEY || "").trim();
 
-      if (!apiKey) {
-        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
+      if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey === "") {
+        const availableVars = Object.keys(process.env).filter(k => k.includes("API") || k.includes("KEY") || k.includes("GOOGLE") || k.includes("GEMINI"));
+        console.error("Missing or invalid API Key. Available env vars:", availableVars);
+        return res.status(500).json({ 
+          error: `GEMINI_API_KEY is not configured. Found vars: ${availableVars.join(", ") || "none"}. Please ensure you saved the Secret in AI Studio Settings.` 
+        });
       }
 
       const genAI = new GoogleGenAI({ apiKey });
