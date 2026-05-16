@@ -373,18 +373,12 @@ export default function CashClosing() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className={`p-6 rounded-[2rem] border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest italic font-sans flex items-center gap-2">
             <TrendingUp className="w-3 h-3 text-green-500" /> Faturamento Médio Diário
           </div>
           <div className={`text-2xl font-black italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrencyLocal(avgDaily)}</div>
-        </div>
-        <div className={`p-6 rounded-[2rem] border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <div className="text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest italic font-sans flex items-center gap-2">
-            <TrendingDown className="w-3 h-3 text-red-700" /> Total de Saídas
-          </div>
-          <div className={`text-2xl font-black italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrencyLocal(totalExpenses)}</div>
         </div>
         <div className={`p-6 rounded-[2rem] border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest italic font-sans flex items-center gap-2">
@@ -426,7 +420,6 @@ export default function CashClosing() {
                 </th>
                 <th className="px-8 py-4 text-[10px] font-black uppercase italic tracking-widest text-right">Faturamento</th>
                 <th className="px-8 py-4 text-[10px] font-black uppercase italic tracking-widest text-right">Sistema</th>
-                <th className="px-8 py-4 text-[10px] font-black uppercase italic tracking-widest text-right">Saídas</th>
                 <th className="px-8 py-4 text-[10px] font-black uppercase italic tracking-widest text-center">Auditoria</th>
                 <th className="px-8 py-4"></th>
               </tr>
@@ -447,9 +440,6 @@ export default function CashClosing() {
                   </td>
                   <td className="px-8 py-6 text-right font-bold italic text-xs text-slate-500">
                     {formatCurrencyLocal(closing.systemTotal)}
-                  </td>
-                  <td className="px-8 py-6 text-right font-black italic text-sm text-red-700">
-                    -{formatCurrencyLocal(closing.expenses)}
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex justify-center">

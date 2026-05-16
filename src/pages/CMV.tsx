@@ -263,14 +263,6 @@ export default function CMV() {
             }`}>
               <Sparkles className="w-5 h-5 text-[#FFB800]" /> Importar via IA
             </button>
-            <button 
-              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg ${
-                currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'
-              }`}
-              style={{ backgroundColor: brandColors.button, boxShadow: `0 10px 15px -3px ${brandColors.button}30` }}
-            >
-              <Plus className="w-5 h-5" /> Nova Ficha
-            </button>
           </div>
         </div>
       </div>
