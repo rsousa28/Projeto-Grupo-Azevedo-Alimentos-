@@ -39,7 +39,7 @@ export default function Login() {
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="max-w-4xl w-full grid md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl bg-white dark:bg-[#1E1E1E] border dark:border-[#333]"
+        className="max-w-4xl w-full grid md:grid-cols-2 rounded-3xl overflow-hidden shadow-2xl bg-white border border-slate-100"
       >
         {/* Visual Side */}
         <div className="relative hidden md:block bg-[#FFCB05]">
@@ -51,9 +51,9 @@ export default function Login() {
                   transition={{ delay: 0.2 }}
                 >
                   <img 
-                    src="https://storage.googleapis.com/aistudio-build-artifacts/7060b66b-6db6-4a04-a679-19b7ec364245/image_generation_1720546313.png" 
-                    alt="Logo Bebelu" 
-                    className="w-48 h-auto mb-8 mx-auto mix-blend-multiply"
+                    src="/logo_azevedo.svg" 
+                    alt="Grupo Azevedo" 
+                    className="w-48 h-auto mb-8 mx-auto"
                   />
                   <h1 className="text-4xl font-black text-[#7F300C] uppercase tracking-tighter italic leading-none mb-4">
                     Grupo Azevedo <br /> Alimentos
@@ -97,11 +97,7 @@ export default function Login() {
                     setUsername(e.target.value);
                     if (error) setError(null);
                   }}
-                  className={`w-full pl-12 pr-4 py-4 rounded-2xl border outline-none transition-all font-bold text-sm ${
-                    isDarkMode 
-                      ? 'bg-[#121212] border-[#333] text-white focus:ring-[#FFCB05]/40' 
-                      : 'bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05]'
-                  }`}
+                  className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-100 outline-none transition-all font-bold text-sm bg-slate-50 focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05] text-slate-900"
                   placeholder="adm"
                 />
               </div>
@@ -119,11 +115,7 @@ export default function Login() {
                     setPassword(e.target.value);
                     if (error) setError(null);
                   }}
-                  className={`w-full pl-12 pr-4 py-4 rounded-2xl border outline-none transition-all font-bold text-sm ${
-                    isDarkMode 
-                      ? 'bg-[#121212] border-[#333] text-white focus:ring-[#FFCB05]/40' 
-                      : 'bg-slate-50 border-slate-100 focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05]'
-                  }`}
+                  className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-100 outline-none transition-all font-bold text-sm bg-slate-50 focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05] text-slate-900"
                   placeholder="••••••••"
                 />
               </div>
@@ -174,7 +166,7 @@ export default function Login() {
             </button>
           </form>
 
-          <div className="mt-8 pt-8 border-t dark:border-[#333] text-center">
+          <div className="mt-8 pt-8 border-t border-slate-100 text-center">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">
               Acesso Restrito ao Administrador <br />
               Desenvolvido por <span className="text-[#7F300C]">Rennan Inacio</span>

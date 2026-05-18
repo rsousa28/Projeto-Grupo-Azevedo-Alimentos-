@@ -7,7 +7,7 @@ import {
 import { 
   TrendingUp, TrendingDown, DollarSign, PieChart as PieIcon, 
   ShoppingBag, Clock, Users, ArrowUpRight, ArrowDownRight,
-  Zap, Info, Target, Calendar, ArrowRight, ArrowLeft, Sparkles
+  Zap, Info, Target, Calendar, ArrowRight, ArrowLeft, Sparkles, Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -35,7 +35,8 @@ export default function Dashboard() {
     deliveryChannels,
     salesByHour,
     salesByDay,
-    peakHour
+    peakHour,
+    clearAllData
   } = useStore();
 
   const [showEntry, setShowEntry] = useState(false);
@@ -175,22 +176,37 @@ export default function Dashboard() {
         
         <div className="flex flex-wrap items-center gap-3">
           {currentStore.code !== 'ROOT' && (
-            <button 
-              onClick={() => setShowEntry(!showEntry)}
-              className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
-            >
-              {showEntry ? (
-                <>
-                  <ArrowLeft className="w-4 h-4" />
-                  Voltar ao Dashboard
-                </>
-              ) : (
-                <>
-                  Lançamentos Dashboard
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+            <>
+              <button 
+                onClick={() => {
+                  if (confirm('Deseja realmente limpar todos os campos? Isso resetará a visualização atual.')) {
+                    clearAllData();
+                  }
+                }}
+                className={`flex items-center gap-2 px-4 py-2 border rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${
+                  isDarkMode ? 'border-[#333] text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-black'
+                }`}
+              >
+                <Trash2 className="w-4 h-4" />
+                Zerar Visualização
+              </button>
+              <button 
+                onClick={() => setShowEntry(!showEntry)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
+              >
+                {showEntry ? (
+                  <>
+                    <ArrowLeft className="w-4 h-4" />
+                    Voltar ao Dashboard
+                  </>
+                ) : (
+                  <>
+                    Lançamentos Dashboard
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </>
           )}
         </div>
       </div>

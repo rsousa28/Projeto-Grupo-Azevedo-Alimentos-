@@ -38,7 +38,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
 ];
 
-const LOGO_URL = "https://storage.googleapis.com/aistudio-build-artifacts/7060b66b-6db6-4a04-a679-19b7ec364245/image_generation_1720546313.png";
+const LOGO_URL = "/logo_azevedo.svg";
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);

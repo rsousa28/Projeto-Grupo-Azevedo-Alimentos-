@@ -30,10 +30,13 @@ interface StoreContextType {
   setSalesByDay: (data: any[]) => void;
   peakHour: string;
   setPeakHour: (hour: string) => void;
+  closingsData: Record<string, any>;
+  setClosingsData: React.Dispatch<React.SetStateAction<Record<string, any>>>;
   saveCMVPeriod: (month: string, year: string, inventory: any[], products: any[]) => Promise<void>;
   loadCMVPeriod: (month: string, year: string) => Promise<boolean>;
   saveDREPeriod: (month: string, year: string, dreData: DREData) => Promise<void>;
   loadDREPeriod: (month: string, year: string) => Promise<boolean>;
+  clearAllData: () => void;
   brandColors: {
     primary: string;
     secondary: string;
@@ -279,6 +282,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     { name: 'Meta', valor: 0, color: '#7F300C' },
     { name: 'Realizado', valor: 0, color: '#FFCB05' },
   ]);
+  const [topProducts, setTopProducts] = useState<any[]>([]);
+  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
+  const [deliveryChannels, setDeliveryChannels] = useState<any[]>([
+    { name: 'iFood', valor: 0, color: '#EA1D2C' },
+    { name: 'WEDO', valor: 0, color: '#0066FF' },
+    { name: 'Balcão', valor: 0, color: '#FFB800' }
+  ]);
+  const [salesByHour, setSalesByHour] = useState<any[]>(mockSalesByHour.map(s => ({ ...s, vendas: 0 })));
+  const [salesByDay, setSalesByDay] = useState<any[]>(mockSalesByDay.map(s => ({ ...s, faturamento: 0 })));
+  const [peakHour, setPeakHour] = useState<string>('00:00');
+  const [closingsData, setClosingsData] = useState<Record<string, any>>({});
+  const [yearlyHistory, setYearlyHistory] = useState<{ [year: string]: number }>({
+    '2024': 0,
+    '2025': 0,
+  });
+  const [operationalMetrics, setOperationalMetrics] = useState<any[]>([
+    { label: 'Tempo de Produção', valor: '0 min', target: '20 min', percent: 0, icon: 'Clock' },
+    { label: 'Desperdício / Perda', valor: '0%', target: '1.0%', percent: 0, icon: 'ShoppingBag', critical: true },
+    { label: 'Satisfação (NPS)', valor: '0', target: '9.0', percent: 0, icon: 'Target' },
+  ]);
+
+  useEffect(() => {
+    // Reset data when store changes to ensure isolation
+    setMetrics(mockMetrics.map(m => ({ ...m, valor: 0, trend: 'neutral', change: '0%' })));
+    setDreTimeline([]);
+    setTopProducts([]);
+    setInventoryItems([]);
+    setClosingsData({});
+    setMetaVsRealizado([
+      { name: 'Meta', valor: 0, color: brandColors.primary },
+      { name: 'Realizado', valor: 0, color: brandColors.button },
+    ]);
+  }, [currentStore.id]);
 
   useEffect(() => {
     // Update colors when store changes
@@ -299,66 +335,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
   }, [currentStore.brand, isDarkMode, dreTimeline]);
   
-  const [topProducts, setTopProducts] = useState<any[]>([]);
 
-  // Periodically ensure data normalization
-  useEffect(() => {
-    if (topProducts.length === 0) return;
-    
-    const needsCorrection = topProducts.some(p => {
-      const name = p.name.toUpperCase();
-      
-      // Check normalization map first
-      const normalizedCategory = PRODUCT_CATEGORY_MAP[name];
-      if (normalizedCategory && p.category !== normalizedCategory) return true;
-
-      // Special cases for partial matches
-      const isBeverage = (name.includes('KUAT') || name.includes('AQUARIUS')) && p.category !== 'Bebidas';
-      const isLojista = name.includes(' LJ') && p.category !== 'Combo Lojista' && !normalizedCategory;
-      
-      return isBeverage || isLojista;
-    });
-
-    if (needsCorrection) {
-      setTopProducts(prev => prev.map(p => {
-        const name = p.name.toUpperCase();
-        
-        const normalizedCategory = PRODUCT_CATEGORY_MAP[name];
-        if (normalizedCategory) {
-          return { ...p, category: normalizedCategory };
-        }
-
-        if ((name.includes('KUAT') || name.includes('AQUARIUS')) && p.category !== 'Bebidas') {
-          return { ...p, category: 'Bebidas' };
-        }
-
-        if (name.includes(' LJ') && p.category !== 'Combo Lojista') {
-          return { ...p, category: 'Combo Lojista' };
-        }
-
-        return p;
-      }));
-    }
-  }, [topProducts]);
-
-  const [inventoryItems, setInventoryItems] = useState<any[]>([]);
-  const [deliveryChannels, setDeliveryChannels] = useState<any[]>([
-    { name: 'iFood', valor: 0, color: '#EA1D2C' },
-    { name: 'WEDO', valor: 0, color: '#0066FF' },
-    { name: 'Balcão', valor: 0, color: '#FFB800' }
-  ]);
-  const [salesByHour, setSalesByHour] = useState<any[]>(mockSalesByHour.map(s => ({ ...s, vendas: 0 })));
-  const [salesByDay, setSalesByDay] = useState<any[]>(mockSalesByDay.map(s => ({ ...s, faturamento: 0 })));
-  const [peakHour, setPeakHour] = useState<string>('00:00');
-  const [yearlyHistory, setYearlyHistory] = useState<{ [year: string]: number }>({
-    '2024': 0,
-    '2025': 0,
-  });
-  const [operationalMetrics, setOperationalMetrics] = useState<any[]>([
-    { label: 'Tempo de Produção', valor: '0 min', target: '20 min', percent: 0, icon: 'Clock' },
-    { label: 'Desperdício / Perda', valor: '0%', target: '1.0%', percent: 0, icon: 'ShoppingBag', critical: true },
-    { label: 'Satisfação (NPS)', valor: '0', target: '9.0', percent: 0, icon: 'Target' },
-  ]);
 
   const brandColors = {
     primary: currentStore.brand === 'BEBELU' ? '#FFCB05' : '#E63946',
@@ -386,6 +363,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setSalesByHour(salesByHour.map(s => ({ ...s, vendas: 0 })));
     setSalesByDay(salesByDay.map(s => ({ ...s, faturamento: 0 })));
     setPeakHour('00:00');
+    setClosingsData({});
+
+    // Also clear localStorage if any
+    localStorage.removeItem('inventory_items');
+    localStorage.removeItem('top_products');
+    localStorage.removeItem('dre_data');
+    localStorage.removeItem('metrics_data');
   };
 
   const saveCMVPeriod = async (month: string, year: string, inventory: any[], products: any[]) => {
@@ -419,6 +403,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setTopProducts(data.topProducts || []);
         return true;
       }
+      
+      // If no data, clear current local state for products to avoid ghost data
+      setInventoryItems([]);
+      setTopProducts([]);
       return false;
     } catch (error) {
       handleFirestoreError(error, OperationType.GET, path);
@@ -505,10 +493,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setSalesByDay,
       peakHour,
       setPeakHour,
+      closingsData,
+      setClosingsData,
       saveCMVPeriod,
       loadCMVPeriod,
       saveDREPeriod,
-      loadDREPeriod
+      loadDREPeriod,
+      clearAllData
     }}>
       <div className={isDarkMode ? 'dark bg-[#0F0F0F] text-[#F5F5F5]' : 'bg-[#F8FAFC] text-[#121212]'}>
         {children}

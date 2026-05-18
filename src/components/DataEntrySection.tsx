@@ -102,10 +102,10 @@ export default function DataEntrySection({
   }, [initialYear]);
 
   // Metas & Performance states
-  const [faturamentoMeta, setFaturamentoMeta] = useState(metaVsRealizado[0]?.valor || 140000);
-  const [cmvAlvo, setCmvAlvo] = useState(31);
-  const [tempoMedio, setTempoMedio] = useState(25);
-  const [satisfacaoMeta, setSatisfacaoMeta] = useState(9.0);
+  const [faturamentoMeta, setFaturamentoMeta] = useState(metaVsRealizado[0]?.valor || 0);
+  const [cmvAlvo, setCmvAlvo] = useState(0);
+  const [tempoMedio, setTempoMedio] = useState(0);
+  const [satisfacaoMeta, setSatisfacaoMeta] = useState(0);
 
   // History states
   const [receita2025, setReceita2025] = useState(yearlyHistory['2025'] || 0);
@@ -764,12 +764,8 @@ export default function DataEntrySection({
              <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
                <div className="flex items-center justify-between mb-4">
                   <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Fichas Técnicas & Engenharia de Cardápio</h4>
-                  <button onClick={() => setLocalProducts([...localProducts, { id: Math.random().toString(), name: 'Novo Produto ' + (localProducts.length + 1), quantidadeVendas: 100, faturamento: 5000, margin: 65, category: 'Comida' }])} className="text-[10px] font-black uppercase tracking-widest text-[#0066FF] hover:underline">+ Simular Novo Produto</button>
                 </div>
-                <div className={`p-10 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center text-center transition-all ${isDarkMode ? 'border-[#333] hover:border-[#E63946]' : 'border-slate-200 hover:border-[#0066FF]'}`}>
-                   <div className="p-4 bg-slate-100 dark:bg-[#333] rounded-3xl mb-4"><Plus className="w-8 h-8 text-slate-400" /></div>
-                   <p className="text-sm font-bold dark:text-white mb-1">Importar Planilha de Fichas Técnicas</p>
-                </div>
+
                 {/* Outros componentes de produto... */}
              </motion.div>
           )}

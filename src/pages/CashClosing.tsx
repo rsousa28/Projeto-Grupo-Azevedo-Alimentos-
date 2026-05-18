@@ -53,7 +53,7 @@ const formatCurrencyLocal = (val: number) =>
   }).format(val);
 
 export default function CashClosing() {
-  const { currentStore, isDarkMode } = useStore();
+  const { currentStore, isDarkMode, closingsData, setClosingsData } = useStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('05');
@@ -131,10 +131,6 @@ export default function CashClosing() {
       formData.refeicao + 
       formData.pix + 
       formData.totem +
-      formData.lancheFuncionarios + 
-      formData.despesas + 
-      formData.sangria + 
-      formData.valefuncionario +
       formData.outros1 + formData.outros2 + formData.outros3 + formData.outros4
     );
   }, [formData]);
@@ -142,9 +138,6 @@ export default function CashClosing() {
   const diff = totalGeral - formData.totalSistema;
   const sobra = diff > 0 ? diff : 0;
   const falta = diff < 0 ? Math.abs(diff) : 0;
-
-  // State for closings data
-  const [closingsData, setClosingsData] = useState<Record<string, any>>({});
 
   // Generate the list of days for the current period
   const daysInMonth = useMemo(() => getDaysInMonth(parseInt(selectedYear), parseInt(selectedMonth)), [selectedMonth, selectedYear]);
@@ -555,35 +548,6 @@ export default function CashClosing() {
                   </div>
 
                   <div className="space-y-8">
-                    <div className="space-y-6">
-                      <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${
-                        storeInfo.brand?.toLowerCase().includes('bebelu') 
-                          ? 'text-[#7F300C] border-[#7F300C]/20' 
-                          : isDarkMode ? 'text-white border-white/20' : 'text-slate-900 border-slate-200'
-                      }`}>Saídas e Despesas</h4>
-                      {[
-                        { label: 'LANCHE FUNCIONÁRIOS', field: 'lancheFuncionarios' as const },
-                        { label: 'DESPESAS (CAIXA)', field: 'despesas' as const },
-                        { label: 'SANGRIA', field: 'sangria' as const },
-                        { label: 'VALE FUNCIONÁRIO', field: 'valefuncionario' as const },
-                      ].map(item => (
-                        <div key={item.field} className="flex items-center justify-between group">
-                          <span className={`text-[11px] font-bold uppercase transition-colors ${
-                            storeInfo.brand?.toLowerCase().includes('bebelu') 
-                              ? 'text-[#7F300C]' 
-                              : isDarkMode ? 'text-white group-hover:text-amber-500' : 'text-slate-900 group-hover:text-amber-500'
-                          }`}>{item.label}</span>
-                          <input 
-                            type="text" 
-                            value={inputValues[item.field] !== undefined ? inputValues[item.field] : (formData[item.field] || '')} 
-                            onChange={(e) => handleNumberChange(item.field, e.target.value)} 
-                            className={`w-36 px-4 py-2 text-right rounded-xl font-black italic outline-none border transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 focus:border-amber-500'}`}
-                            placeholder="0,00"
-                          />
-                        </div>
-                      ))}
-                    </div>
-
                     <div className="space-y-4">
                       <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${
                         storeInfo.brand?.toLowerCase().includes('bebelu') 
@@ -633,7 +597,6 @@ export default function CashClosing() {
                     </div>
                   </div>
                 </div>
-              </div>
 
               <div className="p-8 border-t dark:border-[#333] flex items-center justify-between bg-slate-900">
                 <div className="flex gap-2">
@@ -666,10 +629,11 @@ export default function CashClosing() {
                   </button>
                 </div>
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </AnimatePresence>
+  </div>
   );
 }

@@ -51,7 +51,7 @@ export default function SelectStore() {
         <div className="text-center mb-12">
           <div className="inline-flex flex-col items-center justify-center p-6 bg-white rounded-[2.5rem] shadow-xl mb-8 border border-slate-100">
             <img 
-              src="https://storage.googleapis.com/aistudio-build-artifacts/7060b66b-6db6-4a04-a679-19b7ec364245/image_generation_1720546313.png" 
+              src="/logo_azevedo.svg" 
               alt="Logo Grupo Azevedo" 
               className="h-24 w-auto object-contain"
             />
