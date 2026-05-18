@@ -48,6 +48,7 @@ export default function CMV() {
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
 
   const currentMonthLabel = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -55,14 +56,25 @@ export default function CMV() {
   ][parseInt(selectedMonth) - 1];
 
   const handleResetPeriod = async () => {
-    if (!window.confirm(`Tem certeza que deseja zerar TODAS as informações de ${currentMonthLabel} ${selectedYear}? Esta ação não pode ser desfeita.`)) return;
+    if (!showConfirmReset) {
+      setShowConfirmReset(true);
+      setTimeout(() => setShowConfirmReset(false), 3000);
+      return;
+    }
     
     setIsDeleting(true);
+    setShowConfirmReset(false);
     try {
       await deletePeriodData(selectedMonth, selectedYear);
+      
+      // We wait a bit for Firestore to reflect the change before re-syncing
+      await new Promise(resolve => setTimeout(resolve, 800));
+      await loadCMVPeriod(selectedMonth, selectedYear);
+      
       alert('Dados do período zerados com sucesso.');
     } catch (error) {
-      alert('Erro ao zerar dados.');
+      console.error('Erro ao zerar dados:', error);
+      alert('Erro ao zerar dados. Verifique sua conexão.');
     } finally {
       setIsDeleting(false);
     }
@@ -253,19 +265,10 @@ export default function CMV() {
               onChange={(e) => setSelectedYear(e.target.value)}
               className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
             >
-              <option value="2025" className="dark:bg-[#1E1E1E]">2025</option>
-              <option value="2026" className="dark:bg-[#1E1E1E]">2026</option>
+              {['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'].map(year => (
+                <option key={year} value={year} className="dark:bg-[#1E1E1E]">{year}</option>
+              ))}
             </select>
-            {currentStore.code === 'ROOT' && (
-              <button
-                onClick={handleResetPeriod}
-                disabled={isDeleting}
-                className="ml-1 p-1 hover:bg-slate-200 dark:hover:bg-white/10 rounded-lg transition-colors text-red-500"
-                title="Zerar dados do período"
-              >
-                {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-              </button>
-            )}
           </div>
 
           <button 
@@ -285,6 +288,33 @@ export default function CMV() {
               <Save className="w-3 h-3" />
             )}
             {showSavedFeedback ? 'Salvo!' : 'Salvar Período'}
+          </button>
+
+          <button
+            onClick={handleResetPeriod}
+            disabled={isDeleting}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+              showConfirmReset 
+                ? 'bg-red-600 text-white animate-pulse' 
+                : 'bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20'
+            }`}
+          >
+            {isDeleting ? (
+              <>
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Zerando...
+              </>
+            ) : showConfirmReset ? (
+              <>
+                <AlertTriangle className="w-3 h-3" />
+                Confirmar
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-3 h-3" />
+                Zerar Dados
+              </>
+            )}
           </button>
 
           <div className="flex gap-2 flex-1 md:flex-none">

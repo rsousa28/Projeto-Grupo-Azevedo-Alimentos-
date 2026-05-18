@@ -55,7 +55,7 @@ export default function DataEntry() {
       currency: 'BRL',
     }).format(val);
   };
-  const [activeTab, setActiveTab ] = useState<'financial' | 'products' | 'history' | 'goals' | 'channels'>('financial');
+  const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels'>('financial');
   const [saved, setSaved] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio
   const [selectedYear, setSelectedYear] = useState('2026');
@@ -267,7 +267,7 @@ export default function DataEntry() {
     }
   }, [selectedMonth, dreTimeline]);
 
-  const years = ['2023', '2024', '2025', '2026'];
+  const years = ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'];
 
   const handleSave = () => {
     // 0. Recalculate total revenue from channels
@@ -432,7 +432,6 @@ export default function DataEntry() {
           {[
             { id: 'financial', label: 'Financeiro & DRE', icon: DollarSign },
             { id: 'channels', label: 'Canais & Picos', icon: PieChart },
-            { id: 'products', label: 'Fichas & Produtos', icon: BookOpen },
             { id: 'history', label: 'Histórico YoY', icon: TrendingUp },
             { id: 'goals', label: 'Metas & Performance', icon: Target },
           ].map(tab => (
@@ -868,101 +867,6 @@ export default function DataEntry() {
                    </div>
                 </div>
               </section>
-            </motion.div>
-          )}
-
-          {activeTab === 'products' && (
-            <motion.div 
-               initial={{ opacity: 0, x: -20 }} 
-               animate={{ opacity: 1, x: 0 }}
-               className="space-y-8"
-            >
-              <div className="space-y-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Fichas Técnicas & Engenharia de Cardápio</h4>
-                  <button 
-                    onClick={() => {
-                      const newProd = {
-                        id: Math.random().toString(),
-                        name: 'Novo Produto ' + (localProducts.length + 1),
-                        quantidadeVendas: 100,
-                        faturamento: 5000,
-                        margin: 65,
-                        category: 'Comida'
-                      };
-                      setLocalProducts([...localProducts, newProd]);
-                    }}
-                    className="text-[10px] font-black uppercase tracking-widest text-[#0066FF] hover:underline"
-                  >
-                    + Simular Novo Produto
-                  </button>
-                </div>
-                
-                <div className={`p-10 border-2 border-dashed rounded-[2rem] flex flex-col items-center justify-center text-center transition-all ${
-                  isDarkMode ? 'border-[#333] hover:border-[#E63946]' : 'border-slate-200 hover:border-[#0066FF]'
-                }`}>
-                   <div className="p-4 bg-slate-100 dark:bg-[#333] rounded-3xl mb-4">
-                     <Plus className="w-8 h-8 text-slate-400" />
-                   </div>
-                   <p className="text-sm font-bold dark:text-white mb-1">Importar Planilha de Fichas Técnicas</p>
-                   <p className="text-xs text-slate-500">O sistema cruzará estes dados com o faturamento para calcular o Top Lucratividade.</p>
-                </div>
-
-                <div className="space-y-4 pt-6">
-                  <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 italic">Top Lucratividade (Simulação)</h4>
-                  <div className={`overflow-hidden rounded-2xl border ${isDarkMode ? 'border-[#333]' : 'border-slate-100'}`}>
-                    <table className="w-full text-left text-xs">
-                      <thead className={`font-bold uppercase tracking-widest ${isDarkMode ? 'bg-black/20 text-slate-500' : 'bg-slate-50 text-slate-400'}`}>
-                        <tr>
-                          <th className="px-6 py-4 italic">Produto</th>
-                          <th className="px-6 py-4 italic">Custo (FT)</th>
-                          <th className="px-6 py-4 italic">Preço Venda</th>
-                          <th className="px-6 py-4 italic">Margem R$</th>
-                          <th className="px-6 py-4 italic">Margem %</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y dark:divide-[#333]">
-                        {localProducts.map((p, i) => (
-                          <tr key={p.id || i} className={`font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-                            <td className="px-6 py-4 italic text-indigo-500 uppercase">
-                              <input 
-                                type="text"
-                                value={p.name}
-                                onChange={(e) => {
-                                  const updated = [...localProducts];
-                                  updated[i] = { ...updated[i], name: e.target.value };
-                                  setLocalProducts(updated);
-                                }}
-                                className={`bg-transparent border-none outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1 w-full`}
-                              />
-                            </td>
-                            <td className="px-6 py-4">{formatCurrency(p.faturamento / (p.quantidadeVendas || 1) * 0.4)}</td>
-                            <td className="px-6 py-4">{formatCurrency(p.faturamento / p.quantidadeVendas)}</td>
-                            <td className="px-6 py-4 text-green-500">{formatCurrency(p.faturamento / p.quantidadeVendas * 0.6)}</td>
-                            <td className="px-6 py-4">
-                              <span className="px-2 py-1 rounded bg-green-500/10 text-green-500">{p.margin}%</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div className="space-y-4 pt-6">
-                  <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 italic">Desperdício & Perda</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-2xl bg-red-500/5 border border-red-500/10 flex items-center justify-between">
-                      <span className="text-xs font-bold text-red-500 uppercase">Perda de Proteína (kg)</span>
-                      <input type="number" step="0.1" className={`w-24 px-3 py-2 rounded-lg border outline-none text-right font-bold ${isDarkMode ? 'bg-black/40 border-[#333] text-white' : 'bg-white border-slate-200'}`} />
-                    </div>
-                    <div className="p-4 rounded-2xl bg-red-500/5 border border-red-500/10 flex items-center justify-between">
-                      <span className="text-xs font-bold text-red-500 uppercase">Outras Perdas (R$)</span>
-                      <input type="number" className={`w-24 px-3 py-2 rounded-lg border outline-none text-right font-bold ${isDarkMode ? 'bg-black/40 border-[#333] text-white' : 'bg-white border-slate-200'}`} />
-                    </div>
-                  </div>
-                </div>
-              </div>
             </motion.div>
           )}
 

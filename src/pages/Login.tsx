@@ -163,11 +163,7 @@ export default function Login() {
               <motion.div 
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`p-4 rounded-2xl border flex gap-3 items-center ${
-                  isDarkMode 
-                  ? 'bg-red-500/10 border-red-500/20 text-red-400' 
-                  : 'bg-red-50 border-red-100 text-red-600'
-                }`}
+                className="p-4 rounded-2xl border border-red-100 bg-red-50 text-red-600 flex gap-3 items-center"
               >
                 <motion.div
                   initial={{ scale: 0.5, rotate: -45 }}

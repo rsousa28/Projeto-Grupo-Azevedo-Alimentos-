@@ -102,7 +102,7 @@ export default function CashClosing() {
     { value: '12', label: 'Dezembro' },
   ];
 
-  const years = ['2024', '2025', '2026'];
+  const years = ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'];
 
   // Helper to get all days of the month
   const getDaysInMonth = (year: number, month: number) => {

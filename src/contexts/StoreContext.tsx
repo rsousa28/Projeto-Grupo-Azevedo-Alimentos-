@@ -37,6 +37,7 @@ interface StoreContextType {
   saveDREPeriod: (month: string, year: string, dreData: DREData) => Promise<void>;
   loadDREPeriod: (month: string, year: string) => Promise<boolean>;
   deletePeriodData: (month: string, year: string) => Promise<void>;
+  clearAllStoreData: () => Promise<void>;
   clearAllData: () => void;
   brandColors: {
     primary: string;
@@ -451,13 +452,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
-        const data = docSnap.data() as DREData;
+        const data = { ...docSnap.data(), year } as DREData;
         setDreTimeline(prev => {
           const exists = prev.some(p => p.month === data.month && p.year === year);
           if (!exists) return [...prev, data];
           return prev.map(p => (p.month === data.month && p.year === year) ? data : p);
         });
+        
+        if (data.yearlyHistory) {
+          setYearlyHistory(prev => ({ ...prev, ...data.yearlyHistory }));
+        }
+        
         return true;
+      } else {
+        // If it doesn't exist, remove it from timeline if it was there
+        const monthIndex = parseInt(month, 10) - 1;
+        const monthNames = [
+          'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+        const monthLabel = monthNames[monthIndex];
+
+        setDreTimeline(prev => prev.filter(p => {
+          const pYear = String(p.year || '2026').trim();
+          const targetYear = String(year || '2026').trim();
+          const pMonth = (p.month || '').trim();
+          const targetMonth = monthLabel.trim();
+          
+          return !(pMonth === targetMonth && pYear === targetYear);
+        }));
       }
       return false;
     } catch (error) {
@@ -468,30 +491,81 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const deletePeriodData = async (month: string, year: string) => {
     const periodId = `${year}-${month}`;
-    const cmvPath = `stores/${currentStore.id}/cmv_periods/${periodId}`;
-    const drePath = `stores/${currentStore.id}/dre_periods/${periodId}`;
+    const storeId = currentStore.id;
     
     try {
-      const cmvRef = doc(db, 'stores', currentStore.id, 'cmv_periods', periodId);
-      const dreRef = doc(db, 'stores', currentStore.id, 'dre_periods', periodId);
+      // Deletar documentos de todas as coleções possíveis relacionadas ao período
+      // Usamos Promise.all para performance, mas sem travar se um falhar (embora deleteDoc não trave se não existir)
+      const collections = ['dre_periods', 'cmv_periods', 'dre_detailed', 'cmv_detailed', 'closings'];
       
-      await deleteDoc(cmvRef);
-      await deleteDoc(dreRef);
+      await Promise.all(collections.map(coll => 
+        deleteDoc(doc(db, 'stores', storeId, coll, periodId)).catch(e => console.warn(`Erro ao deletar em ${coll}:`, e))
+      ));
       
-      const monthLabel = [
+      // Obter o label do mês exato
+      const monthIndex = parseInt(month, 10) - 1;
+      const monthNames = [
         'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
-      ][parseInt(month) - 1];
+      ];
+      const monthLabel = monthNames[monthIndex];
 
-      // Update local state
-      setDreTimeline(prev => prev.filter(p => !(p.month === monthLabel && (p.year === year || (!p.year && year === '2026')))));
+      // Atualizar estado local de forma agressiva
+      // 1. DRE Timeline
+      setDreTimeline(prev => prev.filter(p => {
+        const pYear = String(p.year || '2026').trim();
+        const targetYear = String(year || '2026').trim();
+        const pMonth = (p.month || '').trim();
+        const targetMonth = monthLabel.trim();
+        
+        return !(pMonth === targetMonth && pYear === targetYear);
+      }));
+      
+      // 2. Estados do CMV e Métricas
       setTopProducts([]);
       setInventoryItems([]);
+      setMetrics(prev => prev.map(m => ({ ...m, valor: 0, change: '0%', trend: 'neutral' })));
+      setMetaVsRealizado([
+        { name: 'Meta', valor: 0, color: '#7F300C' },
+        { name: 'Realizado', valor: 0, color: '#FFCB05' },
+      ]);
+      setDeliveryChannels([
+        { name: 'iFood', valor: 0, color: '#EA1D2C' },
+        { name: 'WEDO', valor: 0, color: '#0066FF' },
+        { name: 'Balcão', valor: 0, color: '#FFB800' }
+      ]);
       
-      console.log('Período excluído com sucesso:', periodId);
+      // 3. Histórico anual se não for o ano corrente/default
+      if (year !== '2026') {
+        setYearlyHistory(prev => ({ ...prev, [year]: 0 }));
+      }
+      
+      // 4. Fechamentos se houver
+      setClosingsData(prev => {
+        const next = { ...prev };
+        delete next[periodId];
+        return next;
+      });
+
+      console.log(`Período ${periodId} (${monthLabel}) removido com sucesso.`);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, cmvPath);
+      console.error('Erro fatal ao excluir período:', error);
+      handleFirestoreError(error, OperationType.DELETE, `stores/${storeId}/dre_periods/${periodId}`);
     }
+  };
+
+  const clearAllStoreData = async () => {
+    if (!window.confirm(`ATENÇÃO: Isso apagará TODOS os dados (Março, Abril, Maio) desta unidade no banco de dados. Deseja continuar?`)) return;
+    
+    const months = ['03', '04', '05'];
+    const year = '2026';
+    
+    for (const month of months) {
+      await deletePeriodData(month, year);
+    }
+    
+    clearAllData();
+    alert('Todos os dados da unidade foram zerados com sucesso.');
   };
 
   return (
@@ -529,11 +603,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       saveDREPeriod,
       loadDREPeriod,
       deletePeriodData,
+      clearAllStoreData,
       clearAllData
     }}>
-      <div className={isDarkMode ? 'dark bg-[#0F0F0F] text-[#F5F5F5]' : 'bg-[#F8FAFC] text-[#121212]'}>
-        {children}
-      </div>
+      {children}
     </StoreContext.Provider>
   );
 }

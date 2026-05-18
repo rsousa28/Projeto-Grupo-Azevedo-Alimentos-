@@ -10,7 +10,7 @@ export default function SelectStore() {
   const navigate = useNavigate();
   const { setStore } = useStore();
 
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
 
   const filteredStores = React.useMemo(() => {
     if (!user) return [];
@@ -55,9 +55,7 @@ export default function SelectStore() {
               alt="Logo Grupo Azevedo" 
               className="h-24 w-auto object-contain"
             />
-            <div className="mt-4 flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#E63946]" />
-              <div className="w-1.5 h-1.5 rounded-full bg-[#0066FF]" />
+            <div className="mt-4 flex items-center justify-center">
               <span className="text-[10px] font-black tracking-[0.3em] text-slate-400 uppercase italic">Gestão Inteligente</span>
             </div>
           </div>
@@ -119,10 +117,10 @@ export default function SelectStore() {
 
         <div className="mt-16 text-center">
            <button 
-             onClick={() => navigate('/login')}
+             onClick={() => logout()}
              className="text-slate-400 hover:text-slate-600 font-bold uppercase tracking-widest text-xs transition-colors"
            >
-             Voltar para o Login
+             Voltar para o Painel
            </button>
         </div>
       </motion.div>

@@ -22,7 +22,8 @@ import {
   X,
   Send,
   Lightbulb,
-  Trash2
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -48,22 +49,36 @@ const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function Finance() {
-  const { isDarkMode, dreTimeline, brandColors, currentStore, topProducts, loadDREPeriod, loadCMVPeriod, deletePeriodData } = useStore();
+  const { isDarkMode, dreTimeline, brandColors, currentStore, topProducts, loadDREPeriod, loadCMVPeriod, deletePeriodData, yearlyHistory } = useStore();
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio as default
   const [selectedYear, setSelectedYear] = useState('2026');
   const [showEntry, setShowEntry] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
 
   const handleResetPeriod = async () => {
-    if (!window.confirm(`Tem certeza que deseja zerar TODAS as informações de ${currentMonthLabel} ${selectedYear}? Esta ação não pode ser desfeita.`)) return;
+    if (!showConfirmReset) {
+      setShowConfirmReset(true);
+      setTimeout(() => setShowConfirmReset(false), 3000);
+      return;
+    }
     
     setIsDeleting(true);
+    setShowConfirmReset(false);
     try {
       await deletePeriodData(selectedMonth, selectedYear);
+      
+      // We don't need to reload immediately as deletePeriodData already filters the local state
+      // but we wait a bit and sync just to be safe with the cloud
+      await new Promise(resolve => setTimeout(resolve, 800));
+      await loadDREPeriod(selectedMonth, selectedYear);
+      await loadCMVPeriod(selectedMonth, selectedYear);
+      
       alert('Dados do período zerados com sucesso.');
     } catch (error) {
-      alert('Erro ao zerar dados.');
+      console.error('Erro ao zerar dados:', error);
+      alert('Erro ao zerar dados. Verifique sua conexão.');
     } finally {
       setIsDeleting(false);
     }
@@ -77,6 +92,13 @@ export default function Finance() {
   // Auto-load data when period changes
   useEffect(() => {
     loadDREPeriod(selectedMonth, selectedYear);
+    
+    // Pre-load previous years for comparison to ensure chart is populated
+    const prevYear1 = (parseInt(selectedYear) - 1).toString();
+    const prevYear2 = (parseInt(selectedYear) - 2).toString();
+    loadDREPeriod(selectedMonth, prevYear1);
+    loadDREPeriod(selectedMonth, prevYear2);
+    
     loadCMVPeriod(selectedMonth, selectedYear);
   }, [selectedMonth, selectedYear, currentStore.id]);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['receita', 'deducoes', 'cmv', 'despesas_var', 'despesas_fixas_5', 'despesas_fixas_6', 'despesas_fixas_7', 'despesas_fixas_8', 'despesas_fixas_9', 'financeiro']);
@@ -130,13 +152,6 @@ export default function Finance() {
   const prevMonthData = dreTimeline.find(d => 
     d.month === prevMonthLabel && (d.year === prevYearStr || (!d.year && prevYearStr === '2026'))
   );
-
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(val);
-  };
 
   const toggleGroup = (group: string) => {
     setExpandedGroups(prev => 
@@ -493,12 +508,35 @@ export default function Finance() {
     }
   };
 
-  // Simulate yearly data for the current month comparison
-  const yearlyComparisonData = [
-    { year: '2024', faturamento: currentMonthData.faturamento * 0.78, color: '#94a3b8' },
-    { year: '2025', faturamento: currentMonthData.faturamento * 0.89, color: '#6366f1' },
-    { year: '2026', faturamento: currentMonthData.faturamento, color: '#4f46e5' },
+  // Dynamic yearly data for the current month comparison
+  const yearNum = parseInt(selectedYear);
+  const yearsToCompare = [
+    (yearNum - 2).toString(),
+    (yearNum - 1).toString(),
+    selectedYear
   ];
+
+  const yearlyComparisonData = yearsToCompare.map((y, idx) => {
+    // Attempt to find data for this specific year and month in the timeline
+    const timelineData = dreTimeline.find(p => 
+      String(p.month).trim().toLowerCase() === String(currentMonthLabel).trim().toLowerCase() && 
+      String(p.year || '2026').trim() === String(y).trim()
+    );
+    
+    // Logic: if it's the selected year, use current data. 
+    // Otherwise, try timeline data, then fallback to yearlyHistory (manual entries).
+    const faturamento = y === selectedYear 
+      ? currentMonthData.faturamento 
+      : (timelineData ? timelineData.faturamento : (yearlyHistory[y] || 0));
+
+    const colors = ['#94a3b8', '#6366f1', '#4f46e5'];
+    
+    return {
+      year: y,
+      faturamento,
+      color: colors[idx]
+    };
+  });
 
   return (
     <div className="space-y-8 pb-10">
@@ -528,19 +566,10 @@ export default function Finance() {
                   onChange={(e) => setSelectedYear(e.target.value)}
                   className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer text-white"
                 >
-                  <option value="2025" className="bg-[#1E1E1E] text-white font-bold">2025</option>
-                  <option value="2026" className="bg-[#1E1E1E] text-white font-bold">2026</option>
+                  {['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'].map(year => (
+                    <option key={year} value={year} className="bg-[#1E1E1E] text-white font-bold">{year}</option>
+                  ))}
                 </select>
-                {currentStore.code === 'ROOT' && (
-                  <button
-                    onClick={handleResetPeriod}
-                    disabled={isDeleting}
-                    className="ml-1 p-1 hover:bg-white/10 rounded-lg transition-colors text-red-500"
-                    title="Zerar dados do período"
-                  >
-                    {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -579,7 +608,36 @@ export default function Finance() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
+          className="space-y-6"
         >
+          <div className="flex justify-end">
+            <button
+              onClick={handleResetPeriod}
+              disabled={isDeleting}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 ${
+                showConfirmReset 
+                  ? 'bg-red-600 text-white animate-pulse' 
+                  : 'bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white border border-red-500/20'
+              }`}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Zerando Dados...
+                </>
+              ) : showConfirmReset ? (
+                <>
+                  <AlertTriangle className="w-4 h-4" />
+                  Clique denovo para Confirmar
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4" />
+                  Zerar Informações do Período
+                </>
+              )}
+            </button>
+          </div>
           <DataEntrySection 
             isEmbedded={true} 
             mode="finance" 
@@ -618,7 +676,7 @@ export default function Finance() {
             <h3 className={`font-black uppercase tracking-tighter italic text-xl flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
               <TrendingUp className="w-5 h-5" style={{ color: brandColors.primary }} /> Comparativo Anual do Mês
             </h3>
-            <p className="text-[10px] text-slate-500 font-medium italic">Faturamento de Março em 2024, 2025 e 2026</p>
+            <p className="text-[10px] text-slate-500 font-medium italic">Faturamento de {currentMonthLabel} em {yearsToCompare.join(', ')}</p>
           </div>
           <div className="flex gap-4">
              {yearlyComparisonData.map(item => (

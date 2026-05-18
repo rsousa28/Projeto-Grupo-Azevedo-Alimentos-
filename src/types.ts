@@ -44,6 +44,7 @@ export interface DREData {
   ebitda: number;
   netProfit: number;
   quantidadePedidos?: number;
+  yearlyHistory?: Record<string, number>;
   // Sub-totals for the detailed model
   despesasVariaveis?: number;
   resultadoFinanceiro?: number;

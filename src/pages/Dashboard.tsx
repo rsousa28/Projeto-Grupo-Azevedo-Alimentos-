@@ -84,6 +84,13 @@ export default function Dashboard() {
   React.useEffect(() => {
     if (currentStore.id !== 'admin-global') {
       loadDREPeriod(selectedMonth, selectedYear);
+      
+      // Pre-load previous years for comparison to ensure chart is populated
+      const prevYear1 = (parseInt(selectedYear) - 1).toString();
+      const prevYear2 = (parseInt(selectedYear) - 2).toString();
+      loadDREPeriod(selectedMonth, prevYear1);
+      loadDREPeriod(selectedMonth, prevYear2);
+      
       loadCMVPeriod(selectedMonth, selectedYear);
     }
   }, [selectedMonth, selectedYear, currentStore.id]);
@@ -117,11 +124,36 @@ export default function Dashboard() {
     { name: 'Balcão', valor: currentMonthData.receitaBalcao || 0, color: isDarkMode ? '#64748b' : '#FFB800' }
   ];
 
-  const yearlyComparisonData = [
-    { year: '2024', faturamento: yearlyHistory['2024'] || 0, color: isDarkMode ? '#333' : '#cbd5e1' },
-    { year: '2025', faturamento: yearlyHistory['2025'] || 0, color: '#6366f1' },
-    { year: '2026', faturamento: currentMonthData.faturamento || 0, color: '#4f46e5' },
+  // Dynamic yearly data for the current month comparison
+  const yearNum = parseInt(selectedYear);
+  const yearsToCompare = [
+    (yearNum - 2).toString(),
+    (yearNum - 1).toString(),
+    selectedYear
   ];
+
+  const yearlyComparisonData = yearsToCompare.map((y, idx) => {
+    const timelineData = dreTimeline.find(p => 
+      p.month === currentMonthLabel && 
+      (p.year === y || (!p.year && y === '2026'))
+    );
+    
+    const faturamento = y === selectedYear 
+      ? (currentMonthData.faturamento || 0) 
+      : (timelineData ? timelineData.faturamento : (yearlyHistory[y] || 0));
+
+    const colors = [
+      isDarkMode ? '#333' : '#cbd5e1',
+      '#6366f1',
+      '#4f46e5'
+    ];
+    
+    return {
+      year: y,
+      faturamento,
+      color: colors[idx]
+    };
+  });
 
   const currentTopProducts = topProducts.length > 0 ? topProducts : [];
   const dynamicMostProfitable = [...currentTopProducts]
@@ -175,21 +207,32 @@ export default function Dashboard() {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl mr-2">
+            <Calendar className="w-4 h-4 text-slate-400 ml-2" />
+            <select 
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+            >
+              {months.map(m => (
+                <option key={m.value} value={m.value} className="dark:bg-[#1E1E1E]">{m.label}</option>
+              ))}
+            </select>
+            <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
+            <select 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+            >
+              {['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'].map(year => (
+                <option key={year} value={year} className="dark:bg-[#1E1E1E]">{year}</option>
+              ))}
+            </select>
+          </div>
+
           {currentStore.code !== 'ROOT' && (
             <>
-              <button 
-                onClick={() => {
-                  if (confirm('Deseja realmente limpar todos os campos? Isso resetará a visualização atual.')) {
-                    clearAllData();
-                  }
-                }}
-                className={`flex items-center gap-2 px-4 py-2 border rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 ${
-                  isDarkMode ? 'border-[#333] text-slate-500 hover:text-white' : 'border-slate-200 text-slate-400 hover:text-black'
-                }`}
-              >
-                <Trash2 className="w-4 h-4" />
-                Zerar Visualização
-              </button>
+
               <button 
                 onClick={() => setShowEntry(!showEntry)}
                 className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
@@ -388,7 +431,7 @@ export default function Dashboard() {
               <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
                 <TrendingUp className="w-5 h-5 text-indigo-500" /> Histórico de {currentMonthData.month}
               </h3>
-              <p className="text-[10px] text-slate-500 font-medium italic">Evolução do mesmo mês em 2024, 2025 e 2026</p>
+              <p className="text-[10px] text-slate-500 font-medium italic">Evolução do mesmo mês em {yearsToCompare.join(', ')}</p>
             </div>
             <div className="flex gap-3">
                {yearlyComparisonData.map(item => (

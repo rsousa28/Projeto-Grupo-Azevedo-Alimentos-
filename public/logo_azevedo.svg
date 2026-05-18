@@ -1,5 +1,5 @@
 <svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
-  <rect width="400" height="200" fill="black"/>
+  <rect width="400" height="200" rx="40" fill="black"/>
   <text x="40" y="155" fill="white" font-family="Arial, sans-serif" font-weight="900" font-size="180" font-style="italic" letter-spacing="-10">AZ</text>
   <path d="M100 180 C 200 100 300 60 400 50 L 400 80 C 300 90 200 130 100 200 Z" fill="white"/>
 </svg>

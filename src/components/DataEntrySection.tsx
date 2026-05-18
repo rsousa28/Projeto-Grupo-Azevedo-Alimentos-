@@ -74,7 +74,6 @@ export default function DataEntrySection({
   const allTabs = [
     { id: 'financial', label: 'Financeiro & DRE', icon: DollarSign },
     { id: 'channels', label: 'Canais & Picos', icon: PieChart },
-    { id: 'products', label: 'Fichas & Produtos', icon: BookOpen },
     { id: 'history', label: 'Histórico YoY', icon: TrendingUp },
     { id: 'goals', label: 'Metas & Performance', icon: Target },
   ];
@@ -85,7 +84,7 @@ export default function DataEntrySection({
     return true;
   });
 
-  const [activeTab, setActiveTab ] = useState<'financial' | 'products' | 'history' | 'goals' | 'channels'>(
+  const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels'>(
     mode === 'dashboard' ? 'channels' : 'financial'
   );
   const [saved, setSaved] = useState(false);
@@ -321,9 +320,9 @@ export default function DataEntrySection({
       setResultadoFinanceiro({ taxasIfood: 0, tarifasBancarias: 0, taxasBancarias: 0, jurosRecebidos: 0 });
       setGriFinal(0);
     }
-  }, [selectedMonth, dreTimeline, currentMonthLabel]);
+  }, [selectedMonth, dreTimeline, currentMonthLabel, selectedYear]);
 
-  const years = ['2023', '2024', '2025', '2026'];
+  const years = ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'];
 
   const handleSave = async () => {
     const totalDelivery = receitaIfood + receitaWedo;
@@ -387,6 +386,10 @@ export default function DataEntrySection({
       resultadoFinanceiro: totalFinanc,
       ebitda,
       netProfit,
+      yearlyHistory: {
+        '2024': receita2024,
+        '2025': receita2025,
+      },
       details: {
         deducoes,
         cmvDetailed: {
@@ -559,14 +562,25 @@ export default function DataEntrySection({
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Balcão</label>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
-                       <input type="number" value={receitaBalcao || ''} onChange={(e) => setReceitaBalcao(e.target.value === '' ? 0 : Number(e.target.value))} className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                       <input 
+                         type="number" 
+                         value={receitaBalcao} 
+                         onChange={(e) => setReceitaBalcao(Number(e.target.value))} 
+                         onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
+                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
+                       />
                      </div>
                    </div>
                    <div className="space-y-2">
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Delivery</label>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
-                       <input type="number" value={receitaDelivery || ''} readOnly className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold cursor-not-allowed opacity-75 ${isDarkMode ? 'bg-black/40 border-[#333] text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500'}`} />
+                       <input 
+                         type="number" 
+                         value={receitaDelivery} 
+                         readOnly 
+                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold cursor-not-allowed opacity-75 ${isDarkMode ? 'bg-black/40 border-[#333] text-slate-400' : 'bg-slate-100 border-slate-200 text-slate-500'}`} 
+                       />
                      </div>
                    </div>
                 </div>
@@ -580,7 +594,13 @@ export default function DataEntrySection({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                    <div className="space-y-2">
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">DARF / SIMPLES</label>
-                     <input type="number" value={deducoes.darfSimples} onChange={(e) => setDeducoes({...deducoes, darfSimples: Number(e.target.value)})} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                     <input 
+                       type="number" 
+                       value={deducoes.darfSimples} 
+                       onChange={(e) => setDeducoes({...deducoes, darfSimples: Number(e.target.value)})} 
+                       onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
+                       className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
+                     />
                    </div>
                 </div>
               </section>
@@ -628,7 +648,13 @@ export default function DataEntrySection({
                    ].map(item => (
                      <div key={item.key} className="space-y-1">
                        <label className="text-[8px] font-black uppercase text-slate-500 truncate block">{item.label}</label>
-                       <input type="number" value={(despesasVariaveis as any)[item.key]} onChange={(e) => setDespesasVariaveis({...despesasVariaveis, [item.key]: Number(e.target.value)})} className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                       <input 
+                         type="number" 
+                         value={(despesasVariaveis as any)[item.key]} 
+                         onChange={(e) => setDespesasVariaveis({...despesasVariaveis, [item.key]: Number(e.target.value)})} 
+                         onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
+                         className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
+                       />
                      </div>
                    ))}
                 </div>
@@ -647,7 +673,13 @@ export default function DataEntrySection({
                     ].map(item => (
                       <div key={item.key}>
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
-                        <input type="number" value={(colaboradores as any)[item.key]} onChange={(e) => setColaboradores({...colaboradores, [item.key]: Number(e.target.value)})} className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                        <input 
+                          type="number" 
+                          value={(colaboradores as any)[item.key]} 
+                          onChange={(e) => setColaboradores({...colaboradores, [item.key]: Number(e.target.value)})} 
+                          onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
+                          className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
+                        />
                       </div>
                     ))}
                   </div>
@@ -660,7 +692,13 @@ export default function DataEntrySection({
                     ].map(item => (
                       <div key={item.key}>
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
-                        <input type="number" value={(funcionamento as any)[item.key]} onChange={(e) => setFuncionamento({...funcionamento, [item.key]: Number(e.target.value)})} className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                        <input 
+                          type="number" 
+                          value={(funcionamento as any)[item.key]} 
+                          onChange={(e) => setFuncionamento({...funcionamento, [item.key]: Number(e.target.value)})} 
+                          onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
+                          className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
+                        />
                       </div>
                     ))}
                   </div>
@@ -673,7 +711,13 @@ export default function DataEntrySection({
                     ].map(item => (
                       <div key={item.key}>
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
-                        <input type="number" value={(manutencao as any)[item.key]} onChange={(e) => setManutencao({...manutencao, [item.key]: Number(e.target.value)})} className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                        <input 
+                          type="number" 
+                          value={(manutencao as any)[item.key]} 
+                          onChange={(e) => setManutencao({...manutencao, [item.key]: Number(e.target.value)})} 
+                          onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
+                          className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
+                        />
                       </div>
                     ))}
                   </div>
@@ -686,7 +730,13 @@ export default function DataEntrySection({
                     ].map(item => (
                       <div key={item.key}>
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
-                        <input type="number" value={(comerciais as any)[item.key]} onChange={(e) => setComerciais({...comerciais, [item.key]: Number(e.target.value)})} className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                        <input 
+                          type="number" 
+                          value={(comerciais as any)[item.key]} 
+                          onChange={(e) => setComerciais({...comerciais, [item.key]: Number(e.target.value)})} 
+                          onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
+                          className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
+                        />
                       </div>
                     ))}
                   </div>
@@ -699,7 +749,13 @@ export default function DataEntrySection({
                     ].map(item => (
                       <div key={item.key}>
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
-                        <input type="number" value={(administrativas as any)[item.key]} onChange={(e) => setAdministrativas({...administrativas, [item.key]: Number(e.target.value)})} className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                       <input 
+                         type="number" 
+                         value={(administrativas as any)[item.key]} 
+                         onChange={(e) => setAdministrativas({...administrativas, [item.key]: Number(e.target.value)})} 
+                         onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
+                         className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
+                       />
                       </div>
                     ))}
                   </div>
@@ -760,16 +816,6 @@ export default function DataEntrySection({
             </motion.div>
           )}
 
-          {activeTab === 'products' && (
-             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-               <div className="flex items-center justify-between mb-4">
-                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Fichas Técnicas & Engenharia de Cardápio</h4>
-                </div>
-
-                {/* Outros componentes de produto... */}
-             </motion.div>
-          )}
-
           {activeTab === 'history' && (
             <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -798,7 +844,13 @@ export default function DataEntrySection({
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Pedidos Totais no Mês</label>
-                    <input type="number" value={quantidadePedidos || ''} onChange={(e) => setQuantidadePedidos(e.target.value === '' ? 0 : Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
+                    <input 
+                      type="number" 
+                      value={quantidadePedidos} 
+                      onChange={(e) => setQuantidadePedidos(Number(e.target.value))} 
+                      onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
+                      className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
+                    />
                   </div>
                </div>
             </motion.div>

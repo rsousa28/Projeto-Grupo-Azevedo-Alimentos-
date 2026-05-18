@@ -80,7 +80,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   }, [user]);
 
   return (
-    <div className="flex min-h-screen font-sans selection:bg-indigo-100">
+    <div className={`flex min-h-screen font-sans selection:bg-indigo-100 ${isDarkMode ? 'dark' : ''}`}>
       {/* Sidebar */}
       <motion.aside 
         initial={false}
@@ -104,7 +104,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                   <div className="bg-white p-1 rounded-lg shrink-0">
                     <img src={LOGO_URL} alt="Logo" className="h-8 w-auto object-contain" />
                   </div>
-                  <span className="font-black text-xs italic tracking-tighter dark:text-white whitespace-nowrap">GRUPO AZEVEDO</span>
+                  <span className={`font-black text-xs italic tracking-tighter whitespace-nowrap ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>GRUPO AZEVEDO</span>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -112,7 +112,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               onClick={() => setCollapsed(!collapsed)}
               className="p-2 hover:bg-slate-100 dark:hover:bg-[#1E1E1E] rounded-lg transition-colors"
             >
-              <Menu className="w-5 h-5 dark:text-slate-400" />
+              <Menu className={`w-5 h-5 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`} />
             </button>
           </div>
         </div>
@@ -211,7 +211,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
           <div className="flex items-center gap-6">
             <div className="text-right">
-              <div className="text-sm font-bold dark:text-white uppercase tracking-tighter italic">
+              <div className={`text-sm font-bold uppercase tracking-tighter italic ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                 {user?.username || user?.name || 'Visitante'}
               </div>
               <div className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] italic">
