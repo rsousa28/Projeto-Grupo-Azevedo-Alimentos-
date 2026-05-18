@@ -15,7 +15,8 @@ import {
   Loader2,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Trash2
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
@@ -35,7 +36,8 @@ export default function CMV() {
     saveCMVPeriod, 
     loadCMVPeriod,
     setTopProducts,
-    setInventoryItems
+    setInventoryItems,
+    deletePeriodData
   } = useStore();
 
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
@@ -45,6 +47,26 @@ export default function CMV() {
   const [selectedYear, setSelectedYear] = useState('2026');
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const currentMonthLabel = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ][parseInt(selectedMonth) - 1];
+
+  const handleResetPeriod = async () => {
+    if (!window.confirm(`Tem certeza que deseja zerar TODAS as informações de ${currentMonthLabel} ${selectedYear}? Esta ação não pode ser desfeita.`)) return;
+    
+    setIsDeleting(true);
+    try {
+      await deletePeriodData(selectedMonth, selectedYear);
+      alert('Dados do período zerados com sucesso.');
+    } catch (error) {
+      alert('Erro ao zerar dados.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('Todos');
@@ -234,6 +256,16 @@ export default function CMV() {
               <option value="2025" className="dark:bg-[#1E1E1E]">2025</option>
               <option value="2026" className="dark:bg-[#1E1E1E]">2026</option>
             </select>
+            {currentStore.code === 'ROOT' && (
+              <button
+                onClick={handleResetPeriod}
+                disabled={isDeleting}
+                className="ml-1 p-1 hover:bg-slate-200 dark:hover:bg-white/10 rounded-lg transition-colors text-red-500"
+                title="Zerar dados do período"
+              >
+                {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+              </button>
+            )}
           </div>
 
           <button 

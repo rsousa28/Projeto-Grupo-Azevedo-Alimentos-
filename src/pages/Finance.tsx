@@ -21,7 +21,8 @@ import {
   MessagesSquare,
   X,
   Send,
-  Lightbulb
+  Lightbulb,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -47,11 +48,26 @@ const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 export default function Finance() {
-  const { isDarkMode, dreTimeline, brandColors, currentStore, topProducts, loadDREPeriod, loadCMVPeriod } = useStore();
+  const { isDarkMode, dreTimeline, brandColors, currentStore, topProducts, loadDREPeriod, loadCMVPeriod, deletePeriodData } = useStore();
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio as default
   const [selectedYear, setSelectedYear] = useState('2026');
   const [showEntry, setShowEntry] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleResetPeriod = async () => {
+    if (!window.confirm(`Tem certeza que deseja zerar TODAS as informações de ${currentMonthLabel} ${selectedYear}? Esta ação não pode ser desfeita.`)) return;
+    
+    setIsDeleting(true);
+    try {
+      await deletePeriodData(selectedMonth, selectedYear);
+      alert('Dados do período zerados com sucesso.');
+    } catch (error) {
+      alert('Erro ao zerar dados.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'model', text: string }[]>([
     { role: 'model', text: 'Como posso ajudar a otimizar sua margem este mês? Pergunte sobre qualquer conta da DRE e etc.' }
   ]);
@@ -515,6 +531,16 @@ export default function Finance() {
                   <option value="2025" className="bg-[#1E1E1E] text-white font-bold">2025</option>
                   <option value="2026" className="bg-[#1E1E1E] text-white font-bold">2026</option>
                 </select>
+                {currentStore.code === 'ROOT' && (
+                  <button
+                    onClick={handleResetPeriod}
+                    disabled={isDeleting}
+                    className="ml-1 p-1 hover:bg-white/10 rounded-lg transition-colors text-red-500"
+                    title="Zerar dados do período"
+                  >
+                    {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                  </button>
+                )}
               </div>
             )}
           </div>

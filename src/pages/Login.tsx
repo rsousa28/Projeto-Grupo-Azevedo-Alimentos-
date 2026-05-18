@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, User as UserIcon, Lock, Loader2, TrendingUp, Info } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
@@ -13,6 +13,24 @@ export default function Login() {
   const navigate = useNavigate();
   const { isDarkMode } = useStore();
   const { login, user } = useAuth();
+  const [quoteIndex, setQuoteIndex] = useState(0);
+
+  const quotes = [
+    "O sucesso é a soma de pequenos esforços repetidos diariamente.",
+    "A persistência é o caminho do êxito.",
+    "Quanto mais eu treino, mais sorte eu tenho.",
+    "Foco, força e fé para mais um dia de trabalho.",
+    "Excelência não é um ato, mas um hábito.",
+    "Onde há foco, a energia flui.",
+    "Pequenos começos levam a grandes destinos."
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setQuoteIndex((prev) => (prev + 1) % quotes.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [quotes.length]);
 
   useEffect(() => {
     if (user) {
@@ -35,7 +53,7 @@ export default function Login() {
   };
 
   return (
-    <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-500 ${isDarkMode ? 'bg-[#0F0F0F]' : 'bg-slate-50'}`}>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-slate-50 font-sans">
       <motion.div 
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -71,17 +89,30 @@ export default function Login() {
                </div>
                <div>
                   <div className="text-[10px] font-black uppercase text-[#7F300C]/60 tracking-widest">Frase do Dia</div>
-                  <div className="text-xs font-bold text-[#7F300C]">"O sucesso é a soma de pequenos esforços repetidos diariamente."</div>
+                  <div className="h-8 flex items-center">
+                    <AnimatePresence mode="wait">
+                      <motion.div
+                        key={quoteIndex}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.5 }}
+                        className="text-xs font-bold text-[#7F300C]"
+                      >
+                        "{quotes[quoteIndex]}"
+                      </motion.div>
+                    </AnimatePresence>
+                  </div>
                </div>
             </div>
           </div>
         </div>
 
         {/* Form Side */}
-        <div className="p-8 md:p-12 relative">
-          <div className="flex items-center gap-2 mb-8">
+        <div className="p-8 md:p-12 relative bg-white">
+          <div className="flex items-center gap-2 mb-8 text-black">
             <div className="w-2 h-8 bg-[#FFCB05] rounded-full" />
-            <h2 className="text-2xl font-black italic text-black dark:text-black uppercase tracking-tighter">Acesse o Painel</h2>
+            <h2 className="text-2xl font-black italic uppercase tracking-tighter">Acesse o Painel</h2>
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
@@ -97,7 +128,7 @@ export default function Login() {
                     setUsername(e.target.value);
                     if (error) setError(null);
                   }}
-                  className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-100 outline-none transition-all font-bold text-sm bg-slate-50 focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05] text-slate-900"
+                  className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-200 outline-none transition-all font-bold text-sm bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05] text-slate-900"
                   placeholder="adm"
                 />
               </div>
@@ -115,7 +146,7 @@ export default function Login() {
                     setPassword(e.target.value);
                     if (error) setError(null);
                   }}
-                  className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-100 outline-none transition-all font-bold text-sm bg-slate-50 focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05] text-slate-900"
+                  className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-200 outline-none transition-all font-bold text-sm bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05] text-slate-900"
                   placeholder="••••••••"
                 />
               </div>

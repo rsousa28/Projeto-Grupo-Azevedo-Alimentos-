@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Store, Metric, DREData } from '../types';
 import { mockMetrics, dreTimeline as mockDreTimeline, metaVsRealizado as mockMetaVsRealizado, topProducts as mockTopProducts, deliveryChannels as mockDeliveryChannels, salesByHour as mockSalesByHour, salesByDay as mockSalesByDay } from '../lib/mockData';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
 interface StoreContextType {
   currentStore: Store;
@@ -36,6 +36,7 @@ interface StoreContextType {
   loadCMVPeriod: (month: string, year: string) => Promise<boolean>;
   saveDREPeriod: (month: string, year: string, dreData: DREData) => Promise<void>;
   loadDREPeriod: (month: string, year: string) => Promise<boolean>;
+  deletePeriodData: (month: string, year: string) => Promise<void>;
   clearAllData: () => void;
   brandColors: {
     primary: string;
@@ -465,6 +466,34 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const deletePeriodData = async (month: string, year: string) => {
+    const periodId = `${year}-${month}`;
+    const cmvPath = `stores/${currentStore.id}/cmv_periods/${periodId}`;
+    const drePath = `stores/${currentStore.id}/dre_periods/${periodId}`;
+    
+    try {
+      const cmvRef = doc(db, 'stores', currentStore.id, 'cmv_periods', periodId);
+      const dreRef = doc(db, 'stores', currentStore.id, 'dre_periods', periodId);
+      
+      await deleteDoc(cmvRef);
+      await deleteDoc(dreRef);
+      
+      const monthLabel = [
+        'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+        'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+      ][parseInt(month) - 1];
+
+      // Update local state
+      setDreTimeline(prev => prev.filter(p => !(p.month === monthLabel && (p.year === year || (!p.year && year === '2026')))));
+      setTopProducts([]);
+      setInventoryItems([]);
+      
+      console.log('Período excluído com sucesso:', periodId);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, cmvPath);
+    }
+  };
+
   return (
     <StoreContext.Provider value={{ 
       currentStore, 
@@ -499,6 +528,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       loadCMVPeriod,
       saveDREPeriod,
       loadDREPeriod,
+      deletePeriodData,
       clearAllData
     }}>
       <div className={isDarkMode ? 'dark bg-[#0F0F0F] text-[#F5F5F5]' : 'bg-[#F8FAFC] text-[#121212]'}>
