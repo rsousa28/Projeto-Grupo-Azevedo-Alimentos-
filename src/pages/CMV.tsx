@@ -469,8 +469,8 @@ export default function CMV() {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-[#333]">
+          <table className="w-full min-w-[1000px]">
             <thead>
               <tr className={`text-left text-[10px] uppercase tracking-[0.2em] font-black ${isDarkMode ? 'text-slate-500 bg-black/20' : 'text-slate-400 bg-slate-50/50'}`}>
                 <th className="px-6 py-5">Status</th>

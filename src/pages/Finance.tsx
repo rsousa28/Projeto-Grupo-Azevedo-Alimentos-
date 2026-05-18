@@ -738,8 +738,9 @@ export default function Finance() {
                </div>
              </div>
 
-             <div className="p-4 space-y-2">
-                {dreGroups.map((group) => (
+             <div className="p-4 space-y-2 overflow-x-auto">
+                <div className="min-w-[600px] space-y-2">
+                   {dreGroups.map((group) => (
                   <div key={group.id} className="space-y-1">
                     {/* Group Header */}
                     <div 
@@ -795,6 +796,7 @@ export default function Finance() {
                     </AnimatePresence>
                   </div>
                 ))}
+                </div>
              </div>
           </div>
 
