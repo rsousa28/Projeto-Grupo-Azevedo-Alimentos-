@@ -15,17 +15,17 @@ export const metaVsRealizado = [
 ];
 
 export const salesByHour = [
-  { hour: '11h', vendas: 0 },
-  { hour: '12h', vendas: 0 },
-  { hour: '13h', vendas: 0 },
-  { hour: '14h', vendas: 0 },
-  { hour: '17h', vendas: 0 },
-  { hour: '18h', vendas: 0 },
-  { hour: '19h', vendas: 0 },
-  { hour: '20h', vendas: 0 },
-  { hour: '21h', vendas: 0 },
-  { hour: '22h', vendas: 0 },
-  { hour: '23h', vendas: 0 },
+  { hour: '11h', faturamento: 0 },
+  { hour: '12h', faturamento: 0 },
+  { hour: '13h', faturamento: 0 },
+  { hour: '14h', faturamento: 0 },
+  { hour: '17h', faturamento: 0 },
+  { hour: '18h', faturamento: 0 },
+  { hour: '19h', faturamento: 0 },
+  { hour: '20h', faturamento: 0 },
+  { hour: '21h', faturamento: 0 },
+  { hour: '22h', faturamento: 0 },
+  { hour: '23h', faturamento: 0 },
 ];
 
 export const salesByDay = [

@@ -291,7 +291,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     { name: 'WEDO', valor: 0, color: '#0066FF' },
     { name: 'Balcão', valor: 0, color: '#FFB800' }
   ]);
-  const [salesByHour, setSalesByHour] = useState<any[]>(mockSalesByHour.map(s => ({ ...s, vendas: 0 })));
+  const [salesByHour, setSalesByHour] = useState<any[]>(mockSalesByHour.map(s => ({ ...s, faturamento: 0 })));
   const [salesByDay, setSalesByDay] = useState<any[]>(mockSalesByDay.map(s => ({ ...s, faturamento: 0 })));
   const [peakHour, setPeakHour] = useState<string>('00:00');
   const [closingsData, setClosingsData] = useState<Record<string, any>>({});
@@ -362,7 +362,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { name: 'WEDO', valor: 0, color: '#0066FF' },
       { name: 'Balcão', valor: 0, color: '#FFB800' }
     ]);
-    setSalesByHour(salesByHour.map(s => ({ ...s, vendas: 0 })));
+    setSalesByHour(salesByHour.map(s => ({ ...s, faturamento: 0 })));
     setSalesByDay(salesByDay.map(s => ({ ...s, faturamento: 0 })));
     setPeakHour('00:00');
     setClosingsData({});

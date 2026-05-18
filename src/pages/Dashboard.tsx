@@ -410,14 +410,23 @@ export default function Dashboard() {
         {/* Hourly Sales */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <h3 className={`text-lg font-bold mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-            <Clock className="w-5 h-5 text-orange-500" /> Fluxo por Horário
+            <Clock className="w-5 h-5 text-orange-500" /> Faturamento por Horário
           </h3>
           <div className="h-[250px]">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={salesByHour}>
                 <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 10}} />
-                <Tooltip />
-                <Area type="monotone" dataKey="vendas" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.1} strokeWidth={2} />
+                <Tooltip 
+                  formatter={(val: number) => [formatCurrency(val), 'Faturamento']}
+                  labelStyle={{ color: '#888' }}
+                  contentStyle={{ 
+                    borderRadius: '12px', 
+                    border: 'none', 
+                    backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
+                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
+                  }}
+                />
+                <Area type="monotone" dataKey="faturamento" name="Faturamento" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.1} strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

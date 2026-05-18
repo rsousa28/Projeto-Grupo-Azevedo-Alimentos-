@@ -55,10 +55,18 @@ export default function DataEntry() {
       currency: 'BRL',
     }).format(val);
   };
-  const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels'>('financial');
+  const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels' | 'hourly'>('financial');
   const [saved, setSaved] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio
   const [selectedYear, setSelectedYear] = useState('2026');
+
+  const [salesByHourLocal, setSalesByHourData] = useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = {};
+    for (let i = 0; i < 24; i++) {
+      initial[`${String(i).padStart(2, '0')}:00`] = 0;
+    }
+    return initial;
+  });
 
   // Metas & Performance states
   const [faturamentoMeta, setFaturamentoMeta] = useState(metaVsRealizado[0]?.valor || 140000);
@@ -230,6 +238,7 @@ export default function DataEntry() {
         if (monthData.details.administrativas) setAdministrativas(monthData.details.administrativas);
         if (monthData.details.resultadoFinanceiro) setResultadoFinanceiro(monthData.details.resultadoFinanceiro);
         if (monthData.details.griFinal !== undefined) setGriFinal(monthData.details.griFinal);
+        if (monthData.details.salesByHour) setSalesByHourData(monthData.details.salesByHour);
       } else {
         // Fallback for mock data without details
         setDespesasVariaveis(prev => ({ ...prev, royalties: monthData.royalties }));
@@ -264,6 +273,13 @@ export default function DataEntry() {
       });
       setResultadoFinanceiro({ taxasIfood: 0, tarifasBancarias: 0, taxasBancarias: 0, jurosRecebidos: 0 });
       setGriFinal(0);
+      setSalesByHourData(() => {
+        const initial: Record<string, number> = {};
+        for (let i = 0; i < 24; i++) {
+          initial[`${String(i).padStart(2, '0')}:00`] = 0;
+        }
+        return initial;
+      });
     }
   }, [selectedMonth, dreTimeline]);
 
@@ -341,7 +357,8 @@ export default function DataEntry() {
         comerciais,
         administrativas,
         resultadoFinanceiro,
-        griFinal
+        griFinal,
+        salesByHour: salesByHourLocal
       }
     };
 
@@ -392,6 +409,13 @@ export default function DataEntry() {
  
     // 7. Update Products
     setTopProducts(localProducts);
+
+    // 8. Update Sales By Hour
+    const hourlyArray = Object.keys(salesByHourLocal).sort().map(h => ({
+      hour: h,
+      faturamento: salesByHourLocal[h]
+    }));
+    setSalesByHour(hourlyArray);
     
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
@@ -431,7 +455,8 @@ export default function DataEntry() {
         <div className="flex gap-4 p-1.5 bg-slate-100 dark:bg-black/20 rounded-2xl w-fit">
           {[
             { id: 'financial', label: 'Financeiro & DRE', icon: DollarSign },
-            { id: 'channels', label: 'Canais & Picos', icon: PieChart },
+            { id: 'channels', label: 'Canais de Venda', icon: PieChart },
+            { id: 'hourly', label: 'Faturamento por Horário', icon: Clock },
             { id: 'history', label: 'Histórico YoY', icon: TrendingUp },
             { id: 'goals', label: 'Metas & Performance', icon: Target },
           ].map(tab => (
@@ -837,36 +862,46 @@ export default function DataEntry() {
                          onChange={(e) => setReceitaWedo(Number(e.target.value))}
                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
-                     </div>
-                   </div>
-                </div>
+                      </div>
+                    </div>
+                 </div>
               </section>
+            </motion.div>
+          )}
 
-              <section className="space-y-6">
+          {activeTab === 'hourly' && (
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
+              <div className="flex flex-col gap-6">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1.5 h-6 bg-yellow-500 rounded-full" />
-                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Picos de Venda</h4>
+                  <div className="w-1.5 h-6 bg-cyan-500 rounded-full" />
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Faturamento por Horário</h4>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                     <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Horário de Pico</label>
-                     <div className="relative">
-                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">
-                         <Zap className="w-4 h-4" />
-                       </span>
-                       <select 
-                         value={horarioPico}
-                         onChange={(e) => setHorarioPico(e.target.value)}
-                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`}
-                       >
-                         {Array.from({length: 24}).map((_, i) => (
-                           <option key={i} value={`${i}:00`}>{i}:00h</option>
-                         ))}
-                       </select>
-                     </div>
-                   </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  {Object.keys(salesByHourLocal).sort().map(hour => (
+                    <div key={hour} className="space-y-2">
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block text-center">{hour}</label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">R$</span>
+                        <input 
+                          type="number" 
+                          value={salesByHourLocal[hour] || ''} 
+                          onChange={(e) => setSalesByHourData({...salesByHourLocal, [hour]: e.target.value === '' ? 0 : Number(e.target.value)})} 
+                          onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
+                          className={`w-full pl-8 pr-3 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-center text-xs ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </section>
+                
+                <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-black/40 border-cyan-500/20' : 'bg-cyan-50 border-cyan-100'}`}>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-600 mb-1">Total Lançado por Hora:</p>
+                  <p className={`text-lg font-black italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                    {formatCurrency(Object.values(salesByHourLocal).reduce((a, b) => a + b, 0))}
+                  </p>
+                </div>
+              </div>
             </motion.div>
           )}
 

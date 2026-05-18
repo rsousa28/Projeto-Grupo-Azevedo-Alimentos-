@@ -61,6 +61,7 @@ export interface DREData {
     administrativas?: Record<string, number>;
     resultadoFinanceiro?: Record<string, number>;
     griFinal?: number;
+    salesByHour?: Record<string, number>;
   };
 }
 
