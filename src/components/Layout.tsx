@@ -14,7 +14,6 @@ import {
   Store as StoreIcon,
   Zap,
   TrendingUp,
-  FileText,
   Banknote
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -34,7 +33,6 @@ const EXECUTIVE_MANAGERS: User['role'][] = ['ADMIN', 'MANAGER', 'MANAGER_BEBELU_
 
 const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: FileText, label: 'Lançamentos', path: '/data-entry', allowedRoles: EXECUTIVE_MANAGERS },
   { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: ALL_MANAGERS },
   { icon: TrendingUp, label: 'Fluxo de Caixa', path: '/cash-flow', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },

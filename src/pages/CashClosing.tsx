@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Banknote, 
@@ -18,9 +18,11 @@ import {
   Printer,
   User,
   ChevronUp,
-  ChevronDown
+  ChevronDown,
+  RotateCcw
 } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
+import { useAuth } from '../contexts/AuthContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -54,6 +56,7 @@ const formatCurrencyLocal = (val: number) =>
 
 export default function CashClosing() {
   const { currentStore, isDarkMode, closingsData, setClosingsData } = useStore();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('05');
@@ -61,6 +64,21 @@ export default function CashClosing() {
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+  const [confirmResetId, setConfirmResetId] = useState<string | null>(null);
+
+  // Load initial store custom closings on mount and store changes
+  useEffect(() => {
+    const saved = localStorage.getItem(`closings_data_${currentStore.id}`);
+    if (saved) {
+      try {
+        setClosingsData(JSON.parse(saved));
+      } catch (e) {
+        setClosingsData({});
+      }
+    } else {
+      setClosingsData({});
+    }
+  }, [currentStore.id, setClosingsData]);
 
   // Form Initial State
   const initialFormState: CashClosingForm = {
@@ -230,7 +248,11 @@ export default function CashClosing() {
       });
       setInputValues(initialInputs);
     } else {
-      setFormData({ ...initialFormState, date: id });
+      setFormData({ 
+        ...initialFormState, 
+        date: id,
+        operator: user?.name || ''
+      });
       setInputValues({});
     }
     setShowModal(true);
@@ -428,10 +450,10 @@ export default function CashClosing() {
                       <span className={`font-black italic text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{closing.date.split('-').reverse().join('/')}</span>
                     </div>
                   </td>
-                  <td className="px-8 py-6 text-right font-black italic text-sm dark:text-white">
+                  <td className={`px-8 py-6 text-right font-black italic text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                     {formatCurrencyLocal(closing.revenue)}
                   </td>
-                  <td className="px-8 py-6 text-right font-bold italic text-xs text-slate-500">
+                  <td className={`px-8 py-6 text-right font-bold italic text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                     {formatCurrencyLocal(closing.systemTotal)}
                   </td>
                   <td className="px-8 py-6">
@@ -456,12 +478,32 @@ export default function CashClosing() {
                     </div>
                   </td>
                   <td className="px-8 py-6 text-right">
-                    <button 
-                      onClick={() => openEditModal(closing.id)}
-                      className="p-3 bg-amber-500/10 rounded-xl text-amber-500 hover:bg-amber-500 hover:text-white transition-all transform group-hover:scale-110"
-                    >
-                      <ArrowRight className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center justify-end gap-2 inline-flex">
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (closing.status === 'Concluído') {
+                            setConfirmResetId(closing.id);
+                          }
+                        }}
+                        disabled={closing.status !== 'Concluído'}
+                        className={`p-3 rounded-xl transition-all transform ${
+                          closing.status === 'Concluído'
+                            ? 'bg-rose-500/10 text-rose-500 hover:bg-rose-600 hover:text-white hover:scale-105 cursor-pointer'
+                            : 'opacity-30 bg-slate-500/5 text-slate-400 cursor-not-allowed'
+                        }`}
+                        title={closing.status === 'Concluído' ? "Zerar lançamentos" : "Sem lançamentos para zerar"}
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => openEditModal(closing.id)}
+                        className="p-3 bg-amber-500/10 rounded-xl text-amber-500 hover:bg-amber-500 hover:text-white transition-all transform group-hover:scale-110"
+                        title={closing.status === 'Concluído' ? "Editar" : "Iniciar Fechamento"}
+                      >
+                        <ArrowRight className="w-5 h-5" />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -495,11 +537,11 @@ export default function CashClosing() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase italic ml-2">Data</label>
-                    <input type="date" value={formData.date} onChange={(e) => handleInputChange('date', e.target.value)} className={`w-full px-6 py-4 rounded-2xl border font-black italic text-sm outline-none ${isDarkMode ? 'bg-black border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                    <input type="date" value={formData.date} onChange={(e) => handleInputChange('date', e.target.value)} className={`w-full px-6 py-4 rounded-2xl border font-black italic text-sm outline-none ${isDarkMode ? 'bg-black border-[#333] text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} />
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-500 uppercase italic ml-2">Operador</label>
-                    <input type="text" placeholder="Nome do responsável" value={formData.operator} onChange={(e) => handleInputChange('operator', e.target.value)} className={`w-full px-6 py-4 rounded-2xl border font-black italic text-sm outline-none ${isDarkMode ? 'bg-black border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                    <input type="text" placeholder="Nome do responsável" value={formData.operator} onChange={(e) => handleInputChange('operator', e.target.value)} className={`w-full px-6 py-4 rounded-2xl border font-black italic text-sm outline-none ${isDarkMode ? 'bg-black border-[#333] text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} />
                   </div>
                 </div>
 
@@ -528,20 +570,20 @@ export default function CashClosing() {
                           type="text" 
                           value={inputValues[item.field] !== undefined ? inputValues[item.field] : (formData[item.field] || '')} 
                           onChange={(e) => handleNumberChange(item.field, e.target.value)} 
-                          className={`w-36 px-4 py-2 text-right rounded-xl font-black italic outline-none border transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 focus:border-amber-500'}`}
+                          className={`w-36 px-4 py-2 text-right rounded-xl font-black italic outline-none border transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'}`}
                           placeholder="0,00"
                         />
                       </div>
                     ))}
                     
                     <div className="space-y-2 pt-6">
-                      <label className={`text-[10px] font-black uppercase italic ml-2 ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-[#7F300C]' : (isDarkMode ? 'text-white' : 'text-slate-900')}`}>Observações / Notas</label>
+                      <label className={`text-[10px] font-black uppercase italic ml-2 ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-[#7F300C]' : (isDarkMode ? 'text-white' : 'text-slate-950')}`}>Observações / Notas</label>
                       <textarea 
                         value={formData.observations}
                         onChange={(e) => handleInputChange('observations', e.target.value)}
                         placeholder="Digite aqui observações relevantes sobre o fechamento..."
                         className={`w-full h-full min-h-[120px] p-6 rounded-[2rem] border font-medium text-sm outline-none resize-none transition-all ${
-                          isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 focus:border-amber-500'
+                          isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-950 focus:border-amber-500'
                         }`}
                       />
                     </div>
@@ -561,12 +603,12 @@ export default function CashClosing() {
                         { label: 'OUTROS 4', field: 'outros4' as const },
                       ].map(item => (
                         <div key={item.field} className="flex items-center gap-2 group">
-                          <input type="text" placeholder={item.label} className={`flex-1 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase outline-none transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500 placeholder:text-slate-600' : 'bg-slate-50 border-slate-100 text-slate-500 focus:border-amber-500'}`} />
+                          <input type="text" placeholder={item.label} className={`flex-1 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase outline-none transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500 placeholder:text-slate-600' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'}`} />
                           <input 
                             type="text" 
                             value={inputValues[item.field] !== undefined ? inputValues[item.field] : (formData[item.field] || '')} 
                             onChange={(e) => handleNumberChange(item.field, e.target.value)} 
-                            className={`w-24 px-4 py-2 text-right rounded-xl font-black italic outline-none border transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 focus:border-amber-500'}`}
+                            className={`w-24 px-4 py-2 text-right rounded-xl font-black italic outline-none border transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'}`}
                             placeholder="0,00"
                           />
                         </div>
@@ -614,11 +656,15 @@ export default function CashClosing() {
                       setIsSaving(true);
                       await new Promise(r => setTimeout(r, 800));
                       
-                      // Save to local state
-                      setClosingsData(prev => ({
-                        ...prev,
-                        [formData.date]: { ...formData, totalGeral, diff, sobra, falta }
-                      }));
+                      // Save to local state and persist to localStorage
+                      setClosingsData(prev => {
+                        const updated = {
+                          ...prev,
+                          [formData.date]: { ...formData, totalGeral, diff, sobra, falta }
+                        };
+                        localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
+                        return updated;
+                      });
                       
                       setIsSaving(false);
                       setShowModal(false);
@@ -629,6 +675,63 @@ export default function CashClosing() {
                   </button>
                 </div>
               </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {confirmResetId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            onClick={() => setConfirmResetId(null)} 
+            className="absolute inset-0 bg-black/85 backdrop-blur-md" 
+          />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 15 }}
+            className={`relative w-full max-w-md overflow-hidden rounded-[2.5rem] p-8 shadow-2xl flex flex-col space-y-6 z-10 ${isDarkMode ? 'bg-[#121212] border border-slate-800' : 'bg-white border border-slate-100'}`}
+          >
+            <div className="flex items-center gap-4 text-rose-500">
+              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center shrink-0">
+                <RotateCcw className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className={`text-lg font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Zerar Caixa?</h3>
+                <p className="text-xs text-slate-500">Esta ação é irreversível.</p>
+              </div>
+            </div>
+
+            <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+              Deseja realmente zerar todos os lançamentos informados para o dia <span className="font-extrabold text-amber-500">{confirmResetId.split('-').reverse().join('/')}</span>? O status do caixa voltará a ser Pendente.
+            </p>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <button 
+                onClick={() => setConfirmResetId(null)}
+                className={`px-5 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors ${
+                  isDarkMode ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-600 hover:text-slate-950 hover:bg-slate-50'
+                }`}
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={() => {
+                  setClosingsData(prev => {
+                    const updated = { ...prev };
+                    delete updated[confirmResetId];
+                    localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
+                    return updated;
+                  });
+                  setConfirmResetId(null);
+                }}
+                className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-rose-500/20"
+              >
+                Zerar Lançamentos
+              </button>
             </div>
           </motion.div>
         </div>
