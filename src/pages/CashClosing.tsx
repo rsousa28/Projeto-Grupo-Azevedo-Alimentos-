@@ -518,7 +518,10 @@ export default function CashClosing() {
 
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div 
+            key="cash-closing-modal-container"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 30 }}
@@ -693,11 +696,14 @@ export default function CashClosing() {
               </div>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
 
       {confirmResetId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <motion.div 
+          key="cash-reset-modal-container"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+        >
           <motion.div 
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
@@ -750,7 +756,7 @@ export default function CashClosing() {
               </button>
             </div>
           </motion.div>
-        </div>
+        </motion.div>
       )}
     </AnimatePresence>
   </div>
