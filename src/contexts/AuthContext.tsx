@@ -32,12 +32,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (u === 'adm' && p === 'adm123') {
         const adminUser: User = { 
           id: 'root-admin', 
-          name: 'Administrador Raiz', 
+          name: 'Admin Geral Grupo AZ', 
           username: 'adm', 
           role: 'ADMIN' 
         };
         setUser(adminUser);
         localStorage.setItem('auth_user', JSON.stringify(adminUser));
+        return;
+      }
+
+      if (u === 'patriciab28' && p === 'b28') {
+        const pUser: User = { 
+          id: 'patricia-b28', 
+          name: 'Patrícia - Bebelu Papicu', 
+          username: 'patriciab28', 
+          role: 'MANAGER_BEBELU_RIOMAR_PAPICU' 
+        };
+        setUser(pUser);
+        localStorage.setItem('auth_user', JSON.stringify(pUser));
         return;
       }
 

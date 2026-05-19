@@ -51,8 +51,6 @@ export default function CMV() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
 
-  const [activeView, setActiveView] = useState<'products' | 'inventory'>('products');
-
   const currentMonthLabel = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -252,7 +250,7 @@ export default function CMV() {
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
         <div>
           <h2 className={`text-3xl font-bold uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Engenharia de Cardápio (CMV)</h2>
-          <p className="text-slate-500 font-medium italic">Análise de rentabilidade e fichas técnicas por período</p>
+          <p className="text-slate-500 font-medium italic">Análise de rentabilidade e lucratividade por período</p>
         </div>
         
         <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
@@ -297,40 +295,44 @@ export default function CMV() {
             {showSavedFeedback ? 'Salvo!' : 'Salvar Período'}
           </button>
 
-          <button
-            onClick={handleResetPeriod}
-            disabled={isDeleting}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
-              showConfirmReset 
-                ? 'bg-red-600 text-white animate-pulse' 
-                : 'bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20'
-            }`}
-          >
-            {isDeleting ? (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                Zerando...
-              </>
-            ) : showConfirmReset ? (
-              <>
-                <AlertTriangle className="w-3 h-3" />
-                Confirmar
-              </>
-            ) : (
-              <>
-                <Trash2 className="w-3 h-3" />
-                Zerar Dados
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResetPeriod}
+              disabled={isDeleting}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                showConfirmReset 
+                  ? 'bg-red-600 text-white animate-pulse' 
+                  : 'bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white border border-red-500/20'
+              }`}
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Zerando...
+                </>
+              ) : showConfirmReset ? (
+                <>
+                  <AlertTriangle className="w-3 h-3" />
+                  Confirmar
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-3 h-3" />
+                  Zerar Dados
+                </>
+              )}
+            </button>
 
-          <div className="flex gap-2 flex-1 md:flex-none">
             <button 
               onClick={() => setIsImportModalOpen(true)}
-              className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold border transition-all hover:scale-105 active:scale-95 ${
-              isDarkMode ? 'border-[#333] text-white hover:bg-black' : 'border-slate-200 text-slate-700 bg-white hover:bg-slate-50'
-            }`}>
-              <FileSpreadsheet className="w-5 h-5 text-indigo-500" /> Importar Planilha / PDF
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 border ${
+                isDarkMode 
+                  ? 'bg-[#333] text-white border-[#444] hover:bg-black' 
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50 shadow-sm'
+              }`}
+            >
+              <FileSpreadsheet className="w-3 h-3 text-indigo-500" />
+              Importar Relatório
             </button>
           </div>
         </div>
@@ -444,29 +446,6 @@ export default function CMV() {
             <div className={`text-lg font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Produtos & Engenharia</div>
           </div>
 
-          <div className="flex bg-slate-100 dark:bg-black/20 p-1 rounded-2xl">
-            <button 
-              onClick={() => setActiveView('products')}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeView === 'products' 
-                  ? 'bg-white dark:bg-[#333] text-indigo-600 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-            >
-              Produtos
-            </button>
-            <button 
-              onClick={() => setActiveView('inventory')}
-              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
-                activeView === 'inventory' 
-                  ? 'bg-white dark:bg-[#333] text-indigo-600 shadow-sm' 
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-            >
-              Insumos / Fichas
-            </button>
-          </div>
-
           <div className="flex gap-2 w-full md:w-auto">
             <div className="relative flex-1 md:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -500,8 +479,7 @@ export default function CMV() {
         </div>
 
         <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-[#333]">
-          {activeView === 'products' ? (
-            <table className="w-full min-w-[1000px]">
+          <table className="w-full min-w-[1000px]">
             <thead>
               <tr className={`text-left text-[10px] uppercase tracking-[0.2em] font-black ${isDarkMode ? 'text-slate-500 bg-black/20' : 'text-slate-400 bg-slate-50/50'}`}>
                 <th className="px-6 py-5">Status</th>
@@ -622,44 +600,6 @@ export default function CMV() {
               )}
             </tbody>
             </table>
-          ) : (
-            <table className="w-full">
-              <thead>
-                <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b dark:border-[#333] italic">
-                  <th className="px-6 py-5 text-left">Insumo / Artigo</th>
-                  <th className="px-6 py-5 text-center">Unidade</th>
-                  <th className="px-6 py-5 text-right">Preço Unitário</th>
-                  <th className="px-6 py-5 text-right">Fornecedor</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-[#333]">
-                {filteredInventory.length > 0 ? filteredInventory.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-black/10 transition-colors group">
-                    <td className="px-6 py-6">
-                      <div className="font-black text-slate-900 dark:text-[#FFB800] uppercase italic tracking-tighter break-words whitespace-normal leading-tight">
-                        {item.name}
-                      </div>
-                    </td>
-                    <td className="px-6 py-6 text-center text-xs font-black dark:text-slate-300 uppercase italic">
-                      {item.unit}
-                    </td>
-                    <td className="px-6 py-6 text-right text-xs font-black text-amber-500">
-                      {formatCurrency(item.price)}
-                    </td>
-                    <td className="px-6 py-6 text-right text-[10px] font-bold text-slate-400 uppercase italic">
-                      {item.supplier || 'Não informado'}
-                    </td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={4} className="px-8 py-20 text-center text-slate-400 text-xs italic font-medium uppercase tracking-widest">
-                      Nenhum insumo cadastrado. Importe seu relatório de insumos.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
         </div>
         
         <div className="p-8 border-t dark:border-[#333] flex items-center justify-between">
@@ -679,7 +619,7 @@ export default function CMV() {
       <CSVImportModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
-        type={activeView}
+        type="products"
       />
     </div>
   );

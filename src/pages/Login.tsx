@@ -129,7 +129,7 @@ export default function Login() {
                     if (error) setError(null);
                   }}
                   className="w-full pl-12 pr-4 py-4 rounded-2xl border border-slate-200 outline-none transition-all font-bold text-sm bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05] text-slate-900"
-                  placeholder="adm"
+                  placeholder="Usuário"
                 />
               </div>
             </div>
@@ -137,7 +137,7 @@ export default function Login() {
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 italic">Senha de Acesso</label>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="password"
                   required
@@ -195,7 +195,7 @@ export default function Login() {
 
           <div className="mt-8 pt-8 border-t border-slate-100 text-center">
             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest italic">
-              Acesso Restrito ao Administrador <br />
+              Painel de Gestão Operacional <br />
               Desenvolvido por <span className="text-[#7F300C]">Rennan Inacio</span>
             </p>
           </div>

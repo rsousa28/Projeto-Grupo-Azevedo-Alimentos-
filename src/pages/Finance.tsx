@@ -863,22 +863,6 @@ export default function Finance() {
               </div>
            </div>
 
-           <div className={`p-6 rounded-[2.5rem] border ${isDarkMode ? 'bg-indigo-600 border-indigo-500 shadow-xl shadow-indigo-500/20' : 'bg-white border-slate-200'}`}>
-              <div className={`flex items-center gap-3 mb-4 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                <Zap className={`w-5 h-5 fill-current ${currentStore.brand === 'BEBELU' && !isDarkMode ? 'text-amber-500' : ''}`} />
-                <span className="text-xs font-black uppercase tracking-[0.2em] italic">Chat com Consultor IA</span>
-              </div>
-              <p className={`${isDarkMode ? 'text-white/60' : 'text-black'} text-[10px] leading-relaxed mb-6`}>
-                Como posso ajudar a otimizar sua margem este mês? Pergunte sobre qualquer conta da DRE.
-              </p>
-              <button 
-                onClick={() => setShowChat(true)}
-                className={`w-full py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl active:scale-95 transition-all ${isDarkMode ? 'bg-white text-slate-900' : 'bg-black text-white'}`}
-                style={currentStore.brand === 'BEBELU' && isDarkMode ? { color: '#000', backgroundColor: '#FFCB05' } : {}}
-              >
-                Chat com Consultor IA
-              </button>
-           </div>
         </div>
       </div>
       </>

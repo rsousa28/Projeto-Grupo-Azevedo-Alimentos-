@@ -304,12 +304,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <button 
-          onClick={() => navigate('/insights')}
-          className="px-6 py-3 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
-        >
-          Chat com Consultor IA
-        </button>
+        {/* Chat button removed */}
       </motion.div>
 
       {/* Main KPIs */}

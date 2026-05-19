@@ -29,12 +29,16 @@ interface NavItem {
   allowedRoles?: User['role'][];
 }
 
+const ALL_MANAGERS: User['role'][] = ['ADMIN', 'MANAGER', 'MANAGER_BEBELU_RIOMAR_PAPICU', 'MANAGER_BEBELU_MOSSORO', 'MANAGER_4ESTYLOS_MOSSORO'];
+const EXECUTIVE_MANAGERS: User['role'][] = ['ADMIN', 'MANAGER', 'MANAGER_BEBELU_MOSSORO', 'MANAGER_4ESTYLOS_MOSSORO'];
+
 const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: ['ADMIN', 'MANAGER'] },
-  { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: ['ADMIN', 'MANAGER', 'FINANCIAL'] },
-  { icon: Calculator, label: 'CMV & Fichas', path: '/cmv', allowedRoles: ['ADMIN', 'MANAGER'] },
-  { icon: Zap, label: 'Insights IA', path: '/insights', allowedRoles: ['ADMIN'] },
+  { icon: FileText, label: 'Lançamentos', path: '/data-entry', allowedRoles: EXECUTIVE_MANAGERS },
+  { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: ALL_MANAGERS },
+  { icon: TrendingUp, label: 'Fluxo de Caixa', path: '/cash-flow', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
+  { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
+  { icon: Calculator, label: 'CMV & Engenharia', path: '/cmv', allowedRoles: ALL_MANAGERS },
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
 ];
 
@@ -264,7 +268,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 {user?.username || user?.name || 'Visitante'}
               </div>
               <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.1em] italic leading-none">
-                {user?.role === 'ADMIN' ? 'CEO' : user?.role === 'MANAGER' ? 'Gerente' : 'Analista'}
+                {user?.role === 'ADMIN' ? 'CEO' : user?.role === 'MANAGER' ? 'Gerente' : 'Gerente do Grupo AZ'}
               </div>
             </div>
           </div>

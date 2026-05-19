@@ -69,7 +69,7 @@ export default function Team() {
     } catch (error) {
       console.error("Error fetching users:", error);
       // Ensure we display something on error/first run
-      setUsers(prev => prev.length > 0 ? prev : [{ id: 'root-admin', name: 'Administrador Raiz', username: 'adm', role: 'ADMIN' }]);
+      setUsers(prev => prev.length > 0 ? prev : [{ id: 'root-admin', name: 'Admin Geral Grupo AZ', username: 'adm', role: 'ADMIN' }]);
     } finally {
       setLoading(false);
     }

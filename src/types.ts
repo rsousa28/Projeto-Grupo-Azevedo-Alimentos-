@@ -76,6 +76,18 @@ export interface ProductPerformance {
   active?: boolean;
 }
 
+export interface CashFlowEntry {
+  id: string;
+  date: string;
+  description: string;
+  category: string;
+  type: 'INCOME' | 'EXPENSE';
+  value: number;
+  status: 'PENDING' | 'CONFIRMED';
+  paymentMethod: string;
+  storeId?: string;
+}
+
 export interface Insumo {
   id: string;
   name: string;
