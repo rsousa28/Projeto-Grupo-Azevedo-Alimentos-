@@ -251,23 +251,35 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
       const signatureVal = signatures[q.id];
       
       const isReq = q.required;
-      const isPhotoRequired = q.photoRequired || (q.intelligentFlow && isTriggered(q) && q.intelligentFlow.requirePhotoOnTrigger);
+      // Photographic response types naturally require a photo if the question is mandatory.
+      // Additionally, standard question forms might require a photo if photoRequired is true
+      // or if triggered automatically via the Intelligent Flow.
+      const isPhotoRequired = (q.responseType === 'foto' && isReq) || q.photoRequired || (q.intelligentFlow && isTriggered(q) && q.intelligentFlow.requirePhotoOnTrigger);
+
+      let questionMissing = false;
 
       // Check if general response is completed
       if (isReq) {
         if (q.responseType === 'assinatura') {
           if (!signatureVal) {
             missingFields.push(`Assinatura para salvar a pergunta: "${q.questionText}"`);
+            questionMissing = true;
+          }
+        } else if (q.responseType === 'foto') {
+          if (!photoVal) {
+            missingFields.push(`Foto de evidência obrigatória para: "${q.questionText}"`);
+            questionMissing = true;
           }
         } else {
           if (ansVal === undefined || ansVal === '') {
             missingFields.push(`Resposta para: "${q.questionText}"`);
+            questionMissing = true;
           }
         }
       }
 
-      // Check photo requirement
-      if (isPhotoRequired && !photoVal) {
+      // Check photo requirement (only if not already flagged as missing)
+      if (isPhotoRequired && !photoVal && !questionMissing) {
         missingFields.push(`Foto de evidência obrigatória para: "${q.questionText}"`);
       }
     }
@@ -288,6 +300,8 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
       
       if (q.responseType === 'assinatura') {
         finalValue = '[Assinatura Eletrônica]';
+      } else if (q.responseType === 'foto') {
+        finalValue = '[Foto de Evidência]';
       }
 
       return {
@@ -404,7 +418,7 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
           const isReq = question.required;
           const userAns = answers[question.id] || '';
           const triggeredFlow = isTriggered(question);
-          const needsPhoto = question.photoRequired || (triggeredFlow && question.intelligentFlow?.requirePhotoOnTrigger);
+          const needsPhoto = question.responseType === 'foto' || question.photoRequired || (triggeredFlow && question.intelligentFlow?.requirePhotoOnTrigger);
 
           return (
             <motion.div 
