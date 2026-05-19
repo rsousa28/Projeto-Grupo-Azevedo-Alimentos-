@@ -149,6 +149,10 @@ export default function CashClosing() {
       formData.refeicao + 
       formData.pix + 
       formData.totem +
+      formData.sangria +
+      formData.lancheFuncionarios +
+      formData.valefuncionario +
+      formData.despesas +
       formData.outros1 + formData.outros2 + formData.outros3 + formData.outros4
     );
   }, [formData]);
@@ -559,6 +563,7 @@ export default function CashClosing() {
                       { label: 'REFEIÇÃO', field: 'refeicao' as const },
                       { label: 'PIX', field: 'pix' as const },
                       { label: 'TOTEM', field: 'totem' as const },
+                      { label: 'SANGRIA', field: 'sangria' as const },
                     ].map(item => (
                       <div key={item.field} className="flex items-center justify-between group">
                         <span className={`text-[11px] font-bold uppercase transition-colors ${
@@ -597,13 +602,24 @@ export default function CashClosing() {
                           : isDarkMode ? 'text-white border-white/20' : 'text-slate-900 border-slate-200'
                       }`}>Outros / Justificativas</h4>
                       {[
+                        { label: 'LANCHE', field: 'lancheFuncionarios' as const, isFixed: true },
+                        { label: 'VALE FUNCIONÁRIO', field: 'valefuncionario' as const, isFixed: true },
+                        { label: 'DESPESAS', field: 'despesas' as const, isFixed: true },
                         { label: 'OUTROS (COD 50)', field: 'outros1' as const },
                         { label: 'OUTROS 2', field: 'outros2' as const },
                         { label: 'OUTROS 3', field: 'outros3' as const },
                         { label: 'OUTROS 4', field: 'outros4' as const },
                       ].map(item => (
-                        <div key={item.field} className="flex items-center gap-2 group">
-                          <input type="text" placeholder={item.label} className={`flex-1 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase outline-none transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500 placeholder:text-slate-600' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'}`} />
+                        <div key={item.field} className="flex items-center justify-between group gap-2">
+                          {item.isFixed ? (
+                            <span className={`text-[11px] font-bold uppercase transition-colors shrink-0 ${
+                              storeInfo.brand?.toLowerCase().includes('bebelu') 
+                                ? 'text-[#7F300C]' 
+                                : isDarkMode ? 'text-white group-hover:text-amber-500' : 'text-slate-900 group-hover:text-amber-500'
+                            }`}>{item.label}</span>
+                          ) : (
+                            <input type="text" placeholder={item.label} className={`flex-1 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase outline-none transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500 placeholder:text-slate-600' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'}`} />
+                          )}
                           <input 
                             type="text" 
                             value={inputValues[item.field] !== undefined ? inputValues[item.field] : (formData[item.field] || '')} 
