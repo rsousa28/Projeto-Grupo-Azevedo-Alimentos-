@@ -335,7 +335,7 @@ export default function Dashboard() {
                   {metric.change}%
                 </div>
               </div>
-              <div className={`text-lg font-black truncate ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <div className={`text-lg font-black break-all leading-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>
                 {metric.format === 'currency' ? formatCurrency(metric.valor as number) : `${metric.valor}${metric.format === 'percent' ? '%' : ''}`}
               </div>
               <div className="text-[9px] text-slate-400 mt-1 italic">vs. mês anterior</div>
@@ -501,8 +501,8 @@ export default function Dashboard() {
           <div className="space-y-4">
             {dynamicMostProfitable.length > 0 ? dynamicMostProfitable.map((p, i) => (
               <div key={p.id || `profit-${i}`} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
-                <div className="overflow-hidden">
-                  <div className="text-xs font-bold dark:text-white uppercase italic truncate">{p.name}</div>
+                <div className="overflow-visible pr-2">
+                  <div className="text-xs font-bold dark:text-white uppercase italic break-words whitespace-normal leading-tight">{p.name}</div>
                   <div className="text-[10px] text-slate-500">Margem: {p.margin}%</div>
                 </div>
                 <div className="text-sm font-black text-green-500 whitespace-nowrap">+{formatCurrency(p.profit)}</div>
@@ -522,8 +522,8 @@ export default function Dashboard() {
           <div className="space-y-4">
             {dynamicLowMargin.length > 0 ? dynamicLowMargin.map((p, i) => (
               <div key={p.id || `low-${i}`} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
-                <div className="overflow-hidden">
-                  <div className="text-xs font-bold dark:text-white uppercase italic truncate">{p.name}</div>
+                <div className="overflow-visible pr-2">
+                  <div className="text-xs font-bold dark:text-white uppercase italic break-words whitespace-normal leading-tight">{p.name}</div>
                   <div className="text-[10px] text-slate-500">Status: {p.status}</div>
                 </div>
                 <div className={`text-sm font-black text-red-700 whitespace-nowrap`}>
@@ -674,7 +674,7 @@ export default function Dashboard() {
                           {p.name[0]}
                         </div>
                         <div>
-                          <div className={`font-bold text-sm group-hover:text-amber-600 transition-colors uppercase italic ${isDarkMode ? 'text-[#FFB800]' : 'text-slate-900'}`}>{p.name}</div>
+                          <div className={`font-bold text-sm group-hover:text-amber-600 transition-colors uppercase italic break-words whitespace-normal leading-tight ${isDarkMode ? 'text-[#FFB800]' : 'text-slate-900'}`}>{p.name}</div>
                           <div className="text-xs text-slate-500">{p.category}</div>
                         </div>
                       </div>

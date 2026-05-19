@@ -10,13 +10,18 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Gemini
-const apiKey = (process.env.GEMINI_API_KEY || 
-               process.env.GOOGLE_API_KEY || 
-               "").trim();
+// Helper to get API Key dynamically
+function getApiKey() {
+  return (process.env.GEMINI_API_KEY || 
+          process.env.GOOGLE_API_KEY || 
+          process.env.GOOGLE_GENAI_API_KEY ||
+          process.env.VITE_GEMINI_API_KEY ||
+          "").trim();
+}
 
+// Initialize Gemini with correct options
 const ai = new GoogleGenAI({
-  apiKey: apiKey,
+  apiKey: getApiKey(),
   httpOptions: {
     headers: {
       'User-Agent': 'aistudio-build',
@@ -32,33 +37,40 @@ async function startServer() {
 
   // Health check and API status
   app.get("/api/health", (req, res) => {
+    const key = getApiKey();
+    const envKeys = Object.keys(process.env);
     res.json({ 
       status: "ok", 
-      apiConfigured: !!apiKey && apiKey.length > 10,
-      keyPrefix: apiKey ? apiKey.substring(0, 4) + "..." : "none"
+      apiConfigured: !!key && key.length > 10,
+      keyPrefix: key ? key.substring(0, 4) + "..." : "none",
+      availableEnvVars: envKeys.filter(k => k.includes("API") || k.includes("KEY") || k.includes("GOOGLE") || k.includes("GEMINI"))
     });
   });
 
   // Gemini API Proxy
   app.post("/api/ai/generate", async (req, res) => {
     try {
-      if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey === "") {
-        const availableVars = Object.keys(process.env).filter(k => k.includes("API") || k.includes("KEY") || k.includes("GOOGLE") || k.includes("GEMINI"));
-        console.error("Missing or invalid API Key. Available env vars:", availableVars);
-        return res.status(500).json({ 
+      const currentKey = getApiKey();
+      
+      if (!currentKey || currentKey === "undefined" || currentKey === "null" || currentKey === "") {
+        return res.status(401).json({ 
           error: `GEMINI_API_KEY is not configured. Please ensure you saved the Secret in the Settings > Secrets panel in AI Studio.` 
         });
       }
 
       const { model, contents, config } = req.body;
+      
+      // Use a valid stable model name
+      let modelName = model || "gemini-1.5-flash";
+      if (modelName.includes("gemini-3")) {
+        modelName = "gemini-1.5-flash"; // Fallback to stable for now to ensure it works
+      }
 
-      // Use modern model names
-      const modelName = model && !model.includes("1.5") ? model : "gemini-3-flash-preview";
-
+      // Use the recommended method from the skill
       const response = await ai.models.generateContent({
         model: modelName,
         contents: Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: String(contents) }] }],
-        config: config,
+        config: config
       });
 
       res.json({ text: response.text || "" });

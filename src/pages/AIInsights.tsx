@@ -149,7 +149,7 @@ export default function AIInsights() {
               </div>
             </div>
             
-            <h3 className={`text-xl font-black mb-2 italic uppercase tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>{insight.title}</h3>
+            <h3 className={`text-xl font-black mb-2 italic uppercase tracking-tighter break-words whitespace-normal leading-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>{insight.title}</h3>
             <p className={`text-sm mb-6 leading-relaxed font-bold italic ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>
               {insight.description}
             </p>

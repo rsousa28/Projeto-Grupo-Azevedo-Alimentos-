@@ -16,7 +16,7 @@ export interface ExtractedInsumo {
   supplier: string;
 }
 
-async function callAIApi(contents: any, model: string = "gemini-3-flash-preview", config: any = {}) {
+async function callAIApi(contents: any, model: string = "gemini-1.5-flash", config: any = {}) {
   const response = await fetch("/api/ai/generate", {
     method: "POST",
     headers: {
@@ -39,8 +39,40 @@ async function callAIApi(contents: any, model: string = "gemini-3-flash-preview"
 
 export async function extractDataFromCSV(csvContent: string, type: 'products' | 'inventory') {
   const systemInstruction = type === 'products' 
-    ? "Você é um especialista em análise de vendas de restaurantes. Extraia os produtos, faturamento total por produto, quantidade vendida, cmv unitário (custo por item) e margem de lucro estimada dele (em porcentagem) do texto CSV/relatório fornecido. Se o CMV não estiver explícito, calcule-o baseado na margem e faturamento."
-    : "Você é um especialista em custos de insumos de restaurantes. Extraia os insumos, unidade de medida, preço unitário de compra e o fornecedor do texto CSV/relatório fornecido.";
+    ? `Você é um especialista em análise de vendas e controladoria de restaurantes brasileiros (Pizzarias e Fast-Food). 
+       Sua tarefa é extrair dados reais de relatórios de venda.
+       
+       CAMPOS OBRIGATÓRIOS:
+       1. name: Nome completo do produto (NÃO ABREVIBE).
+       2. quantidadeVendas: Quantidade total vendida (inteiro ou decimal).
+       3. faturamento: Valor total bruto das vendas deste produto (monetário).
+       4. cmv: CUSTO UNITÁRIO REAL (valor monetário de quanto custou para produzir 1 unidade). 
+          - Se o relatório trouxer "Custo Total", divida pela quantidade. 
+          - Se trouxer "CMV %", multiplique o Preço Unitário (Faturamento/Qtd) por essa porcentagem.
+       5. margin: MARGEM DE CONTRIBUIÇÃO EM PORCENTAGEM (Profit Margin). 
+          - Se o relatório trouxer "CMV %" de 30%, a margem é 70%.
+          - Margem % = ((Preço Unitário - Custo Unitário) / Preço Unitário) * 100.
+
+       REGRAS CRÍTICAS DE VALORES:
+       - Formato Brasileiro: Interprete '1.200,50' como 1200.5 e '31,25' como 31.25.
+       - NÃO confunda CMV % (Custo) com Margem % (Lucro). 
+       - Se o relatório diz "CMV 31,25%", isso é o CUSTO. Calcule o 'cmv' unitário e coloque a 'margin' como 68,75%.
+       - Retorne apenas o JSON Array válido.`
+    : `Você é um especialista em custos de insumos e controladoria de restaurantes brasileiros. 
+       Sua tarefa é extrair a lista de insumos/ingredientes de um relatório de compras ou estoque.
+
+       CAMPOS OBRIGATÓRIOS:
+       1. name: Nome do insumo (ex: 'CARNE MOIDA', 'OLEO DE SOJA').
+       2. unit: Unidade de medida (ex: 'KG', 'UN', 'LT', 'PCT').
+       3. price: PREÇO UNITÁRIO DE COMPRA (valor monetário de 1 unidade). 
+          - Se o relatório trouxer "Preço Total", divida pela quantidade comprada.
+       4. supplier: Nome do fornecedor (se disponível, senão use 'Geral').
+
+       REGRAS CRÍTICAS DE VALORES:
+       - Formato Brasileiro: '1.200,50' é 1200.5. '687,99' é 687.99.
+       - NÃO multiplique os valores por 1000. 
+       - Se o valor for '687,99', o JSON deve conter 687.99.
+       - Retorne apenas o JSON Array válido.`
 
   const responseSchema = type === 'products' ? {
     type: Type.ARRAY,
@@ -70,7 +102,7 @@ export async function extractDataFromCSV(csvContent: string, type: 'products' | 
   };
 
   try {
-    const result = await callAIApi(csvContent, "gemini-3-flash-preview", {
+    const result = await callAIApi(csvContent, "gemini-1.5-flash", {
       systemInstruction,
       responseMimeType: "application/json",
       responseSchema: responseSchema as any,
@@ -107,7 +139,7 @@ export async function chatWithConsultant(message: string, dreContext: any, histo
       { role: 'user', parts: [{ text: message }] }
     ];
 
-    const result = await callAIApi(combinedContents, "gemini-3-flash-preview", {
+    const result = await callAIApi(combinedContents, "gemini-1.5-flash", {
       systemInstruction,
     });
 
@@ -145,7 +177,7 @@ export async function generatePredictiveInsights(context: any): Promise<Predicti
   `;
 
   try {
-    const result = await callAIApi("Gere meus insights preditivos do mês.", "gemini-3-flash-preview", {
+    const result = await callAIApi("Gere meus insights preditivos do mês.", "gemini-1.5-flash", {
       systemInstruction,
       responseMimeType: "application/json",
     });
@@ -167,7 +199,7 @@ export async function analyzeMenuEngineering(negativeMarginProducts: any[]) {
   Para cada produto, dê uma recomendação estratégica ultra-curta (máximo 15 palavras por item) sobre o que fazer (ex: revisar gramatura, trocar insumo, descontinuar). Foque em ações práticas. Responda em Português.`;
 
   try {
-    const result = await callAIApi(prompt, "gemini-3-flash-preview");
+    const result = await callAIApi(prompt, "gemini-1.5-flash");
     return result.text;
   } catch (error) {
     console.error("Erro na análise IA:", error);

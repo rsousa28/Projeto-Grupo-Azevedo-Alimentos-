@@ -34,61 +34,215 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
         console.warn("AI extraction failed, trying manual parse fallback...", aiErr);
         
         // Manual Fallback Logic
-        const lines = csvText.split('\n');
+        const lines = csvText.split('\n').map(l => l.trim()).filter(Boolean);
         if (lines.length < 2) throw new Error("Conteúdo insuficiente para importação manual.");
         
-        // Basic CSV to JSON conversion for common headers
-        const rows = lines.filter(l => l.trim()).map(line => {
-          // Detect separator
-          const sep = line.includes(';') ? ';' : (line.includes('\t') ? '\t' : ',');
-          return line.split(sep).map(c => c.trim());
-        });
+        // Detect separator by looking at the first 3 lines
+        const sample = lines.slice(0, 3).join('\n');
+        const sep = sample.includes(';') ? ';' : (sample.includes('\t') ? '\t' : (sample.includes('|') ? '|' : ','));
         
-        const headers = rows[0].map(h => h.toLowerCase());
-        const content = rows.slice(1);
+        const rows = lines.map(line => line.split(sep).map(c => c.trim().replace(/^["']|["']$/g, '')));
         
-        data = content.map(row => {
-          const obj: any = {};
-          if (type === 'products') {
-            // Mapping for Products
-            const nameIdx = headers.findIndex(h => h.includes('prod') || h.includes('nome') || h.includes('item') || h.includes('desc'));
-            const qtyIdx = headers.findIndex(h => h.includes('qtd') || h.includes('quant') || h.includes('unid'));
-            const valIdx = headers.findIndex(h => h.includes('vend') || h.includes('fat') || h.includes('total') || h.includes('valor') || h.includes('p.médio'));
-            const cmvIdx = headers.findIndex(h => h.includes('cmv') || h.includes('cost') || h.includes('custo') || h.includes('vlr.cmv'));
-            const marginIdx = headers.findIndex(h => h.includes('marg') || h.includes('mc'));
+        let headers = rows[0].map(h => h.toLowerCase());
+        let content = rows.slice(1);
+
+        // Header detection logic
+        const headerKeywords = ['prod', 'item', 'nome', 'qtd', 'vend', 'cmv', 'custo', 'venda', 'vlr', 'fat', 'mercador', 'receita'];
+        const looksLikeHeader = (r: string[]) => r.some(cell => 
+          headerKeywords.some(k => cell.toLowerCase().includes(k))
+        );
+
+        if (!looksLikeHeader(headers)) {
+          const headerRowIdx = rows.findIndex(r => looksLikeHeader(r));
+          if (headerRowIdx !== -1) {
+            headers = rows[headerRowIdx].map(h => h.toLowerCase());
+            content = rows.slice(headerRowIdx + 1);
+          }
+        }
+        
+        data = content.filter(row => row.length > 0).map(row => {
+          const cleanNum = (str: any, isQty = false) => {
+            if (str === null || str === undefined) return isQty ? 1 : 0;
+            if (typeof str === 'number') return str;
+            let s = String(str).trim();
+            if (!s) return isQty ? 1 : 0;
             
-            // Cleaning function for numbers that might be like R$ 1.234,56 or 1234.56
-            const cleanNum = (str: string) => {
-              if (!str) return 0;
-              const cleaned = str.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.');
-              return Number(cleaned) || 0;
+            // Remove currency, percentage, * and ALL spaces including non-breaking ones
+            s = s.replace(/R\$/g, '').replace(/%/g, '').replace(/[\s\u00A0\u1680\u180e\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/g, '').replace(/\*/g, '');
+            
+            const hasComma = s.includes(',');
+            const hasDot = s.includes('.');
+
+            if (hasComma && hasDot) {
+              // BR: 1.234,56 -> last separator is comma
+              // US: 1,234.56 -> last separator is dot
+              const lastComma = s.lastIndexOf(',');
+              const lastDot = s.lastIndexOf('.');
+              if (lastComma > lastDot) {
+                // If there are multiple dots, strip them all.
+                s = s.replace(/\./g, '').replace(',', '.');
+              } else {
+                // US: 1,234.56 -> strip comma.
+                s = s.replace(/,/g, '');
+              }
+            } else if (hasComma) {
+              // ONLY comma: in Brazil it's always decimal (e.g., 687,99 -> 687.99)
+              // We replace ALL commas with nothing except the last one which becomes a dot if there are multiple? 
+              // Usually there's only one.
+              if ((s.match(/,/g) || []).length > 1) {
+                // Multiple commas? 123.456.789 style but using commas? 
+                // Rare but let's be safe: 1,234,567 -> 1234567
+                s = s.replace(/,/g, '');
+              } else {
+                s = s.replace(',', '.');
+              }
+            } else if (hasDot) {
+              // ONLY dot: could be thousands (1.000) or decimal (1.50)
+              // If there's more than one dot, they are thousands separators
+              if ((s.match(/\./g) || []).length > 1) {
+                s = s.replace(/\./g, '');
+              } else {
+                // Single dot. Ambiguity zone: 1.000 or 1.00?
+                // Heuristic: If it's a price and followed by 3 digits, and parts[0] is not 0
+                const parts = s.split('.');
+                // If it looks like exactly 3 digits, we lean towards thousands ONLY if it's not a common decimal pattern.
+                // But the user's issue with 687,99 becoming 687990.00 suggests something is being stripped incorrectly.
+                // WE REMOVE the smart detection for single dots with 3 digits because it's too risky for items like "687.990" (meaning 687.99 with trailing zero)
+                // In modern web data, a SINGLE dot is almost always a decimal.
+                
+                // s = s.replace(/\./g, ''); // REMOVED THIS RISKY LINE
+              }
+            }
+            
+            const num = parseFloat(s);
+            return isNaN(num) ? (isQty ? 1 : 0) : num;
+          };
+
+          if (type === 'products') {
+            const findColumn = (keywords: string[]) => {
+              const normalizedHeaders = headers.map(h => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, ''));
+              
+              // 1. Try exact match first with original or normalized
+              for (const kw of keywords) {
+                const normKW = kw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+                const idx = headers.findIndex((h, i) => 
+                  h.toLowerCase() === kw.toLowerCase() || 
+                  normalizedHeaders[i] === normKW
+                );
+                if (idx !== -1) return idx;
+              }
+              
+              // 2. Try partial match, but only if it's not a generic word that might be in other headers
+              for (const kw of keywords) {
+                const normKW = kw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+                if (normKW.length < 3) continue;
+                
+                // Special check for 'venda' vs 'venda total'
+                const idx = normalizedHeaders.findIndex((h, i) => {
+                  if (normKW === 'venda' && normalizedHeaders[i].includes('total')) return false;
+                  return h.includes(normKW);
+                });
+                if (idx !== -1) return idx;
+              }
+              
+              return -1;
             };
 
-            const val = cleanNum(row[valIdx]);
-            const qty = Number(row[qtyIdx]?.replace(/[^\d]/g, '') || 1);
-            const cmv = cleanNum(row[cmvIdx]);
-            const margin = cleanNum(row[marginIdx]);
+            const nameIdx = findColumn(['descricao', 'nome', 'item', 'produto', 'mercadoria', 'desc', 'label', 'titulo']);
+            const qtyIdx = findColumn(['quantidade', 'qtd', 'quant', 'volume', 'unid', 'vendidas', 'pecas', 'quatidade', 'qtde', 'quantid']);
+            
+            // Priority: Total Revenue
+            const totalRevenueIdx = findColumn(['venda total', 'faturamento', 'vl total', 'valor total', 'fat total', 'receita total', 'total venda', 'faturat', 'vlr fatur']);
+            // Price: Unit price
+            const unitPriceIdx = findColumn(['venda unit', 'preco unit', 'p.medio', 'unitario', 'p. medio', 'vlr unit', 'venda', 'preco', 'venda un']);
+            
+            // CMV variants
+            const cmvUnitIdx = findColumn(['custo unitario', 'vlr unit custo', 'cmv unit', 'cmv unitario', 'custo pr', 'custo unit', 'custo medio', 'cmv un']);
+            const cmvPercentIdx = findColumn(['cmv(%)', 'cmv%', 'perc cmv', '% cmv', 'cmv perc', 'cmv %', 'cmv porc', 'cmv']);
+            const cmvTotalIdx = findColumn(['custo total', 'cmv total', 'vlr cmv', 'valor cmv', 'total cmv', 'vlr.cmv', 'cmv total', 'vl custo tot', 'vlr total custo', 'custo bruto']);
+            
+            const marginIdx = findColumn(['rentabilidade', 'margem', 'mc', 'lucro', 'margin', 'resultado', 'margem %', 'mrg %']);
+            
+            const qty = qtyIdx !== -1 ? cleanNum(row[qtyIdx], true) : 1;
+            const totalRevenue = totalRevenueIdx !== -1 ? cleanNum(row[totalRevenueIdx]) : 0;
+            const unitPrice = unitPriceIdx !== -1 ? cleanNum(row[unitPriceIdx]) : (qty > 0 ? totalRevenue / qty : 0);
+            
+            const faturamento = totalRevenue || (qty * unitPrice);
+            const actualUnitPrice = unitPrice || (qty > 0 ? faturamento / qty : 0);
+
+            const cmvUnitRaw = cmvUnitIdx !== -1 ? cleanNum(row[cmvUnitIdx]) : null;
+            const cmvPercentRaw = cmvPercentIdx !== -1 ? cleanNum(row[cmvPercentIdx]) : null;
+            const cmvTotalRaw = cmvTotalIdx !== -1 ? cleanNum(row[cmvTotalIdx]) : null;
+            const marginRaw = marginIdx !== -1 ? cleanNum(row[marginIdx]) : null;
+            
+            let finalCmvUnit = 0;
+
+            if (cmvTotalRaw !== null && cmvTotalRaw > 0) {
+              finalCmvUnit = cmvTotalRaw / (qty || 1);
+            } else if (cmvUnitRaw !== null && cmvUnitRaw > 0) {
+              finalCmvUnit = cmvUnitRaw;
+            } else if (cmvPercentRaw !== null && cmvPercentRaw > 0) {
+              // Heuristic: If CMV percent is > 100, it's likely a misidentified monetary value (Total or Unit)
+              if (cmvPercentRaw > 100) {
+                // If it looks like a total value (it's close to 30-40% of faturamento)
+                const ratio = cmvPercentRaw / (faturamento || 1);
+                if (ratio > 0.05 && ratio < 0.8) {
+                  finalCmvUnit = cmvPercentRaw / (qty || 1);
+                } else {
+                  finalCmvUnit = cmvPercentRaw;
+                }
+              } else {
+                const factor = cmvPercentRaw > 1 ? cmvPercentRaw / 100 : cmvPercentRaw;
+                finalCmvUnit = actualUnitPrice * factor;
+              }
+            } else if (marginRaw !== null && marginRaw > 0) {
+              const marginFactor = marginRaw > 1 ? marginRaw / 100 : marginRaw;
+              finalCmvUnit = actualUnitPrice * (1 - marginFactor);
+            } else {
+              finalCmvUnit = actualUnitPrice * 0.35;
+            }
+
+
+            let finalMarginPercent = 0;
+            if (actualUnitPrice > 0) {
+              finalMarginPercent = ((actualUnitPrice - finalCmvUnit) / actualUnitPrice) * 100;
+            } else {
+              finalMarginPercent = 65;
+            }
             
             return {
               name: row[nameIdx] || 'Sem Nome',
               quantidadeVendas: qty,
-              faturamento: val,
-              cmv: cmv || (val > 0 ? (val / qty) * 0.35 : 0), // Fallback CMV 35% if not found
-              margin: margin || (val > 0 ? ((val - (cmv * qty || val * 0.35)) / val) * 100 : 0)
+              faturamento: faturamento,
+              cmv: finalCmvUnit,
+              margin: finalMarginPercent
             };
           } else {
             // Mapping for Inventory
-            const nameIdx = headers.findIndex(h => h.includes('prod') || h.includes('nome') || h.includes('item') || h.includes('insumo') || h.includes('desc'));
-            const unitIdx = headers.findIndex(h => h.includes('unid') || h.includes('um') || h.includes('medida'));
-            const priceIdx = headers.findIndex(h => h.includes('preço') || h.includes('valor') || h.includes('vlr') || h.includes('custo') || h.includes('unit'));
-            const supplierIdx = headers.findIndex(h => h.includes('fornecedor') || h.includes('origem') || h.includes('marca'));
-            
-            const cleanNum = (str: string) => {
-              if (!str) return 0;
-              const cleaned = str.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.');
-              return Number(cleaned) || 0;
+            const findColumn = (keywords: string[]) => {
+              const normalizedHeaders = headers.map(h => h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, ''));
+              for (const kw of keywords) {
+                const normKW = kw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+                const idx = headers.findIndex((h, i) => 
+                  h.toLowerCase() === kw.toLowerCase() || 
+                  normalizedHeaders[i] === normKW
+                );
+                if (idx !== -1) return idx;
+              }
+              for (const kw of keywords) {
+                const normKW = kw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, '');
+                if (normKW.length < 3) continue;
+                const idx = normalizedHeaders.findIndex(h => h.includes(normKW));
+                if (idx !== -1) return idx;
+              }
+              return -1;
             };
 
+            const nameIdx = findColumn(['prod', 'nome', 'item', 'insumo', 'desc', 'descricao']);
+            const unitIdx = findColumn(['unid', 'um', 'medida', 'unidade', 'un.']);
+            const priceIdx = findColumn(['preco unit', 'unitario', 'valor unit', 'vlr unit', 'venc. unit', 'custo pr', 'custo unit', 'custo medio']);
+            const supplierIdx = findColumn(['fornecedor', 'origem', 'marca', 'fornec']);
+            
             return {
               name: row[nameIdx] || 'Sem Nome',
               unit: row[unitIdx] || 'UN',
@@ -344,7 +498,37 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
           'S LARAN C/CEN 500': 'Sucos Naturais',
         };
 
-        const productsWithIds = data.map((p: any, i: number) => {
+        // Aggregate products by name to avoid duplicates in the same import
+        const aggregatedProducts = new Map<string, any>();
+        
+        data.forEach((p: any) => {
+          // Extra normalization to catch slight differences
+          const name = (p.name || 'Sem Nome').trim().replace(/\s+/g, ' ');
+          const nameKey = name.toUpperCase();
+          if (aggregatedProducts.has(nameKey)) {
+            const existing = aggregatedProducts.get(nameKey);
+            const newQty = (existing.quantidadeVendas || 0) + (p.quantidadeVendas || 0);
+            const newRevenue = (existing.faturamento || 0) + (p.faturamento || 0);
+            
+            // Weighted average for CMV unit
+            const totalCmvVal = ((existing.cmv || 0) * (existing.quantidadeVendas || 1)) + ((p.cmv || 0) * (p.quantidadeVendas || 1));
+            const newCmvUnit = newQty > 0 ? totalCmvVal / newQty : 0;
+            const newMargin = newRevenue > 0 ? ((newRevenue - totalCmvVal) / newRevenue) * 100 : 0;
+            
+            aggregatedProducts.set(nameKey, {
+              ...existing,
+              name: name, // Keep normalized name
+              quantidadeVendas: newQty,
+              faturamento: newRevenue,
+              cmv: newCmvUnit,
+              margin: newMargin
+            });
+          } else {
+            aggregatedProducts.set(nameKey, { ...p, name });
+          }
+        });
+
+        const productsWithIds = Array.from(aggregatedProducts.values()).map((p: any, i: number) => {
           const autoCategory = productCategories[p.name.toUpperCase()];
           return {
             ...p,
@@ -355,7 +539,16 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
         });
         setTopProducts(productsWithIds);
       } else {
-        const itemsWithIds = data.map((item: any, i: number) => ({
+        // Aggregate inventory by name
+        const aggregatedInventory = new Map<string, any>();
+        data.forEach((item: any) => {
+          const name = (item.name || 'Sem Nome').trim();
+          const nameKey = name.toUpperCase();
+          // For inventory, we just take the last occurrence if duplicated in same file
+          aggregatedInventory.set(nameKey, { ...item });
+        });
+
+        const itemsWithIds = Array.from(aggregatedInventory.values()).map((item: any, i: number) => ({
           ...item,
           id: (Date.now() + i).toString(),
         }));
@@ -388,7 +581,24 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
             const workbook = XLSX.read(data, { type: 'array' });
             const firstSheetName = workbook.SheetNames[0];
             const worksheet = workbook.Sheets[firstSheetName];
-            const csv = XLSX.utils.sheet_to_csv(worksheet);
+            
+            // Convert sheet to JSON array of arrays (header: 1)
+            const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
+            
+            // Filter out empty rows and convert to CSV string for the textarea and compatibility
+            // but we might want to store the structured data directly.
+            // For now, let's convert to a safe CSV format with ';' as separator
+            const csv = jsonData
+              .filter(row => row.length > 0)
+              .map(row => row.map(cell => {
+                const s = String(cell ?? '');
+                if (s.includes(';') || s.includes('"') || s.includes('\n')) {
+                  return `"${s.replace(/"/g, '""')}"`;
+                }
+                return s;
+              }).join(';'))
+              .join('\n');
+              
             setCsvText(csv);
           } catch (err) {
             setError('Erro ao ler arquivo Excel. Tente converter para CSV.');

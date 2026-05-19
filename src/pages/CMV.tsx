@@ -51,6 +51,8 @@ export default function CMV() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
 
+  const [activeView, setActiveView] = useState<'products' | 'inventory'>('products');
+
   const currentMonthLabel = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
@@ -193,6 +195,10 @@ export default function CMV() {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'Todos' || product.category === selectedCategory;
     return matchesSearch && matchesCategory;
+  });
+
+  const filteredInventory = inventoryItems.filter(item => {
+    return item.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
@@ -438,6 +444,29 @@ export default function CMV() {
             <div className={`text-lg font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Produtos & Engenharia</div>
           </div>
 
+          <div className="flex bg-slate-100 dark:bg-black/20 p-1 rounded-2xl">
+            <button 
+              onClick={() => setActiveView('products')}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeView === 'products' 
+                  ? 'bg-white dark:bg-[#333] text-indigo-600 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              Produtos
+            </button>
+            <button 
+              onClick={() => setActiveView('inventory')}
+              className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeView === 'inventory' 
+                  ? 'bg-white dark:bg-[#333] text-indigo-600 shadow-sm' 
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+            >
+              Insumos / Fichas
+            </button>
+          </div>
+
           <div className="flex gap-2 w-full md:w-auto">
             <div className="relative flex-1 md:w-72">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
@@ -471,7 +500,8 @@ export default function CMV() {
         </div>
 
         <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-[#333]">
-          <table className="w-full min-w-[1000px]">
+          {activeView === 'products' ? (
+            <table className="w-full min-w-[1000px]">
             <thead>
               <tr className={`text-left text-[10px] uppercase tracking-[0.2em] font-black ${isDarkMode ? 'text-slate-500 bg-black/20' : 'text-slate-400 bg-slate-50/50'}`}>
                 <th className="px-6 py-5">Status</th>
@@ -483,50 +513,44 @@ export default function CMV() {
                 </th>
                 <th className="px-3 py-5 text-center cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('quantidadeVendas')}>
                   <div className="flex items-center justify-center gap-1">
-                    Quant.
+                    Quantidade
                     {sortConfig?.key === 'quantidadeVendas' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
+                <th className="px-3 py-5 text-center cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('cmvPercent')}>
+                  <div className="flex items-center justify-center gap-1">
+                    CMV(%)
+                    {sortConfig?.key === 'cmvPercent' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
                   </div>
                 </th>
                 <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('pMedio')}>
                   <div className="flex items-center justify-end gap-1">
-                    P. Médio
+                    Venda Unit.
                     {sortConfig?.key === 'pMedio' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
                   </div>
                 </th>
                 <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('cmv')}>
                   <div className="flex items-center justify-end gap-1">
-                    CMV Méd.
+                    Custo Unit.
                     {sortConfig?.key === 'cmv' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
+                  </div>
+                </th>
+                <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('faturamento')}>
+                  <div className="flex items-center justify-end gap-1">
+                    Venda Total
+                    {sortConfig?.key === 'faturamento' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
                   </div>
                 </th>
                 <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('cmvTotal')}>
                   <div className="flex items-center justify-end gap-1">
-                    CMV Total
+                    Custo Total
                     {sortConfig?.key === 'cmvTotal' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
                   </div>
                 </th>
-                <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('lucroBrutoTotal')}>
+                <th className="px-8 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('lucroBrutoTotal')}>
                   <div className="flex items-center justify-end gap-1">
-                    L. Bruto
+                    Rentabilidade
                     {sortConfig?.key === 'lucroBrutoTotal' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
-                  </div>
-                </th>
-                <th className="px-3 py-5 text-right cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('lucroBrutoUnid')}>
-                  <div className="flex items-center justify-end gap-1">
-                    L.B. Unid
-                    {sortConfig?.key === 'lucroBrutoUnid' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
-                  </div>
-                </th>
-                <th className="px-3 py-5 text-center cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('cmvPercent')}>
-                  <div className="flex items-center justify-center gap-1">
-                    CMV%
-                    {sortConfig?.key === 'cmvPercent' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
-                  </div>
-                </th>
-                <th className="px-8 py-5 text-right whitespace-nowrap cursor-pointer hover:text-indigo-500 transition-colors" onClick={() => handleSort('margin')}>
-                  <div className="flex items-center justify-end gap-1">
-                    Margem %
-                    {sortConfig?.key === 'margin' ? (sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />) : <ArrowUpDown className="w-3 h-3 opacity-30" />}
                   </div>
                 </th>
               </tr>
@@ -535,9 +559,8 @@ export default function CMV() {
               {sortedProducts.length > 0 ? sortedProducts.map((product) => {
                 const pMedio = product.faturamento / (product.quantidadeVendas || 1);
                 const cmvMedio = product.cmv || 0;
-                const cmvTotal = cmvMedio * product.quantidadeVendas;
-                const lucroBrutoTotal = product.faturamento - cmvTotal;
-                const lucroBrutoUnid = pMedio - cmvMedio;
+                const cmvTotal = cmvMedio * (product.quantidadeVendas || 0);
+                const rentabilidade = product.faturamento - cmvTotal;
                 const cmvPercent = pMedio > 0 ? (cmvMedio / pMedio) * 100 : 0;
                 
                 return (
@@ -556,12 +579,15 @@ export default function CMV() {
                         }`} />
                       </button>
                     </td>
-                    <td className="px-6 py-6 min-w-[180px]">
-                      <div className="font-black text-slate-900 dark:text-[#FFB800] uppercase italic tracking-tighter transition-colors line-clamp-1">{product.name}</div>
+                    <td className="px-6 py-6 min-w-[240px]">
+                      <div className="font-black text-slate-900 dark:text-[#FFB800] uppercase italic tracking-tighter transition-colors break-words whitespace-normal leading-tight">{product.name}</div>
                       <div className="text-[10px] text-slate-400 font-bold italic">{product.category || 'Geral'}</div>
                     </td>
                     <td className="px-3 py-6 text-center text-xs font-black dark:text-slate-300 italic">
                       {product.quantidadeVendas}
+                    </td>
+                    <td className="px-3 py-6 text-center text-[10px] font-black text-red-400 italic">
+                      {cmvPercent.toFixed(1)}%
                     </td>
                     <td className="px-3 py-6 text-right text-xs font-black dark:text-slate-300">
                       {formatCurrency(pMedio)}
@@ -569,29 +595,20 @@ export default function CMV() {
                     <td className="px-3 py-6 text-right text-xs font-black text-amber-500">
                       {formatCurrency(cmvMedio)}
                     </td>
+                    <td className="px-3 py-6 text-right text-xs font-black dark:text-slate-300">
+                      {formatCurrency(product.faturamento)}
+                    </td>
                     <td className="px-3 py-6 text-right text-xs font-black text-slate-400">
                       {formatCurrency(cmvTotal)}
                     </td>
-                    <td className="px-3 py-6 text-right text-xs font-black text-green-600">
-                      {formatCurrency(lucroBrutoTotal)}
-                    </td>
-                    <td className="px-3 py-6 text-right text-xs font-black dark:text-slate-300">
-                      {formatCurrency(lucroBrutoUnid)}
-                    </td>
-                    <td className="px-3 py-6 text-center text-[10px] font-black text-red-400 italic">
-                      {cmvPercent.toFixed(1)}%
-                    </td>
-                    <td className="px-8 py-6">
+                    <td className="px-8 py-6 text-right">
                       <div className="flex flex-col items-end">
-                        <span className={`text-xs font-black italic ${product.margin >= 65 ? 'text-green-500' : 'text-amber-500'}`}>
-                          {product.margin}%
+                        <span className={`text-xs font-black italic ${rentabilidade > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {formatCurrency(rentabilidade)}
                         </span>
-                        <div className="w-16 h-1 mt-1 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full transition-all ${product.margin >= 65 ? 'bg-green-500' : 'bg-amber-500'}`}
-                            style={{ width: `${product.margin}%` }}
-                          />
-                        </div>
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                          {product.margin?.toFixed(1)}% MG
+                        </span>
                       </div>
                     </td>
                   </tr>
@@ -604,7 +621,45 @@ export default function CMV() {
                 </tr>
               )}
             </tbody>
-          </table>
+            </table>
+          ) : (
+            <table className="w-full">
+              <thead>
+                <tr className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 border-b dark:border-[#333] italic">
+                  <th className="px-6 py-5 text-left">Insumo / Artigo</th>
+                  <th className="px-6 py-5 text-center">Unidade</th>
+                  <th className="px-6 py-5 text-right">Preço Unitário</th>
+                  <th className="px-6 py-5 text-right">Fornecedor</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-[#333]">
+                {filteredInventory.length > 0 ? filteredInventory.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 dark:hover:bg-black/10 transition-colors group">
+                    <td className="px-6 py-6">
+                      <div className="font-black text-slate-900 dark:text-[#FFB800] uppercase italic tracking-tighter break-words whitespace-normal leading-tight">
+                        {item.name}
+                      </div>
+                    </td>
+                    <td className="px-6 py-6 text-center text-xs font-black dark:text-slate-300 uppercase italic">
+                      {item.unit}
+                    </td>
+                    <td className="px-6 py-6 text-right text-xs font-black text-amber-500">
+                      {formatCurrency(item.price)}
+                    </td>
+                    <td className="px-6 py-6 text-right text-[10px] font-bold text-slate-400 uppercase italic">
+                      {item.supplier || 'Não informado'}
+                    </td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={4} className="px-8 py-20 text-center text-slate-400 text-xs italic font-medium uppercase tracking-widest">
+                      Nenhum insumo cadastrado. Importe seu relatório de insumos.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
         
         <div className="p-8 border-t dark:border-[#333] flex items-center justify-between">
@@ -624,7 +679,7 @@ export default function CMV() {
       <CSVImportModal 
         isOpen={isImportModalOpen} 
         onClose={() => setIsImportModalOpen(false)} 
-        type="products" 
+        type={activeView}
       />
     </div>
   );

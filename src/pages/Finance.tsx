@@ -820,7 +820,7 @@ export default function Finance() {
                       <div className={`w-8 h-8 rounded-full ${i === 0 ? 'bg-green-500' : i === 1 ? 'bg-indigo-500' : 'bg-blue-500'} flex items-center justify-center text-[10px] font-black text-white`}>#{i+1}</div>
                       <span className="text-[10px] font-black text-green-500">{item.margin}% mrg</span>
                     </div>
-                    <div className={`text-xs font-black uppercase tracking-tighter mb-1 truncate ${isDarkMode ? 'text-[#FFB800]' : 'text-slate-900'}`}>{item.name}</div>
+                    <div className={`text-xs font-black uppercase tracking-tighter mb-1 break-words whitespace-normal leading-tight ${isDarkMode ? 'text-[#FFB800]' : 'text-slate-900'}`}>{item.name}</div>
                     <div className="text-[10px] text-slate-500 font-bold italic">{formatCurrency(item.faturamento * (item.margin/100) / (item.quantidadeVendas || 1))} lucro liq.</div>
                  </div>
                )) : (
