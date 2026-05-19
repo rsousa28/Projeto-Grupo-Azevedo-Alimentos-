@@ -10,6 +10,20 @@ dotenv.config();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Initialize Gemini
+const apiKey = (process.env.GEMINI_API_KEY || 
+               process.env.GOOGLE_API_KEY || 
+               "").trim();
+
+const ai = new GoogleGenAI({
+  apiKey: apiKey,
+  httpOptions: {
+    headers: {
+      'User-Agent': 'aistudio-build',
+    }
+  }
+});
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -18,7 +32,6 @@ async function startServer() {
 
   // Health check and API status
   app.get("/api/health", (req, res) => {
-    const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
     res.json({ 
       status: "ok", 
       apiConfigured: !!apiKey && apiKey.length > 10,
@@ -29,34 +42,26 @@ async function startServer() {
   // Gemini API Proxy
   app.post("/api/ai/generate", async (req, res) => {
     try {
-      const { model, contents, config } = req.body;
-      const apiKey = (process.env.GEMINI_API_KEY || 
-                     process.env.GOOGLE_API_KEY || 
-                     process.env.GOOGLE_GENAI_API_KEY ||
-                     process.env.VITE_GEMINI_API_KEY ||
-                     process.env.API_KEY || "").trim();
-
       if (!apiKey || apiKey === "undefined" || apiKey === "null" || apiKey === "") {
         const availableVars = Object.keys(process.env).filter(k => k.includes("API") || k.includes("KEY") || k.includes("GOOGLE") || k.includes("GEMINI"));
         console.error("Missing or invalid API Key. Available env vars:", availableVars);
         return res.status(500).json({ 
-          error: `GEMINI_API_KEY is not configured. Found vars: ${availableVars.join(", ") || "none"}. Please ensure you saved the Secret in AI Studio Settings.` 
+          error: `GEMINI_API_KEY is not configured. Please ensure you saved the Secret in the Settings > Secrets panel in AI Studio.` 
         });
       }
 
-      const genAI = new GoogleGenAI({ apiKey });
+      const { model, contents, config } = req.body;
 
-      // Handle simple content generation or structured output based on config
-      const result = await genAI.models.generateContent({
-        model: model || "gemini-1.5-flash",
-        contents: Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: contents }] }],
+      // Use modern model names
+      const modelName = model && !model.includes("1.5") ? model : "gemini-3-flash-preview";
+
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: Array.isArray(contents) ? contents : [{ role: 'user', parts: [{ text: String(contents) }] }],
         config: config,
       });
 
-      const response = await result;
-      const text = response.text || "";
-      
-      res.json({ text });
+      res.json({ text: response.text || "" });
     } catch (error: any) {
       console.error("Gemini Error:", error);
       res.status(500).json({ error: error.message });

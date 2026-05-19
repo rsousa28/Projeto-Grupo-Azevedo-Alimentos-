@@ -16,7 +16,7 @@ export interface ExtractedInsumo {
   supplier: string;
 }
 
-async function callAIApi(contents: any, model: string = "gemini-1.5-flash", config: any = {}) {
+async function callAIApi(contents: any, model: string = "gemini-3-flash-preview", config: any = {}) {
   const response = await fetch("/api/ai/generate", {
     method: "POST",
     headers: {
@@ -70,7 +70,7 @@ export async function extractDataFromCSV(csvContent: string, type: 'products' | 
   };
 
   try {
-    const result = await callAIApi(csvContent, "gemini-1.5-flash", {
+    const result = await callAIApi(csvContent, "gemini-3-flash-preview", {
       systemInstruction,
       responseMimeType: "application/json",
       responseSchema: responseSchema as any,
@@ -107,7 +107,7 @@ export async function chatWithConsultant(message: string, dreContext: any, histo
       { role: 'user', parts: [{ text: message }] }
     ];
 
-    const result = await callAIApi(combinedContents, "gemini-1.5-flash", {
+    const result = await callAIApi(combinedContents, "gemini-3-flash-preview", {
       systemInstruction,
     });
 
@@ -145,7 +145,7 @@ export async function generatePredictiveInsights(context: any): Promise<Predicti
   `;
 
   try {
-    const result = await callAIApi("Gere meus insights preditivos do mês.", "gemini-1.5-flash", {
+    const result = await callAIApi("Gere meus insights preditivos do mês.", "gemini-3-flash-preview", {
       systemInstruction,
       responseMimeType: "application/json",
     });
@@ -167,7 +167,7 @@ export async function analyzeMenuEngineering(negativeMarginProducts: any[]) {
   Para cada produto, dê uma recomendação estratégica ultra-curta (máximo 15 palavras por item) sobre o que fazer (ex: revisar gramatura, trocar insumo, descontinuar). Foque em ações práticas. Responda em Português.`;
 
   try {
-    const result = await callAIApi(prompt, "gemini-1.5-flash");
+    const result = await callAIApi(prompt, "gemini-3-flash-preview");
     return result.text;
   } catch (error) {
     console.error("Erro na análise IA:", error);

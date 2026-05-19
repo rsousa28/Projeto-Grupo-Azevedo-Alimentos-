@@ -16,7 +16,8 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
-  Trash2
+  Trash2,
+  FileSpreadsheet
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
@@ -323,7 +324,7 @@ export default function CMV() {
               className={`flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold border transition-all hover:scale-105 active:scale-95 ${
               isDarkMode ? 'border-[#333] text-white hover:bg-black' : 'border-slate-200 text-slate-700 bg-white hover:bg-slate-50'
             }`}>
-              <Sparkles className="w-5 h-5 text-[#FFB800]" /> Importar via IA
+              <FileSpreadsheet className="w-5 h-5 text-indigo-500" /> Importar Planilha / PDF
             </button>
           </div>
         </div>

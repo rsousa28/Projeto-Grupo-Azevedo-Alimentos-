@@ -25,7 +25,81 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
     setError(null);
 
     try {
-      const data = await extractDataFromCSV(csvText, type);
+      let data: any[] = [];
+      
+      // Try AI first
+      try {
+        data = await extractDataFromCSV(csvText, type);
+      } catch (aiErr: any) {
+        console.warn("AI extraction failed, trying manual parse fallback...", aiErr);
+        
+        // Manual Fallback Logic
+        const lines = csvText.split('\n');
+        if (lines.length < 2) throw new Error("Conteúdo insuficiente para importação manual.");
+        
+        // Basic CSV to JSON conversion for common headers
+        const rows = lines.filter(l => l.trim()).map(line => {
+          // Detect separator
+          const sep = line.includes(';') ? ';' : (line.includes('\t') ? '\t' : ',');
+          return line.split(sep).map(c => c.trim());
+        });
+        
+        const headers = rows[0].map(h => h.toLowerCase());
+        const content = rows.slice(1);
+        
+        data = content.map(row => {
+          const obj: any = {};
+          if (type === 'products') {
+            // Mapping for Products
+            const nameIdx = headers.findIndex(h => h.includes('prod') || h.includes('nome') || h.includes('item') || h.includes('desc'));
+            const qtyIdx = headers.findIndex(h => h.includes('qtd') || h.includes('quant') || h.includes('unid'));
+            const valIdx = headers.findIndex(h => h.includes('vend') || h.includes('fat') || h.includes('total') || h.includes('valor') || h.includes('p.médio'));
+            const cmvIdx = headers.findIndex(h => h.includes('cmv') || h.includes('cost') || h.includes('custo') || h.includes('vlr.cmv'));
+            const marginIdx = headers.findIndex(h => h.includes('marg') || h.includes('mc'));
+            
+            // Cleaning function for numbers that might be like R$ 1.234,56 or 1234.56
+            const cleanNum = (str: string) => {
+              if (!str) return 0;
+              const cleaned = str.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.');
+              return Number(cleaned) || 0;
+            };
+
+            const val = cleanNum(row[valIdx]);
+            const qty = Number(row[qtyIdx]?.replace(/[^\d]/g, '') || 1);
+            const cmv = cleanNum(row[cmvIdx]);
+            const margin = cleanNum(row[marginIdx]);
+            
+            return {
+              name: row[nameIdx] || 'Sem Nome',
+              quantidadeVendas: qty,
+              faturamento: val,
+              cmv: cmv || (val > 0 ? (val / qty) * 0.35 : 0), // Fallback CMV 35% if not found
+              margin: margin || (val > 0 ? ((val - (cmv * qty || val * 0.35)) / val) * 100 : 0)
+            };
+          } else {
+            // Mapping for Inventory
+            const nameIdx = headers.findIndex(h => h.includes('prod') || h.includes('nome') || h.includes('item') || h.includes('insumo') || h.includes('desc'));
+            const unitIdx = headers.findIndex(h => h.includes('unid') || h.includes('um') || h.includes('medida'));
+            const priceIdx = headers.findIndex(h => h.includes('preço') || h.includes('valor') || h.includes('vlr') || h.includes('custo') || h.includes('unit'));
+            const supplierIdx = headers.findIndex(h => h.includes('fornecedor') || h.includes('origem') || h.includes('marca'));
+            
+            const cleanNum = (str: string) => {
+              if (!str) return 0;
+              const cleaned = str.replace('R$', '').replace(/\s/g, '').replace('.', '').replace(',', '.');
+              return Number(cleaned) || 0;
+            };
+
+            return {
+              name: row[nameIdx] || 'Sem Nome',
+              unit: row[unitIdx] || 'UN',
+              price: cleanNum(row[priceIdx]),
+              supplier: row[supplierIdx] || 'Fornecedor'
+            };
+          }
+        });
+        
+        if (data.length === 0) throw new Error("Não foi possível extrair dados válidos.");
+      }
       
       if (type === 'products') {
         const productCategories: Record<string, string> = {
@@ -359,7 +433,7 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
                     Importar {type === 'products' ? 'Produtos & Vendas' : 'Insumos & CMV'}
                   </h3>
                   <p className="text-slate-500 text-sm font-medium italic">
-                    A IA identificará automaticamente os campos do seu relatório
+                    O sistema identificará automaticamente os campos do seu relatório
                   </p>
                 </div>
                 <button 
@@ -376,9 +450,9 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
                     isDarkMode ? 'border-[#333] hover:bg-white/5' : 'border-slate-200 hover:bg-slate-50'
                   }`}>
                     <input type="file" className="hidden" accept=".csv,.txt,.xlsx,.xls" onChange={handleFileUpload} />
-                    <Upload className="w-8 h-8 text-[#FFB800]" />
+                    <Upload className="w-8 h-8 text-indigo-500" />
                     <div className="text-center">
-                      <div className="text-xs font-black uppercase tracking-widest dark:text-white mb-1">Selecionar Arquivo</div>
+                      <div className="text-xs font-black uppercase tracking-widest dark:text-white mb-1">Selecionar Planilha</div>
                       <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Excel, CSV ou TXT</div>
                     </div>
                   </label>
@@ -388,9 +462,9 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
                   }`}>
                     <FileText className="w-8 h-8 text-blue-500" />
                     <div>
-                      <div className="text-xs font-black uppercase tracking-widest dark:text-white mb-1">Dica da IA</div>
+                      <div className="text-xs font-black uppercase tracking-widest dark:text-white mb-1">Dica de Importação</div>
                       <div className="text-[10px] text-slate-500 font-bold italic leading-tight">
-                        Você pode colar o conteúdo do seu relatório do iFood, Totvs ou de qualquer planilha diretamente abaixo.
+                        Cole ou carregue dados com cabeçalhos como: Produto, Qtd, Valor, CMV e Margem.
                       </div>
                     </div>
                   </div>
@@ -420,13 +494,13 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
                   className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                     isSuccess 
                       ? 'bg-green-500 text-white' 
-                      : 'bg-[#FFB800] text-black hover:bg-black hover:text-white shadow-xl shadow-[#FFB800]/20'
+                      : 'bg-indigo-600 text-white hover:bg-black shadow-xl shadow-indigo-500/20'
                   }`}
                 >
                   {isLoading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Processando com IA...
+                      Processando Dados...
                     </>
                   ) : isSuccess ? (
                     <>
@@ -435,7 +509,7 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
                     </>
                   ) : (
                     <>
-                      Importar e Analisar com IA
+                      Processar e Importar Planilha
                     </>
                   )}
                 </button>
