@@ -85,8 +85,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   }, [user]);
 
   const SidebarContent = () => (
-    <>
-      <div className="p-6 flex flex-col gap-6">
+    <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
+      <div className="p-6 flex flex-col gap-6 shrink-0">
         <div className="flex items-center justify-between">
           <AnimatePresence mode="wait">
             {(!collapsed || mobileMenuOpen) && (
@@ -114,7 +114,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
       {/* Store Selector */}
       {(!collapsed || mobileMenuOpen) && (
-        <div className="px-4 mb-6">
+        <div className="px-4 mb-6 shrink-0">
           <div className={`p-4 rounded-2xl border transition-all ${
             isDarkMode 
               ? 'bg-[#1E1E1E] border-[#333]' 
@@ -181,22 +181,22 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 : ''}
             `}
           >
-            <item.icon className="w-5 h-5 transition-transform group-hover:scale-110" />
+            <item.icon className="w-5 h-5 transition-transform group-hover:scale-110 shrink-0" />
             {(!collapsed || mobileMenuOpen) && <span>{item.label}</span>}
           </NavLink>
         ))}
       </nav>
 
-      <div className="p-4 border-t dark:border-[#1E1E1E]">
+      <div className="p-4 border-t dark:border-[#1E1E1E] shrink-0">
         <button 
           onClick={handleLogout}
           className="flex items-center gap-4 w-full px-4 py-3 rounded-xl text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group"
         >
-          <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+          <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform shrink-0" />
           {(!collapsed || mobileMenuOpen) && <span className="font-medium">Sair do Sistema</span>}
         </button>
       </div>
-    </>
+    </div>
   );
 
   return (
