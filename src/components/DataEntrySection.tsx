@@ -63,6 +63,8 @@ export default function DataEntrySection({
     saveDREPeriod,
   } = useStore();
 
+  const isBebeluRioMar = currentStore?.id === '2' || currentStore?.code === 'B28';
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -664,8 +666,8 @@ export default function DataEntrySection({
                      { label: 'Frete Compras', key: 'freteCompras' }, 
                      { label: 'Fundo Marketing - Franquia', key: 'fundoMarketing' }, 
                      { label: 'Royalties - Franquia', key: 'royalties' }, 
-                     { label: 'Taxa Bancária + Juros', key: 'taxaBancariaJuros' }, 
-                     { label: 'Taxas PIX', key: 'taxaPix' }, 
+                     { label: isBebeluRioMar ? 'Taxa Juros Banco do Nordeste' : 'Taxa Bancária + Juros', key: 'taxaBancariaJuros' }, 
+                     { label: isBebeluRioMar ? 'Taxas Conta Garantida' : 'Taxas PIX', key: 'taxaPix' }, 
                      { label: 'Bonificações/Comissões', key: 'bonificacoes' }, 
                      { label: 'Descontos/Cortesia', key: 'descontos' }, 
                      { label: 'GRI - Sec. Fazenda', key: 'griSecretaria' },
@@ -713,7 +715,7 @@ export default function DataEntrySection({
                   <h5 className="text-[10px] font-black uppercase text-amber-500 bg-amber-500/5 px-3 py-1 rounded w-fit">Despesas com Funcionamento</h5>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
-                      { label: 'Aluguel', key: 'aluguel' }, { label: 'Condomínio', key: 'condominio' }, { label: 'Energia Cam.Fria', key: 'energiaCâmaraFria' }, { label: 'IPTU', key: 'iptu' }, { label: 'Energia Elétrica', key: 'energiaEletrica' }, { label: 'Água', key: 'agua' }, { label: 'Ar Condicionado', key: 'arCondicionado' }, { label: 'Internet + Tel.', key: 'internetTelefonia' }
+                      { label: 'Aluguel', key: 'aluguel' }, { label: 'Condomínio', key: 'condominio' }, { label: isBebeluRioMar ? 'Fundo Promocional Rio Mar' : 'Energia Cam.Fria', key: 'energiaCâmaraFria' }, { label: 'IPTU', key: 'iptu' }, { label: 'Energia Elétrica', key: 'energiaEletrica' }, { label: 'Água', key: 'agua' }, { label: isBebeluRioMar ? 'Ar Condicionado e Exaustor' : 'Ar Condicionado', key: 'arCondicionado' }, { label: 'Internet + Tel.', key: 'internetTelefonia' }
                     ].map(item => (
                       <div key={item.key}>
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
@@ -751,7 +753,7 @@ export default function DataEntrySection({
                   <h5 className="text-[10px] font-black uppercase text-blue-500 bg-blue-500/5 px-3 py-1 rounded w-fit">Despesas Comerciais</h5>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {[
-                      { label: 'Aplicativo', key: 'aplicativo' }, { label: 'Marketing', key: 'marketing' }, { label: 'Frete', key: 'frete' }
+                      { label: 'Aplicativo', key: 'aplicativo' }, { label: 'Marketing', key: 'marketing' }, { label: isBebeluRioMar ? 'Seguro' : 'Frete', key: 'frete' }
                     ].map(item => (
                       <div key={item.key}>
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
@@ -770,7 +772,7 @@ export default function DataEntrySection({
                   <h5 className="text-[10px] font-black uppercase text-purple-500 bg-purple-500/5 px-3 py-1 rounded w-fit">Despesas Administrativas</h5>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     {[
-                      { label: 'Sindicato', key: 'sindicato' }, { label: 'Limpeza', key: 'limpeza' }, { label: 'Taxa Call Center', key: 'taxaCallCenter' }, { label: 'Sistema BERP', key: 'sistemaBERP' }, { label: 'Consultoria', key: 'consultoria' }, { label: 'Contabilidade', key: 'contabilidade' }, { label: 'Premiação', key: 'premiacao' }, { label: 'Dedetização', key: 'dedetizacao' }, { label: 'Certificado', key: 'certificado' }, { label: 'Fretes Diversos', key: 'fretesDiversos' }, { label: 'Utensílios', key: 'utensilios' }, { label: 'Material Consumo', key: 'materialConsumo' }, { label: 'Material Escritório', key: 'materialEscritorio' }, { label: 'Material Limpeza', key: 'materialLimpeza' }, { label: 'Combustíveis', key: 'combustiveis' }, { label: 'Retirado P. Rony', key: 'ronyXimenes' }, { label: 'Seguros', key: 'seguros' }, { label: 'Taxa Alvará', key: 'taxaAlvara' }, { label: 'Despesas Operacionais', key: 'despesasOperacionales' }, { label: 'Despesas Gerais', key: 'despesasGerais' }
+                      { label: 'Sindicato', key: 'sindicato' }, { label: 'Limpeza', key: 'limpeza' }, { label: 'Taxa Call Center', key: 'taxaCallCenter' }, { label: 'Sistema BERP', key: 'sistemaBERP' }, { label: 'Consultoria', key: 'consultoria' }, { label: 'Contabilidade', key: 'contabilidade' }, { label: 'Premiação', key: 'premiacao' }, { label: 'Dedetização', key: 'dedetizacao' }, { label: 'Certificado', key: 'certificado' }, { label: 'Fretes Diversos', key: 'fretesDiversos' }, { label: 'Utensílios', key: 'utensilios' }, { label: isBebeluRioMar ? 'Material de Fardamento' : 'Material Consumo', key: 'materialConsumo' }, { label: 'Material Escritório', key: 'materialEscritorio' }, { label: 'Material Limpeza', key: 'materialLimpeza' }, { label: isBebeluRioMar ? 'Confraternização' : 'Combustíveis', key: 'combustiveis' }, { label: isBebeluRioMar ? 'Uber' : 'Retirado P. Rony', key: 'ronyXimenes' }, { label: 'Seguros', key: 'seguros' }, { label: 'Taxa Alvará', key: 'taxaAlvara' }, { label: 'Despesas Operacionais', key: 'despesasOperacionales' }, { label: 'Despesas Gerais', key: 'despesasGerais' }
                     ].map(item => (
                       <div key={item.key}>
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>

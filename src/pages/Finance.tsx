@@ -51,6 +51,7 @@ const formatCurrency = (val: number) =>
 
 export default function Finance() {
   const { isDarkMode, dreTimeline, brandColors, currentStore, topProducts, loadDREPeriod, loadCMVPeriod, deletePeriodData, yearlyHistory } = useStore();
+  const isBebeluRioMar = currentStore?.id === '2' || currentStore?.code === 'B28';
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio as default
   const [selectedYear, setSelectedYear] = useState('2026');
   const [showEntry, setShowEntry] = useState(false);
@@ -201,8 +202,8 @@ export default function Finance() {
         { label: 'Frete Compras', valor: -(currentMonthData.details?.despesasVariaveis?.freteCompras || 0) },
         { label: 'Fundo de Marketing - Franquia', valor: -(currentMonthData.details?.despesasVariaveis?.fundoMarketing || 0) },
         { label: 'Royaltis - Franquia', valor: -(currentMonthData.details?.despesasVariaveis?.royalties || 0) },
-        { label: 'Taxa Bancaria + Juros', valor: -(currentMonthData.details?.despesasVariaveis?.taxaBancariaJuros || 0) },
-        { label: 'Taxas PIX', valor: -(currentMonthData.details?.despesasVariaveis?.taxaPix || 0) },
+        { label: isBebeluRioMar ? 'Taxa Juros Banco do Nordeste' : 'Taxa Bancaria + Juros', valor: -(currentMonthData.details?.despesasVariaveis?.taxaBancariaJuros || 0) },
+        { label: isBebeluRioMar ? 'Taxas Conta Garantida' : 'Taxas PIX', valor: -(currentMonthData.details?.despesasVariaveis?.taxaPix || 0) },
         { label: 'Bonificações ou Comissões para Colaboradores', valor: -(currentMonthData.details?.despesasVariaveis?.bonificacoes || 0) },
         { label: 'Descontos Concedidos para Clientes - Cortesia', valor: -(currentMonthData.details?.despesasVariaveis?.descontos || 0) },
         { label: 'GRI - Secretaria de Estado da Tributação', valor: -(currentMonthData.details?.despesasVariaveis?.griSecretaria || 0) },
@@ -252,11 +253,11 @@ export default function Finance() {
       items: [
         { label: 'Aluguel', valor: -(currentMonthData.details?.funcionamento?.aluguel || 0) },
         { label: 'Condominio', valor: -(currentMonthData.details?.funcionamento?.condominio || 0) },
-        { label: 'Energia Camara Fria', valor: -(currentMonthData.details?.funcionamento?.energiaCâmaraFria || 0) },
+        { label: isBebeluRioMar ? 'Fundo Promocional Rio Mar' : 'Energia Camara Fria', valor: -(currentMonthData.details?.funcionamento?.energiaCâmaraFria || 0) },
         { label: 'IPTU', valor: -(currentMonthData.details?.funcionamento?.iptu || 0) },
         { label: 'Energia Elétrica', valor: -(currentMonthData.details?.funcionamento?.energiaEletrica || 0) },
         { label: 'Água', valor: -(currentMonthData.details?.funcionamento?.agua || 0) },
-        { label: 'Ar Condicionado', valor: -(currentMonthData.details?.funcionamento?.arCondicionado || 0) },
+        { label: isBebeluRioMar ? 'Ar Condicionado e Exaustor' : 'Ar Condicionado', valor: -(currentMonthData.details?.funcionamento?.arCondicionado || 0) },
         { label: 'Internet + Telefonia', valor: -(currentMonthData.details?.funcionamento?.internetTelefonia || 0) },
       ],
       total: -Object.values(currentMonthData.details?.funcionamento || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
@@ -281,7 +282,7 @@ export default function Finance() {
       items: [
         { label: 'Aplicativo', valor: -(currentMonthData.details?.comerciais?.aplicativo || 0) },
         { label: 'Marketing', valor: -(currentMonthData.details?.comerciais?.marketing || 0) },
-        { label: 'Frete', valor: -(currentMonthData.details?.comerciais?.frete || 0) },
+        { label: isBebeluRioMar ? 'Seguro' : 'Frete', valor: -(currentMonthData.details?.comerciais?.frete || 0) },
       ],
       total: -Object.values(currentMonthData.details?.comerciais || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
     },
@@ -301,11 +302,11 @@ export default function Finance() {
         { label: 'Certificado', valor: -(currentMonthData.details?.administrativas?.certificado || 0) },
         { label: 'Fretes e Carretos Diversos', valor: -(currentMonthData.details?.administrativas?.fretesDiversos || 0) },
         { label: 'Utencilios', valor: -(currentMonthData.details?.administrativas?.utensilios || 0) },
-        { label: 'Material de consumo', valor: -(currentMonthData.details?.administrativas?.materialConsumo || 0) },
+        { label: isBebeluRioMar ? 'Material de Fardamento' : 'Material de consumo', valor: -(currentMonthData.details?.administrativas?.materialConsumo || 0) },
         { label: 'Material de escritorio', valor: -(currentMonthData.details?.administrativas?.materialEscritorio || 0) },
         { label: 'Material de limpeza', valor: -(currentMonthData.details?.administrativas?.materialLimpeza || 0) },
-        { label: 'Combustiveis', valor: -(currentMonthData.details?.administrativas?.combustiveis || 0) },
-        { label: 'Retirado P Rony Ximenes', valor: -(currentMonthData.details?.administrativas?.ronyXimenes || 0) },
+        { label: isBebeluRioMar ? 'Confraternização' : 'Combustiveis', valor: -(currentMonthData.details?.administrativas?.combustiveis || 0) },
+        { label: isBebeluRioMar ? 'Uber' : 'Retirado P Rony Ximenes', valor: -(currentMonthData.details?.administrativas?.ronyXimenes || 0) },
         { label: 'Seguros / Segurança', valor: -(currentMonthData.details?.administrativas?.seguros || 0) },
         { label: 'Taxa de Alvara', valor: -(currentMonthData.details?.administrativas?.taxaAlvara || 0) },
         { label: 'Despesas Operacionais', valor: -(currentMonthData.details?.administrativas?.despesasOperacionales || 0) },

@@ -52,6 +52,8 @@ export default function DataEntry() {
     saveCMVPeriod
   } = useStore();
 
+  const isBebeluRioMar = currentStore?.id === '2' || currentStore?.code === 'B28';
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
@@ -668,8 +670,8 @@ export default function DataEntry() {
                      { label: 'Frete Compras', key: 'freteCompras' },
                      { label: 'Fundo Marketing', key: 'fundoMarketing' },
                      { label: 'Royalties', key: 'royalties' },
-                     { label: 'Taxa Bancária + Juros', key: 'taxaBancariaJuros' },
-                     { label: 'Taxas PIX', key: 'taxaPix' },
+                     { label: isBebeluRioMar ? 'Taxa Juros Banco do Nordeste' : 'Taxa Bancária + Juros', key: 'taxaBancariaJuros' },
+                     { label: isBebeluRioMar ? 'Taxas Conta Garantida' : 'Taxas PIX', key: 'taxaPix' },
                      { label: 'Bonificações/Comissões', key: 'bonificacoes' },
                      { label: 'Descontos/Cortesia', key: 'descontos' },
                      { label: 'Despesas Ifood', key: 'despesasIfood' }
@@ -739,11 +741,11 @@ export default function DataEntry() {
                     {[
                       { label: 'Aluguel', key: 'aluguel' },
                       { label: 'Condomínio', key: 'condominio' },
-                      { label: 'Energia Cam.Fria', key: 'energiaCâmaraFria' },
+                      { label: isBebeluRioMar ? 'Fundo Promocional Rio Mar' : 'Energia Cam.Fria', key: 'energiaCâmaraFria' },
                       { label: 'IPTU', key: 'iptu' },
                       { label: 'Energia Elétrica', key: 'energiaEletrica' },
                       { label: 'Água', key: 'agua' },
-                      { label: 'Ar Condicionado', key: 'arCondicionado' },
+                      { label: isBebeluRioMar ? 'Ar Condicionado e Exaustor' : 'Ar Condicionado', key: 'arCondicionado' },
                       { label: 'Internet + Tel.', key: 'internetTelefonia' }
                     ].map(item => (
                       <div key={item.key}>
@@ -790,7 +792,7 @@ export default function DataEntry() {
                     {[
                       { label: 'Aplicativo', key: 'aplicativo' },
                       { label: 'Marketing', key: 'marketing' },
-                      { label: 'Frete', key: 'frete' }
+                      { label: isBebeluRioMar ? 'Seguro' : 'Frete', key: 'frete' }
                     ].map(item => (
                       <div key={item.key}>
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
@@ -821,11 +823,11 @@ export default function DataEntry() {
                       { label: 'Certificado', key: 'certificado' },
                       { label: 'Fretes Diversos', key: 'fretesDiversos' },
                       { label: 'Utensílios', key: 'utensilios' },
-                      { label: 'Mat. Consumo', key: 'materialConsumo' },
+                      { label: isBebeluRioMar ? 'Material de Fardamento' : 'Mat. Consumo', key: 'materialConsumo' },
                       { label: 'Mat. Escritório', key: 'materialEscritorio' },
                       { label: 'Mat. Limpeza', key: 'materialLimpeza' },
-                      { label: 'Combustíveis', key: 'combustiveis' },
-                      { label: 'Rony Ximenes', key: 'ronyXimenes' },
+                      { label: isBebeluRioMar ? 'Confraternização' : 'Combustíveis', key: 'combustiveis' },
+                      { label: isBebeluRioMar ? 'Uber' : 'Rony Ximenes', key: 'ronyXimenes' },
                       { label: 'Seguros/Segur.', key: 'seguros' },
                       { label: 'Alvará', key: 'taxaAlvara' },
                       { label: 'Op. Diversas', key: 'despesasOperacionais' },
