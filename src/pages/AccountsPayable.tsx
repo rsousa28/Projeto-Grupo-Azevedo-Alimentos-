@@ -1315,38 +1315,40 @@ export default function AccountsPayable() {
             </button>
           </div>
 
-          <button
-            onClick={() => setShowResetConfirm(true)}
-            onMouseEnter={() => setIsHoverReset(true)}
-            onMouseLeave={() => setIsHoverReset(false)}
-            style={{ 
-              borderColor: isHoverReset ? '#EF4444' : undefined, 
-              color: isHoverReset ? '#EF4444' : undefined 
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-500 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#333] dark:text-slate-400 font-bold transition-all text-sm group cursor-pointer"
-          >
-            <Trash2 className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
-            Zerar Contas
-          </button>
-          
-          <button
-            onClick={() => {
-              // Ensure we start fresh
-              setFormSupplier('');
-              setFormDescription('');
-              setFormValue('');
-              setFormBarcode('');
-              setFormDocumentNumber('');
-              setFormNotes('');
-              setAttachedFileBase64(null);
-              setShowAddModal(true);
-            }}
-            style={{ backgroundColor: themeButtonBg, color: themeTextContrast }}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-black transition-all text-sm hover:opacity-90 hover:shadow-lg cursor-pointer"
-          >
-            <Plus className="w-5 h-5 stroke-[3]" />
-            Adicionar Conta
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                // Ensure we start fresh
+                setFormSupplier('');
+                setFormDescription('');
+                setFormValue('');
+                setFormBarcode('');
+                setFormDocumentNumber('');
+                setFormNotes('');
+                setAttachedFileBase64(null);
+                setShowAddModal(true);
+              }}
+              style={{ backgroundColor: themeButtonBg, color: themeTextContrast }}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-black transition-all text-sm hover:opacity-90 hover:shadow-lg cursor-pointer"
+            >
+              <Plus className="w-5 h-5 stroke-[3]" />
+              Adicionar Conta
+            </button>
+
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              onMouseEnter={() => setIsHoverReset(true)}
+              onMouseLeave={() => setIsHoverReset(false)}
+              style={{ 
+                borderColor: isHoverReset ? '#EF4444' : undefined, 
+                color: isHoverReset ? '#EF4444' : undefined 
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-500 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#333] dark:text-slate-400 font-bold transition-all text-sm group cursor-pointer"
+            >
+              <Trash2 className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
+              Zerar Contas
+            </button>
+          </div>
         </div>
       </div>
 
