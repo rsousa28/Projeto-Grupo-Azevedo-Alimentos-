@@ -14,11 +14,14 @@ import {
   Calendar,
   Clock,
   BookOpen,
-  Zap
+  Zap,
+  Copy
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
 import { DREData } from '../types';
+import { db } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function DataEntry() {
   const { 
@@ -192,6 +195,71 @@ export default function DataEntry() {
   
   // Products state (local for editing)
   const [localProducts, setLocalProducts] = useState(topProducts);
+
+  // Copy period states
+  const [showCopyModal, setShowCopyModal] = useState(false);
+  const [copySrcMonth, setCopySrcMonth] = useState('04'); // Defaults to April
+  const [copySrcYear, setCopySrcYear] = useState('2026');
+  const [isCopying, setIsCopying] = useState(false);
+
+  const handleCopyFromPeriod = async (srcMonth: string, srcYear: string) => {
+    setIsCopying(true);
+    try {
+      const srcPeriodId = `${srcYear}-${srcMonth}`;
+      const docRefStatus = doc(db, 'stores', currentStore.id, 'dre_periods', srcPeriodId);
+      const docSnap = await getDoc(docRefStatus);
+      
+      if (docSnap.exists()) {
+        const monthData = docSnap.data() as DREData;
+        
+        setRevenue(monthData.faturamento);
+        setReceitaBalcao(monthData.receitaBalcao || 0);
+        setReceitaIfood(monthData.receitaIfood || 0);
+        setReceitaWedo(monthData.receitaWedo || 0);
+        setReceitaDelivery(monthData.receitaDelivery || 0);
+        setQuantidadePedidos(monthData.quantidadePedidos || 0);
+        setCmvTotal(monthData.cmv);
+        setDeducoes({ darfSimples: monthData.taxes });
+        
+        if (monthData.details) {
+          if (monthData.details.deducoes) setDeducoes(monthData.details.deducoes);
+          if (monthData.details.despesasVariaveis) setDespesasVariaveis(monthData.details.despesasVariaveis);
+          if (monthData.details.colaboradores) setColaboradores(monthData.details.colaboradores);
+          if (monthData.details.funcionamento) setFuncionamento(monthData.details.funcionamento);
+          if (monthData.details.manutencao) setManutencao(monthData.details.manutencao);
+          if (monthData.details.comerciais) setComerciais(monthData.details.comerciais);
+          if (monthData.details.administrativas) setAdministrativas(monthData.details.administrativas);
+          if (monthData.details.resultadoFinanceiro) setResultadoFinanceiro(monthData.details.resultadoFinanceiro);
+          if (monthData.details.griFinal !== undefined) setGriFinal(monthData.details.griFinal);
+          if (monthData.details.salesByHour) setSalesByHourData(monthData.details.salesByHour);
+        } else {
+          setDespesasVariaveis(prev => ({ ...prev, royalties: monthData.royalties }));
+          setColaboradores(prev => ({ ...prev, salarios: monthData.payroll }));
+          setFuncionamento(prev => ({ ...prev, aluguel: monthData.rent }));
+        }
+        
+        // Also check if there is CMV to copy
+        const cmvDocRef = doc(db, 'stores', currentStore.id, 'cmv_periods', srcPeriodId);
+        const cmvSnap = await getDoc(cmvDocRef);
+        if (cmvSnap.exists()) {
+          const cmvData = cmvSnap.data();
+          if (cmvData.topProducts) {
+             setLocalProducts(cmvData.topProducts);
+          }
+        }
+
+        alert(`Sucesso! Os dados de DRE e CMV de ${months.find(m => m.value === srcMonth)?.label}/${srcYear} foram carregados na tela. Revise e clique em 'Salvar Alterações' para salvar para o período ${currentMonthLabel}/${selectedYear}!`);
+        setShowCopyModal(false);
+      } else {
+        alert(`Nenhum dado cadastrado de DRE encontrado para o período selecionado (${months.find(m => m.value === srcMonth)?.label}/${srcYear}).`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao copiar dados do período.");
+    } finally {
+      setIsCopying(false);
+    }
+  };
 
   const months = [
     { value: '01', label: 'Janeiro' },
@@ -423,20 +491,34 @@ export default function DataEntry() {
 
   return (
     <div className="space-y-8 pb-10">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div>
           <h2 className={`text-3xl font-bold font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>Lançamentos - {currentMonthLabel}/{selectedYear}</h2>
           <p className="text-slate-500 font-medium">Alimente o sistema com dados reais para atualizar os dashboards</p>
         </div>
-        <button 
-          onClick={handleSave}
-          className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-bold font-black uppercase tracking-widest text-sm transition-all shadow-lg active:scale-95 ${
-            currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'
-          }`}
-          style={{ backgroundColor: brandColors.button, boxShadow: `0 10px 15px -3px ${brandColors.button}30` }}
-        >
-          <Save className="w-5 h-5" /> Salvar Alterações
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button 
+            type="button"
+            onClick={() => setShowCopyModal(true)}
+            className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold font-black uppercase tracking-widest text-xs transition-all border ${
+              isDarkMode 
+                ? 'bg-white/5 border-white/10 text-white hover:bg-white/10' 
+                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+            } active:scale-95`}
+          >
+            <Copy className="w-4 h-4" /> Copiar de outro período
+          </button>
+          
+          <button 
+            onClick={handleSave}
+            className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-bold font-black uppercase tracking-widest text-sm transition-all shadow-lg active:scale-95 ${
+              currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'
+            }`}
+            style={{ backgroundColor: brandColors.button, boxShadow: `0 10px 15px -3px ${brandColors.button}30` }}
+          >
+            <Save className="w-5 h-5" /> Salvar Alterações
+          </button>
+        </div>
       </div>
 
       {/* Persistence Feedback */}
@@ -1079,6 +1161,94 @@ export default function DataEntry() {
           </div>
         </div>
       </div>
+
+      <AnimatePresence>
+        {showCopyModal && (
+          <div key="copy-period-modal" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setShowCopyModal(false)} 
+              className="absolute inset-0 bg-black/80 backdrop-blur-md" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className={`relative w-full max-w-md overflow-hidden rounded-[2.5rem] shadow-2xl flex flex-col p-8 border ${
+                isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100'
+              }`}
+            >
+              <h3 className={`text-xl font-black uppercase tracking-wider italic mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                Copiar de Outro Período
+              </h3>
+              <p className="text-xs text-slate-500 mb-6 leading-relaxed">
+                Importe faturamentos, despesas e dados gerais de um período existente e preencha os campos da DRE e CMV ativos atual ({currentMonthLabel}/{selectedYear}).
+              </p>
+
+              <div className="space-y-4 mb-8">
+                {/* Month of origin */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Mês de Origem</label>
+                  <select 
+                    value={copySrcMonth} 
+                    onChange={(e) => setCopySrcMonth(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-sm ${
+                      isDarkMode ? 'bg-black/40 border-[#333] text-white' : 'bg-white border-slate-200 text-slate-900'
+                    }`}
+                  >
+                    {months.map(m => (
+                      <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Year of origin */}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Ano de Origem</label>
+                  <select 
+                    value={copySrcYear} 
+                    onChange={(e) => setCopySrcYear(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-sm ${
+                      isDarkMode ? 'bg-black/40 border-[#333] text-white' : 'bg-white border-slate-200 text-slate-900'
+                    }`}
+                  >
+                    {['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'].map(y => (
+                      <option key={y} value={y} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-4">
+                <button 
+                  type="button"
+                  onClick={() => setShowCopyModal(false)}
+                  className={`flex-1 py-3 text-center rounded-xl font-bold font-black text-[10px] uppercase tracking-widest transition-colors ${
+                    isDarkMode ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-600 hover:text-slate-950 hover:bg-slate-50'
+                  }`}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button"
+                  disabled={isCopying}
+                  onClick={() => handleCopyFromPeriod(copySrcMonth, copySrcYear)}
+                  className="flex-1 py-3 bg-amber-500 hover:bg-amber-600 active:scale-95 text-black font-bold font-black text-[10px] uppercase tracking-widest rounded-xl transition-all shadow-lg shadow-amber-500/20 disabled:opacity-50"
+                >
+                  {isCopying ? 'Processando...' : 'Confirmar Cópia'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -316,6 +316,57 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { name: 'Meta', valor: 0, color: brandColors.primary },
       { name: 'Realizado', valor: 0, color: brandColors.button },
     ]);
+
+    // Background migration to assist copying April 2026 data over to January 2026
+    const runMigration = async () => {
+      const storeId = currentStore.id;
+      if (!storeId || storeId === 'admin-global') return;
+      try {
+        const aprilDRE = await getDoc(doc(db, 'stores', storeId, 'dre_periods', '2026-04'));
+        if (aprilDRE.exists()) {
+          const aprilData = aprilDRE.data();
+          const janDRE = await getDoc(doc(db, 'stores', storeId, 'dre_periods', '2026-01'));
+          
+          if (!janDRE.exists() || !janDRE.data().faturamento) {
+            console.log(`Auto-migrating April 2026 DRE to January 2026 for ${storeId}`);
+            const updatedJanData = {
+              ...aprilData,
+              month: 'Janeiro',
+              monthValue: '01',
+              yearValue: '2026',
+              updatedAt: serverTimestamp()
+            };
+            await setDoc(doc(db, 'stores', storeId, 'dre_periods', '2026-01'), updatedJanData);
+            
+            // Also add to dreTimeline since the timeline is currently active
+            setDreTimeline(prev => {
+              const cleaned = prev.filter(p => !(p.month === 'Janeiro' && p.year === '2026'));
+              return [...cleaned, { ...updatedJanData, year: '2026' } as unknown as DREData];
+            });
+          }
+        }
+
+        const aprilCMV = await getDoc(doc(db, 'stores', storeId, 'cmv_periods', '2026-04'));
+        if (aprilCMV.exists()) {
+          const aprilCMVData = aprilCMV.data();
+          const janCMV = await getDoc(doc(db, 'stores', storeId, 'cmv_periods', '2026-01'));
+          
+          if (!janCMV.exists()) {
+            console.log(`Auto-migrating April 2026 CMV to January 2026 for ${storeId}`);
+            await setDoc(doc(db, 'stores', storeId, 'cmv_periods', '2026-01'), {
+              ...aprilCMVData,
+              month: '01',
+              year: '2026',
+              updatedAt: serverTimestamp()
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Migration error:", err);
+      }
+    };
+
+    runMigration();
   }, [currentStore.id]);
 
   useEffect(() => {
