@@ -39,6 +39,51 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["name", "username", "password", "role"]
+    },
+    "ChecklistTemplates": {
+      "title": "Checklist Templates",
+      "description": "Templates for checklists in a store",
+      "type": "object",
+      "properties": {
+        "data": { "type": "array" }
+      },
+      "required": ["data"]
+    },
+    "ChecklistSubmissions": {
+      "title": "Checklist Submissions",
+      "description": "Completed checklist submissions in a store",
+      "type": "object",
+      "properties": {
+        "data": { "type": "array" }
+      },
+      "required": ["data"]
+    },
+    "ChecklistActionPlans": {
+      "title": "Checklist Action Plans",
+      "description": "Action plans generated from checklists in a store",
+      "type": "object",
+      "properties": {
+        "data": { "type": "array" }
+      },
+      "required": ["data"]
+    },
+    "AccountsPayable": {
+      "title": "Accounts Payable List",
+      "description": "List of all accounts payable items for a store",
+      "type": "object",
+      "properties": {
+        "data": { "type": "array" }
+      },
+      "required": ["data"]
+    },
+    "Closings": {
+      "title": "Store Closings",
+      "description": "Faturamento and closings map for a store",
+      "type": "object",
+      "properties": {
+        "data": { "type": "object" }
+      },
+      "required": ["data"]
     }
   },
   "firestore": {
@@ -57,6 +102,26 @@
     "/stores/{storeId}/dre_periods/{periodId}": {
       "schema": "object",
       "description": "DRE data by period"
+    },
+    "/stores/{storeId}/checklists/templates": {
+      "schema": "ChecklistTemplates",
+      "description": "Templates for store checklists"
+    },
+    "/stores/{storeId}/checklists/submissions": {
+      "schema": "ChecklistSubmissions",
+      "description": "Submitted checklists logs"
+    },
+    "/stores/{storeId}/checklists/action_plans": {
+      "schema": "ChecklistActionPlans",
+      "description": "Action plans logs"
+    },
+    "/stores/{storeId}/accounts_payable/all": {
+      "schema": "AccountsPayable",
+      "description": "All accounts payable items"
+    },
+    "/stores/{storeId}/closings/all": {
+      "schema": "Closings",
+      "description": "All day-by-day cash closing logs"
     }
   }
 }

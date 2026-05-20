@@ -699,7 +699,7 @@ export default function CashClosing() {
                   </div>
                 </div>
 
-              <div className="p-8 border-t dark:border-[#333] flex items-center justify-between bg-slate-900">
+              <div className="p-8 border-t dark:border-[#333] flex items-center justify-between bg-slate-900 rounded-b-[3rem]">
                 <div className="flex gap-2">
                    <button onClick={exportToPDF} className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
                      <FileDown className="w-4 h-4" /> PDF

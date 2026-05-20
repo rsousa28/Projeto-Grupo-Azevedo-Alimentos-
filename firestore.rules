@@ -2,19 +2,49 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Safety check for user ID format
+    // Global helper for ID validation (prevents massive ID Poisoning/denial of wallet)
     function isValidId(id) {
-       return id is string && id.size() <= 128;
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    // Allow full access for simple control panel demo
-    // In production, this would be restricted to authenticated 'ADMIN' users
+    // 1. Users collection (for custom credential validation and management)
     match /users/{userId} {
-      allow read, write: if true;
+      allow read, write: if isValidId(userId);
     }
 
+    // 2. Stores parent resource
+    match /stores/{storeId} {
+      allow read, write: if isValidId(storeId);
+
+      // 3. CMV Periods subcollection
+      match /cmv_periods/{periodId} {
+        allow read, write: if isValidId(storeId) && isValidId(periodId);
+      }
+
+      // 4. DRE Periods subcollection
+      match /dre_periods/{periodId} {
+        allow read, write: if isValidId(storeId) && isValidId(periodId);
+      }
+
+      // 5. Checklists configurations, submissions, and action plans
+      match /checklists/{docId} {
+        allow read, write: if isValidId(storeId) && isValidId(docId);
+      }
+
+      // 6. Accounts Payable subcollection
+      match /accounts_payable/{docId} {
+        allow read, write: if isValidId(storeId) && isValidId(docId);
+      }
+
+      // 7. Cash Closings (closings/all) subcollection
+      match /closings/{docId} {
+        allow read, write: if isValidId(storeId) && isValidId(docId);
+      }
+    }
+
+    // Global Catch-all safety net
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

@@ -31,6 +31,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { AccountPayable } from '../types';
+import { db } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -289,6 +291,27 @@ export default function AccountsPayable() {
 
   // State
   const [accounts, setAccounts] = useState<AccountPayable[]>([]);
+  const [selectedMonth, setSelectedMonth] = useState('05'); // Default to May (Maio)
+  const [selectedYear, setSelectedYear] = useState('2026');
+  const [isSaving, setIsSaving] = useState(false);
+
+  const months = [
+    { value: '01', label: 'Janeiro' },
+    { value: '02', label: 'Fevereiro' },
+    { value: '03', label: 'Março' },
+    { value: '04', label: 'Abril' },
+    { value: '05', label: 'Maio' },
+    { value: '06', label: 'Junho' },
+    { value: '07', label: 'Julho' },
+    { value: '08', label: 'Agosto' },
+    { value: '09', label: 'Setembro' },
+    { value: '10', label: 'Outubro' },
+    { value: '11', label: 'Novembro' },
+    { value: '12', label: 'Dezembro' },
+  ];
+
+  const years = ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'];
+
   const [selectedAccounts, setSelectedAccounts] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -400,19 +423,45 @@ export default function AccountsPayable() {
 
     // Process dates to auto-set overdue statuses ('Vencido')
     const todayStr = '2026-05-20'; // Reference date matching metadata local time
-    const updatedItems = itemsList.map(item => {
-      if (
-        (item.status === 'Pendente' || item.status === 'Agendado') &&
-        item.dueDate < todayStr
-      ) {
-        return { ...item, status: 'Vencido' as const };
-      }
-      return item;
-    });
+    const processItems = (list: AccountPayable[]) => {
+      return list.map(item => {
+        if (
+          (item.status === 'Pendente' || item.status === 'Agendado') &&
+          item.dueDate < todayStr
+        ) {
+          return { ...item, status: 'Vencido' as const };
+        }
+        return item;
+      });
+    };
 
-    setAccounts(updatedItems);
-    saveAccountsToStorage(updatedItems);
-  }, []);
+    setAccounts(processItems(itemsList));
+
+    // Async load from Firestore for synchronization
+    let isMounted = true;
+    const fetchCloudAccounts = async () => {
+      try {
+        const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && isMounted) {
+          const cloudData = docSnap.data().data || [];
+          if (cloudData.length > 0) {
+            const processed = processItems(cloudData);
+            setAccounts(processed);
+            localStorage.setItem(storageKey, JSON.stringify(processed));
+          }
+        }
+      } catch (err) {
+        console.error("Erro ao sincronizar contas a pagar do Firestore:", err);
+      }
+    };
+
+    fetchCloudAccounts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentStore.id]);
 
   // Set alert badges when accounts change or store changes
   useEffect(() => {
@@ -437,6 +486,20 @@ export default function AccountsPayable() {
     } catch (err) {
       console.error("Erro ao salvar no localStorage", err);
       alert("Aviso: Limite de armazenamento local atingido por conta do tamanho dos anexos. O comprovante foi salvo nesta sessão, mas pode não persistir ao recarregar a página.");
+    }
+  };
+
+  const handleSavePeriod = async () => {
+    setIsSaving(true);
+    try {
+      const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
+      await setDoc(docRef, { data: accounts });
+      setIsSaving(false);
+      alert(`Dados do contas a pagar de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`);
+    } catch (err) {
+      console.error("Erro ao salvar contas a pagar no Firestore:", err);
+      setIsSaving(false);
+      alert("Erro ao salvar dados do contas a pagar no servidor do Grupo Azevedo.");
     }
   };
 
@@ -1214,7 +1277,44 @@ export default function AccountsPayable() {
         </div>
 
         {/* Action Button Row */}
-        <div className="flex flex-wrap items-center gap-2 md:self-end">
+        <div className="flex flex-wrap items-center gap-3 md:self-end">
+          {/* Greyish Period Selector capsule matching other pages exactly */}
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 mr-2">
+            <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
+            <select 
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+            >
+              {months.map(m => (
+                <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
+              ))}
+            </select>
+            <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
+            <select 
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+            >
+              {years.map(y => (
+                <option key={y} value={y} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{y}</option>
+              ))}
+            </select>
+            <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
+            <button 
+              onClick={handleSavePeriod}
+              disabled={isSaving}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                isSaving 
+                  ? 'bg-slate-400 text-white cursor-not-allowed' 
+                  : 'bg-indigo-600 hover:bg-black text-white'
+              }`}
+            >
+              {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {isSaving ? 'Salvando...' : 'Salvar Período'}
+            </button>
+          </div>
+
           <button
             onClick={() => setShowResetConfirm(true)}
             onMouseEnter={() => setIsHoverReset(true)}
