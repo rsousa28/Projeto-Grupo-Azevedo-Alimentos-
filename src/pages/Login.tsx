@@ -110,6 +110,21 @@ export default function Login() {
 
         {/* Form Side */}
         <div className="p-8 md:p-12 relative bg-white">
+          {/* Mobile-only Branding Header */}
+          <div className="md:hidden flex flex-col items-center text-center mb-8 pb-6 border-b border-slate-100">
+            <img 
+              src="/logo_azevedo.svg" 
+              alt="Grupo Azevedo" 
+              className="w-32 h-auto mb-3"
+            />
+            <h1 className="text-2xl font-black text-[#7F300C] uppercase tracking-tighter italic leading-none mb-1">
+              Grupo Azevedo Alimentos
+            </h1>
+            <p className="text-[#7F300C]/80 text-[10px] font-bold uppercase tracking-widest italic">
+              Controle Operacional & Financeiro
+            </p>
+          </div>
+
           <div className="flex items-center gap-2 mb-8 text-black">
             <div className="w-2 h-8 bg-[#FFCB05] rounded-full" />
             <h2 className="text-2xl font-black italic uppercase tracking-tighter">Acesse o Painel</h2>
