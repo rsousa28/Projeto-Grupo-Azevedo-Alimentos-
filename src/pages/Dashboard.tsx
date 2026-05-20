@@ -21,6 +21,27 @@ import DataEntrySection from '../components/DataEntrySection';
 const formatCurrency = (val: number) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
+const formatPercent = (val: number) => 
+  new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(val) + '%';
+
+const formatNumber = (val: number) => 
+  new Intl.NumberFormat('pt-BR').format(val);
+
+const MONTH_ORDER: Record<string, number> = {
+  'Janeiro': 1,
+  'Fevereiro': 2,
+  'Março': 3,
+  'Abril': 4,
+  'Maio': 5,
+  'Junho': 6,
+  'Julho': 7,
+  'Agosto': 8,
+  'Setembro': 9,
+  'Outubro': 10,
+  'Novembro': 11,
+  'Dezembro': 12
+};
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -82,6 +103,15 @@ export default function Dashboard() {
   ];
 
   const { loadDREPeriod, loadCMVPeriod } = useStore();
+
+  React.useEffect(() => {
+    if (currentStore.id !== 'admin-global') {
+      const allMonths = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+      allMonths.forEach(m => {
+        loadDREPeriod(m, selectedYear);
+      });
+    }
+  }, [selectedYear, currentStore.id]);
 
   React.useEffect(() => {
     if (currentStore.id !== 'admin-global') {
@@ -184,6 +214,18 @@ export default function Dashboard() {
   };
 
   const featuredInsight = getFeaturedInsight();
+
+  // Filter and sort the dreTimeline for the "Crescimento Mensal" chart to show the selected year's data sorted chronologically
+  const sortedChartData = dreTimeline
+    .filter(p => {
+      const pYear = p.year || '2026';
+      return pYear === selectedYear;
+    })
+    .sort((a, b) => {
+      const indexA = MONTH_ORDER[a.month] || 0;
+      const indexB = MONTH_ORDER[b.month] || 0;
+      return indexA - indexB;
+    });
 
   const isPatriciab = user?.username === 'patriciab28';
 
@@ -335,7 +377,13 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className={`text-lg font-black break-all leading-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>
-                {metric.format === 'currency' ? formatCurrency(metric.valor as number) : `${metric.valor}${metric.format === 'percent' ? '%' : ''}`}
+                {metric.format === 'currency' ? (
+                  formatCurrency(metric.valor as number)
+                ) : metric.format === 'percent' ? (
+                  formatPercent(metric.valor as number)
+                ) : (
+                  formatNumber(metric.valor as number)
+                )}
               </div>
               <div className="text-[9px] text-slate-400 mt-1 italic">vs. mês anterior</div>
             </motion.div>
@@ -359,11 +407,22 @@ export default function Dashboard() {
           </div>
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={dreTimeline}>
+              <AreaChart data={sortedChartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
-                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.1)' }} />
+                <Tooltip 
+                  formatter={(value: any) => [formatCurrency(Number(value)), 'Faturamento']}
+                  labelStyle={{ color: '#888' }}
+                  contentStyle={{ 
+                    borderRadius: '12px', 
+                    border: 'none', 
+                    backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
+                    boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                    fontSize: '11px',
+                    fontWeight: 'bold'
+                  }}
+                />
                 <Area type="monotone" dataKey="faturamento" stroke={brandColors.button} strokeWidth={3} fill={brandColors.button} fillOpacity={0.1} />
               </AreaChart>
             </ResponsiveContainer>
@@ -377,7 +436,18 @@ export default function Dashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={metaVsRealizado}>
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
-                <Tooltip />
+                <Tooltip 
+                  formatter={(value: any) => [formatCurrency(Number(value)), 'Valor']}
+                  labelStyle={{ color: '#888' }}
+                  contentStyle={{ 
+                    borderRadius: '12px', 
+                    border: 'none', 
+                    backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
+                    boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                    fontSize: '11px',
+                    fontWeight: 'bold'
+                  }}
+                />
                 <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
                   {metaVsRealizado.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -584,7 +654,18 @@ export default function Dashboard() {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <Tooltip />
+                  <Tooltip 
+                    formatter={(value: any) => [formatCurrency(Number(value)), 'Faturamento']}
+                    labelStyle={{ color: '#888' }}
+                    contentStyle={{ 
+                      borderRadius: '12px', 
+                      border: 'none', 
+                      backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
+                      boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
+                      fontSize: '11px',
+                      fontWeight: 'bold'
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
