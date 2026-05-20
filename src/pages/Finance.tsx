@@ -206,7 +206,6 @@ export default function Finance() {
         { label: isBebeluRioMar ? 'Taxas Conta Garantida' : 'Taxas PIX', valor: -(currentMonthData.details?.despesasVariaveis?.taxaPix || 0) },
         { label: 'Bonificações ou Comissões para Colaboradores', valor: -(currentMonthData.details?.despesasVariaveis?.bonificacoes || 0) },
         { label: 'Descontos Concedidos para Clientes - Cortesia', valor: -(currentMonthData.details?.despesasVariaveis?.descontos || 0) },
-        { label: 'GRI - Secretaria de Estado da Tributação', valor: -(currentMonthData.details?.despesasVariaveis?.griSecretaria || 0) },
         { label: 'Despesas Ifood', valor: -(currentMonthData.details?.despesasVariaveis?.despesasIfood || 0) },
       ],
       total: -(currentMonthData.despesasVariaveis || 0)
@@ -242,7 +241,7 @@ export default function Finance() {
         { label: 'POS', valor: -(currentMonthData.details?.colaboradores?.pos || 0) },
         { label: 'Atestado / Exame', valor: -(currentMonthData.details?.colaboradores?.atestadoExame || 0) },
         { label: 'Uniformes / EPI', valor: -(currentMonthData.details?.colaboradores?.uniformesEPI || 0) },
-        { label: 'Outros Benefícios ou Encargos', valor: -(currentMonthData.details?.colaboradores?.outrosBeneficios || 0) },
+        { label: 'Outros Benefícios ou Encargos', valor: -(currentMonthData.details?.colaboradores?.outros || 0) },
       ],
       total: -currentMonthData.payroll
     },
@@ -271,7 +270,7 @@ export default function Finance() {
         { label: 'Locação de Máq. e Equipamentos', valor: -(currentMonthData.details?.manutencao?.locacaoMaq || 0) },
         { label: 'Manutenção de sistemas', valor: -(currentMonthData.details?.manutencao?.manutencaoSist || 0) },
         { label: 'Manutenção de equipamentos e reforma', valor: -(currentMonthData.details?.manutencao?.manutencaoEquip || 0) },
-        { label: 'Outros Gastos com manutenção', valor: -(currentMonthData.details?.manutencao?.outrosManutencao || 0) },
+        { label: 'Outros Gastos com manutenção', valor: -(currentMonthData.details?.manutencao?.outros || 0) },
       ],
       total: -Object.values(currentMonthData.details?.manutencao || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
     },
@@ -309,10 +308,12 @@ export default function Finance() {
         { label: isBebeluRioMar ? 'Uber' : 'Retirado P Rony Ximenes', valor: -(currentMonthData.details?.administrativas?.ronyXimenes || 0) },
         { label: 'Seguros / Segurança', valor: -(currentMonthData.details?.administrativas?.seguros || 0) },
         { label: 'Taxa de Alvara', valor: -(currentMonthData.details?.administrativas?.taxaAlvara || 0) },
-        { label: 'Despesas Operacionais', valor: -(currentMonthData.details?.administrativas?.despesasOperacionales || 0) },
+        { label: 'Despesas Operacionais', valor: -(currentMonthData.details?.administrativas?.despesasOperacionais || 0) },
         { label: 'Despesas Gerais', valor: -(currentMonthData.details?.administrativas?.despesasGerais || 0) },
       ],
-      total: -currentMonthData.operational
+      total: currentMonthData.details?.administrativas
+        ? -Object.values(currentMonthData.details.administrativas).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
+        : -currentMonthData.operational
     },
     {
       id: 'resultado_operacional_financeiro',
@@ -323,14 +324,16 @@ export default function Finance() {
     },
     {
       id: 'apuracao_financeira',
-      label: '10. APURAÇÃO DO RESULTADO FINANCEIRO',
+      label: '10. APURAÇÃO DO RESULTADO FINANCEIRO E IMPOSTOS/GRI',
       isTotal: false,
       items: [
         { label: 'Taxas Ifood', valor: -(currentMonthData.details?.resultadoFinanceiro?.taxasIfood || 0) },
         { label: 'Tarifas Bancárias', valor: -(currentMonthData.details?.resultadoFinanceiro?.tarifasBancarias || 0) },
+        { label: 'Taxas Bancárias', valor: -(currentMonthData.details?.resultadoFinanceiro?.taxasBancarias || 0) },
         { label: 'Juros Recebidos', valor: currentMonthData.details?.resultadoFinanceiro?.jurosRecebidos || 0 },
+        { label: 'GRI - Secretaria de Estado da Tributação', valor: -(currentMonthData.details?.griFinal || currentMonthData.details?.despesasVariaveis?.griSecretaria || 0) },
       ],
-      total: -(currentMonthData.resultadoFinanceiro || 0)
+      total: -( (currentMonthData.resultadoFinanceiro || 0) + (currentMonthData.details?.griFinal || currentMonthData.details?.despesasVariaveis?.griSecretaria || 0) )
     },
     {
       id: 'resultado_liquido',
@@ -347,11 +350,15 @@ export default function Finance() {
   const mc = currentMonthData.faturamento - (currentMonthData.details?.deducoes?.darfSimples || currentMonthData.taxes) - currentMonthData.cmv - (currentMonthData.despesasVariaveis || 0);
   const mcPercent = faturamentoVal > 0 ? mc / faturamentoVal : 0;
   
-  const fixedExpenses = (currentMonthData.payroll || 0) + 
-    Object.values(currentMonthData.details?.funcionamento || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0) +
-    Object.values(currentMonthData.details?.manutencao || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0) +
-    Object.values(currentMonthData.details?.comerciais || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0) +
-    (currentMonthData.operational || 0);
+  const totalPayroll = currentMonthData.payroll || 0;
+  const totalFunc = Object.values(currentMonthData.details?.funcionamento || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+  const totalManut = Object.values(currentMonthData.details?.manutencao || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+  const totalComer = Object.values(currentMonthData.details?.comerciais || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+  const totalAdmin = Object.values(currentMonthData.details?.administrativas || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+
+  const fixedExpenses = currentMonthData.details 
+    ? (totalPayroll + totalFunc + totalManut + totalComer + totalAdmin)
+    : (totalPayroll + (currentMonthData.operational || 0));
 
   const pontoEquilibrio = mcPercent > 0 ? fixedExpenses / mcPercent : 0;
   const ticketMedio = currentMonthData.quantidadePedidos > 0 ? currentMonthData.faturamento / currentMonthData.quantidadePedidos : 0;

@@ -150,6 +150,22 @@ export default function Dashboard() {
     quantidadePedidos: 0
   };
 
+  const totalPayroll = currentMonthData.payroll || 0;
+  const totalFunc = Object.values(currentMonthData.details?.funcionamento || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+  const totalManut = Object.values(currentMonthData.details?.manutencao || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+  const totalComer = Object.values(currentMonthData.details?.comerciais || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+  const totalAdmin = Object.values(currentMonthData.details?.administrativas || {}).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+
+  const dashFixedExpenses = currentMonthData.details 
+    ? (totalPayroll + totalFunc + totalManut + totalComer + totalAdmin)
+    : (totalPayroll + (currentMonthData.operational || 0));
+
+  const dashVariableExpenses = currentMonthData.cmv + 
+    (currentMonthData.details?.deducoes?.darfSimples || currentMonthData.taxes) + 
+    (currentMonthData.despesasVariaveis || 0);
+
+  const dashMargemContrib = currentMonthData.faturamento - dashVariableExpenses;
+
   const activeMeta = currentMonthData.metaFaturamento !== undefined 
     ? currentMonthData.metaFaturamento 
     : (currentStore.brand === 'BEBELU' ? 140000 : 150000);
@@ -627,9 +643,9 @@ export default function Dashboard() {
             <div className="space-y-3">
                {[
                  { label: 'Receita Bruta', valor: currentMonthData.faturamento, color: 'text-indigo-600' },
-                 { label: 'Custos Variáveis', valor: -(currentMonthData.cmv + currentMonthData.taxes), color: 'text-red-700' },
-                 { label: 'Margem de Contrib.', valor: currentMonthData.faturamento - currentMonthData.cmv - currentMonthData.taxes, bold: true },
-                 { label: 'Custos Fixos', valor: -(currentMonthData.payroll + currentMonthData.rent + currentMonthData.marketing + currentMonthData.operational), color: 'text-red-700' },
+                 { label: 'Custos Variáveis', valor: -dashVariableExpenses, color: 'text-red-700' },
+                 { label: 'Margem de Contrib.', valor: dashMargemContrib, bold: true },
+                 { label: 'Custos Fixos', valor: -dashFixedExpenses, color: 'text-red-700' },
                  { label: 'Resultado Líquido', valor: currentMonthData.netProfit, color: 'text-green-500', bold: true, big: true }
                ].map((item) => (
                  <div key={item.label} className={`flex items-center justify-between py-1 ${item.big ? 'border-t dark:border-[#333] pt-4 mt-2' : ''}`}>
