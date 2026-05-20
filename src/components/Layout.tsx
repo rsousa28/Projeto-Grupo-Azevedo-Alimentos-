@@ -85,7 +85,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   }, [user]);
 
   const SidebarContent = () => (
-    <div className="flex flex-col h-full overflow-y-auto custom-scrollbar">
+    <div className="flex flex-col h-full overflow-y-auto overscroll-contain custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
       <div className="p-6 flex flex-col gap-6 shrink-0">
         <div className="flex items-center justify-between">
           <AnimatePresence mode="wait">
@@ -232,7 +232,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         initial={{ x: -280 }}
         animate={{ x: mobileMenuOpen ? 0 : -280 }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className={`fixed top-0 left-0 bottom-0 w-[280px] z-50 flex flex-col border-r transition-colors duration-500 lg:hidden ${
+        className={`fixed top-0 left-0 h-[100dvh] w-[280px] z-50 flex flex-col border-r transition-colors duration-500 lg:hidden ${
           isDarkMode 
             ? 'bg-[#0F0F0F] border-[#1E1E1E]' 
             : 'bg-white border-slate-200 shadow-xl shadow-slate-200/50'
