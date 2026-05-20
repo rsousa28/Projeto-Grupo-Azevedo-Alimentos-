@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   BarChart3, 
@@ -51,12 +51,23 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
+  const location = useLocation();
+
+  React.useEffect(() => {
+    if (currentStore.code === 'ROOT' && location.pathname !== '/team') {
+      navigate('/team');
+    }
+  }, [currentStore.code, location.pathname, navigate]);
+
   const handleLogout = () => {
     logout();
     navigate('/login', { replace: true });
   };
 
   const filteredNavItems = NAV_ITEMS.filter(item => {
+    if (currentStore.code === 'ROOT') {
+      return item.path === '/team';
+    }
     if (item.path === '/accounts-payable') {
       return user?.username === 'adm';
     }

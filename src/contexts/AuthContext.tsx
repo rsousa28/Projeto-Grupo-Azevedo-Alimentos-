@@ -29,7 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const p = password?.trim();
 
       // 1. Check for root administrator fallback
-      if (u === 'adm' && p === 'adm123') {
+      if (u === 'adm' && p === '88028837') {
         const adminUser: User = { 
           id: 'root-admin', 
           name: 'Admin Geral Grupo AZ', 
