@@ -298,6 +298,12 @@ export default function DataEntry() {
       setCmvTotal(monthData.cmv);
       setDeducoes({ darfSimples: monthData.taxes });
       
+      // Load goals from monthData
+      setFaturamentoMeta(monthData.metaFaturamento !== undefined ? monthData.metaFaturamento : (currentStore.brand === 'BEBELU' ? 140000 : 150000));
+      setCmvAlvo(monthData.cmvAlvo !== undefined ? monthData.cmvAlvo : 31);
+      setTempoMedio(monthData.tempoMedio !== undefined ? monthData.tempoMedio : 25);
+      setSatisfacaoMeta(monthData.metaNps !== undefined ? monthData.metaNps : 9.0);
+      
       if (monthData.details) {
         if (monthData.details.deducoes) setDeducoes(monthData.details.deducoes);
         if (monthData.details.despesasVariaveis) setDespesasVariaveis(monthData.details.despesasVariaveis);
@@ -343,6 +349,13 @@ export default function DataEntry() {
       });
       setResultadoFinanceiro({ taxasIfood: 0, tarifasBancarias: 0, taxasBancarias: 0, jurosRecebidos: 0 });
       setGriFinal(0);
+      
+      // Reset goals to defaults too
+      setFaturamentoMeta(currentStore.brand === 'BEBELU' ? 140000 : 150000);
+      setCmvAlvo(31);
+      setTempoMedio(25);
+      setSatisfacaoMeta(9.0);
+
       setSalesByHourData(() => {
         const initial: Record<string, number> = {};
         for (let i = 0; i < 24; i++) {
@@ -351,7 +364,7 @@ export default function DataEntry() {
         return initial;
       });
     }
-  }, [selectedMonth, dreTimeline]);
+  }, [selectedMonth, dreTimeline, currentMonthLabel, currentStore?.brand]);
 
   const years = ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'];
 
@@ -402,6 +415,10 @@ export default function DataEntry() {
     const newDRE: DREData = {
       month: currentMonthLabel || '',
       faturamento: totalRevenue,
+      metaFaturamento: faturamentoMeta,
+      metaNps: satisfacaoMeta,
+      cmvAlvo: cmvAlvo,
+      tempoMedio: tempoMedio,
       receitaBalcao,
       receitaIfood,
       receitaWedo,

@@ -149,6 +149,17 @@ export default function Dashboard() {
     netProfit: 0,
     quantidadePedidos: 0
   };
+
+  const activeMeta = currentMonthData.metaFaturamento !== undefined 
+    ? currentMonthData.metaFaturamento 
+    : (currentStore.brand === 'BEBELU' ? 140000 : 150000);
+    
+  const activeRealizado = currentMonthData.faturamento || 0;
+  
+  const dynamicMetaVsRealizado = [
+    { name: 'Meta', valor: activeMeta, color: currentStore.brand === 'BEBELU' ? '#7F300C' : '#8884d8' },
+    { name: 'Realizado', valor: activeRealizado, color: currentStore.brand === 'BEBELU' ? '#FFCB05' : (isDarkMode ? '#E63946' : '#0066FF') }
+  ];
   
   const dynamicDeliveryChannels = [
     { name: 'iFood', valor: currentMonthData.receitaIfood || 0, color: '#991B1B' },
@@ -434,7 +445,7 @@ export default function Dashboard() {
           <h3 className={`text-lg font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>Meta vs. Realizado</h3>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={metaVsRealizado}>
+              <BarChart data={dynamicMetaVsRealizado}>
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
                 <Tooltip 
                   formatter={(value: any) => [formatCurrency(Number(value)), 'Valor']}
@@ -449,7 +460,7 @@ export default function Dashboard() {
                   }}
                 />
                 <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
-                  {metaVsRealizado.map((entry, index) => (
+                  {dynamicMetaVsRealizado.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Bar>
@@ -459,15 +470,19 @@ export default function Dashboard() {
           <div className="mt-6 p-4 rounded-xl bg-slate-50 dark:bg-black/20 text-center">
             <div className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-1">Atingimento</div>
             <div className={`text-3xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-              {((metaVsRealizado[1].valor / metaVsRealizado[0].valor) * 100).toFixed(1)}%
+              {(dynamicMetaVsRealizado[0].valor > 0) ? (
+                `${((dynamicMetaVsRealizado[1].valor / dynamicMetaVsRealizado[0].valor) * 100).toFixed(1)}%`
+              ) : (
+                '0.0%'
+              )}
             </div>
-            {metaVsRealizado[1].valor < metaVsRealizado[0].valor ? (
+            {dynamicMetaVsRealizado[1].valor < dynamicMetaVsRealizado[0].valor ? (
               <p className="text-[10px] text-red-700 font-bold mt-1">
-                Faltam {formatCurrency(metaVsRealizado[0].valor - metaVsRealizado[1].valor)} para a meta
+                Faltam {formatCurrency(dynamicMetaVsRealizado[0].valor - dynamicMetaVsRealizado[1].valor)} para a meta
               </p>
             ) : (
               <p className="text-[10px] text-green-500 font-bold mt-1">
-                Meta batida! {formatCurrency(metaVsRealizado[1].valor - metaVsRealizado[0].valor)} acima do esperado
+                Meta batida! {formatCurrency(dynamicMetaVsRealizado[1].valor - dynamicMetaVsRealizado[0].valor)} acima do esperado
               </p>
             )}
           </div>

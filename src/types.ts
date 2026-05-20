@@ -28,6 +28,10 @@ export interface DREData {
   month: string;
   year?: string;
   faturamento: number;
+  metaFaturamento?: number;
+  metaNps?: number;
+  cmvAlvo?: number;
+  tempoMedio?: number;
   receitaBalcao?: number;
   receitaDelivery?: number;
   receitaIfood?: number;
