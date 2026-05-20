@@ -9,36 +9,43 @@ service cloud.firestore {
 
     // 1. Users collection (for custom credential validation and management)
     match /users/{userId} {
-      allow read, write: if isValidId(userId);
+      allow list: if true;
+      allow get, write: if isValidId(userId);
     }
 
     // 2. Stores parent resource
     match /stores/{storeId} {
-      allow read, write: if isValidId(storeId);
+      allow list: if true;
+      allow get, write: if isValidId(storeId);
 
       // 3. CMV Periods subcollection
       match /cmv_periods/{periodId} {
-        allow read, write: if isValidId(storeId) && isValidId(periodId);
+        allow list: if true;
+        allow get, write: if isValidId(storeId) && isValidId(periodId);
       }
 
       // 4. DRE Periods subcollection
       match /dre_periods/{periodId} {
-        allow read, write: if isValidId(storeId) && isValidId(periodId);
+        allow list: if true;
+        allow get, write: if isValidId(storeId) && isValidId(periodId);
       }
 
       // 5. Checklists configurations, submissions, and action plans
       match /checklists/{docId} {
-        allow read, write: if isValidId(storeId) && isValidId(docId);
+        allow list: if true;
+        allow get, write: if isValidId(storeId) && isValidId(docId);
       }
 
       // 6. Accounts Payable subcollection
       match /accounts_payable/{docId} {
-        allow read, write: if isValidId(storeId) && isValidId(docId);
+        allow list: if true;
+        allow get, write: if isValidId(storeId) && isValidId(docId);
       }
 
       // 7. Cash Closings (closings/all) subcollection
       match /closings/{docId} {
-        allow read, write: if isValidId(storeId) && isValidId(docId);
+        allow list: if true;
+        allow get, write: if isValidId(storeId) && isValidId(docId);
       }
     }
 

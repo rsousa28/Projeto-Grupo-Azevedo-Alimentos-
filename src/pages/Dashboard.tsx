@@ -15,6 +15,7 @@ import {
   lowMarginProducts
 } from '../lib/mockData';
 import { useStore } from '../contexts/StoreContext';
+import { useAuth } from '../contexts/AuthContext';
 import DataEntrySection from '../components/DataEntrySection';
 
 const formatCurrency = (val: number) => 
@@ -22,6 +23,7 @@ const formatCurrency = (val: number) =>
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { 
     isDarkMode, 
     currentStore, 
@@ -183,13 +185,15 @@ export default function Dashboard() {
 
   const featuredInsight = getFeaturedInsight();
 
+  const isPatriciab = user?.username === 'patriciab28';
+
   const displayMetrics = [
     { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: 'up', change: '0' },
-    { label: 'Lucro Líquido', valor: netProfit, format: 'currency', trend: 'up', change: '0' },
+    ...(!isPatriciab ? [{ label: 'Lucro Líquido', valor: netProfit, format: 'currency', trend: 'up', change: '0' }] : []),
     { label: 'CMV Médio', valor: cmvRate, format: 'percent', trend: 'down', change: '0' },
     { label: 'Ticket Médio', valor: ticketMedio, format: 'currency', trend: 'up', change: '0' },
     { label: 'Pedidos Totais', valor: totalPedidos, format: 'number', trend: 'up', change: '0' },
-    { label: 'Margem Operac.', valor: margemOperacional, format: 'percent', trend: 'up', change: '0' },
+    ...(!isPatriciab ? [{ label: 'Margem Operac.', valor: margemOperacional, format: 'percent', trend: 'up', change: '0' }] : []),
   ];
 
   return (
@@ -308,7 +312,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Main KPIs */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${isPatriciab ? 'xl:grid-cols-4' : 'xl:grid-cols-6'} gap-4`}>
         {displayMetrics.map((metric, i) => {
           const isHealthy = metric.trend === 'up' && metric.label !== 'CMV Médio' || (metric.label === 'CMV Médio' && metric.trend === 'down');
           const statusColor = isHealthy ? 'text-green-500 bg-green-500/10' : 'text-red-700 bg-red-700/10';
@@ -486,7 +490,7 @@ export default function Dashboard() {
       </div>
 
       {/* Products Analysis Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 ${isPatriciab ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-6`}>
         {/* Most Profitable */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center gap-2 mb-6">
@@ -532,26 +536,28 @@ export default function Dashboard() {
         </div>
 
         {/* Resumo DRE */}
-        <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className={`text-lg font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>DRE Resumido</h3>
-          <div className="space-y-3">
-             {[
-               { label: 'Receita Bruta', valor: currentMonthData.faturamento, color: 'text-indigo-600' },
-               { label: 'Custos Variáveis', valor: -(currentMonthData.cmv + currentMonthData.taxes), color: 'text-red-700' },
-               { label: 'Margem de Contrib.', valor: currentMonthData.faturamento - currentMonthData.cmv - currentMonthData.taxes, bold: true },
-               { label: 'Custos Fixos', valor: -(currentMonthData.payroll + currentMonthData.rent + currentMonthData.marketing + currentMonthData.operational), color: 'text-red-700' },
-               { label: 'Resultado Líquido', valor: currentMonthData.netProfit, color: 'text-green-500', bold: true, big: true }
-             ].map((item) => (
-               <div key={item.label} className={`flex items-center justify-between py-1 ${item.big ? 'border-t dark:border-[#333] pt-4 mt-2' : ''}`}>
-                 <span className={`text-[10px] font-bold uppercase tracking-wider ${item.bold ? (isDarkMode ? 'dark:text-white' : 'text-black') : (isDarkMode ? 'text-slate-500' : 'text-slate-700')}`}>{item.label}</span>
-                 <span className={`text-sm font-black ${item.color || (isDarkMode ? 'dark:text-white' : 'text-black')} ${item.big ? 'text-lg' : ''}`}>
-                   {formatCurrency(item.valor)}
-                 </span>
-               </div>
-             ))}
+        {!isPatriciab && (
+          <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+            <h3 className={`text-lg font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>DRE Resumido</h3>
+            <div className="space-y-3">
+               {[
+                 { label: 'Receita Bruta', valor: currentMonthData.faturamento, color: 'text-indigo-600' },
+                 { label: 'Custos Variáveis', valor: -(currentMonthData.cmv + currentMonthData.taxes), color: 'text-red-700' },
+                 { label: 'Margem de Contrib.', valor: currentMonthData.faturamento - currentMonthData.cmv - currentMonthData.taxes, bold: true },
+                 { label: 'Custos Fixos', valor: -(currentMonthData.payroll + currentMonthData.rent + currentMonthData.marketing + currentMonthData.operational), color: 'text-red-700' },
+                 { label: 'Resultado Líquido', valor: currentMonthData.netProfit, color: 'text-green-500', bold: true, big: true }
+               ].map((item) => (
+                 <div key={item.label} className={`flex items-center justify-between py-1 ${item.big ? 'border-t dark:border-[#333] pt-4 mt-2' : ''}`}>
+                   <span className={`text-[10px] font-bold uppercase tracking-wider ${item.bold ? (isDarkMode ? 'dark:text-white' : 'text-black') : (isDarkMode ? 'text-slate-500' : 'text-slate-700')}`}>{item.label}</span>
+                   <span className={`text-sm font-black ${item.color || (isDarkMode ? 'dark:text-white' : 'text-black')} ${item.big ? 'text-lg' : ''}`}>
+                     {formatCurrency(item.valor)}
+                   </span>
+                 </div>
+               ))}
+            </div>
+            <button className="w-full mt-6 py-2 text-[10px] font-bold uppercase tracking-widest text-indigo-600 hover:underline">Ver DRE Completo</button>
           </div>
-          <button className="w-full mt-6 py-2 text-[10px] font-bold uppercase tracking-widest text-indigo-600 hover:underline">Ver DRE Completo</button>
-        </div>
+        )}
       </div>
 
       {/* Distribution Section */}
