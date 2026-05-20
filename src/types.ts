@@ -95,3 +95,35 @@ export interface Insumo {
   price: number;
   supplier: string;
 }
+
+export interface AccountPayable {
+  id: string;
+  storeId: string;
+  storeName: string;
+  supplier: string;
+  description: string;
+  category: string;
+  costCenter: string;
+  value: number;
+  interest: number;
+  fine: number;
+  discount: number;
+  issueDate: string;
+  dueDate: string;
+  paymentDate?: string;
+  paymentMethod: string;
+  bank: string;
+  barcode?: string;
+  documentNumber?: string;
+  notes?: string;
+  status: 'Pendente' | 'Pago' | 'Vencido' | 'Parcialmente Pago' | 'Cancelado' | 'Agendado';
+  recurrence: 'Nenhuma' | 'Semanal' | 'Mensal' | 'Anual' | 'Personalizado';
+  installmentsCount?: number;
+  installmentNumber?: number;
+  parentGroupId?: string;
+  attachedFile?: string; // base64
+  receiptFile?: string; // base64
+  taxInvoiceFile?: string; // base64
+  partialAmountPaid?: number;
+  createdAt: string;
+}

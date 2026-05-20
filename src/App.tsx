@@ -16,8 +16,8 @@ import DataEntry from './pages/DataEntry';
 import CMV from './pages/CMV';
 import Team from './pages/Team';
 import CashClosing from './pages/CashClosing';
-import CashFlow from './pages/CashFlow';
 import Checklist from './pages/Checklist';
+import AccountsPayable from './pages/AccountsPayable';
 
 import { useAuth } from './contexts/AuthContext';
 
@@ -70,7 +70,7 @@ function AppRoutes() {
            <Route path="/cash-closing" element={<CashClosing />} />
            <Route path="/data-entry" element={<DataEntry />} />
            <Route path="/finance" element={<Finance />} />
-           <Route path="/cash-flow" element={<CashFlow />} />
+           <Route path="/accounts-payable" element={<AccountsPayable />} />
            <Route path="/cmv" element={<CMV />} />
            <Route path="/checklist" element={<Checklist />} />
            <Route path="/analysis" element={<Dashboard />} />

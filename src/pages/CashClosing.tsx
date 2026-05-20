@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
+import { db } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -68,6 +70,7 @@ export default function CashClosing() {
 
   // Load initial store custom closings on mount and store changes
   useEffect(() => {
+    // 1. Immediate local fallback
     const saved = localStorage.getItem(`closings_data_${currentStore.id}`);
     if (saved) {
       try {
@@ -78,6 +81,31 @@ export default function CashClosing() {
     } else {
       setClosingsData({});
     }
+
+    // 2. Load from central Firestore for cross-user/cross-device synchronization (e.g., patriciab28 and owner)
+    let isMounted = true;
+    const fetchCloudClosings = async () => {
+      try {
+        const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists() && isMounted) {
+          const cloudData = docSnap.data().data || {};
+          setClosingsData(prev => {
+            const merged = { ...prev, ...cloudData };
+            localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(merged));
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao carregar fechamentos do Firestore:", err);
+      }
+    };
+
+    fetchCloudClosings();
+
+    return () => {
+      isMounted = false;
+    };
   }, [currentStore.id, setClosingsData]);
 
   // Form Initial State
@@ -675,18 +703,22 @@ export default function CashClosing() {
                       setIsSaving(true);
                       await new Promise(r => setTimeout(r, 800));
                       
-                      // Save to local state and persist to localStorage
-                      setClosingsData(prev => {
-                        const updated = {
-                          ...prev,
-                          [formData.date]: { ...formData, totalGeral, diff, sobra, falta }
-                        };
-                        localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
-                        return updated;
-                      });
-                      
-                      setIsSaving(false);
-                      setShowModal(false);
+                  const updated = {
+                    ...closingsData,
+                    [formData.date]: { ...formData, totalGeral, diff, sobra, falta }
+                  };
+                  setClosingsData(updated);
+                  localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
+                  
+                  try {
+                    const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
+                    await setDoc(docRef, { data: updated });
+                  } catch (err) {
+                    console.error("Erro ao salvar fechamento no Firestore:", err);
+                  }
+                  
+                  setIsSaving(false);
+                  setShowModal(false);
                     }}
                     className="px-10 py-4 bg-amber-500 hover:bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-amber-500/20 active:scale-95"
                   >
@@ -741,13 +773,19 @@ export default function CashClosing() {
                 Cancelar
               </button>
               <button 
-                onClick={() => {
-                  setClosingsData(prev => {
-                    const updated = { ...prev };
-                    delete updated[confirmResetId];
-                    localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
-                    return updated;
-                  });
+                onClick={async () => {
+                  const updated = { ...closingsData };
+                  delete updated[confirmResetId];
+                  setClosingsData(updated);
+                  localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
+                  
+                  try {
+                    const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
+                    await setDoc(docRef, { data: updated });
+                  } catch (err) {
+                    console.error("Erro ao remover fechamento do Firestore:", err);
+                  }
+                  
                   setConfirmResetId(null);
                 }}
                 className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-rose-500/20"

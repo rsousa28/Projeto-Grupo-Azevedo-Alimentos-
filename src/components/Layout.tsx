@@ -13,9 +13,9 @@ import {
   ChevronRight,
   Store as StoreIcon,
   Zap,
-  TrendingUp,
   Banknote,
-  ClipboardCheck
+  ClipboardCheck,
+  Receipt
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -36,8 +36,8 @@ const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: ClipboardCheck, label: 'Checklists', path: '/checklist' },
   { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: ALL_MANAGERS },
-  { icon: TrendingUp, label: 'Fluxo de Caixa', path: '/cash-flow', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
+  { icon: Receipt, label: 'Contas a Pagar', path: '/accounts-payable', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: Calculator, label: 'CMV & Engenharia', path: '/cmv', allowedRoles: ALL_MANAGERS },
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
 ];
@@ -224,7 +224,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             : 'bg-white border-slate-200 shadow-xl shadow-slate-200/50'
         }`}
       >
-        <SidebarContent />
+        {SidebarContent()}
       </motion.aside>
 
       {/* Sidebar for Mobile */}
@@ -238,7 +238,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             : 'bg-white border-slate-200 shadow-xl shadow-slate-200/50'
         }`}
       >
-        <SidebarContent />
+        {SidebarContent()}
       </motion.aside>
 
       {/* Main Content */}
