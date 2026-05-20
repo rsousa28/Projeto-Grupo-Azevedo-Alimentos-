@@ -475,31 +475,25 @@ export default function DataEntry() {
           ))}
         </div>
 
-        <div className="flex items-center gap-3 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl w-full lg:w-auto">
-          <div className="flex items-center gap-2 px-3">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Período:</span>
-          </div>
+        <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 w-full lg:w-auto">
+          <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
           <select 
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold outline-none transition-all cursor-pointer ${
-              isDarkMode ? 'bg-[#1E1E1E] text-white' : 'bg-white text-slate-900'
-            }`}
+            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
           >
             {months.map(m => (
-              <option key={m.value} value={m.value}>{m.label}</option>
+              <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
             ))}
           </select>
+          <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
           <select 
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold outline-none transition-all cursor-pointer ${
-              isDarkMode ? 'bg-[#1E1E1E] text-white' : 'bg-white text-slate-900'
-            }`}
+            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
           >
             {years.map(y => (
-              <option key={y} value={y}>{y}</option>
+              <option key={y} value={y} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{y}</option>
             ))}
           </select>
         </div>

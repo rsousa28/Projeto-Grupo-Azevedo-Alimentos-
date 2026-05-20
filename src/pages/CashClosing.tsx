@@ -163,9 +163,16 @@ export default function CashClosing() {
 
   const handleSavePeriod = async () => {
     setIsSaving(true);
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSaving(false);
-    alert(`Dados de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso!`);
+    try {
+      const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
+      await setDoc(docRef, { data: closingsData });
+      setIsSaving(false);
+      alert(`Dados de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`);
+    } catch (err) {
+      console.error("Erro ao salvar fechamentos:", err);
+      setIsSaving(false);
+      alert("Erro ao salvar dados do faturamento e fechamento de caixa no servidor.");
+    }
   };
 
   // Calculations for the form
@@ -387,25 +394,30 @@ export default function CashClosing() {
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 p-4 rounded-3xl bg-indigo-500/5 border border-indigo-500/10">
+      <div className="flex flex-wrap items-center gap-4 p-1.5 rounded-2xl bg-slate-100 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 w-fit">
         <div className="flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-indigo-500" />
+          <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
           <select 
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className={`bg-transparent font-black uppercase italic tracking-tighter outline-none cursor-pointer ${isDarkMode ? 'text-white' : 'text-slate-900'}`}
+            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
           >
-            {months.map(m => <option key={m.value} value={m.value} className="bg-slate-900 text-white">{m.label}</option>)}
+            {months.map(m => (
+              <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
+            ))}
           </select>
+          <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
           <select 
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className={`bg-transparent font-black uppercase italic tracking-tighter outline-none cursor-pointer ${isDarkMode ? 'text-white' : 'text-slate-900'}`}
+            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
           >
-            {years.map(y => <option key={y} value={y} className="bg-slate-900 text-white">{y}</option>)}
+            {years.map(y => (
+              <option key={y} value={y} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{y}</option>
+            ))}
           </select>
         </div>
-        <div className="h-6 w-px bg-slate-300 dark:bg-slate-700 hidden md:block" />
+        <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden md:block" />
         <button 
           onClick={handleSavePeriod}
           disabled={isSaving}

@@ -46,6 +46,14 @@ function checkPreviewEnvironment(): boolean {
 const isPreview = checkPreviewEnvironment();
 const Router = isPreview ? HashRouter : BrowserRouter;
 
+function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user || user.username !== 'adm') {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   const { user } = useAuth();
 
@@ -70,7 +78,11 @@ function AppRoutes() {
            <Route path="/cash-closing" element={<CashClosing />} />
            <Route path="/data-entry" element={<DataEntry />} />
            <Route path="/finance" element={<Finance />} />
-           <Route path="/accounts-payable" element={<AccountsPayable />} />
+           <Route path="/accounts-payable" element={
+             <AdminOnlyRoute>
+               <AccountsPayable />
+             </AdminOnlyRoute>
+           } />
            <Route path="/cmv" element={<CMV />} />
            <Route path="/checklist" element={<Checklist />} />
            <Route path="/analysis" element={<Dashboard />} />

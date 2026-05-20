@@ -15,6 +15,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
+import { db } from '../lib/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { 
   ChecklistTemplate, 
   ChecklistSubmission, 
@@ -41,29 +43,19 @@ export default function Checklist() {
   // Execution workflow pointer
   const [executingTemplate, setExecutingTemplate] = useState<ChecklistTemplate | null>(null);
 
-  // Load persistent database on mount
+  // Load persistent database on mount and whenever currentStore changes
   useEffect(() => {
-    // 1. Templates
-    const storedTemplates = localStorage.getItem('checklist_templates');
-    if (storedTemplates) {
-      setTemplates(JSON.parse(storedTemplates));
-    } else {
-      setTemplates(INITIAL_TEMPLATES);
-      localStorage.setItem('checklist_templates', JSON.stringify(INITIAL_TEMPLATES));
-    }
-
-    // 2. Submissions (add mock submission for immediate visual feedback)
-    const storedSubmissions = localStorage.getItem('checklist_submissions');
-    if (storedSubmissions) {
-      setSubmissions(JSON.parse(storedSubmissions));
-    } else {
-      const mockSub: ChecklistSubmission = {
+    const storeId = currentStore.id;
+    
+    // Fallback Mock Submissions generator
+    const getMockSubmissions = (): ChecklistSubmission[] => {
+      return [{
         id: 'mock_sub_1',
         templateId: 'temp_segalimentar',
         templateTitle: 'Auditoria Diária de Segurança Alimentar',
         category: 'Segurança alimentar',
-        storeId: currentStore.id !== 'admin-global' ? currentStore.id : 'B32',
-        storeName: currentStore.id !== 'admin-global' ? currentStore.name : 'Bebelu Mossoró',
+        storeId: storeId !== 'admin-global' ? storeId : 'B32',
+        storeName: storeId !== 'admin-global' ? currentStore.name : 'Bebelu Mossoró',
         submittedBy: 'Mariana Costa (Gerente)',
         submittedAt: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hours ago
         answers: [
@@ -90,21 +82,16 @@ export default function Checklist() {
         score: 12,
         maxScore: 12,
         conformityIndex: 100
-      };
-      setSubmissions([mockSub]);
-      localStorage.setItem('checklist_submissions', JSON.stringify([mockSub]));
-    }
+      }];
+    };
 
-    // 3. Action Plans (add mock resolved/pending action plan for flow demonstration)
-    const storedPlans = localStorage.getItem('checklist_action_plans');
-    if (storedPlans) {
-      setActionPlans(JSON.parse(storedPlans));
-    } else {
-      const mockPlan: ActionPlan = {
+    // Fallback Mock Plans generator
+    const getMockPlans = (): ActionPlan[] => {
+      return [{
         id: 'mock_plan_1',
         submissionId: 'mock_sub_2',
-        storeId: currentStore.id !== 'admin-global' ? currentStore.id : '4E09',
-        storeName: currentStore.id !== 'admin-global' ? currentStore.name : '4Estylos Mossoró',
+        storeId: storeId !== 'admin-global' ? storeId : '4E09',
+        storeName: storeId !== 'admin-global' ? currentStore.name : '4Estylos Mossoró',
         category: 'Segurança alimentar',
         questionText: 'O freezer vertical de congelados está abaixo de -18ºC?',
         triggerAnswer: '-12 ºC',
@@ -113,26 +100,120 @@ export default function Checklist() {
         responsible: 'Gerente de Turno',
         status: 'PENDING',
         createdAt: new Date(Date.now() - 3600000 * 5).toISOString()
-      };
-      setActionPlans([mockPlan]);
-      localStorage.setItem('checklist_action_plans', JSON.stringify([mockPlan]));
+      }];
+    };
+
+    // 1. Immediate UI loading from localStorage (per-store scoped)
+    const storedTemplates = localStorage.getItem(`checklist_templates_${storeId}`);
+    if (storedTemplates) {
+      setTemplates(JSON.parse(storedTemplates));
+    } else {
+      setTemplates(INITIAL_TEMPLATES);
     }
-  }, [currentStore]);
 
-  // Persists helper methods
-  const saveTemplates = (updated: ChecklistTemplate[]) => {
+    const storedSubmissions = localStorage.getItem(`checklist_submissions_${storeId}`);
+    if (storedSubmissions) {
+      setSubmissions(JSON.parse(storedSubmissions));
+    } else {
+      setSubmissions(getMockSubmissions());
+    }
+
+    const storedPlans = localStorage.getItem(`checklist_action_plans_${storeId}`);
+    if (storedPlans) {
+      setActionPlans(JSON.parse(storedPlans));
+    } else {
+      setActionPlans(getMockPlans());
+    }
+
+    // 2. Synchronize from Firestore
+    let isMounted = true;
+    const fetchCloudChecklistData = async () => {
+      try {
+        // Fetch Templates
+        const templatesRef = doc(db, 'stores', storeId, 'checklists', 'templates');
+        const templatesSnap = await getDoc(templatesRef);
+        if (templatesSnap.exists() && isMounted) {
+          const cloudTemplates = templatesSnap.data().data || [];
+          setTemplates(cloudTemplates);
+          localStorage.setItem(`checklist_templates_${storeId}`, JSON.stringify(cloudTemplates));
+        } else if (!templatesSnap.exists() && isMounted) {
+          // Push initial defaults to cloud if it has none
+          setTemplates(INITIAL_TEMPLATES);
+          await setDoc(templatesRef, { data: INITIAL_TEMPLATES });
+          localStorage.setItem(`checklist_templates_${storeId}`, JSON.stringify(INITIAL_TEMPLATES));
+        }
+
+        // Fetch Submissions
+        const submissionsRef = doc(db, 'stores', storeId, 'checklists', 'submissions');
+        const submissionsSnap = await getDoc(submissionsRef);
+        if (submissionsSnap.exists() && isMounted) {
+          const cloudSubmissions = submissionsSnap.data().data || [];
+          setSubmissions(cloudSubmissions);
+          localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(cloudSubmissions));
+        } else if (!submissionsSnap.exists() && isMounted) {
+          const mockSubs = getMockSubmissions();
+          setSubmissions(mockSubs);
+          await setDoc(submissionsRef, { data: mockSubs });
+          localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(mockSubs));
+        }
+
+        // Fetch Action Plans
+        const plansRef = doc(db, 'stores', storeId, 'checklists', 'action_plans');
+        const plansSnap = await getDoc(plansRef);
+        if (plansSnap.exists() && isMounted) {
+          const cloudPlans = plansSnap.data().data || [];
+          setActionPlans(cloudPlans);
+          localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(cloudPlans));
+        } else if (!plansSnap.exists() && isMounted) {
+          const mockPlans = getMockPlans();
+          setActionPlans(mockPlans);
+          await setDoc(plansRef, { data: mockPlans });
+          localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(mockPlans));
+        }
+      } catch (err) {
+        console.error("Erro ao sincronizar checklists de Firestore:", err);
+      }
+    };
+
+    fetchCloudChecklistData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentStore.id]);
+
+  // Persists helper methods synced with Firestore & LocalStorage
+  const saveTemplates = async (updated: ChecklistTemplate[]) => {
     setTemplates(updated);
-    localStorage.setItem('checklist_templates', JSON.stringify(updated));
+    localStorage.setItem(`checklist_templates_${currentStore.id}`, JSON.stringify(updated));
+    try {
+      const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'templates');
+      await setDoc(docRef, { data: updated });
+    } catch (err) {
+      console.error("Erro ao salvar templates:", err);
+    }
   };
 
-  const saveSubmissions = (updated: ChecklistSubmission[]) => {
+  const saveSubmissions = async (updated: ChecklistSubmission[]) => {
     setSubmissions(updated);
-    localStorage.setItem('checklist_submissions', JSON.stringify(updated));
+    localStorage.setItem(`checklist_submissions_${currentStore.id}`, JSON.stringify(updated));
+    try {
+      const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'submissions');
+      await setDoc(docRef, { data: updated });
+    } catch (err) {
+      console.error("Erro ao salvar submissions:", err);
+    }
   };
 
-  const savePlans = (updated: ActionPlan[]) => {
+  const savePlans = async (updated: ActionPlan[]) => {
     setActionPlans(updated);
-    localStorage.setItem('checklist_action_plans', JSON.stringify(updated));
+    localStorage.setItem(`checklist_action_plans_${currentStore.id}`, JSON.stringify(updated));
+    try {
+      const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'action_plans');
+      await setDoc(docRef, { data: updated });
+    } catch (err) {
+      console.error("Erro ao salvar action plans:", err);
+    }
   };
 
   // Submission submitted callback

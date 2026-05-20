@@ -207,15 +207,15 @@ export default function Dashboard() {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl mr-2">
-            <Calendar className="w-4 h-4 text-slate-400 ml-2" />
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 mr-2">
+            <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
             <select 
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
               className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
             >
               {months.map(m => (
-                <option key={m.value} value={m.value} className="dark:bg-[#1E1E1E]">{m.label}</option>
+                <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
               ))}
             </select>
             <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
@@ -225,7 +225,7 @@ export default function Dashboard() {
               className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
             >
               {['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'].map(year => (
-                <option key={year} value={year} className="dark:bg-[#1E1E1E]">{year}</option>
+                <option key={year} value={year} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{year}</option>
               ))}
             </select>
           </div>

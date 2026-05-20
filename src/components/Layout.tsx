@@ -56,9 +56,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     navigate('/login', { replace: true });
   };
 
-  const filteredNavItems = NAV_ITEMS.filter(item => 
-    !item.allowedRoles || (user && item.allowedRoles.includes(user.role))
-  );
+  const filteredNavItems = NAV_ITEMS.filter(item => {
+    if (item.path === '/accounts-payable') {
+      return user?.username === 'adm';
+    }
+    return !item.allowedRoles || (user && item.allowedRoles.includes(user.role));
+  });
 
   const filteredStores = React.useMemo(() => {
     if (!user) return [];

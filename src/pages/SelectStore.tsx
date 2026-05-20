@@ -15,9 +15,9 @@ export default function SelectStore() {
   const filteredStores = React.useMemo(() => {
     if (!user) return [];
     
-    // Admin sees only the root option (Consolidated)
+    // Admin sees all stores including Consolidated (ROOT)
     if (user.role === 'ADMIN') {
-      return STORES.filter(s => s.code === 'ROOT');
+      return STORES;
     }
     
     if (user.role === 'FINANCIAL') return STORES.filter(s => s.code !== 'ROOT');
