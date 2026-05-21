@@ -503,8 +503,10 @@ export default function AccountsPayable() {
   const handleSavePeriod = async () => {
     setIsSaving(true);
     try {
+      // Clean undefined fields recursively so Firestore doesn't reject the write operation
+      const cleanAccounts = JSON.parse(JSON.stringify(accounts));
       const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
-      await setDoc(docRef, { data: accounts });
+      await setDoc(docRef, { data: cleanAccounts });
       setIsSaving(false);
       showToast(`Dados do contas a pagar de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`, "success");
     } catch (err) {
@@ -688,7 +690,14 @@ export default function AccountsPayable() {
 
     const reader = new FileReader();
     reader.onload = async (event) => {
-      const base64 = event.target?.result as string;
+      const rawBase64 = event.target?.result as string;
+      
+      let base64 = rawBase64;
+      try {
+        base64 = await resizeImageBase64(rawBase64);
+      } catch (err) {
+        console.error("Erro ao otimizar imagem do boleto:", err);
+      }
       setAttachedFileBase64(base64);
 
       try {
