@@ -1400,33 +1400,37 @@ export default function AccountsPayable() {
           </div>
 
           {/* Action Button Row */}
-          <div className="flex flex-wrap items-center gap-3 md:self-end">
-            <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 mr-2">
-              <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
-              <select 
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-              >
-                {months.map(m => (
-                  <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
-                ))}
-              </select>
-              <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
-              <select 
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-              >
-                {years.map(y => (
-                  <option key={y} value={y} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{y}</option>
-                ))}
-              </select>
-              <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-slate-100/90 dark:bg-black/20 p-2.5 sm:p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 w-full sm:w-auto">
+              <div className="flex items-center gap-2 w-full justify-between sm:justify-start">
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-4 h-4 text-slate-400 ml-1.5 shrink-0" />
+                  <select 
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                    className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+                  >
+                    {months.map(m => (
+                      <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
+                <select 
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(e.target.value)}
+                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+                >
+                  {years.map(y => (
+                    <option key={y} value={y} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{y}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="hidden sm:block w-px h-4 bg-slate-300 dark:bg-slate-700" />
               <button 
                 onClick={handleSavePeriod}
                 disabled={isSaving}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg w-full sm:w-auto ${
                   isSaving 
                     ? 'bg-slate-400 text-white cursor-not-allowed' 
                     : 'bg-indigo-600 hover:bg-black text-white'
@@ -1873,6 +1877,36 @@ export default function AccountsPayable() {
             </div>
           )}
         </AnimatePresence>
+
+        {/* Toast Notification Container for Manager View */}
+        <div id="toast-container-manager" className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm pointer-events-none">
+          <AnimatePresence>
+            {toasts.map((toast) => (
+              <motion.div
+                key={toast.id}
+                initial={{ opacity: 0, y: 50, scale: 0.9 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
+                className={`p-4 rounded-2xl shadow-xl border flex items-center gap-3 pointer-events-auto cursor-pointer ${
+                  toast.type === 'success' 
+                    ? 'bg-slate-950 border-emerald-500/30 text-white' 
+                    : toast.type === 'error'
+                    ? 'bg-red-950 border-red-500/30 text-white'
+                    : toast.type === 'warning'
+                    ? 'bg-amber-950 border-amber-500/30 text-white'
+                    : 'bg-slate-950 border-slate-700 text-white'
+                }`}
+                onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+              >
+                {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />}
+                {toast.type === 'error' && <X className="w-5 h-5 text-red-400 shrink-0" />}
+                {toast.type === 'warning' && <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />}
+                {toast.type === 'info' && <Info className="w-5 h-5 text-sky-400 shrink-0" />}
+                <span className="text-xs font-bold leading-normal">{toast.message}</span>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
 
       </div>
     );
