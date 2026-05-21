@@ -429,13 +429,13 @@ export default function AccountsPayable() {
 
   // Load and sync accounts per active store
   useEffect(() => {
-    // Read from local storage
-    const storageKey = `g_azevedo_ap_items_clean`;
+    // Read from store-isolated local storage key to prevent managers (Paloma, Jef, Patricia) 
+    // from overwriting each other's data on the same browser/machine.
+    const storageKey = `g_azevedo_ap_items_clean_${currentStore.id}`;
     let stored = localStorage.getItem(storageKey);
     let itemsList: AccountPayable[] = [];
 
     if (!stored) {
-      // First load: seed with empty array for a pristine testing experience as explicitly requested
       itemsList = [];
       localStorage.setItem(storageKey, JSON.stringify(itemsList));
     } else {
@@ -499,15 +499,19 @@ export default function AccountsPayable() {
             localStorage.setItem(storageKey, JSON.stringify(processed));
           }
         } else {
-          // Single store scenario (e.g. Manager like Patricia)
+          // Single store scenario (e.g. Manager like Patricia, Paloma, Jef)
           const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
           const docSnap = await getDoc(docRef);
           if (docSnap.exists() && isMounted) {
             const cloudData = docSnap.data().data || [];
-            if (cloudData.length > 0) {
-              const processed = processItems(cloudData);
-              setAccounts(processed);
-              localStorage.setItem(storageKey, JSON.stringify(processed));
+            const processed = processItems(cloudData);
+            setAccounts(processed);
+            localStorage.setItem(storageKey, JSON.stringify(processed));
+          } else if (isMounted) {
+            // Document doesn't exist on Firestore yet (the store is completely clean/new)
+            const locallyStored = localStorage.getItem(storageKey);
+            if (!locallyStored) {
+              setAccounts([]);
             }
           }
         }
@@ -540,12 +544,50 @@ export default function AccountsPayable() {
     setOverdueCount(pastDue);
   }, [accounts, currentStore.id]);
 
-  const saveAccountsToStorage = (fullList: AccountPayable[]) => {
+  const saveAccountsToStorage = async (fullList: AccountPayable[]) => {
+    const storageKey = `g_azevedo_ap_items_clean_${currentStore.id}`;
     try {
-      localStorage.setItem(`g_azevedo_ap_items_clean`, JSON.stringify(fullList));
+      localStorage.setItem(storageKey, JSON.stringify(fullList));
     } catch (err) {
       console.error("Erro ao salvar no localStorage", err);
       showToast("Aviso: Limite de armazenamento local atingido por conta do tamanho dos anexos. O comprovante foi salvo nesta sessão, mas pode não persistir ao recarregar a página.", "warning");
+    }
+
+    try {
+      // Clean undefined fields recursively so Firestore doesn't reject the write operation
+      const cleanAccounts = JSON.parse(JSON.stringify(fullList));
+      
+      if (currentStore.code === 'ROOT') {
+        // Administrator saves all stores' accounts to their respective individual collections
+        const grouped: { [key: string]: AccountPayable[] } = {};
+        STORES.forEach(s => {
+          grouped[s.id] = [];
+        });
+        
+        cleanAccounts.forEach((ac: AccountPayable) => {
+          const sId = ac.storeId || 'admin-global';
+          if (!grouped[sId]) {
+            grouped[sId] = [];
+          }
+          grouped[sId].push(ac);
+        });
+        
+        const savePromises = Object.entries(grouped).map(async ([storeId, storeAccounts]) => {
+          const docRef = doc(db, 'stores', storeId, 'accounts_payable', 'all');
+          await setDoc(docRef, { data: storeAccounts });
+        });
+        
+        await Promise.all(savePromises);
+      } else {
+        // Manager saves only their own store to prevent cross-contamination
+        const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
+        await setDoc(docRef, { data: cleanAccounts });
+      }
+    } catch (firebaseErr: any) {
+      console.error("Erro ao sincronizar com o Firestore automaticamente:", firebaseErr);
+      if (firebaseErr?.message?.includes("too large") || firebaseErr?.message?.includes("maximum size")) {
+        showToast("Aviso: O comprovante ou boleto em anexo é grande demais para ser salvo na nuvem (limite do banco de dados). Delete o anexo ou anexe arquivos menores.", "error");
+      }
     }
   };
 
