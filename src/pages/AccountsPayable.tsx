@@ -339,6 +339,17 @@ export default function AccountsPayable() {
   const [dueTomorrowCount, setDueTomorrowCount] = useState(0);
   const [overdueCount, setOverdueCount] = useState(0);
 
+  // Custom Toast System
+  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'info' | 'error' | 'warning' }[]>([]);
+
+  const showToast = (message: string, type: 'success' | 'info' | 'error' | 'warning' = 'success') => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 5000);
+  };
+
   // Filters state
   const [filterPeriodStart, setFilterPeriodStart] = useState('');
   const [filterPeriodEnd, setFilterPeriodEnd] = useState('');
@@ -485,7 +496,7 @@ export default function AccountsPayable() {
       localStorage.setItem(`g_azevedo_ap_items_clean`, JSON.stringify(fullList));
     } catch (err) {
       console.error("Erro ao salvar no localStorage", err);
-      alert("Aviso: Limite de armazenamento local atingido por conta do tamanho dos anexos. O comprovante foi salvo nesta sessão, mas pode não persistir ao recarregar a página.");
+      showToast("Aviso: Limite de armazenamento local atingido por conta do tamanho dos anexos. O comprovante foi salvo nesta sessão, mas pode não persistir ao recarregar a página.", "warning");
     }
   };
 
@@ -495,11 +506,11 @@ export default function AccountsPayable() {
       const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
       await setDoc(docRef, { data: accounts });
       setIsSaving(false);
-      alert(`Dados do contas a pagar de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`);
+      showToast(`Dados do contas a pagar de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`, "success");
     } catch (err) {
       console.error("Erro ao salvar contas a pagar no Firestore:", err);
       setIsSaving(false);
-      alert("Erro ao salvar dados do contas a pagar no servidor do Grupo Azevedo.");
+      showToast("Erro ao salvar dados do contas a pagar no servidor do Grupo Azevedo.", "error");
     }
   };
 
@@ -694,10 +705,10 @@ export default function AccountsPayable() {
         setFormBarcode(info.barcode);
         setFormBank(info.bank);
 
-        alert(`[Extração Concluída] Boleto processado com sucesso localmente (sem necessidade de IA)!`);
+        showToast(`[Extração Concluída] Boleto processado com sucesso localmente (sem necessidade de IA)!`, "success");
       } catch (err) {
         console.error('OCR Process failed:', err);
-        alert('Ocorreu um erro no processamento do boleto.');
+        showToast('Ocorreu um erro no processamento do boleto.', "error");
       } finally {
         setShowOcrLoading(false);
       }
@@ -711,7 +722,7 @@ export default function AccountsPayable() {
     if (!files || files.length === 0) return;
 
     setShowOcrLoading(true);
-    alert(`Processando e extraindo dados de ${files.length} boletos localmente (Sem necessidade de IA)...`);
+    showToast(`Processando e extraindo dados de ${files.length} boletos localmente (Sem necessidade de IA)...`, "info");
 
     const loadedAccounts: AccountPayable[] = [];
 
@@ -760,14 +771,14 @@ export default function AccountsPayable() {
     setAccounts(updated);
     saveAccountsToStorage(updated);
     setShowOcrLoading(false);
-    alert(`Sucesso! ${loadedAccounts.length} boletos processados e cadastrados de forma autônoma.`);
+    showToast(`Sucesso! ${loadedAccounts.length} boletos processados e cadastrados de forma autônoma.`, "success");
   };
 
   // Form submit (supports dynamic recurring and automatic multi-installments generation)
   const handleSubmitAccount = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formSupplier || !formValue || !formDueDate) {
-      alert('Por favor preencha Fornecedor, Valor e Vencimento do boleto');
+      showToast('Por favor preencha Fornecedor, Valor e Vencimento do boleto', "warning");
       return;
     }
 
@@ -850,7 +861,7 @@ export default function AccountsPayable() {
 
       setShowAddModal(false);
       setIsSubmitting(false);
-      alert(intCount > 1 ? `Lançamento concluído! ${intCount} parcelas geradas de forma automatizada.` : 'Conta cadastrada com sucesso!');
+      showToast(intCount > 1 ? `Lançamento concluído! ${intCount} parcelas geradas de forma automatizada.` : 'Conta cadastrada com sucesso!', "success");
     }, 800);
   };
 
@@ -890,7 +901,7 @@ export default function AccountsPayable() {
     saveAccountsToStorage(updated);
 
     // Dynamic prompt simulation / cash flow integration
-    alert(`[Fluxo de Caixa] Conta marcada como paga! Lançamento de ${formatValueBrl(finalPaidAmount)} incluído com sucesso no extrato operacional.`);
+    showToast(`[Fluxo de Caixa] Conta marcada como paga! Lançamento de ${formatValueBrl(finalPaidAmount)} incluído com sucesso no extrato operacional.`, "success");
 
     setShowPaymentModal(false);
     setSelectedPayAccount(null);
@@ -945,7 +956,7 @@ export default function AccountsPayable() {
     setAccounts(updated);
     saveAccountsToStorage(updated);
     setSelectedAccounts([]);
-    alert(`Ação aplicada com sucesso para ${selectedAccounts.length} contas selecionadas!`);
+    showToast(`Ação aplicada com sucesso para ${selectedAccounts.length} contas selecionadas!`, "success");
   };
 
   // Perform actual bulk delete when confirmed in modal
@@ -955,7 +966,7 @@ export default function AccountsPayable() {
     saveAccountsToStorage(updated);
     setSelectedAccounts([]);
     setShowBulkDeleteConfirm(false);
-    alert('Contas apagadas em lote.');
+    showToast('Contas apagadas em lote.', "success");
   };
 
   // Clean or single delete
@@ -970,7 +981,7 @@ export default function AccountsPayable() {
     setAccounts(updated);
     saveAccountsToStorage(updated);
     setDeleteTarget(null);
-    alert('Conta excluída.');
+    showToast('Conta excluída.', "success");
   };
 
   const resizeImageBase64 = (base64: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
@@ -1070,7 +1081,7 @@ export default function AccountsPayable() {
     worksheet['!cols'] = [{ wch: 6 }, { wch: 25 }, { wch: 30 }, { wch: 35 }, { wch: 22 }, { wch: 25 }, { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 15 }, { wch: 18 }, { wch: 18 }, { wch: 22 }, { wch: 16 }, { wch: 40 }];
 
     XLSX.writeFile(workbook, `Contas_A_Pagar_Grupo_Azevedo_${currentStore.id}.xlsx`);
-    alert('Relatório Excel gerado e baixado com sucesso!');
+    showToast('Relatório Excel gerado e baixado com sucesso!', "success");
   };
 
   // Export fully functioning PDF Report using jsPDF
@@ -2665,6 +2676,36 @@ export default function AccountsPayable() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Toast Notification Container */}
+      <div id="toast-container" className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm pointer-events-none">
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: 50, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
+              className={`p-4 rounded-2xl shadow-xl border flex items-center gap-3 pointer-events-auto cursor-pointer ${
+                toast.type === 'success' 
+                  ? 'bg-slate-950 border-emerald-500/30 text-white' 
+                  : toast.type === 'error'
+                  ? 'bg-red-950 border-red-500/30 text-white'
+                  : toast.type === 'warning'
+                  ? 'bg-amber-950 border-amber-500/30 text-white'
+                  : 'bg-slate-950 border-slate-700 text-white'
+              }`}
+              onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+            >
+              {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />}
+              {toast.type === 'error' && <X className="w-5 h-5 text-red-400 shrink-0" />}
+              {toast.type === 'warning' && <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />}
+              {toast.type === 'info' && <Info className="w-5 h-5 text-sky-400 shrink-0" />}
+              <span className="text-xs font-bold leading-normal">{toast.message}</span>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
 
     </div>
   );
