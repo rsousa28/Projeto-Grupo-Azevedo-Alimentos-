@@ -72,7 +72,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       return false; // Team tab is strictly restricted to consolidated ROOT view only
     }
     if (item.path === '/accounts-payable') {
-      return user?.username === 'adm' || user?.username === 'victordiretor';
+      return user?.username === 'adm' || user?.username === 'victordiretor' || user?.username === 'patriciab28';
     }
     return !item.allowedRoles || (user && item.allowedRoles.includes(user.role));
   });

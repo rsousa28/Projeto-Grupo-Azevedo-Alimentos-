@@ -28,7 +28,7 @@ import {
   FileSpreadsheet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useStore } from '../contexts/StoreContext';
+import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { AccountPayable } from '../types';
 import { db } from '../lib/firebase';
@@ -413,6 +413,12 @@ export default function AccountsPayable() {
   const [attachedFileBase64, setAttachedFileBase64] = useState<string | null>(null);
   const [attachedNFBase64, setAttachedNFBase64] = useState<string | null>(null);
 
+  // Dynamically update formDueDate and formIssueDate when active period (selectedMonth/selectedYear) changes
+  useEffect(() => {
+    setFormIssueDate(`${selectedYear}-${selectedMonth}-10`);
+    setFormDueDate(`${selectedYear}-${selectedMonth}-20`);
+  }, [selectedMonth, selectedYear]);
+
   // Load and sync accounts per active store
   useEffect(() => {
     // Read from local storage
@@ -452,14 +458,49 @@ export default function AccountsPayable() {
     let isMounted = true;
     const fetchCloudAccounts = async () => {
       try {
-        const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists() && isMounted) {
-          const cloudData = docSnap.data().data || [];
-          if (cloudData.length > 0) {
-            const processed = processItems(cloudData);
+        if (currentStore.code === 'ROOT') {
+          // Fetch from all stores and merge
+          const allPromises = STORES.map(async (store) => {
+            try {
+              const docRef = doc(db, 'stores', store.id, 'accounts_payable', 'all');
+              const docSnap = await getDoc(docRef);
+              if (docSnap.exists()) {
+                return docSnap.data().data || [];
+              }
+            } catch (innerErr) {
+              console.warn(`Erro ao carregar contas da loja ${store.id}:`, innerErr);
+            }
+            return [];
+          });
+          
+          const results = await Promise.all(allPromises);
+          const mergedCloudData: AccountPayable[] = [];
+          const seenIds = new Set<string>();
+          for (const list of results) {
+            for (const item of list) {
+              if (item && item.id && !seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                mergedCloudData.push(item);
+              }
+            }
+          }
+          
+          if (isMounted) {
+            const processed = processItems(mergedCloudData);
             setAccounts(processed);
             localStorage.setItem(storageKey, JSON.stringify(processed));
+          }
+        } else {
+          // Single store scenario (e.g. Manager like Patricia)
+          const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists() && isMounted) {
+            const cloudData = docSnap.data().data || [];
+            if (cloudData.length > 0) {
+              const processed = processItems(cloudData);
+              setAccounts(processed);
+              localStorage.setItem(storageKey, JSON.stringify(processed));
+            }
           }
         }
       } catch (err) {
@@ -505,8 +546,34 @@ export default function AccountsPayable() {
     try {
       // Clean undefined fields recursively so Firestore doesn't reject the write operation
       const cleanAccounts = JSON.parse(JSON.stringify(accounts));
-      const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
-      await setDoc(docRef, { data: cleanAccounts });
+      
+      if (currentStore.code === 'ROOT') {
+        // Administrator saves all stores' accounts to their respective individual collections
+        const grouped: { [key: string]: AccountPayable[] } = {};
+        STORES.forEach(s => {
+          grouped[s.id] = [];
+        });
+        
+        cleanAccounts.forEach((ac: AccountPayable) => {
+          const sId = ac.storeId || 'admin-global';
+          if (!grouped[sId]) {
+            grouped[sId] = [];
+          }
+          grouped[sId].push(ac);
+        });
+        
+        const savePromises = Object.entries(grouped).map(async ([storeId, storeAccounts]) => {
+          const docRef = doc(db, 'stores', storeId, 'accounts_payable', 'all');
+          await setDoc(docRef, { data: storeAccounts });
+        });
+        
+        await Promise.all(savePromises);
+      } else {
+        // Manager saves only their own store
+        const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
+        await setDoc(docRef, { data: cleanAccounts });
+      }
+      
       setIsSaving(false);
       showToast(`Dados do contas a pagar de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`, "success");
     } catch (err) {
@@ -1204,8 +1271,18 @@ export default function AccountsPayable() {
     }
 
     // 6. Period Filtering
-    if (filterPeriodStart && ac.dueDate < filterPeriodStart) return false;
-    if (filterPeriodEnd && ac.dueDate > filterPeriodEnd) return false;
+    if (filterPeriodStart || filterPeriodEnd) {
+      if (filterPeriodStart && ac.dueDate < filterPeriodStart) return false;
+      if (filterPeriodEnd && ac.dueDate > filterPeriodEnd) return false;
+    } else {
+      // By default, filter strictly by selected month and year from the main period selector
+      if (ac.dueDate) {
+        const parts = ac.dueDate.split('-');
+        if (parts[0] !== selectedYear || parts[1] !== selectedMonth) {
+          return false;
+        }
+      }
+    }
 
     // 7. Value bounds checking
     if (filterMinVal && ac.value < parseFloat(filterMinVal)) return false;
@@ -1215,7 +1292,20 @@ export default function AccountsPayable() {
   });
 
   // KPI Calculations based on strictly filtered data to keep context consistent
-  const activeKPIAccounts = accounts.filter(ac => currentStore.code === 'ROOT' || ac.storeId === currentStore.id);
+  const activeKPIAccounts = accounts.filter(ac => {
+    // 1. Store Isolation filter
+    if (currentStore.code !== 'ROOT' && ac.storeId !== currentStore.id) {
+      return false;
+    }
+    // 2. Default to selected month/year for KPIs
+    if (ac.dueDate) {
+      const parts = ac.dueDate.split('-');
+      if (parts[0] !== selectedYear || parts[1] !== selectedMonth) {
+        return false;
+      }
+    }
+    return true;
+  });
   
   const todayStr = '2026-05-20';
   
@@ -1228,7 +1318,7 @@ export default function AccountsPayable() {
     .reduce((sum, item) => sum + item.value, 0);
 
   const bentoPaidMonthVal = activeKPIAccounts
-    .filter(ac => ac.status === 'Pago' && ac.paymentDate?.includes('2026-05'))
+    .filter(ac => ac.status === 'Pago' && ac.paymentDate?.includes(`${selectedYear}-${selectedMonth}`))
     .reduce((sum, item) => sum + item.value, 0);
 
   const bentoUpcomingVal = activeKPIAccounts
@@ -1273,6 +1363,520 @@ export default function AccountsPayable() {
   }, {});
 
   const maxExpenseVal = Math.max(...Object.values(expensesByCategory), 1) || 1;
+
+  if (user?.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
+    // Filter accounts belonging only to RioMar Papicu and selected period
+    const riomarAccounts = accounts.filter(ac => {
+      if (ac.storeId !== currentStore.id) return false;
+      if (ac.dueDate) {
+        const parts = ac.dueDate.split('-');
+        if (parts[0] !== selectedYear || parts[1] !== selectedMonth) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    return (
+      <div className={`p-4 md:p-8 min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0A0A] text-slate-100' : 'bg-slate-50/50 text-slate-800'}`}>
+        
+        {/* HEADER SECTION */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span 
+                style={{ backgroundColor: `${themePrimary}15`, color: isBebelu ? '#7F300C' : themePrimary, borderColor: `${themePrimary}30` }}
+                className="text-[10px] uppercase font-black px-2.5 py-1 rounded-full border tracking-wider"
+              >
+                Lançamento Rápido de Contas
+              </span>
+            </div>
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
+              Contas a Pagar
+            </h1>
+            <p className="text-slate-500 text-sm mt-1.5 font-medium">
+              Envie e registre faturas de {currentStore.name}. Ao finalizar, salve o período para enviar ao administrador.
+            </p>
+          </div>
+
+          {/* Action Button Row */}
+          <div className="flex flex-wrap items-center gap-3 md:self-end">
+            <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 mr-2">
+              <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
+              <select 
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+              >
+                {months.map(m => (
+                  <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
+                ))}
+              </select>
+              <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
+              <select 
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+              >
+                {years.map(y => (
+                  <option key={y} value={y} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{y}</option>
+                ))}
+              </select>
+              <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
+              <button 
+                onClick={handleSavePeriod}
+                disabled={isSaving}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+                  isSaving 
+                    ? 'bg-slate-400 text-white cursor-not-allowed' 
+                    : 'bg-indigo-600 hover:bg-black text-white'
+                }`}
+              >
+                {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {isSaving ? 'Salvando...' : 'Salvar Período'}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* CONTENT COLUMN/GRID */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mb-8">
+          
+          {/* LEFT PANEL: UPLOAD & PROCESS OR FILL MANUALLY */}
+          <div className="lg:col-span-4 flex flex-col gap-6">
+            
+            {/* OCR UPLOAD CONTAINER */}
+            <div className={`p-6 rounded-2xl border transition-all ${
+              isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
+            }`}>
+              <h3 className="text-sm uppercase font-black tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2">
+                <Upload className="w-4.5 h-4.5 text-indigo-500" />
+                Leitor Digital de Boleto (OCR)
+              </h3>
+              <p className="text-xs text-slate-400 mb-4 font-medium leading-relaxed font-sans">
+                Carregue o arquivo PDF ou Imagem do boleto para extrair automaticamente os valores e vencimentos diretamente no formulário ao lado.
+              </p>
+              
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                onMouseEnter={() => setIsHoverUploadZone(true)}
+                onMouseLeave={() => setIsHoverUploadZone(false)}
+                style={{ borderColor: isHoverUploadZone ? themePrimary : undefined }}
+                className="border-2 border-dashed border-slate-350 dark:border-[#333] rounded-xl p-5 text-center flex flex-col items-center justify-center gap-2 cursor-pointer bg-slate-50 dark:bg-[#121212] transition-all group"
+              >
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleBoletoOcrUpload}
+                  accept=".pdf,image/*"
+                  className="hidden"
+                />
+                {showOcrLoading ? (
+                  <div className="flex flex-col items-center justify-center gap-3">
+                    <RefreshCw className="w-8 h-8 animate-spin" style={{ color: themePrimary }} />
+                    <span className="text-xs font-bold uppercase tracking-wider animate-pulse animate-fade-in" style={{ color: isBebelu ? '#7F300C' : themePrimary }}>
+                      Lendo Arquivo...
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <div className="p-3 rounded-full group-hover:scale-110 transition-transform" style={{ backgroundColor: `${themePrimary}15` }}>
+                      <Upload className="w-5 h-5" style={{ color: isBebelu ? '#7F300C' : themePrimary }} />
+                    </div>
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                      Selecionar boleto
+                    </span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-snug">
+                      Arraste ou clique. Preenche fornecedor, valor, vencimento e código de barras instantaneamente.
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* OCR HINT WORKFLOW CARD */}
+            <div className={`p-4 rounded-xl border border-dashed transition-all bg-indigo-500/5 border-indigo-500/20 text-indigo-600 dark:text-indigo-400`}>
+              <div className="flex gap-2.5">
+                <AlertCircle className="w-4.5 h-4.5 text-indigo-500 shrink-0 mt-0.5" />
+                <div className="text-xs font-medium leading-relaxed font-sans">
+                  <strong className="block uppercase tracking-wider text-[10px] font-black mb-0.5">Como enviar?</strong>
+                  1. Selecione o Mês de vencimento acima.<br />
+                  2. Use o leitor OCR ou preencha o formulário manualmente.<br />
+                  3. Clique em "Confirmar Lançamento".<br />
+                  4. Clique em <strong className="font-extrabold uppercase text-[10px] tracking-wide inline-block bg-indigo-600 text-white px-1.5 py-0.5 rounded ml-0.5">Salvar Período</strong> no cabeçalho para finalizar o envio!
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* RIGHT PANEL: COMPREHENSIVE REGISTRATION FORM */}
+          <div className="lg:col-span-8">
+            <div className={`p-6 rounded-2xl border transition-all ${
+              isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
+            }`}>
+              <div className="border-b border-slate-200 dark:border-[#222] pb-3 mb-6">
+                <h3 className="text-base font-black uppercase tracking-tight italic text-slate-900 dark:text-white flex items-center gap-2">
+                  <Plus className="w-5 h-5 text-emerald-500" style={{ color: themePrimary }} />
+                  Formulário de Lançamento de Boleto
+                </h3>
+              </div>
+
+              <form onSubmit={handleSubmitAccount} className="flex flex-col gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Fornecedor *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formSupplier}
+                      onChange={(e) => setFormSupplier(e.target.value)}
+                      placeholder="Ex: Coca Cola S.A"
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-medium px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Valor Principal (R$) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={formValue}
+                      onChange={(e) => setFormValue(e.target.value)}
+                      placeholder="Ex: 1540.50"
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Descrição / Finalidade</label>
+                  <input
+                    type="text"
+                    value={formDescription}
+                    onChange={(e) => setFormDescription(e.target.value)}
+                    placeholder="Ex: Ref. compra semanal de insumos"
+                    style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                    className="w-full text-xs font-medium px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Categoria</label>
+                    <select
+                      value={formCategory}
+                      onChange={(e) => setFormCategory(e.target.value)}
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    >
+                      {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Centro de Custo</label>
+                    <select
+                      value={formCostCenter}
+                      onChange={(e) => setFormCostCenter(e.target.value)}
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    >
+                      {COST_CENTERS.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Emissão *</label>
+                    <input
+                      type="date"
+                      required
+                      value={formIssueDate}
+                      onChange={(e) => setFormIssueDate(e.target.value)}
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Vencimento *</label>
+                    <input
+                      type="date"
+                      required
+                      value={formDueDate}
+                      onChange={(e) => setFormDueDate(e.target.value)}
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-bold font-sans">Forma de Pagamento</label>
+                    <select
+                      value={formPaymentMethod}
+                      onChange={(e) => setFormPaymentMethod(e.target.value)}
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    >
+                      {PAYMENT_METHODS.map(pm => <option key={pm} value={pm}>{pm}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-bold font-mono">Código de Barras</label>
+                    <input
+                      type="text"
+                      value={formBarcode}
+                      onChange={(e) => setFormBarcode(e.target.value)}
+                      placeholder="Ex: 34191.79001 01043.513184..."
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-mono px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-bold font-sans">Número da NF ou Doc</label>
+                    <input
+                      type="text"
+                      value={formDocumentNumber}
+                      onChange={(e) => setFormDocumentNumber(e.target.value)}
+                      placeholder="Ex: NF-10492"
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-medium px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1 justify-end">
+                    <input
+                      type="file"
+                      ref={nfFileRef}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const reader = new FileReader();
+                        reader.onload = async (event) => {
+                          const rawBase64 = event.target?.result as string;
+                          try {
+                            const optimizedBase64 = await resizeImageBase64(rawBase64);
+                            setAttachedNFBase64(optimizedBase64);
+                          } catch (err) {
+                            console.error("Erro ao otimizar NF:", err);
+                            setAttachedNFBase64(rawBase64);
+                          }
+                          showToast("Nota Fiscal anexada com sucesso!", "success");
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                      accept=".pdf,image/*"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => nfFileRef.current?.click()}
+                      className={`flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-black border transition-all cursor-pointer ${
+                        attachedNFBase64 
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
+                          : 'bg-slate-100 border-slate-200 dark:bg-[#1C1C1C] dark:border-[#333] text-slate-500'
+                      }`}
+                    >
+                      <CheckCircle className={`w-4 h-4 ${attachedNFBase64 ? 'text-emerald-500' : 'text-slate-400'}`} />
+                      Anexar Nota Fiscal {attachedNFBase64 ? '✓' : ''}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Observações Extras</label>
+                  <textarea
+                    value={formNotes}
+                    onChange={(e) => setFormNotes(e.target.value)}
+                    placeholder="Adicione qualquer observação pertinente..."
+                    rows={2}
+                    style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                    className="w-full text-xs font-medium px-3.5 py-2 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                  />
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-slate-200 dark:border-[#222] flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    style={{ backgroundColor: themeButtonBg, color: themeTextContrast }}
+                    className="px-6 py-3 text-xs font-black rounded-xl cursor-pointer transition-all disabled:opacity-50 hover:opacity-90 uppercase tracking-widest flex items-center gap-2"
+                  >
+                    {isSubmitting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    Confirmar Lançamento do Boleto
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        {/* LIST OF LAUNCHED BOLETOS OF THE PERIOD */}
+        <div className={`p-6 rounded-2xl border transition-all ${
+          isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
+        }`}>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-slate-200 dark:border-[#222] pb-3 mb-4 gap-2">
+            <div>
+              <h3 className="text-base font-black uppercase tracking-tight italic text-slate-900 dark:text-white">
+                Boletos Lançados no Período (Ref. {months.find(m => m.value === selectedMonth)?.label}/{selectedYear})
+              </h3>
+              <p className="text-slate-400 text-xs mt-0.5 font-medium leading-relaxed font-sans">
+                Lista de seus boletos deste período. Confira os dados antes de clicar em "Salvar Período" para salvar no servidor!
+              </p>
+            </div>
+            <div className="text-xs font-black px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 font-sans">
+              Total Lançado: {formatValueBrl(riomarAccounts.reduce((sum, ac) => sum + ac.value, 0))}
+            </div>
+          </div>
+
+          {riomarAccounts.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 text-xs font-medium font-sans">
+              Nenhum boleto lançado para este período até o momento. Use o formulário acima para registrar o primeiro!
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full table-auto text-left text-sm font-medium">
+                <thead>
+                  <tr className="border-b border-slate-200 dark:border-[#222] bg-slate-50 dark:bg-[#181818] select-none text-slate-500 uppercase text-[10px] tracking-wider font-extrabold font-sans">
+                    <th className="px-4 py-3">Fornecedor</th>
+                    <th className="px-4 py-3">Descrição / Categoria</th>
+                    <th className="px-4 py-3 text-right">Valor</th>
+                    <th className="px-4 py-3 text-center">Vencimento</th>
+                    <th className="px-4 py-3 text-center">NF / Boleto</th>
+                    <th className="px-4 py-3 text-center w-24">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-[#222]">
+                  {riomarAccounts.map(ac => (
+                    <tr key={ac.id} className="hover:bg-slate-50/50 dark:hover:bg-white/1 text-xs text-slate-700 dark:text-slate-300">
+                      <td className="px-4 py-3.5 font-bold text-slate-900 dark:text-white font-sans">{ac.supplier}</td>
+                      <td className="px-4 py-3.5">
+                        <div className="font-medium font-sans">{ac.description || 'N/A'}</div>
+                        <div className="text-[10px] text-slate-400 font-black uppercase tracking-wider font-sans">{ac.category}</div>
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-bold text-slate-900 dark:text-white font-mono">{formatValueBrl(ac.value)}</td>
+                      <td className="px-4 py-3.5 text-center font-bold text-indigo-500 dark:text-indigo-400 font-mono">
+                        {ac.dueDate.split('-').reverse().join('/')}
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <div className="flex items-center justify-center gap-1 text-[10px] font-bold font-sans">
+                          {ac.attachedFile && (
+                            <span 
+                              onClick={() => setCurrentBoletoUrl(ac.attachedFile || null)}
+                              className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer bg-indigo-500/10 px-1.5 py-0.5 rounded"
+                            >
+                              Boleto ✓
+                            </span>
+                          )}
+                          {ac.documentNumber && (
+                            <span className="text-slate-500 bg-slate-100 dark:bg-black/20 dark:text-slate-400 px-1.5 py-0.5 rounded">
+                              {ac.documentNumber}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3.5 text-center">
+                        <button
+                          onClick={() => handleDeleteSingle(ac.id, ac.supplier)}
+                          className="p-1.5 rounded-lg text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
+                          title="Excluir Lançamento"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* REUSE DIALOGS FOR EXCLUSION AND BOLETO VIEWER */}
+        <AnimatePresence>
+          {deleteTarget && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className={`w-full max-w-md p-6 rounded-2xl shadow-xl border ${
+                  isDarkMode ? 'bg-[#121212] text-slate-200 border-[#222]' : 'bg-white text-slate-800 border-slate-250'
+                }`}
+              >
+                <div className="flex items-center justify-center w-12 h-12 rounded-full bg-red-500/10 text-red-500 mb-4 mx-auto">
+                  <AlertCircle className="w-6 h-6 animate-pulse" />
+                </div>
+                <h4 className="text-lg font-black uppercase tracking-tight italic text-center text-slate-900 dark:text-white mb-2 font-sans">
+                  Confirmar Exclusão
+                </h4>
+                <p className="text-xs text-slate-500 dark:text-slate-400 text-center mb-6 leading-relaxed font-sans">
+                  Tem certeza que deseja apagar permanentemente o contas a pagar de <span className="font-extrabold text-slate-800 dark:text-slate-200">"{deleteTarget.supplier}"</span>? Esta ação não poderá ser desfeita.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setDeleteTarget(null)}
+                    className="flex-1 py-2.5 text-xs font-bold text-slate-500 bg-slate-100 dark:bg-[#1E1E1E] rounded-xl hover:bg-slate-200 cursor-pointer font-sans"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSingleDeleteConfirm}
+                    className="flex-1 py-2.5 text-xs font-bold bg-red-600 text-white rounded-xl hover:bg-red-700 cursor-pointer font-sans"
+                  >
+                    Excluir
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {currentBoletoUrl && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4">
+              <div className="absolute top-4 right-4 flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentBoletoUrl(null)}
+                  className="bg-black/60 text-white p-2.5 rounded-full hover:bg-black/80 transition-all cursor-pointer border border-white/10"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="w-full max-w-4xl max-h-[85vh] overflow-auto flex items-center justify-center p-2">
+                {currentBoletoUrl.startsWith('data:application/pdf') ? (
+                  <iframe 
+                    src={currentBoletoUrl} 
+                    className="w-[80vw] h-[80vh] rounded-xl shadow-2xl bg-white border border-white/10"
+                    title="Visualizador de PDF"
+                  />
+                ) : (
+                  <img 
+                    src={currentBoletoUrl} 
+                    alt="Boleto Anexado" 
+                    className="max-w-full max-h-[80vh] rounded-xl shadow-2xl object-contain border border-white/10"
+                    referrerPolicy="no-referrer"
+                  />
+                )}
+              </div>
+            </div>
+          )}
+        </AnimatePresence>
+
+      </div>
+    );
+  }
 
   return (
     <div className={`p-4 md:p-8 min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0A0A] text-slate-100' : 'bg-slate-50/50 text-slate-800'}`}>

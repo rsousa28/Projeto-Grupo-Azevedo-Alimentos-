@@ -48,7 +48,7 @@ const Router = isPreview ? HashRouter : BrowserRouter;
 
 function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (!user || (user.username !== 'adm' && user.username !== 'victordiretor')) {
+  if (!user || (user.username !== 'adm' && user.username !== 'victordiretor' && user.username !== 'patriciab28')) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;
