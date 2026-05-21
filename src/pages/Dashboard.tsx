@@ -254,7 +254,12 @@ export default function Dashboard() {
       return indexA - indexB;
     });
 
-  const isPatriciab = user?.username === 'patriciab28';
+  const isPatriciab = 
+    user?.username === 'patriciab28' || 
+    user?.username?.toLowerCase().includes('paloma') || 
+    user?.role === 'MANAGER_BEBELU_MOSSORO' || 
+    user?.role === 'MANAGER_BEBELU_RIOMAR_PAPICU' || 
+    user?.role === 'MANAGER_4ESTYLOS_MOSSORO';
 
   const displayMetrics = [
     { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: 'up', change: '0' },

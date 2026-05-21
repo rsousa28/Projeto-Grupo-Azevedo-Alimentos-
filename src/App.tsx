@@ -48,7 +48,16 @@ const Router = isPreview ? HashRouter : BrowserRouter;
 
 function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  if (!user || (user.username !== 'adm' && user.username !== 'victordiretor' && user.username !== 'patriciab28')) {
+  const hasAccess = user && (
+    user.username === 'adm' || 
+    user.username === 'victordiretor' || 
+    user.username === 'patriciab28' || 
+    user.username?.toLowerCase().includes('paloma') ||
+    user.role === 'ADMIN' ||
+    user.role === 'MANAGER_BEBELU_MOSSORO' ||
+    user.role === 'MANAGER_BEBELU_RIOMAR_PAPICU'
+  );
+  if (!hasAccess) {
     return <Navigate to="/dashboard" replace />;
   }
   return <>{children}</>;

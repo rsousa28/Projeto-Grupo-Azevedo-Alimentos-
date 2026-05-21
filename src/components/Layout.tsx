@@ -72,7 +72,15 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       return false; // Team tab is strictly restricted to consolidated ROOT view only
     }
     if (item.path === '/accounts-payable') {
-      return user?.username === 'adm' || user?.username === 'victordiretor' || user?.username === 'patriciab28';
+      return (
+        user?.username === 'adm' || 
+        user?.username === 'victordiretor' || 
+        user?.username === 'patriciab28' || 
+        user?.username?.toLowerCase().includes('paloma') ||
+        user?.role === 'ADMIN' ||
+        user?.role === 'MANAGER_BEBELU_MOSSORO' ||
+        user?.role === 'MANAGER_BEBELU_RIOMAR_PAPICU'
+      );
     }
     return !item.allowedRoles || (user && item.allowedRoles.includes(user.role));
   });
