@@ -1431,8 +1431,16 @@ export default function AccountsPayable() {
 
   const maxExpenseVal = Math.max(...Object.values(expensesByCategory), 1) || 1;
 
-  if (user?.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
-    // Filter accounts belonging only to RioMar Papicu and selected period
+  const isManagerUser = user && (
+    user.role === 'MANAGER' || 
+    user.role?.startsWith('MANAGER_') ||
+    user.username === 'patriciab28' || 
+    user.username?.toLowerCase().includes('paloma') ||
+    user.username?.toLowerCase().includes('jef')
+  ) && user.username !== 'adm' && user.username !== 'victordiretor';
+
+  if (isManagerUser) {
+    // Filter accounts belonging only to current store and selected period
     const riomarAccounts = accounts.filter(ac => {
       if (ac.storeId !== currentStore.id) return false;
       if (ac.dueDate) {

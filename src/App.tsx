@@ -53,9 +53,10 @@ function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
     user.username === 'victordiretor' || 
     user.username === 'patriciab28' || 
     user.username?.toLowerCase().includes('paloma') ||
+    user.username?.toLowerCase().includes('jef') ||
     user.role === 'ADMIN' ||
-    user.role === 'MANAGER_BEBELU_MOSSORO' ||
-    user.role === 'MANAGER_BEBELU_RIOMAR_PAPICU'
+    user.role === 'MANAGER' ||
+    user.role?.startsWith('MANAGER_')
   );
   if (!hasAccess) {
     return <Navigate to="/dashboard" replace />;
@@ -65,16 +66,8 @@ function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
 
 function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const isManager = user && (
-    user.role === 'MANAGER' || 
-    user.role?.startsWith('MANAGER_') ||
-    user.username === 'patriciab28' || 
-    user.username?.toLowerCase().includes('paloma')
-  );
-  const hasAccess = user && !isManager && (
-    user.role === 'ADMIN' ||
-    user.role === 'FINANCIAL' ||
-    user.username === 'adm' ||
+  const hasAccess = user && (
+    user.username === 'adm' || 
     user.username === 'victordiretor'
   );
   if (!hasAccess) {

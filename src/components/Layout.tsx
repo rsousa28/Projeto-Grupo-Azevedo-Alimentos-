@@ -72,14 +72,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       return false; // Team tab is strictly restricted to consolidated ROOT view only
     }
     if (item.path === '/finance') {
-      const isManager = user && (
-        user.role === 'MANAGER' || 
-        user.role?.startsWith('MANAGER_') ||
-        user.username === 'patriciab28' || 
-        user.username?.toLowerCase().includes('paloma')
-      );
-      if (isManager) return false;
-      return user?.role === 'ADMIN' || user?.role === 'FINANCIAL' || user?.username === 'adm' || user?.username === 'victordiretor';
+      return user?.username === 'adm' || user?.username === 'victordiretor';
     }
     if (item.path === '/accounts-payable') {
       return (
@@ -87,9 +80,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         user?.username === 'victordiretor' || 
         user?.username === 'patriciab28' || 
         user?.username?.toLowerCase().includes('paloma') ||
+        user?.username?.toLowerCase().includes('jef') ||
         user?.role === 'ADMIN' ||
-        user?.role === 'MANAGER_BEBELU_MOSSORO' ||
-        user?.role === 'MANAGER_BEBELU_RIOMAR_PAPICU'
+        user?.role === 'MANAGER' ||
+        user?.role?.startsWith('MANAGER_')
       );
     }
     return !item.allowedRoles || (user && item.allowedRoles.includes(user.role));
