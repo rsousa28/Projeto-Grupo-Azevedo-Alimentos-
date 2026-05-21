@@ -41,6 +41,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      if (u === 'victordiretor' && p === '1234') {
+        const victorUser: User = { 
+          id: 'victor-diretor', 
+          name: 'Victor - Diretor Grupo AZ', 
+          username: 'victordiretor', 
+          role: 'FINANCIAL' 
+        };
+        setUser(victorUser);
+        localStorage.setItem('auth_user', JSON.stringify(victorUser));
+        return;
+      }
+
       if (u === 'patriciab28' && p === 'b28') {
         const pUser: User = { 
           id: 'patricia-b28', 

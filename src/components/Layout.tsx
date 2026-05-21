@@ -35,10 +35,10 @@ const EXECUTIVE_MANAGERS: User['role'][] = ['ADMIN', 'MANAGER', 'MANAGER_BEBELU_
 const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: ClipboardCheck, label: 'Checklists', path: '/checklist' },
-  { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: ALL_MANAGERS },
+  { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
   { icon: Receipt, label: 'Contas a Pagar', path: '/accounts-payable', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
-  { icon: Calculator, label: 'CMV & Engenharia', path: '/cmv', allowedRoles: ALL_MANAGERS },
+  { icon: Calculator, label: 'CMV & Engenharia', path: '/cmv', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
 ];
 
@@ -68,8 +68,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     if (currentStore.code === 'ROOT') {
       return item.path === '/team';
     }
+    if (item.path === '/team') {
+      return false; // Team tab is strictly restricted to consolidated ROOT view only
+    }
     if (item.path === '/accounts-payable') {
-      return user?.username === 'adm';
+      return user?.username === 'adm' || user?.username === 'victordiretor';
     }
     return !item.allowedRoles || (user && item.allowedRoles.includes(user.role));
   });
@@ -282,7 +285,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 {user?.username || user?.name || 'Visitante'}
               </div>
               <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.1em] italic leading-none">
-                {user?.role === 'ADMIN' ? 'CEO' : user?.role === 'MANAGER' ? 'Gerente' : 'Gerente do Grupo AZ'}
+                {user?.role === 'ADMIN' ? 'CEO' : (user?.username === 'victordiretor' || user?.role === 'FINANCIAL') ? 'Diretor' : 'Gerente'}
               </div>
             </div>
           </div>
