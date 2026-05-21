@@ -63,6 +63,26 @@ function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const isManager = user && (
+    user.role === 'MANAGER' || 
+    user.role?.startsWith('MANAGER_') ||
+    user.username === 'patriciab28' || 
+    user.username?.toLowerCase().includes('paloma')
+  );
+  const hasAccess = user && !isManager && (
+    user.role === 'ADMIN' ||
+    user.role === 'FINANCIAL' ||
+    user.username === 'adm' ||
+    user.username === 'victordiretor'
+  );
+  if (!hasAccess) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   const { user } = useAuth();
 
@@ -86,7 +106,11 @@ function AppRoutes() {
            <Route path="/dashboard" element={<Dashboard />} />
            <Route path="/cash-closing" element={<CashClosing />} />
            <Route path="/data-entry" element={<DataEntry />} />
-           <Route path="/finance" element={<Finance />} />
+           <Route path="/finance" element={
+             <FinanceAccessRoute>
+               <Finance />
+             </FinanceAccessRoute>
+           } />
            <Route path="/accounts-payable" element={
              <AdminOnlyRoute>
                <AccountsPayable />

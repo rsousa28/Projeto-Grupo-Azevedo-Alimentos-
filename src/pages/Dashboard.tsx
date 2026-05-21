@@ -255,11 +255,10 @@ export default function Dashboard() {
     });
 
   const isPatriciab = 
+    user?.role === 'MANAGER' ||
+    user?.role?.startsWith('MANAGER_') ||
     user?.username === 'patriciab28' || 
-    user?.username?.toLowerCase().includes('paloma') || 
-    user?.role === 'MANAGER_BEBELU_MOSSORO' || 
-    user?.role === 'MANAGER_BEBELU_RIOMAR_PAPICU' || 
-    user?.role === 'MANAGER_4ESTYLOS_MOSSORO';
+    user?.username?.toLowerCase().includes('paloma');
 
   const displayMetrics = [
     { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: 'up', change: '0' },
