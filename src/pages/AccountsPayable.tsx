@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   DollarSign, 
   Plus, 
@@ -1261,121 +1261,154 @@ export default function AccountsPayable() {
     doc.save(`Relatorio_Contas_A_Pagar_Grupo_Azevedo_${currentStore.id}.pdf`);
   };
 
-  // Filtering list logic
-  const filteredAccounts = accounts.filter(ac => {
-    // 1. Store Isolation filter
-    if (currentStore.code !== 'ROOT' && ac.storeId !== currentStore.id) {
-      return false;
-    }
-
-    // 2. Simple Smart Search
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      const matchSearch = 
-        ac.supplier.toLowerCase().includes(q) ||
-        ac.description.toLowerCase().includes(q) ||
-        ac.category.toLowerCase().includes(q) ||
-        (ac.documentNumber && ac.documentNumber.toLowerCase().includes(q)) ||
-        (ac.costCenter && ac.costCenter.toLowerCase().includes(q));
-      if (!matchSearch) return false;
-    }
-
-    // 3. Status filter
-    if (filterStatus !== 'all') {
-      const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado') && ac.dueDate < '2026-05-20');
-      if (filterStatus === 'Vencido' && !isAcOverdue) {
+  // Filtering list logic (Optimized & Memoized)
+  const filteredAccounts = useMemo(() => {
+    return accounts.filter(ac => {
+      // 1. Store Isolation filter
+      if (currentStore.code !== 'ROOT' && ac.storeId !== currentStore.id) {
         return false;
       }
-      if (filterStatus === 'Pendente' && (ac.status !== 'Pendente' || isAcOverdue)) {
+
+      // 2. Simple Smart Search
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const matchSearch = 
+          ac.supplier.toLowerCase().includes(q) ||
+          ac.description.toLowerCase().includes(q) ||
+          ac.category.toLowerCase().includes(q) ||
+          (ac.documentNumber && ac.documentNumber.toLowerCase().includes(q)) ||
+          (ac.costCenter && ac.costCenter.toLowerCase().includes(q));
+        if (!matchSearch) return false;
+      }
+
+      // 3. Status filter
+      if (filterStatus !== 'all') {
+        const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado') && ac.dueDate < '2026-05-20');
+        if (filterStatus === 'Vencido' && !isAcOverdue) {
+          return false;
+        }
+        if (filterStatus === 'Pendente' && (ac.status !== 'Pendente' || isAcOverdue)) {
+          return false;
+        }
+        if (filterStatus !== 'Vencido' && filterStatus !== 'Pendente' && ac.status !== filterStatus) {
+          return false;
+        }
+      }
+
+      // 4. Category filter
+      if (filterCategory !== 'all' && ac.category !== filterCategory) {
         return false;
       }
-      if (filterStatus !== 'Vencido' && filterStatus !== 'Pendente' && ac.status !== filterStatus) {
+
+      // 5. Supplier exact filter input
+      if (filterSupplier && !ac.supplier.toLowerCase().includes(filterSupplier.toLowerCase())) {
         return false;
       }
-    }
 
-    // 4. Category filter
-    if (filterCategory !== 'all' && ac.category !== filterCategory) {
-      return false;
-    }
+      // 6. Period Filtering
+      if (filterPeriodStart || filterPeriodEnd) {
+        if (filterPeriodStart && ac.dueDate < filterPeriodStart) return false;
+        if (filterPeriodEnd && ac.dueDate > filterPeriodEnd) return false;
+      } else {
+        // By default, filter strictly by selected month and year from the main period selector
+        if (ac.dueDate) {
+          const parts = ac.dueDate.split('-');
+          if (parts[0] !== selectedYear || parts[1] !== selectedMonth) {
+            return false;
+          }
+        }
+      }
 
-    // 5. Supplier exact filter input
-    if (filterSupplier && !ac.supplier.toLowerCase().includes(filterSupplier.toLowerCase())) {
-      return false;
-    }
+      // 7. Value bounds checking
+      if (filterMinVal && ac.value < parseFloat(filterMinVal)) return false;
+      if (filterMaxVal && ac.value > parseFloat(filterMaxVal)) return false;
 
-    // 6. Period Filtering
-    if (filterPeriodStart || filterPeriodEnd) {
-      if (filterPeriodStart && ac.dueDate < filterPeriodStart) return false;
-      if (filterPeriodEnd && ac.dueDate > filterPeriodEnd) return false;
-    } else {
-      // By default, filter strictly by selected month and year from the main period selector
+      return true;
+    });
+  }, [
+    accounts, 
+    currentStore, 
+    search, 
+    filterStatus, 
+    filterCategory, 
+    filterSupplier, 
+    filterPeriodStart, 
+    filterPeriodEnd, 
+    selectedYear, 
+    selectedMonth, 
+    filterMinVal, 
+    filterMaxVal
+  ]);
+
+  // KPI Calculations based on strictly filtered data to keep context consistent (Optimized & Memoized)
+  const activeKPIAccounts = useMemo(() => {
+    return accounts.filter(ac => {
+      // 1. Store Isolation filter
+      if (currentStore.code !== 'ROOT' && ac.storeId !== currentStore.id) {
+        return false;
+      }
+      // 2. Default to selected month/year for KPIs
       if (ac.dueDate) {
         const parts = ac.dueDate.split('-');
         if (parts[0] !== selectedYear || parts[1] !== selectedMonth) {
           return false;
         }
       }
-    }
-
-    // 7. Value bounds checking
-    if (filterMinVal && ac.value < parseFloat(filterMinVal)) return false;
-    if (filterMaxVal && ac.value > parseFloat(filterMaxVal)) return false;
-
-    return true;
-  });
-
-  // KPI Calculations based on strictly filtered data to keep context consistent
-  const activeKPIAccounts = accounts.filter(ac => {
-    // 1. Store Isolation filter
-    if (currentStore.code !== 'ROOT' && ac.storeId !== currentStore.id) {
-      return false;
-    }
-    // 2. Default to selected month/year for KPIs
-    if (ac.dueDate) {
-      const parts = ac.dueDate.split('-');
-      if (parts[0] !== selectedYear || parts[1] !== selectedMonth) {
-        return false;
-      }
-    }
-    return true;
-  });
+      return true;
+    });
+  }, [accounts, currentStore, selectedYear, selectedMonth]);
   
   const todayStr = '2026-05-20';
   
-  const bentoTodayVal = activeKPIAccounts
-    .filter(ac => ac.dueDate === todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado')
-    .reduce((sum, item) => sum + item.value, 0);
+  // Single-pass aggregation for peak performance (O(N) instead of O(4N))
+  const { bentoTodayVal, bentoOverdueVal, bentoPaidMonthVal, bentoUpcomingVal } = useMemo(() => {
+    let today = 0;
+    let overdue = 0;
+    let paid = 0;
+    let upcoming = 0;
 
-  const bentoOverdueVal = activeKPIAccounts
-    .filter(ac => ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado') && ac.dueDate < todayStr))
-    .reduce((sum, item) => sum + item.value, 0);
+    activeKPIAccounts.forEach(ac => {
+      const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado') && ac.dueDate < todayStr);
+      
+      if (ac.dueDate === todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
+        today += ac.value;
+      }
+      
+      if (isAcOverdue) {
+        overdue += ac.value;
+      }
+      
+      if (ac.status === 'Pago' && ac.paymentDate?.includes(`${selectedYear}-${selectedMonth}`)) {
+        paid += ac.value;
+      }
+      
+      if (ac.dueDate > todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
+        upcoming += ac.value;
+      }
+    });
 
-  const bentoPaidMonthVal = activeKPIAccounts
-    .filter(ac => ac.status === 'Pago' && ac.paymentDate?.includes(`${selectedYear}-${selectedMonth}`))
-    .reduce((sum, item) => sum + item.value, 0);
+    return { bentoTodayVal: today, bentoOverdueVal: overdue, bentoPaidMonthVal: paid, bentoUpcomingVal: upcoming };
+  }, [activeKPIAccounts, selectedYear, selectedMonth, todayStr]);
 
-  const bentoUpcomingVal = activeKPIAccounts
-    .filter(ac => ac.dueDate > todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado')
-    .reduce((sum, item) => sum + item.value, 0);
+  // Sorting logic (Optimized & Memoized)
+  const sortedAccounts = useMemo(() => {
+    return [...filteredAccounts].sort((a, b) => {
+      let rawA = a[sortField];
+      let rawB = b[sortField];
 
-  // Sorting logic
-  const sortedAccounts = [...filteredAccounts].sort((a, b) => {
-    let rawA = a[sortField];
-    let rawB = b[sortField];
+      if (rawA === undefined) return 1;
+      if (rawB === undefined) return -1;
 
-    if (rawA === undefined) return 1;
-    if (rawB === undefined) return -1;
+      let res = 0;
+      if (typeof rawA === 'string' && typeof rawB === 'string') {
+        res = rawA.localeCompare(rawB);
+      } else if (typeof rawA === 'number' && typeof rawB === 'number') {
+        res = rawA - rawB;
+      }
 
-    let res = 0;
-    if (typeof rawA === 'string' && typeof rawB === 'string') {
-      res = rawA.localeCompare(rawB);
-    } else if (typeof rawA === 'number' && typeof rawB === 'number') {
-      res = rawA - rawB;
-    }
-
-    return sortDirection === 'asc' ? res : -res;
-  });
+      return sortDirection === 'asc' ? res : -res;
+    });
+  }, [filteredAccounts, sortField, sortDirection]);
 
   const handleSort = (field: keyof AccountPayable) => {
     if (sortField === field) {
