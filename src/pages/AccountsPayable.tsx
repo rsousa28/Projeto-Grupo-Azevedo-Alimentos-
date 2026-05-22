@@ -287,6 +287,32 @@ const BANKS = [
   'Caixa'
 ];
 
+function getTodayStr() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getTomorrowStr() {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getFutureDateStr(daysAhead: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + daysAhead);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function AccountsPayable() {
   const { currentStore, isDarkMode, brandColors } = useStore();
   const { user } = useAuth();
@@ -376,7 +402,7 @@ export default function AccountsPayable() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentFormVal, setPaymentFormVal] = useState('PIX');
   const [paymentBankVal, setPaymentBankVal] = useState('Itaú');
-  const [paymentDateVal, setPaymentDateVal] = useState('2026-05-20');
+  const [paymentDateVal, setPaymentDateVal] = useState(getTodayStr());
   const [paymentIsPartial, setPaymentIsPartial] = useState(false);
   const [receiptFilePreview, setReceiptFilePreview] = useState<string | null>(null);
   const [paymentFine, setPaymentFine] = useState('');
@@ -406,8 +432,8 @@ export default function AccountsPayable() {
   const [formInterest, setFormInterest] = useState('');
   const [formFine, setFormFine] = useState('');
   const [formDiscount, setFormDiscount] = useState('');
-  const [formIssueDate, setFormIssueDate] = useState('2026-05-20');
-  const [formDueDate, setFormDueDate] = useState('2026-05-27');
+  const [formIssueDate, setFormIssueDate] = useState(getTodayStr());
+  const [formDueDate, setFormDueDate] = useState(getFutureDateStr(7));
   const [formPaymentMethod, setFormPaymentMethod] = useState('Boleto Bancário');
   const [formBank, setFormBank] = useState('Banco do Brasil');
   const [formBarcode, setFormBarcode] = useState('');
@@ -444,7 +470,7 @@ export default function AccountsPayable() {
     }
 
     // Process dates to auto-set overdue statuses ('Vencido')
-    const todayStr = '2026-05-20'; // Reference date matching metadata local time
+    const todayStr = getTodayStr(); // Reference date matching metadata local time
     const processItems = (list: AccountPayable[]) => {
       return list.map(item => {
         if (
@@ -526,8 +552,8 @@ export default function AccountsPayable() {
 
   // Set alert badges when accounts change or store changes
   useEffect(() => {
-    const todayStr = '2026-05-20';
-    const tomorrowStr = '2026-05-21';
+    const todayStr = getTodayStr();
+    const tomorrowStr = getTomorrowStr();
 
     // Filter relevant accounts based on store isolation
     const relevant = accounts.filter(ac => currentStore.code === 'ROOT' || ac.storeId === currentStore.id);
@@ -740,8 +766,8 @@ export default function AccountsPayable() {
     }
 
     // 3. SMART DUE DATE DETECTION
-    let dueDate = '2026-05-27'; // Default is 7 days from today (today is 2026-05-20)
-    let issueDate = '2026-05-20'; // Current system timestamp
+    let dueDate = getFutureDateStr(7); // Default is 7 days from today
+    let issueDate = getTodayStr(); // Current system timestamp
 
     const isoMatch = cleanFn.match(/\b(202\d)[-/\.]([0-1]\d)[-/\.]([0-3]\d)\b/); // YYYY-MM-DD
     const brDateMatch = cleanFn.match(/\b([0-3]\d)[-/\.]([0-1]\d)[-/\.](202\d)\b/); // DD-MM-YYYY
@@ -870,7 +896,7 @@ export default function AccountsPayable() {
               discount: 0,
               issueDate: info.issueDate,
               dueDate: info.dueDate,
-              status: info.dueDate < '2026-05-20' ? 'Vencido' : 'Pendente',
+              status: info.dueDate < getTodayStr() ? 'Vencido' : 'Pendente',
               recurrence: 'Nenhuma',
               paymentMethod: 'Boleto Bancário',
               bank: info.bank,
@@ -950,7 +976,7 @@ export default function AccountsPayable() {
         barcode: formBarcode,
         documentNumber: formDocumentNumber ? (intCount > 1 ? `${formDocumentNumber} / ${i + 1}` : formDocumentNumber) : undefined,
         notes: formNotes,
-        status: formatDate(currentDueDate) < '2026-05-20' ? 'Vencido' : 'Pendente',
+        status: formatDate(currentDueDate) < getTodayStr() ? 'Vencido' : 'Pendente',
         recurrence: formRecurrence,
         installmentsCount: intCount > 1 ? intCount : undefined,
         installmentNumber: intCount > 1 ? i + 1 : undefined,
@@ -1322,7 +1348,7 @@ export default function AccountsPayable() {
 
       // 3. Status filter
       if (filterStatus !== 'all') {
-        const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado') && ac.dueDate < '2026-05-20');
+        const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado') && ac.dueDate < getTodayStr());
         if (filterStatus === 'Vencido' && !isAcOverdue) {
           return false;
         }
@@ -1397,7 +1423,7 @@ export default function AccountsPayable() {
     });
   }, [accounts, currentStore, selectedYear, selectedMonth]);
   
-  const todayStr = '2026-05-20';
+  const todayStr = getTodayStr();
   
   // Single-pass aggregation for peak performance (O(N) instead of O(4N))
   const { bentoTodayVal, bentoOverdueVal, bentoPaidMonthVal, bentoUpcomingVal } = useMemo(() => {
@@ -2483,7 +2509,7 @@ export default function AccountsPayable() {
               ) : (
                 paginatedAccounts.map(ac => {
                   const isSelect = selectedAccounts.includes(ac.id);
-                  const isOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado') && ac.dueDate < '2026-05-20');
+                  const isOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado') && ac.dueDate < getTodayStr());
                   const isPaid = ac.status === 'Pago';
                   const isPartial = ac.status === 'Parcialmente Pago';
                   const dateParts = ac.dueDate.split('-');
@@ -2609,7 +2635,7 @@ export default function AccountsPayable() {
                                 setPaymentFine(ac.fine && ac.fine > 0 ? String(ac.fine) : '');
                                 setPaymentInterest(ac.interest && ac.interest > 0 ? String(ac.interest) : '');
                                 setPaymentAmount(String(ac.value + (ac.fine || 0) + (ac.interest || 0)));
-                                setPaymentDateVal('2026-05-20');
+                                setPaymentDateVal(getTodayStr());
                                 setShowPaymentModal(true);
                               }}
                               className="px-3 py-1.5 text-xs font-black rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 hover:text-emerald-700 transition-all cursor-pointer"
