@@ -6,6 +6,7 @@
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { StoreProvider } from './contexts/StoreContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { ToastProvider } from './contexts/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -127,11 +128,13 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <StoreProvider>
-        <AppRoutes />
-      </StoreProvider>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <StoreProvider>
+          <AppRoutes />
+        </StoreProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 }
 

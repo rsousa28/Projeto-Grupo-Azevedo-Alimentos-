@@ -31,6 +31,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { AccountPayable } from '../types';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -347,15 +348,11 @@ export default function AccountsPayable() {
   const [dueTomorrowCount, setDueTomorrowCount] = useState(0);
   const [overdueCount, setOverdueCount] = useState(0);
 
-  // Custom Toast System
-  const [toasts, setToasts] = useState<{ id: string; message: string; type: 'success' | 'info' | 'error' | 'warning' }[]>([]);
+  // Custom Toast System mapped to Global Toast
+  const { showToast: triggerGlobalToast } = useToast();
 
   const showToast = (message: string, type: 'success' | 'info' | 'error' | 'warning' = 'success') => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 5000);
+    triggerGlobalToast(message, type);
   };
 
   // Filters state
@@ -2010,36 +2007,6 @@ export default function AccountsPayable() {
           )}
         </AnimatePresence>
 
-        {/* Toast Notification Container for Manager View */}
-        <div id="toast-container-manager" className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm pointer-events-none">
-          <AnimatePresence>
-            {toasts.map((toast) => (
-              <motion.div
-                key={toast.id}
-                initial={{ opacity: 0, y: 50, scale: 0.9 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
-                className={`p-4 rounded-2xl shadow-xl border flex items-center gap-3 pointer-events-auto cursor-pointer ${
-                  toast.type === 'success' 
-                    ? 'bg-slate-950 border-emerald-500/30 text-white' 
-                    : toast.type === 'error'
-                    ? 'bg-red-950 border-red-500/30 text-white'
-                    : toast.type === 'warning'
-                    ? 'bg-amber-950 border-amber-500/30 text-white'
-                    : 'bg-slate-950 border-slate-700 text-white'
-                }`}
-                onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
-              >
-                {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />}
-                {toast.type === 'error' && <X className="w-5 h-5 text-red-400 shrink-0" />}
-                {toast.type === 'warning' && <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />}
-                {toast.type === 'info' && <Info className="w-5 h-5 text-sky-400 shrink-0" />}
-                <span className="text-xs font-bold leading-normal">{toast.message}</span>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-
       </div>
     );
   }
@@ -3570,36 +3537,6 @@ export default function AccountsPayable() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* Toast Notification Container */}
-      <div id="toast-container" className="fixed bottom-6 right-6 z-50 flex flex-col gap-3 max-w-sm pointer-events-none">
-        <AnimatePresence>
-          {toasts.map((toast) => (
-            <motion.div
-              key={toast.id}
-              initial={{ opacity: 0, y: 50, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.85, transition: { duration: 0.2 } }}
-              className={`p-4 rounded-2xl shadow-xl border flex items-center gap-3 pointer-events-auto cursor-pointer ${
-                toast.type === 'success' 
-                  ? 'bg-slate-950 border-emerald-500/30 text-white' 
-                  : toast.type === 'error'
-                  ? 'bg-red-950 border-red-500/30 text-white'
-                  : toast.type === 'warning'
-                  ? 'bg-amber-950 border-amber-500/30 text-white'
-                  : 'bg-slate-950 border-slate-700 text-white'
-              }`}
-              onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
-            >
-              {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />}
-              {toast.type === 'error' && <X className="w-5 h-5 text-red-400 shrink-0" />}
-              {toast.type === 'warning' && <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />}
-              {toast.type === 'info' && <Info className="w-5 h-5 text-sky-400 shrink-0" />}
-              <span className="text-xs font-bold leading-normal">{toast.message}</span>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
 
     </div>
   );

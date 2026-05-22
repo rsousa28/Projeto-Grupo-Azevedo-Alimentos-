@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
+import { useToast } from '../contexts/ToastContext';
 import CSVImportModal from '../components/CSVImportModal';
 import { analyzeMenuEngineering } from '../services/geminiService';
 
@@ -40,6 +41,8 @@ export default function CMV() {
     setInventoryItems,
     deletePeriodData
   } = useStore();
+
+  const { success: toastSuccess, error: toastError } = useToast();
 
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -72,10 +75,10 @@ export default function CMV() {
       await new Promise(resolve => setTimeout(resolve, 800));
       await loadCMVPeriod(selectedMonth, selectedYear);
       
-      alert('Dados do período zerados com sucesso.');
+      toastSuccess('Dados do período zerados com sucesso.');
     } catch (error) {
       console.error('Erro ao zerar dados:', error);
-      alert('Erro ao zerar dados. Verifique sua conexão.');
+      toastError('Erro ao zerar dados. Verifique sua conexão.');
     } finally {
       setIsDeleting(false);
     }
@@ -150,10 +153,11 @@ export default function CMV() {
     setIsSaving(true);
     try {
       await saveCMVPeriod(selectedMonth, selectedYear, inventoryItems, topProducts);
+      toastSuccess('Dados do período salvos com sucesso!');
       setShowSavedFeedback(true);
       setTimeout(() => setShowSavedFeedback(false), 2000);
     } catch (err) {
-      alert('Erro ao salvar dados do período.');
+      toastError('Erro ao salvar dados do período.');
     } finally {
       setIsSaving(false);
     }

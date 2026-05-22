@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import jsPDF from 'jspdf';
@@ -48,6 +49,10 @@ interface CashClosingForm {
   outros4: number;
   totalSistema: number;
   observations: string;
+  outros1_label?: string;
+  outros2_label?: string;
+  outros3_label?: string;
+  outros4_label?: string;
 }
 
 const formatCurrencyLocal = (val: number) => 
@@ -59,6 +64,7 @@ const formatCurrencyLocal = (val: number) =>
 export default function CashClosing() {
   const { currentStore, isDarkMode, closingsData, setClosingsData } = useStore();
   const { user } = useAuth();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('05');
@@ -128,6 +134,10 @@ export default function CashClosing() {
     outros4: 0,
     totalSistema: 0,
     observations: '',
+    outros1_label: '',
+    outros2_label: '',
+    outros3_label: '',
+    outros4_label: '',
   };
 
   const [formData, setFormData] = useState<CashClosingForm>(initialFormState);
@@ -167,11 +177,11 @@ export default function CashClosing() {
       const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
       await setDoc(docRef, { data: closingsData });
       setIsSaving(false);
-      alert(`Dados de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`);
+      toastSuccess(`Dados de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`);
     } catch (err) {
       console.error("Erro ao salvar fechamentos:", err);
       setIsSaving(false);
-      alert("Erro ao salvar dados do faturamento e fechamento de caixa no servidor.");
+      toastError("Erro ao salvar dados do faturamento e fechamento de caixa no servidor.");
     }
   };
 
@@ -360,6 +370,10 @@ export default function CashClosing() {
         ['DESPESAS', formatCurrencyLocal(formData.despesas)],
         ['SANGRIA', formatCurrencyLocal(formData.sangria)],
         ['VALE FUNCIONÁRIO', formatCurrencyLocal(formData.valefuncionario)],
+        [formData.outros1_label || 'OUTROS (COD 50)', formatCurrencyLocal(formData.outros1)],
+        [formData.outros2_label || 'OUTROS 2', formatCurrencyLocal(formData.outros2)],
+        [formData.outros3_label || 'OUTROS 3', formatCurrencyLocal(formData.outros3)],
+        [formData.outros4_label || 'OUTROS 4', formatCurrencyLocal(formData.outros4)],
         ['TOTAL GERAL', formatCurrencyLocal(totalGeral)],
         ['TOTAL SISTEMA', formatCurrencyLocal(formData.totalSistema)],
         ['SOBRA', formatCurrencyLocal(sobra)],
@@ -661,7 +675,13 @@ export default function CashClosing() {
                                 : isDarkMode ? 'text-white group-hover:text-amber-500' : 'text-slate-900 group-hover:text-amber-500'
                             }`}>{item.label}</span>
                           ) : (
-                            <input type="text" placeholder={item.label} className={`flex-1 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase outline-none transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500 placeholder:text-slate-600' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'}`} />
+                            <input 
+                              type="text" 
+                              placeholder={item.label} 
+                              value={formData[`${item.field}_label` as keyof CashClosingForm] as string || ''}
+                              onChange={(e) => handleInputChange(`${item.field}_label` as keyof CashClosingForm, e.target.value)}
+                              className={`flex-1 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase outline-none transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500 placeholder:text-slate-600' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'}`} 
+                            />
                           )}
                           <input 
                             type="text" 

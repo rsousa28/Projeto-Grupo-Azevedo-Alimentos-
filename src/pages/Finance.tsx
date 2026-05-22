@@ -43,6 +43,7 @@ import {
   Cell
 } from 'recharts';
 import { useStore } from '../contexts/StoreContext';
+import { useToast } from '../contexts/ToastContext';
 import DataEntrySection from '../components/DataEntrySection';
 import { chatWithConsultant } from '../services/geminiService';
 
@@ -51,6 +52,7 @@ const formatCurrency = (val: number) =>
 
 export default function Finance() {
   const { isDarkMode, dreTimeline, brandColors, currentStore, topProducts, loadDREPeriod, loadCMVPeriod, deletePeriodData, yearlyHistory } = useStore();
+  const { success: toastSuccess, error: toastError } = useToast();
   const isBebeluRioMar = currentStore?.id === '2' || currentStore?.code === 'B28';
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio as default
   const [selectedYear, setSelectedYear] = useState('2026');
@@ -77,10 +79,10 @@ export default function Finance() {
       await loadDREPeriod(selectedMonth, selectedYear);
       await loadCMVPeriod(selectedMonth, selectedYear);
       
-      alert('Dados do período zerados com sucesso.');
+      toastSuccess('Dados do período zerados com sucesso.');
     } catch (error) {
       console.error('Erro ao zerar dados:', error);
-      alert('Erro ao zerar dados. Verifique sua conexão.');
+      toastError('Erro ao zerar dados. Verifique sua conexão.');
     } finally {
       setIsDeleting(false);
     }

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Store, Metric, DREData } from '../types';
+import { useToast } from './ToastContext';
 import { mockMetrics, dreTimeline as mockDreTimeline, metaVsRealizado as mockMetaVsRealizado, topProducts as mockTopProducts, deliveryChannels as mockDeliveryChannels, salesByHour as mockSalesByHour, salesByDay as mockSalesByDay } from '../lib/mockData';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
@@ -276,6 +277,7 @@ const PRODUCT_CATEGORY_MAP: Record<string, string> = {
 const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
+  const { success: toastSuccess } = useToast();
   const [currentStore, setCurrentStore] = useState<Store>(STORES[3]);
   const isDarkMode = currentStore.brand === '4ESTYLOS' || currentStore.code === 'ROOT';
   const [metrics, setMetrics] = useState<Metric[]>(mockMetrics.map(m => ({ ...m, valor: 0, trend: 'neutral', change: '0%' })));
@@ -616,7 +618,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
     
     clearAllData();
-    alert('Todos os dados da unidade foram zerados com sucesso.');
+    toastSuccess('Todos os dados da unidade foram zerados com sucesso.');
   };
 
   return (

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
+import { useToast } from '../contexts/ToastContext';
 import { DREData } from '../types';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
@@ -51,6 +52,8 @@ export default function DataEntry() {
     saveDREPeriod,
     saveCMVPeriod
   } = useStore();
+
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
 
   const isBebeluRioMar = currentStore?.id === '2' || currentStore?.code === 'B28';
 
@@ -250,14 +253,14 @@ export default function DataEntry() {
           }
         }
 
-        alert(`Sucesso! Os dados de DRE e CMV de ${months.find(m => m.value === srcMonth)?.label}/${srcYear} foram carregados na tela. Revise e clique em 'Salvar Alterações' para salvar para o período ${currentMonthLabel}/${selectedYear}!`);
+        toastSuccess(`Os dados de DRE e CMV de ${months.find(m => m.value === srcMonth)?.label}/${srcYear} foram carregados na tela. Revise e clique em 'Salvar Alterações' para salvar para o período ${currentMonthLabel}/${selectedYear}!`, "Importação Concluída");
         setShowCopyModal(false);
       } else {
-        alert(`Nenhum dado cadastrado de DRE encontrado para o período selecionado (${months.find(m => m.value === srcMonth)?.label}/${srcYear}).`);
+        toastWarning(`Nenhum dado cadastrado de DRE encontrado para o período selecionado (${months.find(m => m.value === srcMonth)?.label}/${srcYear}).`);
       }
     } catch (err) {
       console.error(err);
-      alert("Erro ao copiar dados do período.");
+      toastError("Erro ao copiar dados do período.");
     } finally {
       setIsCopying(false);
     }

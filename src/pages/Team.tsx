@@ -21,6 +21,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { User } from '../types';
 import { db, OperationType, handleFirestoreError } from '../lib/firebase';
 import { 
@@ -38,6 +39,7 @@ import {
 export default function Team() {
   const { isDarkMode } = useStore();
   const { user: currentUser } = useAuth();
+  const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,9 +133,10 @@ export default function Team() {
         setUsers(prev => [...prev, { id: docRef.id, ...newUser } as User]);
       }
       setIsModalOpen(false);
+      toastSuccess("Definições do usuário salvas com sucesso!");
     } catch (error) {
       console.error("Error saving user:", error);
-      alert("Erro ao salvar usuário. Tente novamente.");
+      toastError("Erro ao salvar usuário. Tente novamente.");
     } finally {
       setLoading(false);
     }
@@ -141,12 +144,12 @@ export default function Team() {
 
   const handleDelete = async (id: string) => {
     if (id === 'root-admin') {
-      alert("Você não pode excluir o administrador raiz.");
+      toastWarning("Você não pode excluir o administrador raiz.");
       return;
     }
     
     if (currentUser && id === currentUser.id) {
-       alert("Sua sessão está ativa com este ID. Faça logout por segurança antes de remover.");
+       toastWarning("Sua sessão está ativa com este ID. Faça logout por segurança antes de remover.");
        return;
     }
 
@@ -161,9 +164,10 @@ export default function Team() {
       await deleteDoc(doc(db, 'users', deleteConfirmId));
       setUsers(prev => prev.filter(u => u.id !== deleteConfirmId));
       setDeleteConfirmId(null);
+      toastSuccess("Usuário removido com sucesso!");
     } catch (error) {
       console.error("Delete failed:", error);
-      alert("Erro de permissão no Firebase. As regras podem estar restringindo a exclusão.");
+      toastError("Erro de permissão no Firebase. As regras podem estar restringindo a exclusão.");
     } finally {
       setLoading(false);
     }
