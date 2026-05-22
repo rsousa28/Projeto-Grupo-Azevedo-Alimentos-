@@ -735,22 +735,24 @@ export default function CashClosing() {
                       setIsSaving(true);
                       await new Promise(r => setTimeout(r, 800));
                       
-                  const updated = {
-                    ...closingsData,
-                    [formData.date]: { ...formData, totalGeral, diff, sobra, falta }
-                  };
-                  setClosingsData(updated);
-                  localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
-                  
-                  try {
-                    const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
-                    await setDoc(docRef, { data: updated });
-                  } catch (err) {
-                    console.error("Erro ao salvar fechamento no Firestore:", err);
-                  }
-                  
-                  setIsSaving(false);
-                  setShowModal(false);
+                      const updated = {
+                        ...closingsData,
+                        [formData.date]: { ...formData, totalGeral, diff, sobra, falta }
+                      };
+                      setClosingsData(updated);
+                      localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
+                      
+                      try {
+                        const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
+                        await setDoc(docRef, { data: updated });
+                        toastSuccess("Fechamento de caixa confirmado e registrado com sucesso!");
+                      } catch (err) {
+                        console.error("Erro ao salvar fechamento no Firestore:", err);
+                        toastError("Erro ao salvar dados no servidor online.");
+                      }
+                      
+                      setIsSaving(false);
+                      setShowModal(false);
                     }}
                     className="px-10 py-4 bg-amber-500 hover:bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-amber-500/20 active:scale-95"
                   >
