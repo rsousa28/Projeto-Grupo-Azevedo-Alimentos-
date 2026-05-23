@@ -65,6 +65,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      if ((u === 'paloma' || u === 'palomab32') && p === 'b32') {
+        const palomaUser: User = { 
+          id: 'paloma-b32', 
+          name: 'Paloma - Bebelu Mossoró', 
+          username: 'palomab32', 
+          role: 'MANAGER_BEBELU_MOSSORO' 
+        };
+        setUser(palomaUser);
+        localStorage.setItem('auth_user', JSON.stringify(palomaUser));
+        return;
+      }
+
+      if ((u === 'jef' || u === 'jef4e09') && p === '4e09') {
+        const jefUser: User = { 
+          id: 'jef-4e09', 
+          name: 'Jefferson - 4 Estylos Mossoró', 
+          username: 'jef4e09', 
+          role: 'MANAGER_4ESTYLOS_MOSSORO' 
+        };
+        setUser(jefUser);
+        localStorage.setItem('auth_user', JSON.stringify(jefUser));
+        return;
+      }
+
       // 2. Check Firestore for custom users
       try {
         const usersRef = collection(db, 'users');
