@@ -66,6 +66,7 @@ export default function CashClosing() {
   const { currentStore, isDarkMode, closingsData, setClosingsData } = useStore();
   const { user } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  const isAdmin = user?.role === 'ADMIN' || user?.username === 'adm';
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState('05');
@@ -576,21 +577,35 @@ export default function CashClosing() {
                   <td className="px-8 py-6">
                     <div className="flex justify-center">
                       {closing.status === 'Concluído' ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleVerifyClosing(closing.id, !!closing.verified);
-                          }}
-                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider italic transition-all shrink-0 hover:scale-105 active:scale-95 ${
-                            closing.verified
-                              ? 'bg-green-500 text-white shadow-sm shadow-green-500/20 cursor-pointer animate-none'
-                              : 'bg-slate-100 hover:bg-slate-200 text-slate-400 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-500 cursor-pointer'
-                          }`}
-                          title={closing.verified ? "Desmarcar como Conferido" : "Marcar como Conferido"}
-                        >
-                          <CheckCircle2 className={`w-3.5 h-3.5 ${closing.verified ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
-                          <span>{closing.verified ? 'Conferido' : 'Conferir'}</span>
-                        </button>
+                        isAdmin ? (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleVerifyClosing(closing.id, !!closing.verified);
+                            }}
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider italic transition-all shrink-0 hover:scale-105 active:scale-95 ${
+                              closing.verified
+                                ? 'bg-green-500 text-white shadow-sm shadow-green-500/20 cursor-pointer'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-400 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-500 cursor-pointer'
+                            }`}
+                            title={closing.verified ? "Desmarcar como Conferido" : "Marcar como Conferido"}
+                          >
+                            <CheckCircle2 className={`w-3.5 h-3.5 ${closing.verified ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
+                            <span>{closing.verified ? 'Conferido' : 'Conferir'}</span>
+                          </button>
+                        ) : (
+                          <span
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider italic shrink-0 cursor-default ${
+                              closing.verified
+                                ? 'bg-green-500/20 text-green-600 dark:bg-green-500/10 dark:text-green-400'
+                                : 'bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500'
+                            }`}
+                            title={closing.verified ? "Conferido por Diretor/ADM" : "Pendente de conferência"}
+                          >
+                            <CheckCircle2 className={`w-3.5 h-3.5 ${closing.verified ? 'text-green-600 dark:text-green-400' : 'text-slate-400 dark:text-slate-500'}`} />
+                            <span>{closing.verified ? 'Conferido' : 'Pendente'}</span>
+                          </span>
+                        )
                       ) : (
                         <button
                           disabled
