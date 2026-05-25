@@ -428,34 +428,34 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
 
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase italic">Título do Modelo</label>
+                <label className="text-[10px] font-black uppercase italic text-slate-500 dark:text-slate-400">Título do Modelo</label>
                 <input
                   type="text"
                   required
                   value={newTemplateTitle}
                   onChange={(e) => setNewTemplateTitle(e.target.value)}
                   placeholder="Ex: Checklist Geral de Fechamento"
-                  className={`px-4 py-3 rounded-xl border text-xs font-semibold w-full outline-none focus:border-amber-500 transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
+                  className={`px-4 py-3 rounded-xl border text-xs font-semibold w-full outline-none focus:border-amber-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase italic">Descrição Curta</label>
+                <label className="text-[10px] font-black uppercase italic text-slate-500 dark:text-slate-400">Descrição Curta</label>
                 <input
                   type="text"
                   value={newTemplateDesc}
                   onChange={(e) => setNewTemplateDesc(e.target.value)}
                   placeholder="Ex: Auditoria noturna e procedimentos de segurança"
-                  className={`px-4 py-3 rounded-xl border text-xs font-semibold w-full outline-none focus:border-amber-500 transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
+                  className={`px-4 py-3 rounded-xl border text-xs font-semibold w-full outline-none focus:border-amber-500 transition-all placeholder:text-slate-400 dark:placeholder:text-slate-600 ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase italic">Categoria / Tipo</label>
+                <label className="text-[10px] font-black uppercase italic text-slate-500 dark:text-slate-400">Categoria / Tipo</label>
                 <select
                   value={newTemplateCategory}
                   onChange={(e) => setNewTemplateCategory(e.target.value as ChecklistCategory)}
-                  className={`px-4 py-3 rounded-xl border text-xs font-bold w-full outline-none focus:border-amber-500 transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
+                  className={`px-4 py-3 rounded-xl border text-xs font-bold w-full outline-none focus:border-amber-500 transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100 text-slate-800'}`}
                 >
                   {CATEGORIES.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
