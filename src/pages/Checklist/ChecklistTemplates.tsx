@@ -12,10 +12,12 @@ import {
   AlertCircle,
   Clock,
   User,
-  Settings2
+  Settings2,
+  Pencil
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useStore } from '../../contexts/StoreContext';
+import { useStore, STORES } from '../../contexts/StoreContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { 
   ChecklistTemplate, 
@@ -55,7 +57,8 @@ interface TemplatesProps {
 }
 
 export default function ChecklistTemplates({ templates, onSaveTemplates, onComplete }: TemplatesProps) {
-  const { isDarkMode, brandColors } = useStore();
+  const { currentStore, setStore, isDarkMode, brandColors } = useStore();
+  const { user } = useAuth();
   const { success: toastSuccess } = useToast();
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(templates[0]?.id || null);
 
@@ -84,6 +87,21 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
   const [enableFlow, setEnableFlow] = useState(false);
   const [flowTrigger, setFlowTrigger] = useState('NÃO');
   const [flowActionTitle, setFlowActionTitle] = useState('');
+
+  // Edit Question States
+  const [editingQuestion, setEditingQuestion] = useState<ChecklistQuestion | null>(null);
+  const [editQText, setEditQText] = useState('');
+  const [editQType, setEditQType] = useState<ResponseType>('sim_nao');
+  const [editQRequired, setEditQRequired] = useState(true);
+  const [editQWeight, setEditQWeight] = useState(3);
+  const [editQPhotoRequired, setEditQPhotoRequired] = useState(false);
+  const [editQEnableObs, setEditQEnableObs] = useState(true);
+  const [editQResponsible, setEditQResponsible] = useState('Gerente');
+  const [editQDeadline, setEditQDeadline] = useState('24h');
+  const [editQOptions, setEditQOptions] = useState('Excelente,Bom,Regular,Ruim');
+  const [editEnableFlow, setEditEnableFlow] = useState(false);
+  const [editFlowTrigger, setEditFlowTrigger] = useState('NÃO');
+  const [editFlowActionTitle, setEditFlowActionTitle] = useState('');
 
   const activeTemplate = templates.find(t => t.id === activeTemplateId);
 
@@ -199,6 +217,61 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
     toastSuccess("Pergunta excluída com sucesso.");
   };
 
+  // Start question edit workflow
+  const handleBeginEditQuestion = (q: ChecklistQuestion) => {
+    setEditingQuestion(q);
+    setEditQText(q.questionText);
+    setEditQType(q.responseType);
+    setEditQRequired(q.required);
+    setEditQWeight(q.weight);
+    setEditQPhotoRequired(q.photoRequired);
+    setEditQEnableObs(q.enableObservation);
+    setEditQResponsible(q.responsible || 'Gerente');
+    setEditQDeadline(q.deadline || '24h');
+    setEditQOptions(q.options ? q.options.join(',') : 'Excelente,Bom,Regular,Ruim');
+    setEditEnableFlow(!!q.intelligentFlow);
+    setEditFlowTrigger(q.intelligentFlow?.triggerOnValue || 'NÃO');
+    setEditFlowActionTitle(q.intelligentFlow?.actionPlanTitle || '');
+  };
+
+  // Save edited question
+  const handleSaveEditQuestion = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeTemplateId || !editingQuestion || !editQText.trim()) return;
+
+    const updatedQuestion: ChecklistQuestion = {
+      ...editingQuestion,
+      questionText: editQText,
+      responseType: editQType,
+      required: editQRequired,
+      weight: Number(editQWeight),
+      photoRequired: editQPhotoRequired,
+      enableObservation: editQEnableObs,
+      responsible: editQResponsible,
+      deadline: editQDeadline,
+      options: editQType === 'multipla_escolha' ? editQOptions.split(',').map(s => s.trim()) : undefined,
+      intelligentFlow: editEnableFlow ? {
+        triggerOnValue: editFlowTrigger,
+        actionPlanTitle: editFlowActionTitle || `Corrigir desconformidade em: ${editQText}`,
+        requirePhotoOnTrigger: true
+      } : undefined
+    };
+
+    const updated = templates.map(t => {
+      if (t.id === activeTemplateId) {
+        return {
+          ...t,
+          questions: t.questions.map(q => q.id === editingQuestion.id ? updatedQuestion : q)
+        };
+      }
+      return t;
+    });
+
+    onSaveTemplates(updated);
+    toastSuccess("Pergunta atualizada com sucesso!");
+    setEditingQuestion(null);
+  };
+
   // Autofill templates flow template when question type changes
   React.useEffect(() => {
     if (qType === 'sim_nao') {
@@ -210,8 +283,65 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
     }
   }, [qType]);
 
+  // Autofill templates flow template when edit question type changes
+  React.useEffect(() => {
+    if (editQType === 'sim_nao') {
+      setEditFlowTrigger('NÃO');
+    } else if (editQType === 'temperatura') {
+      setEditFlowTrigger('< -18');
+    } else {
+      setEditFlowTrigger('');
+    }
+  }, [editQType]);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="space-y-6">
+      {/* Active Branch Selector Banner */}
+      <div className={`p-5 rounded-[2rem] border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all ${
+        isDarkMode ? 'bg-[#121212]/60 border-amber-500/20 shadow-md' : 'bg-amber-500/5 border-amber-500/10 shadow-sm'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-[#FFCB05]/10 flex items-center justify-center shrink-0 text-[#FFCB05]">
+            <Settings className="w-5 h-5 animate-pulse text-[#FFCB05]" />
+          </div>
+          <div>
+            <h4 className={`text-xs font-black uppercase italic ${isDarkMode ? 'text-amber-400' : 'text-amber-800'}`}>
+              Configurando Checklist da Unidade: <span className="text-sm font-black underline italic tracking-tight">{currentStore.name} ({currentStore.code || 'GERAL'})</span>
+            </h4>
+            <p className="text-[10px] text-slate-500 font-medium leading-relaxed mt-0.5">
+              Tudo que você cadastrar, excluir ou editar nesta aba será salvo para a filial selecionada acima.
+            </p>
+          </div>
+        </div>
+
+        {/* Change Store selector dropdown if user is administrator or financial roles */}
+        {(user?.role === 'ADMIN' || user?.role === 'FINANCIAL') && (
+          <div className="flex items-center gap-2 self-start md:self-center bg-slate-100 dark:bg-zinc-900 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-zinc-800">
+            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 whitespace-nowrap">Filial ativa:</span>
+            <select
+              value={currentStore.id}
+              onChange={(e) => {
+                const selected = STORES.find(s => s.id === e.target.value);
+                if (selected) {
+                  setStore(selected);
+                  toastSuccess(`Alterado para configurar: ${selected.name}`);
+                }
+              }}
+              className={`px-2 py-1 bg-transparent rounded-lg text-[10px] font-black uppercase tracking-wider outline-none cursor-pointer ${
+                isDarkMode ? 'text-white' : 'text-slate-800'
+              }`}
+            >
+              {STORES.map(s => (
+                <option key={s.id} value={s.id} className={isDarkMode ? 'bg-zinc-900 text-white' : 'bg-white text-slate-800'}>
+                  {s.name} ({s.code})
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
       {/* Templates Selector List Sidebar */}
       <div className="lg:col-span-4 flex flex-col gap-4">
         <div className="flex items-center justify-between">
@@ -358,13 +488,24 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => handleDeleteQuestion(q.id)}
-                        className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all self-end sm:self-center"
-                        title="Excluir Pergunta"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center gap-2 self-end sm:self-center">
+                        <button
+                          type="button"
+                          onClick={() => handleBeginEditQuestion(q)}
+                          className="p-2 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-xl transition-all"
+                          title="Editar Pergunta"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteQuestion(q.id)}
+                          className="p-2 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all"
+                          title="Excluir Pergunta"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))
                 )}
@@ -404,6 +545,8 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
             </div>
           )}
         </AnimatePresence>
+      </div>
+
       </div>
 
       {/* CREATE NEW TEMPLATE MODAL */}
@@ -706,6 +849,231 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
                 className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95"
               >
                 Cadastrar Pergunta
+              </button>
+            </div>
+          </motion.form>
+        </div>
+      )}
+
+      {/* EDIT QUESTION MODAL - Rich Wizard */}
+      {editingQuestion && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setEditingQuestion(null)}
+          />
+          <motion.form 
+            onSubmit={handleSaveEditQuestion}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className={`relative w-full max-w-2xl overflow-hidden rounded-[2.5rem] p-8 shadow-2xl z-10 space-y-6 max-h-[90vh] overflow-y-auto ${
+              isDarkMode ? 'bg-[#121212] border border-slate-800' : 'bg-white border border-slate-100'
+            }`}
+          >
+            <div className="flex justify-between items-center">
+              <div>
+                <h3 className={`text-base font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Editar Pergunta</h3>
+                <p className="text-[10px] text-slate-500 mt-0.5">Modelo: <span className="font-extrabold text-[#FFCB05]">{activeTemplate?.title}</span></p>
+              </div>
+              <button type="button" onClick={() => setEditingQuestion(null)} className="p-1 rounded-full hover:bg-slate-100 dark:hover:bg-zinc-800"><X className="w-4 h-4" /></button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Question Text */}
+              <div className="space-y-1.5 md:col-span-2">
+                <label className="text-[10px] font-black uppercase italic text-slate-400">Texto da Pergunta</label>
+                <input
+                  type="text"
+                  required
+                  value={editQText}
+                  onChange={(e) => setEditQText(e.target.value)}
+                  placeholder="Ex: O freezer vertical de congelados está abaixo de -18ºC?"
+                  className={`px-4 py-3 rounded-xl border text-xs font-semibold w-full outline-none focus:border-amber-500 transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
+                />
+              </div>
+
+              {/* Response Type Selector */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase italic text-slate-400">Tipo de Resposta</label>
+                <select
+                  value={editQType}
+                  onChange={(e) => setEditQType(e.target.value as ResponseType)}
+                  className={`px-4 py-3 rounded-xl border text-xs font-bold w-full outline-none focus:border-amber-500 transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
+                >
+                  {RESPONSE_TYPES.map(rt => (
+                    <option key={rt.value} value={rt.value}>{rt.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Weight selector */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase italic text-slate-400">Peso / Relevância (1 a 5)</label>
+                <select
+                  value={editQWeight}
+                  onChange={(e) => setEditQWeight(Number(e.target.value))}
+                  className={`px-4 py-3 rounded-xl border text-xs font-bold w-full outline-none focus:border-amber-500 transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
+                >
+                  <option value={1}>1 (Baixo)</option>
+                  <option value={2}>2 (Médio-Baixo)</option>
+                  <option value={3}>3 (Médio)</option>
+                  <option value={4}>4 (Alto)</option>
+                  <option value={5}>5 (Crítico)</option>
+                </select>
+              </div>
+
+              {/* Multiple Choice Options Builder */}
+              {editQType === 'multipla_escolha' && (
+                <div className="space-y-1.5 md:col-span-2">
+                  <label className="text-[10px] font-black uppercase italic text-slate-400">Opções de Escolha (Separadas por vírgula)</label>
+                  <input
+                    type="text"
+                    required
+                    value={editQOptions}
+                    onChange={(e) => setEditQOptions(e.target.value)}
+                    placeholder="Excelente, Bom, Regular, Ruim"
+                    className={`px-4 py-3 rounded-xl border text-xs font-semibold w-full outline-none focus:border-amber-500 transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
+                  />
+                </div>
+              )}
+
+              {/* Responsible Person */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase italic text-slate-400">Responsável Recomendado</label>
+                <input
+                  type="text"
+                  required
+                  value={editQResponsible}
+                  onChange={(e) => setEditQResponsible(e.target.value)}
+                  placeholder="Ex: Gerente da Loja, Líder de Cozinha"
+                  className={`px-4 py-3 rounded-xl border text-xs font-semibold w-full outline-none focus:border-amber-500 transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
+                />
+              </div>
+
+              {/* Deadline Days */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase italic text-slate-400">Prazo para Solução</label>
+                <input
+                  type="text"
+                  required
+                  value={editQDeadline}
+                  onChange={(e) => setEditQDeadline(e.target.value)}
+                  placeholder="Ex: Imediato, 24 horas, 2 dias"
+                  className={`px-4 py-3 rounded-xl border text-xs font-semibold w-full outline-none focus:border-amber-500 transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-slate-50 border-slate-100'}`}
+                />
+              </div>
+
+              {/* Checkboxes parameters */}
+              <div className="md:col-span-2 flex flex-wrap gap-6 pt-2">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editQRequired}
+                    onChange={(e) => setEditQRequired(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                  />
+                  <span className={`text-xs font-bold leading-none ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>É Obrigatória</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editQPhotoRequired}
+                    onChange={(e) => setEditQPhotoRequired(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                  />
+                  <span className={`text-xs font-bold leading-none ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Foto de evidência obrigatória</span>
+                </label>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={editQEnableObs}
+                    onChange={(e) => setEditQEnableObs(e.target.checked)}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300"
+                  />
+                  <span className={`text-xs font-bold leading-none ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Habilitar campo de Observação</span>
+                </label>
+              </div>
+
+              {/* FLOW INTELIGENTE - Automatic Action Plan Rule */}
+              {['sim_nao', 'temperatura', 'numero'].includes(editQType) && (
+                <div className="md:col-span-2 border-t border-slate-100 dark:border-zinc-800 pt-4 mt-2 space-y-4">
+                  <label className="flex items-center gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editEnableFlow}
+                      onChange={(e) => setEditEnableFlow(e.target.checked)}
+                      className="w-4.5 h-4.5 rounded border-rose-400 text-rose-500 focus:ring-rose-500"
+                    />
+                    <div className="text-left">
+                      <span className="text-xs font-black text-rose-500 uppercase italic">Ativar Fluxo Inteligente para esta pergunta</span>
+                      <p className="text-[10px] text-slate-500 font-medium">Abre um plano de ação automático se a resposta estiver fora de conformidade.</p>
+                    </div>
+                  </label>
+
+                  {editEnableFlow && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`p-5 rounded-2xl border space-y-4 ${
+                        isDarkMode ? 'bg-zinc-950 border-rose-500/20' : 'bg-rose-50/20 border-rose-200'
+                      }`}
+                    >
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black uppercase text-slate-400">Trigger (Gatilho)</span>
+                          <input 
+                            type="text" 
+                            required
+                            value={editFlowTrigger}
+                            onChange={(e) => setEditFlowTrigger(e.target.value)}
+                            placeholder={editQType === 'sim_nao' ? 'NÃO' : '< -18'}
+                            className={`px-3 py-2.5 rounded-lg border text-xs font-bold w-full outline-none focus:border-rose-400 ${
+                              isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-white border-slate-200 text-black'
+                            }`}
+                          />
+                        </div>
+                        <div className="sm:col-span-2 space-y-1">
+                          <span className="text-[9px] font-black uppercase text-slate-400">Título do Plano de Ação Automático</span>
+                          <input 
+                            type="text" 
+                            required
+                            value={editFlowActionTitle}
+                            onChange={(e) => setEditFlowActionTitle(e.target.value)}
+                            placeholder="Anormalidade identificada! Solicitar ajuste inmediato."
+                            className={`px-3 py-2.5 rounded-lg border text-xs font-semibold w-full outline-none focus:border-rose-400 ${
+                              isDarkMode ? 'bg-black border-slate-800 text-white' : 'bg-white border-slate-200 text-black'
+                            }`}
+                          />
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-[#FFCB05] font-extrabold uppercase italic leading-none">
+                        💡 Nota: O fluxo inteligente exige obrigatoriamente imagem comprovando o desvio no ato da resposta.
+                      </p>
+                    </motion.div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2 border-t border-slate-100 dark:border-zinc-900">
+              <button 
+                type="button"
+                onClick={() => setEditingQuestion(null)}
+                className={`px-4 py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-colors ${
+                  isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Cancelar
+              </button>
+              <button 
+                type="submit"
+                className="px-5 py-2.5 bg-[#FFCB05] text-black font-black uppercase tracking-widest text-[10px] rounded-lg transition-all active:scale-95"
+              >
+                Salvar Alterações
               </button>
             </div>
           </motion.form>
