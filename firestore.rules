@@ -2,56 +2,68 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // Global helper for ID validation (prevents massive ID Poisoning/denial of wallet)
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    // 1. Users collection (for custom credential validation and management)
-    match /users/{userId} {
-      allow list: if true;
-      allow get, write: if isValidId(userId);
-    }
-
-    // 2. Stores parent resource
-    match /stores/{storeId} {
-      allow list: if true;
-      allow get, write: if isValidId(storeId);
-
-      // 3. CMV Periods subcollection
-      match /cmv_periods/{periodId} {
-        allow list: if true;
-        allow get, write: if isValidId(storeId) && isValidId(periodId);
-      }
-
-      // 4. DRE Periods subcollection
-      match /dre_periods/{periodId} {
-        allow list: if true;
-        allow get, write: if isValidId(storeId) && isValidId(periodId);
-      }
-
-      // 5. Checklists configurations, submissions, and action plans
-      match /checklists/{docId} {
-        allow list: if true;
-        allow get, write: if isValidId(storeId) && isValidId(docId);
-      }
-
-      // 6. Accounts Payable subcollection
-      match /accounts_payable/{docId} {
-        allow list: if true;
-        allow get, write: if isValidId(storeId) && isValidId(docId);
-      }
-
-      // 7. Cash Closings (closings/all) subcollection
-      match /closings/{docId} {
-        allow list: if true;
-        allow get, write: if isValidId(storeId) && isValidId(docId);
-      }
-    }
-
-    // Global Catch-all safety net
+    // Global Safety Net: default-deny catch-all rule
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // 1. Helper function to validate document ID string format to prevent ID Hijacking & Path Poisoning
+    function isValidId(id) {
+       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // 2. Helper function to restrict incoming payload size for DOS prevention (Denial of Wallet)
+    function sizeConstraint(data) {
+       return data.keys().size() <= 12;
+    }
+
+    // 3. Custom User Document schemas validation
+    function isValidUser(data) {
+       return data.name is string && data.name.size() <= 100
+           && data.username is string && data.username.size() <= 50
+           && data.password is string && data.password.size() <= 100
+           && data.role is string && data.role.size() <= 100;
+    }
+
+    // --- COLLECTION RULES ---
+
+    // 1. Users collection rules
+    match /users/{userId} {
+      allow list: if true; // Required by the lookup on custom login flow
+      allow get: if isValidId(userId);
+      allow create, update: if isValidId(userId) && sizeConstraint(request.resource.data) && isValidUser(request.resource.data);
+      allow delete: if isValidId(userId);
+    }
+
+    // 2. Stores collection rules
+    match /stores/{storeId} {
+      allow list: if true;
+      allow get: if isValidId(storeId);
+      allow create, update: if isValidId(storeId) && sizeConstraint(request.resource.data) 
+                            && request.resource.data.name is string && request.resource.data.name.size() <= 150
+                            && request.resource.data.brand is string && request.resource.data.brand.size() <= 100;
+      allow delete: if false; // Deletion is disabled for system store profiles
+    }
+
+    // 3. Store child collections and documents 
+    match /stores/{storeId}/{collectionName}/{docId} {
+      // General list/get access for operational panels
+      allow list: if isValidId(storeId);
+      allow get: if isValidId(storeId) && isValidId(docId);
+      
+      // Strict payload control and integrity enforcement for each subcollection
+      allow create, update: if isValidId(storeId) && isValidId(docId) 
+                            && request.resource.data.keys().size() <= 10
+                            && (
+                              // Check for 'all' document in sub-resource containing a 'data' array or object
+                              (request.resource.data.keys().hasAll(['data']) && (request.resource.data.data is list || request.resource.data.data is map))
+                              || 
+                              // Check for legacy or specific CMV period entries
+                              (collectionName == "cmv_periods" && request.resource.data.month is string && request.resource.data.year is string)
+                            );
+      
+      // Operations are protected and restricted
+      allow delete: if isValidId(storeId) && isValidId(docId);
     }
   }
 }
