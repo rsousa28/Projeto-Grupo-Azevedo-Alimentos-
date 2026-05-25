@@ -26,7 +26,8 @@ import {
   ExternalLink,
   Info,
   Layers,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Paperclip
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -423,6 +424,7 @@ export default function AccountsPayable() {
   const importInputRef = useRef<HTMLInputElement>(null);
   const docFileRef = useRef<HTMLInputElement>(null);
   const nfFileRef = useRef<HTMLInputElement>(null);
+  const boletoFileRef = useRef<HTMLInputElement>(null);
 
   const [formSupplier, setFormSupplier] = useState('');
   const [formDescription, setFormDescription] = useState('');
@@ -982,6 +984,7 @@ export default function AccountsPayable() {
         installmentNumber: intCount > 1 ? i + 1 : undefined,
         parentGroupId: groupId,
         attachedFile: attachedFileBase64 || undefined,
+        taxInvoiceFile: attachedNFBase64 || undefined,
         createdAt: new Date().toISOString()
       });
     }
@@ -1197,7 +1200,7 @@ export default function AccountsPayable() {
   };
 
   // Format Base64 File inputs for PDF/Images with automatic optimization
-  const handleFileInputBase64 = (e: React.ChangeEvent<HTMLInputElement>, type: 'nf' | 'comprovante') => {
+  const handleFileInputBase64 = (e: React.ChangeEvent<HTMLInputElement>, type: 'nf' | 'comprovante' | 'boleto') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1208,13 +1211,21 @@ export default function AccountsPayable() {
         const optimizedBase64 = await resizeImageBase64(rawBase64);
         if (type === 'nf') {
           setAttachedNFBase64(optimizedBase64);
+          showToast("Nota Fiscal anexada com sucesso!", "success");
+        } else if (type === 'boleto') {
+          setAttachedFileBase64(optimizedBase64);
+          showToast("Boleto anexado com sucesso!", "success");
         } else {
           setReceiptFilePreview(optimizedBase64);
         }
       } catch (err) {
-        console.error("Erro ao otimizar comprovante:", err);
+        console.error("Erro ao otimizar arquivo:", err);
         if (type === 'nf') {
           setAttachedNFBase64(rawBase64);
+          showToast("Nota Fiscal anexada com sucesso!", "success");
+        } else if (type === 'boleto') {
+          setAttachedFileBase64(rawBase64);
+          showToast("Boleto anexado com sucesso!", "success");
         } else {
           setReceiptFilePreview(rawBase64);
         }
@@ -1751,7 +1762,7 @@ export default function AccountsPayable() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400 font-bold font-sans">Número da NF ou Doc</label>
                     <input
@@ -1767,24 +1778,34 @@ export default function AccountsPayable() {
                   <div className="flex flex-col gap-1 justify-end">
                     <input
                       type="file"
+                      ref={boletoFileRef}
+                      onChange={(e) => handleFileInputBase64(e, 'boleto')}
+                      accept=".pdf,image/*"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => boletoFileRef.current?.click()}
+                      className={`flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-black border transition-all cursor-pointer ${
+                        attachedFileBase64 
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
+                          : 'bg-slate-100 border-slate-200 dark:bg-[#1C1C1C] dark:border-[#333] text-slate-500'
+                      }`}
+                    >
+                      {attachedFileBase64 ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      ) : (
+                        <Paperclip className="w-4 h-4 text-slate-400" />
+                      )}
+                      {attachedFileBase64 ? 'Boleto Anexado ✓' : 'Anexar Boleto'}
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-1 justify-end">
+                    <input
+                      type="file"
                       ref={nfFileRef}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const reader = new FileReader();
-                        reader.onload = async (event) => {
-                          const rawBase64 = event.target?.result as string;
-                          try {
-                            const optimizedBase64 = await resizeImageBase64(rawBase64);
-                            setAttachedNFBase64(optimizedBase64);
-                          } catch (err) {
-                            console.error("Erro ao otimizar NF:", err);
-                            setAttachedNFBase64(rawBase64);
-                          }
-                          showToast("Nota Fiscal anexada com sucesso!", "success");
-                        };
-                        reader.readAsDataURL(file);
-                      }}
+                      onChange={(e) => handleFileInputBase64(e, 'nf')}
                       accept=".pdf,image/*"
                       className="hidden"
                     />
@@ -1797,8 +1818,12 @@ export default function AccountsPayable() {
                           : 'bg-slate-100 border-slate-200 dark:bg-[#1C1C1C] dark:border-[#333] text-slate-500'
                       }`}
                     >
-                      <CheckCircle className={`w-4 h-4 ${attachedNFBase64 ? 'text-emerald-500' : 'text-slate-400'}`} />
-                      Anexar Nota Fiscal {attachedNFBase64 ? '✓' : ''}
+                      {attachedNFBase64 ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      ) : (
+                        <FileText className="w-4 h-4 text-slate-400" />
+                      )}
+                      {attachedNFBase64 ? 'Nota Fiscal Anexada ✓' : 'Anexar Nota Fiscal'}
                     </button>
                   </div>
                 </div>
@@ -1878,7 +1903,7 @@ export default function AccountsPayable() {
                       <td className="px-4 py-3.5 text-center font-bold text-indigo-500 dark:text-indigo-400 font-mono">
                         {ac.dueDate.split('-').reverse().join('/')}
                       </td>
-                      <td className="px-4 py-3.5 text-center">
+                       <td className="px-4 py-3.5 text-center">
                         <div className="flex items-center justify-center gap-1 text-[10px] font-bold font-sans">
                           {ac.attachedFile && (
                             <span 
@@ -1886,6 +1911,14 @@ export default function AccountsPayable() {
                               className="text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer bg-indigo-500/10 px-1.5 py-0.5 rounded"
                             >
                               Boleto ✓
+                            </span>
+                          )}
+                          {ac.taxInvoiceFile && (
+                            <span 
+                              onClick={() => setCurrentBoletoUrl(ac.taxInvoiceFile || null)}
+                              className="text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer bg-emerald-500/10 px-1.5 py-0.5 rounded"
+                            >
+                              NF ✓
                             </span>
                           )}
                           {ac.documentNumber && (
@@ -3256,7 +3289,31 @@ export default function AccountsPayable() {
                   />
                 </div>
 
-                <div className="flex items-center gap-2 mt-2">
+                <div className="flex flex-wrap items-center gap-2.5 mt-2">
+                  <input
+                    type="file"
+                    ref={boletoFileRef}
+                    onChange={(e) => handleFileInputBase64(e, 'boleto')}
+                    accept="image/*,.pdf"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => boletoFileRef.current?.click()}
+                    className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                      attachedFileBase64 
+                        ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
+                        : 'bg-slate-150 border-slate-250 dark:bg-[#1C1C1C] dark:border-[#333] text-slate-500'
+                    }`}
+                  >
+                    {attachedFileBase64 ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                    ) : (
+                      <Paperclip className="w-4 h-4 text-slate-400" />
+                    )}
+                    {attachedFileBase64 ? 'Boleto Anexado ✓' : 'Anexar Boleto'}
+                  </button>
+
                   <input
                     type="file"
                     ref={nfFileRef}
@@ -3267,14 +3324,18 @@ export default function AccountsPayable() {
                   <button
                     type="button"
                     onClick={() => nfFileRef.current?.click()}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                    className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                       attachedNFBase64 
                         ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
                         : 'bg-slate-150 border-slate-250 dark:bg-[#1C1C1C] dark:border-[#333] text-slate-500'
                     }`}
                   >
-                    <CheckCircle className={`w-4 h-4 ${attachedNFBase64 ? 'text-emerald-500' : 'text-slate-400'}`} />
-                    Anexar Nota Fiscal {attachedNFBase64 ? '✓' : ''}
+                    {attachedNFBase64 ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-500" />
+                    ) : (
+                      <FileText className="w-4 h-4 text-slate-400" />
+                    )}
+                    {attachedNFBase64 ? 'Nota Fiscal Anexada ✓' : 'Anexar Nota Fiscal'}
                   </button>
                 </div>
 
