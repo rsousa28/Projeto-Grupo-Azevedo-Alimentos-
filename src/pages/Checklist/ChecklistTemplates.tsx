@@ -50,7 +50,7 @@ const RESPONSE_TYPES: { value: ResponseType; label: string }[] = [
 
 interface TemplatesProps {
   templates: ChecklistTemplate[];
-  onSaveTemplates: (updated: ChecklistTemplate[], saveGlobally?: boolean) => void;
+  onSaveTemplates: (updated: ChecklistTemplate[]) => void;
   onComplete?: (templateId?: string) => void;
 }
 
@@ -58,7 +58,6 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
   const { isDarkMode, brandColors } = useStore();
   const { success: toastSuccess } = useToast();
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(templates[0]?.id || null);
-  const [syncGlobally, setSyncGlobally] = useState(true);
 
   // Modal triggers
   const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
@@ -103,7 +102,7 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
       createdAt: new Date().toISOString()
     };
 
-    onSaveTemplates([newTemplate, ...templates], syncGlobally);
+    onSaveTemplates([newTemplate, ...templates]);
     setActiveTemplateId(newTemplate.id);
     toastSuccess("Modelo de checklist criado com sucesso!");
     
@@ -123,7 +122,7 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
     if (!templateToDelete) return;
     const { id } = templateToDelete;
     const filtered = templates.filter(t => t.id !== id);
-    onSaveTemplates(filtered, syncGlobally);
+    onSaveTemplates(filtered);
     if (activeTemplateId === id) {
       setActiveTemplateId(filtered[0]?.id || null);
     }
@@ -166,7 +165,7 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
       return t;
     });
 
-    onSaveTemplates(updated, syncGlobally);
+    onSaveTemplates(updated);
     toastSuccess("Pergunta adicionada com sucesso!");
     
     // Reset question wizard
@@ -196,7 +195,7 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
       }
       return t;
     });
-    onSaveTemplates(updated, syncGlobally);
+    onSaveTemplates(updated);
     toastSuccess("Pergunta excluída com sucesso.");
   };
 
@@ -376,34 +375,16 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
                 <div className="space-y-1">
                   <span className="text-[10px] font-black uppercase text-amber-500 tracking-wider">Tudo pronto!</span>
                   <p className="text-[11px] text-slate-500 font-medium leading-normal max-w-sm">
-                    Clique em salvar para finalizar a configuração deste modelo e sincronizar.
+                    Clique em salvar para finalizar a configuração deste modelo para esta filial.
                   </p>
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  {/* Share/Sync with Jefferson & all stores toggle */}
-                  <div className="flex items-center gap-2.5 bg-indigo-500/10 dark:bg-indigo-500/5 px-4 py-3 rounded-2xl border border-indigo-500/20">
-                    <input
-                      type="checkbox"
-                      id="syncGloballyCheckbox"
-                      checked={syncGlobally}
-                      onChange={(e) => setSyncGlobally(e.target.checked)}
-                      className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 dark:border-zinc-800 dark:bg-black cursor-pointer"
-                    />
-                    <label id="syncGloballyCheckboxLabel" htmlFor="syncGloballyCheckbox" className="text-xs font-black text-indigo-600 dark:text-indigo-400 cursor-pointer select-none">
-                      Disponibilizar para Jefferson (Todas as Filiais) 🌐
-                    </label>
-                  </div>
-                  
                   <button
                     type="button"
                     onClick={() => {
-                      onSaveTemplates(templates, syncGlobally);
-                      if (syncGlobally) {
-                        toastSuccess("Modelo de checklist enviado e disponibilizado para todas as filiais e gerentes (incluindo Jefferson)!");
-                      } else {
-                        toastSuccess("Modelo de checklist e perguntas salvos com sucesso localmente!");
-                      }
+                      onSaveTemplates(templates);
+                      toastSuccess("Modelo de checklist salvo com sucesso para esta filial!");
                       if (onComplete) {
                         onComplete(activeTemplate.id);
                       }

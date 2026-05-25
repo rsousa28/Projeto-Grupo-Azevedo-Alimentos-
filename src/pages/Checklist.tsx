@@ -183,23 +183,12 @@ export default function Checklist() {
   }, [currentStore.id]);
 
   // Persists helper methods synced with Firestore & LocalStorage
-  const saveTemplates = async (updated: ChecklistTemplate[], saveGlobally: boolean = false) => {
+  const saveTemplates = async (updated: ChecklistTemplate[]) => {
     setTemplates(updated);
     localStorage.setItem(`checklist_templates_${currentStore.id}`, JSON.stringify(updated));
     try {
-      if (saveGlobally) {
-        // Sync templates across all active stores (including 1 - Bebelu Mossoro, 2 - Papicu, 3 - 4 Estylos/Jefferson, admin-global)
-        const targetStoreIds = ['1', '2', '3', 'admin-global'];
-        const promises = targetStoreIds.map(async (sId) => {
-          localStorage.setItem(`checklist_templates_${sId}`, JSON.stringify(updated));
-          const docRef = doc(db, 'stores', sId, 'checklists', 'templates');
-          await setDoc(docRef, { data: updated });
-        });
-        await Promise.all(promises);
-      } else {
-        const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'templates');
-        await setDoc(docRef, { data: updated });
-      }
+      const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'templates');
+      await setDoc(docRef, { data: updated });
     } catch (err) {
       console.error("Erro ao salvar templates:", err);
     }
