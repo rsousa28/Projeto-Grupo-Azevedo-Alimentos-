@@ -1586,68 +1586,33 @@ export default function AccountsPayable() {
         {/* CONTENT COLUMN/GRID */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start mb-8">
           
-          {/* LEFT PANEL: UPLOAD & PROCESS OR FILL MANUALLY */}
-          <div className="lg:col-span-4 flex flex-col gap-6">
+          {/* LEFT PANEL: MANUAL GUIDE */}
+          <div className="lg:col-span-3 flex flex-col gap-6">
             
-            {/* OCR UPLOAD CONTAINER */}
-            <div className={`p-6 rounded-2xl border transition-all ${
+            {/* MANUAL WORKFLOW CARD */}
+            <div className={`p-5 rounded-2xl border transition-all ${
               isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
             }`}>
-              <h3 className="text-sm uppercase font-black tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2">
-                <Upload className="w-4.5 h-4.5 text-indigo-500" />
-                Leitor Digital de Boleto (OCR)
-              </h3>
-              <p className="text-xs text-slate-400 mb-4 font-medium leading-relaxed font-sans">
-                Carregue o arquivo PDF ou Imagem do boleto para extrair automaticamente os valores e vencimentos diretamente no formulário ao lado.
-              </p>
-              
-              <div 
-                onClick={() => fileInputRef.current?.click()}
-                onMouseEnter={() => setIsHoverUploadZone(true)}
-                onMouseLeave={() => setIsHoverUploadZone(false)}
-                style={{ borderColor: isHoverUploadZone ? themePrimary : undefined }}
-                className="border-2 border-dashed border-slate-350 dark:border-[#333] rounded-xl p-5 text-center flex flex-col items-center justify-center gap-2 cursor-pointer bg-slate-50 dark:bg-[#121212] transition-all group"
-              >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleBoletoOcrUpload}
-                  accept=".pdf,image/*"
-                  className="hidden"
-                />
-                {showOcrLoading ? (
-                  <div className="flex flex-col items-center justify-center gap-3">
-                    <RefreshCw className="w-8 h-8 animate-spin" style={{ color: themePrimary }} />
-                    <span className="text-xs font-bold uppercase tracking-wider animate-pulse animate-fade-in" style={{ color: isBebelu ? '#7F300C' : themePrimary }}>
-                      Lendo Arquivo...
-                    </span>
-                  </div>
-                ) : (
-                  <>
-                    <div className="p-3 rounded-full group-hover:scale-110 transition-transform" style={{ backgroundColor: `${themePrimary}15` }}>
-                      <Upload className="w-5 h-5" style={{ color: isBebelu ? '#7F300C' : themePrimary }} />
-                    </div>
-                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                      Selecionar boleto
-                    </span>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium leading-snug">
-                      Arraste ou clique. Preenche fornecedor, valor, vencimento e código de barras instantaneamente.
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* OCR HINT WORKFLOW CARD */}
-            <div className={`p-4 rounded-xl border border-dashed transition-all bg-indigo-500/5 border-indigo-500/20 text-indigo-600 dark:text-indigo-400`}>
-              <div className="flex gap-2.5">
-                <AlertCircle className="w-4.5 h-4.5 text-indigo-500 shrink-0 mt-0.5" />
-                <div className="text-xs font-medium leading-relaxed font-sans">
-                  <strong className="block uppercase tracking-wider text-[10px] font-black mb-0.5">Como enviar?</strong>
-                  1. Selecione o Mês de vencimento acima.<br />
-                  2. Use o leitor OCR ou preencha o formulário manualmente.<br />
-                  3. Clique em "Confirmar Lançamento".<br />
-                  4. Clique em <strong className="font-extrabold uppercase text-[10px] tracking-wide inline-block bg-indigo-600 text-white px-1.5 py-0.5 rounded ml-0.5">Salvar Período</strong> no cabeçalho para finalizar o envio!
+              <h4 className="text-xs uppercase font-black tracking-wider text-slate-500 dark:text-slate-400 mb-3 flex items-center gap-2">
+                <AlertCircle className="w-4.5 h-4.5 text-indigo-500 shrink-0" />
+                Como Enviar?
+              </h4>
+              <div className="text-xs font-medium leading-relaxed font-sans text-slate-600 dark:text-slate-300 flex flex-col gap-3">
+                <div>
+                  <strong className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">1. Mês de Vencimento</strong>
+                  Selecione o Mês e Ano de vencimento no seletor no topo da página.
+                </div>
+                <div>
+                  <strong className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">2. Preenchimento Manual</strong>
+                  Insira as informações do fornecedor, valor principal, vencimento e demais campos do formulário ao lado.
+                </div>
+                <div>
+                  <strong className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-0.5">3. Confirmação</strong>
+                  Clique em <span className="font-bold">"Confirmar Lançamento"</span> para incluir a conta na tabela temporária.
+                </div>
+                <div>
+                  <strong className="block text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-1">4. Finalização</strong>
+                  Ao concluir todos os lançamentos, clique no botão <span className="font-extrabold text-indigo-600 dark:text-indigo-400">"Salvar Período"</span> no canto superior direito para gravar permanentemente.
                 </div>
               </div>
             </div>
@@ -1655,7 +1620,7 @@ export default function AccountsPayable() {
           </div>
 
           {/* RIGHT PANEL: COMPREHENSIVE REGISTRATION FORM */}
-          <div className="lg:col-span-8">
+          <div className="lg:col-span-9">
             <div className={`p-6 rounded-2xl border transition-all ${
               isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
             }`}>
@@ -3043,7 +3008,7 @@ export default function AccountsPayable() {
                     Novo Lançamento
                   </h3>
                   <p className="text-slate-400 text-[10px] tracking-wider uppercase font-black mt-1">
-                    Insira faturas ou deixe o leitor OCR preencher para você
+                    Preencha as informações do boleto manualmente abaixo
                   </p>
                 </div>
                 <button
@@ -3052,48 +3017,6 @@ export default function AccountsPayable() {
                 >
                   <X className="w-5 h-5" />
                 </button>
-              </div>
-
-              {/* UPLOAD & OCR SCAN ZONE */}
-              <div className="mb-6 animate-fade-in">
-                <label className="text-xs uppercase font-black tracking-wider text-slate-400 block mb-2">
-                  Processamento Digital de Boleto (PDF ou Imagem)
-                </label>
-                <div 
-                  onClick={() => fileInputRef.current?.click()}
-                  onMouseEnter={() => setIsHoverUploadZone(true)}
-                  onMouseLeave={() => setIsHoverUploadZone(false)}
-                  style={{ borderColor: isHoverUploadZone ? themePrimary : undefined }}
-                  className="border-2 border-dashed border-slate-350 dark:border-[#333] rounded-xl p-5 text-center flex flex-col items-center justify-center gap-2 cursor-pointer bg-slate-50 dark:bg-[#121212] transition-all group"
-                >
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleBoletoOcrUpload}
-                    accept=".pdf,image/*"
-                    className="hidden"
-                  />
-                  {showOcrLoading ? (
-                    <div className="flex flex-col items-center justify-center gap-3">
-                      <RefreshCw className="w-8 h-8 animate-spin" style={{ color: themePrimary }} />
-                      <span className="text-xs font-bold uppercase tracking-wider animate-pulse" style={{ color: isBebelu ? '#7F300C' : themePrimary }}>
-                        Extraindo Informações do Boleto Localmente...
-                      </span>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="p-3 rounded-full group-hover:scale-110 transition-transform" style={{ backgroundColor: `${themePrimary}15` }}>
-                        <Upload className="w-6 h-6" style={{ color: isBebelu ? '#7F300C' : themePrimary }} />
-                      </div>
-                      <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                        Arraste ou clique para carregar o boleto
-                      </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
-                        Suporta PDF ou Imagens. Preenche fornecedor, valor, vencimento, código de barras de forma autônoma.
-                      </span>
-                    </>
-                  )}
-                </div>
               </div>
 
               {/* MAIN RECORD FORM */}
