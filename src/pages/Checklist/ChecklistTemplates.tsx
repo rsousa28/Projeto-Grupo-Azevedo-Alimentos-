@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../../contexts/StoreContext';
+import { useToast } from '../../contexts/ToastContext';
 import { 
   ChecklistTemplate, 
   ChecklistQuestion, 
@@ -50,10 +51,12 @@ const RESPONSE_TYPES: { value: ResponseType; label: string }[] = [
 interface TemplatesProps {
   templates: ChecklistTemplate[];
   onSaveTemplates: (updated: ChecklistTemplate[]) => void;
+  onComplete?: (templateId?: string) => void;
 }
 
-export default function ChecklistTemplates({ templates, onSaveTemplates }: TemplatesProps) {
+export default function ChecklistTemplates({ templates, onSaveTemplates, onComplete }: TemplatesProps) {
   const { isDarkMode, brandColors } = useStore();
+  const { success: toastSuccess } = useToast();
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(templates[0]?.id || null);
 
   // Modal triggers
@@ -101,6 +104,7 @@ export default function ChecklistTemplates({ templates, onSaveTemplates }: Templ
 
     onSaveTemplates([newTemplate, ...templates]);
     setActiveTemplateId(newTemplate.id);
+    toastSuccess("Modelo de checklist criado com sucesso!");
     
     // Reset form
     setNewTemplateTitle('');
@@ -122,6 +126,7 @@ export default function ChecklistTemplates({ templates, onSaveTemplates }: Templ
     if (activeTemplateId === id) {
       setActiveTemplateId(filtered[0]?.id || null);
     }
+    toastSuccess("Modelo de checklist excluído com sucesso.");
     setTemplateToDelete(null);
   };
 
@@ -161,6 +166,7 @@ export default function ChecklistTemplates({ templates, onSaveTemplates }: Templ
     });
 
     onSaveTemplates(updated);
+    toastSuccess("Pergunta adicionada com sucesso!");
     
     // Reset question wizard
     setQText('');
@@ -190,6 +196,7 @@ export default function ChecklistTemplates({ templates, onSaveTemplates }: Templ
       return t;
     });
     onSaveTemplates(updated);
+    toastSuccess("Pergunta excluída com sucesso.");
   };
 
   // Autofill templates flow template when question type changes
@@ -361,6 +368,31 @@ export default function ChecklistTemplates({ templates, onSaveTemplates }: Templ
                     </div>
                   ))
                 )}
+              </div>
+
+              {/* Salvar Modelo Button Footer */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-8 pt-6 border-t border-slate-100 dark:border-zinc-900">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black uppercase text-amber-500 tracking-wider">Tudo pronto!</span>
+                  <p className="text-[11px] text-slate-500 font-medium leading-normal max-w-md">
+                    Clique em salvar para finalizar a configuração deste modelo e iniciar a vistoria imediatamente.
+                  </p>
+                </div>
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSaveTemplates(templates);
+                    toastSuccess("Modelo de checklist e perguntas salvos com sucesso!");
+                    if (onComplete) {
+                      onComplete(activeTemplate.id);
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-black uppercase tracking-wider text-[11px] rounded-2xl shadow-lg shadow-emerald-500/10 active:scale-95 transition-all cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  Salvar Checklist e Executar ✓
+                </button>
               </div>
             </motion.div>
           ) : (

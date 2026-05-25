@@ -452,6 +452,9 @@ export default function Checklist() {
               <ChecklistTemplates 
                 templates={templates}
                 onSaveTemplates={saveTemplates}
+                onComplete={() => {
+                  setActiveTab('fill');
+                }}
               />
             )}
           </div>
