@@ -2033,6 +2033,107 @@ export default function AccountsPayable() {
           )}
         </AnimatePresence>
 
+        {/* MODAL EDIT FOR MANAGERS */}
+        <AnimatePresence>
+          {editingAccount && (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl overflow-hidden ${
+                  isDarkMode ? 'bg-[#0E0E0E] text-slate-100 border-[#222]' : 'bg-white text-slate-800 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-[#222]">
+                  <div>
+                    <h3 className="text-lg font-black uppercase tracking-tight italic">Editar Lançamento</h3>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Ajuste os valores ou detalhes do boleto</span>
+                  </div>
+                  <button
+                    onClick={() => setEditingAccount(null)}
+                    className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-150 dark:hover:bg-[#202020] transition-colors cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSaveEdit} className="flex flex-col gap-4">
+                  
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Fornecedor</label>
+                    <input
+                      type="text"
+                      required
+                      value={editSupplier}
+                      onChange={(e) => setEditSupplier(e.target.value)}
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Descrição</label>
+                    <input
+                      type="text"
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Valor (R$)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        required
+                        value={editValue}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                        className="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Vencimento</label>
+                      <input
+                        type="date"
+                        required
+                        value={editDueDate}
+                        onChange={(e) => setEditDueDate(e.target.value)}
+                        style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                        className="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-300 focus:ring-1 [color-scheme:dark]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 justify-end mt-4 pt-3 border-t border-slate-200 dark:border-[#222]">
+                    <button
+                      type="button"
+                      onClick={() => setEditingAccount(null)}
+                      className="px-4 py-2 text-xs font-bold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white transition-colors cursor-pointer"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="submit"
+                      style={{ backgroundColor: themeButtonBg }}
+                      className="px-5 py-2.5 rounded-xl font-bold text-xs hover:opacity-90 active:scale-95 transition-all text-white cursor-pointer"
+                    >
+                      Salvar Alterações
+                    </button>
+                  </div>
+
+                </form>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
       </div>
     );
   }
