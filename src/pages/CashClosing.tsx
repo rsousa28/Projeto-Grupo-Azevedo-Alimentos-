@@ -53,6 +53,7 @@ interface CashClosingForm {
   outros2_label?: string;
   outros3_label?: string;
   outros4_label?: string;
+  verified?: boolean;
 }
 
 const formatCurrencyLocal = (val: number) => 
@@ -138,6 +139,7 @@ export default function CashClosing() {
     outros2_label: '',
     outros3_label: '',
     outros4_label: '',
+    verified: false,
   };
 
   const [formData, setFormData] = useState<CashClosingForm>(initialFormState);
@@ -229,7 +231,8 @@ export default function CashClosing() {
           expenses: savedData.despesas + savedData.sangria + savedData.valefuncionario,
           balance: savedData.totalGeral,
           status: 'Concluído' as const,
-          diff: savedData.totalGeral - savedData.totalSistema
+          diff: savedData.totalGeral - savedData.totalSistema,
+          verified: !!savedData.verified
         };
       }
 
@@ -243,7 +246,8 @@ export default function CashClosing() {
         expenses: 0,
         balance: 0,
         status: 'Pendente' as const,
-        diff: 0
+        diff: 0,
+        verified: false
       };
     });
 
@@ -281,6 +285,39 @@ export default function CashClosing() {
     const normalized = value.replace(',', '.').replace(/[^0-9.]/g, '');
     const num = parseFloat(normalized) || 0;
     setFormData(prev => ({ ...prev, [field]: num }));
+  };
+
+  const toggleVerifyClosing = async (id: string, currentVerified: boolean) => {
+    const saved = closingsData[id];
+    if (!saved) return; // Cannot verify a pending/non-existent closing
+
+    const updated = {
+      ...closingsData,
+      [id]: { 
+        ...saved, 
+        verified: !currentVerified 
+      }
+    };
+    
+    // Update local state
+    setClosingsData(updated);
+    
+    // Save to localStorage
+    localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
+    
+    // Save to Firestore
+    try {
+      const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
+      await setDoc(docRef, { data: updated });
+      if (!currentVerified) {
+        toastSuccess(`Caixa do dia ${id.split('-').reverse().join('/')} marcado como conferido!`);
+      } else {
+        toastSuccess(`Conferência do caixa do dia ${id.split('-').reverse().join('/')} removida.`);
+      }
+    } catch (err) {
+      console.error("Erro ao atualizar status de conferência no Firestore:", err);
+      toastError("Erro ao salvar status de conferência no servidor.");
+    }
   };
 
   const openEditModal = (id: string) => {
@@ -494,6 +531,7 @@ export default function CashClosing() {
                 <th className="px-8 py-4 text-[10px] font-black uppercase italic tracking-widest text-right">Faturamento</th>
                 <th className="px-8 py-4 text-[10px] font-black uppercase italic tracking-widest text-right">Sistema</th>
                 <th className="px-8 py-4 text-[10px] font-black uppercase italic tracking-widest text-center">Auditoria</th>
+                <th className="px-8 py-4 text-[10px] font-black uppercase italic tracking-widest text-center">Ações</th>
                 <th className="px-8 py-4"></th>
               </tr>
             </thead>
@@ -533,6 +571,35 @@ export default function CashClosing() {
                               ? `Sobra (+${formatCurrencyLocal(closing.diff)})` 
                               : `Falta (${formatCurrencyLocal(closing.diff)})`}
                       </span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="flex justify-center">
+                      {closing.status === 'Concluído' ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleVerifyClosing(closing.id, !!closing.verified);
+                          }}
+                          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider italic transition-all shrink-0 hover:scale-105 active:scale-95 ${
+                            closing.verified
+                              ? 'bg-green-500 text-white shadow-sm shadow-green-500/20 cursor-pointer animate-none'
+                              : 'bg-slate-100 hover:bg-slate-200 text-slate-400 dark:bg-white/5 dark:hover:bg-white/10 dark:text-slate-500 cursor-pointer'
+                          }`}
+                          title={closing.verified ? "Desmarcar como Conferido" : "Marcar como Conferido"}
+                        >
+                          <CheckCircle2 className={`w-3.5 h-3.5 ${closing.verified ? 'text-white' : 'text-slate-400 dark:text-slate-500'}`} />
+                          <span>{closing.verified ? 'Conferido' : 'Conferir'}</span>
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider italic opacity-30 cursor-not-allowed bg-slate-100 text-slate-400 dark:bg-white/5 dark:text-slate-500"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                          <span>Conferir</span>
+                        </button>
+                      )}
                     </div>
                   </td>
                   <td className="px-8 py-6 text-right">
