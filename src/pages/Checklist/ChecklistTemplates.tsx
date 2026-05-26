@@ -548,9 +548,6 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
                       try {
                         await onSaveTemplates(templates);
                         toastSuccess("Modelo de checklist salvo com sucesso para esta filial!");
-                        if (onComplete && activeTemplate) {
-                          onComplete(activeTemplate.id, templates);
-                        }
                       } catch (error: any) {
                         console.error(error);
                         toastError(error?.message || "Ocorreu um erro ao salvar o checklist.");
@@ -561,7 +558,7 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
                     className={`flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r ${
                       isSaving 
                         ? 'from-slate-400 to-slate-500 cursor-not-allowed opacity-70' 
-                        : 'from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-95 shadow-lg shadow-emerald-500/10'
+                        : 'from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-750 active:scale-95 shadow-lg shadow-emerald-500/10'
                     } text-white font-black uppercase tracking-wider text-[11px] rounded-2xl transition-all cursor-pointer`}
                   >
                     {isSaving ? (
@@ -572,7 +569,7 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
                     ) : (
                       <>
                         <Save className="w-4 h-4" />
-                        Salvar Checklist e Executar ✓
+                        Salvar Checklist ✓
                       </>
                     )}
                   </button>
