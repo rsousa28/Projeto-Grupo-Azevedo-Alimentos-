@@ -487,8 +487,18 @@ export default function Checklist() {
               <ChecklistTemplates 
                 templates={templates}
                 onSaveTemplates={saveTemplates}
-                onComplete={() => {
-                  setActiveTab('fill');
+                onComplete={(templateId, updatedTemplates) => {
+                  const listToUse = updatedTemplates || templates;
+                  if (templateId) {
+                    const temp = listToUse.find(t => t.id === templateId);
+                    if (temp && temp.questions && temp.questions.length > 0) {
+                      setExecutingTemplate(temp);
+                    } else {
+                      setActiveTab('fill');
+                    }
+                  } else {
+                    setActiveTab('fill');
+                  }
                 }}
               />
             )}

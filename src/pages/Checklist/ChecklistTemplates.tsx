@@ -54,13 +54,13 @@ const RESPONSE_TYPES: { value: ResponseType; label: string }[] = [
 interface TemplatesProps {
   templates: ChecklistTemplate[];
   onSaveTemplates: (updated: ChecklistTemplate[]) => Promise<void>;
-  onComplete?: (templateId?: string) => void;
+  onComplete?: (templateId?: string, updatedTemplates?: ChecklistTemplate[]) => void;
 }
 
 export default function ChecklistTemplates({ templates, onSaveTemplates, onComplete }: TemplatesProps) {
   const { currentStore, setStore, isDarkMode, brandColors } = useStore();
   const { user } = useAuth();
-  const { success: toastSuccess } = useToast();
+  const { success: toastSuccess, error: toastError } = useToast();
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(templates[0]?.id || null);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -549,10 +549,11 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
                         await onSaveTemplates(templates);
                         toastSuccess("Modelo de checklist salvo com sucesso para esta filial!");
                         if (onComplete && activeTemplate) {
-                          onComplete(activeTemplate.id);
+                          onComplete(activeTemplate.id, templates);
                         }
-                      } catch (error) {
+                      } catch (error: any) {
                         console.error(error);
+                        toastError(error?.message || "Ocorreu um erro ao salvar o checklist.");
                       } finally {
                         setIsSaving(false);
                       }
