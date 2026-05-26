@@ -264,13 +264,13 @@ export default function Checklist() {
   };
 
   // Submission submitted callback
-  const handleSubmissionCommitted = (sub: ChecklistSubmission, newPlans: ActionPlan[]) => {
+  const handleSubmissionCommitted = async (sub: ChecklistSubmission, newPlans: ActionPlan[]) => {
     const updatedSubmissions = [sub, ...submissions];
-    saveSubmissions(updatedSubmissions);
+    await saveSubmissions(updatedSubmissions);
 
     if (newPlans.length > 0) {
       const updatedPlans = [...newPlans, ...actionPlans];
-      savePlans(updatedPlans);
+      await savePlans(updatedPlans);
     }
 
     setExecutingTemplate(null);
@@ -346,7 +346,7 @@ export default function Checklist() {
               { id: 'fill', label: 'Executar Checklist', icon: ClipboardCheck },
               { id: 'history', label: 'Histórico & PDF', icon: History },
               { id: 'plans', label: 'Planos de Ação', icon: CheckSquare },
-              { id: 'config', label: 'Configurar Modelos', icon: Settings },
+              ...(user?.role === 'ADMIN' ? [{ id: 'config', label: 'Configurar Modelos', icon: Settings }] : []),
             ].map(tab => {
               const Icon = tab.icon;
               const active = activeTab === tab.id;
@@ -448,14 +448,16 @@ export default function Checklist() {
                   ))}
                   
                   {/* Create Template Quick Tile shortcut */}
-                  <div
-                    onClick={() => setActiveTab('config')}
-                    className="p-6 rounded-[2.5rem] border border-dashed border-slate-200 dark:border-zinc-800 flex flex-col items-center justify-center text-center cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-400 group transition-colors min-h-[220px]"
-                  >
-                    <Plus className="w-8 h-8 text-slate-400 group-hover:scale-110 group-hover:text-indigo-500 transition-all mb-3" />
-                    <h4 className={`text-xs font-black uppercase italic ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Criar Novo Modelo</h4>
-                    <p className="text-[10px] text-slate-500 max-w-[200px] mt-1.5 leading-normal">Configure uma nova área de checagem e perguntas customizadas.</p>
-                  </div>
+                  {user?.role === 'ADMIN' && (
+                    <div
+                      onClick={() => setActiveTab('config')}
+                      className="p-6 rounded-[2.5rem] border border-dashed border-slate-200 dark:border-zinc-800 flex flex-col items-center justify-center text-center cursor-pointer hover:border-indigo-500 dark:hover:border-indigo-400 group transition-colors min-h-[220px]"
+                    >
+                      <Plus className="w-8 h-8 text-slate-400 group-hover:scale-110 group-hover:text-indigo-500 transition-all mb-3" />
+                      <h4 className={`text-xs font-black uppercase italic ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>Criar Novo Modelo</h4>
+                      <p className="text-[10px] text-slate-500 max-w-[200px] mt-1.5 leading-normal">Configure uma nova área de checagem e perguntas customizadas.</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Checklist Categories Quick reference info */}
@@ -507,7 +509,7 @@ export default function Checklist() {
             )}
 
             {/* TAB 4: DEFINE AND CONFIGURE CHECKLISTS TEMPLATES */}
-            {activeTab === 'config' && (
+            {activeTab === 'config' && user?.role === 'ADMIN' && (
               <ChecklistTemplates 
                 templates={templates}
                 onSaveTemplates={saveTemplates}

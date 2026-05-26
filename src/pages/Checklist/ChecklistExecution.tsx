@@ -36,7 +36,7 @@ const MOCK_PHOTOS = [
 interface ExecutionProps {
   template: ChecklistTemplate;
   onBack: () => void;
-  onSubmit: (submission: ChecklistSubmission, generatedPlans: ActionPlan[]) => void;
+  onSubmit: (submission: ChecklistSubmission, generatedPlans: ActionPlan[]) => Promise<void> | void;
 }
 
 export default function ChecklistExecution({ template, onBack, onSubmit }: ExecutionProps) {
@@ -377,8 +377,14 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
       conformityIndex
     };
 
-    setIsSubmitting(false);
-    onSubmit(submission, generatedPlans);
+    try {
+      await onSubmit(submission, generatedPlans);
+    } catch (saveErr) {
+      console.error("Erro ao enviar submissão:", saveErr);
+      setErrorMsg("Ocorreu um erro ao salvar o checklist. Por favor tente novamente.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
