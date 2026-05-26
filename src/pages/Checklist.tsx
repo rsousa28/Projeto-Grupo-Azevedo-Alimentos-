@@ -16,7 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { 
   ChecklistTemplate, 
   ChecklistSubmission, 
@@ -125,68 +125,68 @@ export default function Checklist() {
       setActionPlans(getMockPlans());
     }
 
-    // 2. Synchronize from Firestore
-    let isMounted = true;
-    const fetchCloudChecklistData = async () => {
-      try {
-        // Fetch Templates
-        const templatesRef = doc(db, 'stores', storeId, 'checklists', 'templates');
-        const templatesSnap = await getDoc(templatesRef);
-        if (templatesSnap.exists() && isMounted) {
-          const cloudTemplates = templatesSnap.data().data || [];
-          setTemplates(cloudTemplates);
-          localStorage.setItem(`checklist_templates_${storeId}`, JSON.stringify(cloudTemplates));
-        } else if (!templatesSnap.exists() && isMounted) {
-          // Keep what is in localStorage if exists, or default to INITIAL_TEMPLATES.
-          // CRITICAL: DO NOT write to Firestore on mount to prevent racing/overwriting other sessions.
-          const stored = localStorage.getItem(`checklist_templates_${storeId}`);
-          if (stored) {
-            setTemplates(JSON.parse(stored));
-          } else {
-            setTemplates(INITIAL_TEMPLATES);
-          }
+    // 2. Synchronize in real-time from Firestore
+    const templatesRef = doc(db, 'stores', storeId, 'checklists', 'templates');
+    const unsubTemplates = onSnapshot(templatesRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const cloudTemplates = snapshot.data().data || [];
+        setTemplates(cloudTemplates);
+        localStorage.setItem(`checklist_templates_${storeId}`, JSON.stringify(cloudTemplates));
+      } else {
+        // Keep what is in localStorage if exists, or default to INITIAL_TEMPLATES.
+        const stored = localStorage.getItem(`checklist_templates_${storeId}`);
+        if (stored) {
+          setTemplates(JSON.parse(stored));
+        } else {
+          setTemplates(INITIAL_TEMPLATES);
         }
-
-        // Fetch Submissions
-        const submissionsRef = doc(db, 'stores', storeId, 'checklists', 'submissions');
-        const submissionsSnap = await getDoc(submissionsRef);
-        if (submissionsSnap.exists() && isMounted) {
-          const cloudSubmissions = submissionsSnap.data().data || [];
-          setSubmissions(cloudSubmissions);
-          localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(cloudSubmissions));
-        } else if (!submissionsSnap.exists() && isMounted) {
-          const stored = localStorage.getItem(`checklist_submissions_${storeId}`);
-          if (stored) {
-            setSubmissions(JSON.parse(stored));
-          } else {
-            setSubmissions([]);
-          }
-        }
-
-        // Fetch Action Plans
-        const plansRef = doc(db, 'stores', storeId, 'checklists', 'action_plans');
-        const plansSnap = await getDoc(plansRef);
-        if (plansSnap.exists() && isMounted) {
-          const cloudPlans = plansSnap.data().data || [];
-          setActionPlans(cloudPlans);
-          localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(cloudPlans));
-        } else if (!plansSnap.exists() && isMounted) {
-          const stored = localStorage.getItem(`checklist_action_plans_${storeId}`);
-          if (stored) {
-            setActionPlans(JSON.parse(stored));
-          } else {
-            setActionPlans([]);
-          }
-        }
-      } catch (err) {
-        console.error("Erro ao sincronizar checklists de Firestore:", err);
       }
-    };
+    }, (err) => {
+      console.error("Erro ao sincronizar templates em tempo real:", err);
+    });
 
-    fetchCloudChecklistData();
+    // Fetch Submissions
+    const submissionsRef = doc(db, 'stores', storeId, 'checklists', 'submissions');
+    const unsubSubmissions = onSnapshot(submissionsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const cloudSubmissions = snapshot.data().data || [];
+        setSubmissions(cloudSubmissions);
+        localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(cloudSubmissions));
+      } else {
+        const stored = localStorage.getItem(`checklist_submissions_${storeId}`);
+        if (stored) {
+          setSubmissions(JSON.parse(stored));
+        } else {
+          setSubmissions([]);
+        }
+      }
+    }, (err) => {
+      console.error("Erro ao sincronizar submissions em tempo real:", err);
+    });
+
+    // Fetch Action Plans
+    const plansRef = doc(db, 'stores', storeId, 'checklists', 'action_plans');
+    const unsubPlans = onSnapshot(plansRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const cloudPlans = snapshot.data().data || [];
+        setActionPlans(cloudPlans);
+        localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(cloudPlans));
+      } else {
+        const stored = localStorage.getItem(`checklist_action_plans_${storeId}`);
+        if (stored) {
+          setActionPlans(JSON.parse(stored));
+        } else {
+          setActionPlans([]);
+        }
+      }
+    }, (err) => {
+      console.error("Erro ao sincronizar action plans em tempo real:", err);
+    });
 
     return () => {
-      isMounted = false;
+      unsubTemplates();
+      unsubSubmissions();
+      unsubPlans();
     };
   }, [currentStore.id]);
 

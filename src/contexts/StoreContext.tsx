@@ -278,7 +278,38 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { success: toastSuccess } = useToast();
-  const [currentStore, setCurrentStore] = useState<Store>(STORES[3]);
+  
+  const [currentStore, setCurrentStore] = useState<Store>(() => {
+    const saved = localStorage.getItem('active_store_id');
+    if (saved) {
+      const found = STORES.find(s => s.id === saved);
+      if (found) return found;
+    }
+    
+    // Fallback: check matching role if user is stored in local storage
+    const savedUserStr = localStorage.getItem('auth_user');
+    if (savedUserStr) {
+      try {
+        const u = JSON.parse(savedUserStr);
+        if (u.role === 'MANAGER_BEBELU_MOSSORO') {
+          return STORES.find(s => s.code === 'B32') || STORES[3];
+        } else if (u.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
+          return STORES.find(s => s.code === 'B28') || STORES[3];
+        } else if (u.role === 'MANAGER_4ESTYLOS_MOSSORO') {
+          return STORES.find(s => s.code === '4E09') || STORES[3];
+        }
+      } catch (e) {
+        console.error("Error reading role for initial store:", e);
+      }
+    }
+    return STORES[3]; // Admin consolidated global by default
+  });
+
+  const setStore = (store: Store) => {
+    setCurrentStore(store);
+    localStorage.setItem('active_store_id', store.id);
+  };
+
   // All units use the premium, optimized dark theme to establish a clean and professional layout standard without visual clutter.
   // 4E09 and ROOT remain exactly the same as they were, while Bebelu (B32 & B28) is upgraded with custom yellow brand accents.
   const isDarkMode = true;
@@ -626,7 +657,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   return (
     <StoreContext.Provider value={{ 
       currentStore, 
-      setStore: setCurrentStore, 
+      setStore, 
       isDarkMode,
       brandColors,
       metrics,
