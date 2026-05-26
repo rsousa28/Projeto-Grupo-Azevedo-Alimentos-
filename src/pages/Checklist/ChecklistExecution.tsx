@@ -206,16 +206,63 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
     });
   };
 
+  const resizeImageBase64 = (base64: string, maxWidth = 600, maxHeight = 600): Promise<string> => {
+    return new Promise((resolve) => {
+      if (!base64.startsWith('data:image/')) {
+        resolve(base64);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.65));
+        } else {
+          resolve(base64);
+        }
+      };
+      img.onerror = () => {
+        resolve(base64);
+      };
+      img.src = base64;
+    });
+  };
+
   // Simulated Photo Upload or Preset Selection
   const handleFileChange = (qId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotos(prev => ({
-          ...prev,
-          [qId]: reader.result as string
-        }));
+      reader.onloadend = async () => {
+        const rawBase64 = reader.result as string;
+        try {
+          const compressed = await resizeImageBase64(rawBase64, 600, 600);
+          setPhotos(prev => ({
+            ...prev,
+            [qId]: compressed
+          }));
+        } catch (err) {
+          console.error("Erro ao compactar imagem:", err);
+          setPhotos(prev => ({
+            ...prev,
+            [qId]: rawBase64
+          }));
+        }
       };
       reader.readAsDataURL(file);
     }
