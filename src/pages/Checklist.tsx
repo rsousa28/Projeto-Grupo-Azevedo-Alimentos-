@@ -137,10 +137,14 @@ export default function Checklist() {
           setTemplates(cloudTemplates);
           localStorage.setItem(`checklist_templates_${storeId}`, JSON.stringify(cloudTemplates));
         } else if (!templatesSnap.exists() && isMounted) {
-          // Push initial defaults to cloud if it has none
-          setTemplates(INITIAL_TEMPLATES);
-          await setDoc(templatesRef, { data: INITIAL_TEMPLATES });
-          localStorage.setItem(`checklist_templates_${storeId}`, JSON.stringify(INITIAL_TEMPLATES));
+          // Keep what is in localStorage if exists, or default to INITIAL_TEMPLATES.
+          // CRITICAL: DO NOT write to Firestore on mount to prevent racing/overwriting other sessions.
+          const stored = localStorage.getItem(`checklist_templates_${storeId}`);
+          if (stored) {
+            setTemplates(JSON.parse(stored));
+          } else {
+            setTemplates(INITIAL_TEMPLATES);
+          }
         }
 
         // Fetch Submissions
@@ -151,10 +155,12 @@ export default function Checklist() {
           setSubmissions(cloudSubmissions);
           localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(cloudSubmissions));
         } else if (!submissionsSnap.exists() && isMounted) {
-          const mockSubs = getMockSubmissions();
-          setSubmissions(mockSubs);
-          await setDoc(submissionsRef, { data: mockSubs });
-          localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(mockSubs));
+          const stored = localStorage.getItem(`checklist_submissions_${storeId}`);
+          if (stored) {
+            setSubmissions(JSON.parse(stored));
+          } else {
+            setSubmissions([]);
+          }
         }
 
         // Fetch Action Plans
@@ -165,10 +171,12 @@ export default function Checklist() {
           setActionPlans(cloudPlans);
           localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(cloudPlans));
         } else if (!plansSnap.exists() && isMounted) {
-          const mockPlans = getMockPlans();
-          setActionPlans(mockPlans);
-          await setDoc(plansRef, { data: mockPlans });
-          localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(mockPlans));
+          const stored = localStorage.getItem(`checklist_action_plans_${storeId}`);
+          if (stored) {
+            setActionPlans(JSON.parse(stored));
+          } else {
+            setActionPlans([]);
+          }
         }
       } catch (err) {
         console.error("Erro ao sincronizar checklists de Firestore:", err);
@@ -187,8 +195,20 @@ export default function Checklist() {
     setTemplates(updated);
     localStorage.setItem(`checklist_templates_${currentStore.id}`, JSON.stringify(updated));
     try {
-      const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'templates');
-      await setDoc(docRef, { data: updated });
+      if (currentStore.code === 'ROOT') {
+        // ONLY sync templates across all active stores if the admin explicitly configures the ROOT global store
+        const targetStoreIds = ['1', '2', '3', 'admin-global'];
+        const promises = targetStoreIds.map(async (sId) => {
+          localStorage.setItem(`checklist_templates_${sId}`, JSON.stringify(updated));
+          const docRef = doc(db, 'stores', sId, 'checklists', 'templates');
+          await setDoc(docRef, { data: updated });
+        });
+        await Promise.all(promises);
+      } else {
+        // Each specific store keeps its own independent checklist model
+        const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'templates');
+        await setDoc(docRef, { data: updated });
+      }
     } catch (err) {
       console.error("Erro ao salvar templates:", err);
     }

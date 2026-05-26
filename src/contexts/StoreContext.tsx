@@ -279,7 +279,9 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { success: toastSuccess } = useToast();
   const [currentStore, setCurrentStore] = useState<Store>(STORES[3]);
-  const isDarkMode = currentStore.brand === '4ESTYLOS' || currentStore.code === 'ROOT';
+  // All units use the premium, optimized dark theme to establish a clean and professional layout standard without visual clutter.
+  // 4E09 and ROOT remain exactly the same as they were, while Bebelu (B32 & B28) is upgraded with custom yellow brand accents.
+  const isDarkMode = true;
   const [metrics, setMetrics] = useState<Metric[]>(mockMetrics.map(m => ({ ...m, valor: 0, trend: 'neutral', change: '0%' })));
   const [dreTimeline, setDreTimeline] = useState<DREData[]>([]);
   const [metaVsRealizado, setMetaVsRealizado] = useState<any[]>([

@@ -368,7 +368,7 @@ export default function AccountsPayable() {
   const isBebelu = currentStore.brand === 'BEBELU';
   const themePrimary = brandColors.primary;
   const themeButtonBg = brandColors.button;
-  const themeTextContrast = isBebelu ? '#7F300C' : '#FFFFFF';
+  const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
   
   // Quick alerts state
   const [dueTodayCount, setDueTodayCount] = useState(0);
