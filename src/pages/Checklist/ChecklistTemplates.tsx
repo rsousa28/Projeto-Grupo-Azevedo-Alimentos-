@@ -13,7 +13,8 @@ import {
   Clock,
   User,
   Settings2,
-  Pencil
+  Pencil,
+  RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../../contexts/StoreContext';
@@ -52,7 +53,7 @@ const RESPONSE_TYPES: { value: ResponseType; label: string }[] = [
 
 interface TemplatesProps {
   templates: ChecklistTemplate[];
-  onSaveTemplates: (updated: ChecklistTemplate[]) => void;
+  onSaveTemplates: (updated: ChecklistTemplate[]) => Promise<void>;
   onComplete?: (templateId?: string) => void;
 }
 
@@ -61,6 +62,23 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
   const { user } = useAuth();
   const { success: toastSuccess } = useToast();
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(templates[0]?.id || null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Synchronize activeTemplateId automatically when templates prop changes (e.g. on store switch)
+  React.useEffect(() => {
+    if (templates && templates.length > 0) {
+      if (!activeTemplateId || !templates.some(t => t.id === activeTemplateId)) {
+        setActiveTemplateId(templates[0].id);
+      }
+    } else {
+      setActiveTemplateId(null);
+    }
+  }, [templates, activeTemplateId]);
+
+  // Reset editing question state if templates change to avoid editing mismatch questions
+  React.useEffect(() => {
+    setEditingQuestion(null);
+  }, [templates]);
 
   // Modal triggers
   const [showNewTemplateModal, setShowNewTemplateModal] = useState(false);
@@ -523,17 +541,39 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
                 <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <button
                     type="button"
-                    onClick={() => {
-                      onSaveTemplates(templates);
-                      toastSuccess("Modelo de checklist salvo com sucesso para esta filial!");
-                      if (onComplete) {
-                        onComplete(activeTemplate.id);
+                    disabled={isSaving}
+                    onClick={async () => {
+                      if (isSaving) return;
+                      setIsSaving(true);
+                      try {
+                        await onSaveTemplates(templates);
+                        toastSuccess("Modelo de checklist salvo com sucesso para esta filial!");
+                        if (onComplete && activeTemplate) {
+                          onComplete(activeTemplate.id);
+                        }
+                      } catch (error) {
+                        console.error(error);
+                      } finally {
+                        setIsSaving(false);
                       }
                     }}
-                    className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-black uppercase tracking-wider text-[11px] rounded-2xl shadow-lg shadow-emerald-500/10 active:scale-95 transition-all cursor-pointer"
+                    className={`flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r ${
+                      isSaving 
+                        ? 'from-slate-400 to-slate-500 cursor-not-allowed opacity-70' 
+                        : 'from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:scale-95 shadow-lg shadow-emerald-500/10'
+                    } text-white font-black uppercase tracking-wider text-[11px] rounded-2xl transition-all cursor-pointer`}
                   >
-                    <Save className="w-4 h-4" />
-                    Salvar Checklist e Executar ✓
+                    {isSaving ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        Salvar Checklist e Executar ✓
+                      </>
+                    )}
                   </button>
                 </div>
               </div>

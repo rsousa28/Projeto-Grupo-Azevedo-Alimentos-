@@ -211,6 +211,7 @@ export default function Checklist() {
       }
     } catch (err) {
       console.error("Erro ao salvar templates:", err);
+      throw err;
     }
   };
 
@@ -222,6 +223,7 @@ export default function Checklist() {
       await setDoc(docRef, { data: updated });
     } catch (err) {
       console.error("Erro ao salvar submissions:", err);
+      throw err;
     }
   };
 
@@ -233,6 +235,7 @@ export default function Checklist() {
       await setDoc(docRef, { data: updated });
     } catch (err) {
       console.error("Erro ao salvar action plans:", err);
+      throw err;
     }
   };
 
@@ -356,8 +359,20 @@ export default function Checklist() {
                     </p>
                   </div>
                   
-                  <div className="flex items-center gap-1.5 shrink-0 bg-[#FFCB05]/10 px-4 py-2 rounded-2xl border border-[#FFCB05]/20 text-[#FFCB05] font-black text-[10px] uppercase tracking-wider">
-                    <StoreIcon className="w-4 h-4" /> Unidade: {currentStore.code || 'GERAL'}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      onClick={() => {
+                        window.location.reload();
+                      }}
+                      className="flex items-center gap-1.5 bg-slate-200/50 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 px-4 py-2 rounded-2xl border border-slate-300/30 dark:border-zinc-700 font-black text-[10px] uppercase tracking-wider text-slate-600 dark:text-zinc-300 transition-all active:scale-95 cursor-pointer"
+                      title="Sincronizar com Banco de Dados"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" /> Sincronizar
+                    </button>
+
+                    <div className="flex items-center gap-1.5 bg-[#FFCB05]/10 px-4 py-2 rounded-2xl border border-[#FFCB05]/20 text-[#FFCB05] font-black text-[10px] uppercase tracking-wider">
+                      <StoreIcon className="w-4 h-4" /> Unidade: {currentStore.code || 'GERAL'}
+                    </div>
                   </div>
                 </div>
 
