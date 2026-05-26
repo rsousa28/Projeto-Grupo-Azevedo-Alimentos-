@@ -28,6 +28,30 @@ import ChecklistTemplates from './Checklist/ChecklistTemplates';
 import ChecklistHistory from './Checklist/ChecklistHistory';
 import ActionPlans from './Checklist/ActionPlans';
 
+// Helper to remove any undefined values recursively so Firestore setDoc does not crash
+function sanitizeForFirestore<T>(val: T): any {
+  if (val === undefined) {
+    return null;
+  }
+  if (val === null) {
+    return null;
+  }
+  if (Array.isArray(val)) {
+    return val.map(item => sanitizeForFirestore(item));
+  }
+  if (typeof val === 'object') {
+    const cleaned: any = {};
+    for (const key of Object.keys(val)) {
+      const value = (val as any)[key];
+      if (value !== undefined) {
+        cleaned[key] = sanitizeForFirestore(value);
+      }
+    }
+    return cleaned;
+  }
+  return val;
+}
+
 export default function Checklist() {
   const { currentStore, isDarkMode, brandColors } = useStore();
   const { user } = useAuth();
@@ -201,13 +225,13 @@ export default function Checklist() {
         const promises = targetStoreIds.map(async (sId) => {
           localStorage.setItem(`checklist_templates_${sId}`, JSON.stringify(updated));
           const docRef = doc(db, 'stores', sId, 'checklists', 'templates');
-          await setDoc(docRef, { data: updated });
+          await setDoc(docRef, { data: sanitizeForFirestore(updated) });
         });
         await Promise.all(promises);
       } else {
         // Each specific store keeps its own independent checklist model
         const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'templates');
-        await setDoc(docRef, { data: updated });
+         await setDoc(docRef, { data: sanitizeForFirestore(updated) });
       }
     } catch (err) {
       console.error("Erro ao salvar templates:", err);
@@ -220,7 +244,7 @@ export default function Checklist() {
     localStorage.setItem(`checklist_submissions_${currentStore.id}`, JSON.stringify(updated));
     try {
       const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'submissions');
-      await setDoc(docRef, { data: updated });
+      await setDoc(docRef, { data: sanitizeForFirestore(updated) });
     } catch (err) {
       console.error("Erro ao salvar submissions:", err);
       throw err;
@@ -232,7 +256,7 @@ export default function Checklist() {
     localStorage.setItem(`checklist_action_plans_${currentStore.id}`, JSON.stringify(updated));
     try {
       const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'action_plans');
-      await setDoc(docRef, { data: updated });
+      await setDoc(docRef, { data: sanitizeForFirestore(updated) });
     } catch (err) {
       console.error("Erro ao salvar action plans:", err);
       throw err;
