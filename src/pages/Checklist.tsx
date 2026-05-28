@@ -10,10 +10,13 @@ import {
   RefreshCw,
   Store as StoreIcon,
   HelpCircle,
-  FileText
+  FileText,
+  Play,
+  Timer,
+  User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useStore } from '../contexts/StoreContext';
+import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { AuditService } from '../services/AuditService';
 import { db } from '../lib/firebase';
@@ -67,6 +70,46 @@ export default function Checklist() {
   
   // Execution workflow pointer
   const [executingTemplate, setExecutingTemplate] = useState<ChecklistTemplate | null>(null);
+
+  // Active Drafts (In-Progress checklists)
+  const [activeDrafts, setActiveDrafts] = useState<any[]>([]);
+
+  // Synchronize Active Drafts (In-Progress checklists) in real-time
+  useEffect(() => {
+    if (templates.length === 0) return;
+
+    const unsubDraftsList: (() => void)[] = [];
+    const draftsMap: Record<string, any> = {};
+
+    const targetStores = currentStore.code === 'ROOT' ? STORES : [currentStore];
+
+    targetStores.forEach(stor => {
+      templates.forEach(temp => {
+        const draftRef = doc(db, 'stores', stor.id, 'checklists', `draft_${temp.id}`);
+        const unsubDraft = onSnapshot(draftRef, (snapshot) => {
+          if (snapshot.exists()) {
+            draftsMap[`${stor.id}_${temp.id}`] = {
+              ...snapshot.data(),
+              id: `draft_${stor.id}_${temp.id}`
+            };
+          } else {
+            delete draftsMap[`${stor.id}_${temp.id}`];
+          }
+          
+          // Merge drafts
+          const mergedDrafts = Object.values(draftsMap);
+          setActiveDrafts(mergedDrafts);
+        }, (err) => {
+          console.warn(`Erro ao sincronizar rascunho ${temp.id} para loja ${stor.name}:`, err);
+        });
+        unsubDraftsList.push(unsubDraft);
+      });
+    });
+
+    return () => {
+      unsubDraftsList.forEach(unsub => unsub());
+    };
+  }, [templates, currentStore.id]);
 
   // Load persistent database on mount and whenever currentStore changes
   useEffect(() => {
@@ -170,48 +213,113 @@ export default function Checklist() {
       console.error("Erro ao sincronizar templates em tempo real:", err);
     });
 
-    // Fetch Submissions
-    const submissionsRef = doc(db, 'stores', storeId, 'checklists', 'submissions');
-    const unsubSubmissions = onSnapshot(submissionsRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const cloudSubmissions = snapshot.data().data || [];
-        setSubmissions(cloudSubmissions);
-        localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(cloudSubmissions));
-      } else {
-        const stored = localStorage.getItem(`checklist_submissions_${storeId}`);
-        if (stored) {
-          setSubmissions(JSON.parse(stored));
-        } else {
-          setSubmissions([]);
-        }
-      }
-    }, (err) => {
-      console.error("Erro ao sincronizar submissions em tempo real:", err);
-    });
+    const unsubs: (() => void)[] = [unsubTemplates];
 
-    // Fetch Action Plans
-    const plansRef = doc(db, 'stores', storeId, 'checklists', 'action_plans');
-    const unsubPlans = onSnapshot(plansRef, (snapshot) => {
-      if (snapshot.exists()) {
-        const cloudPlans = snapshot.data().data || [];
-        setActionPlans(cloudPlans);
-        localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(cloudPlans));
-      } else {
-        const stored = localStorage.getItem(`checklist_action_plans_${storeId}`);
-        if (stored) {
-          setActionPlans(JSON.parse(stored));
+    if (currentStore.code === 'ROOT') {
+      // Listen to submissions and action plans across ALL stores
+      const storeSubmissionsMap: Record<string, ChecklistSubmission[]> = {};
+      const storePlansMap: Record<string, ActionPlan[]> = {};
+
+      STORES.forEach(stor => {
+        // Submissions snapshot
+        const subRef = doc(db, 'stores', stor.id, 'checklists', 'submissions');
+        const unsubSub = onSnapshot(subRef, (snapshot) => {
+          const cloudList = snapshot.exists() ? (snapshot.data().data || []) : [];
+          storeSubmissionsMap[stor.id] = cloudList;
+
+          // Merge all
+          const merged: ChecklistSubmission[] = [];
+          const seenIds = new Set<string>();
+          STORES.forEach(s => {
+            const list = storeSubmissionsMap[s.id] || [];
+            list.forEach(item => {
+              if (item && item.id && !seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                merged.push(item);
+              }
+            });
+          });
+          // Sort by submittedAt descending
+          merged.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+          setSubmissions(merged);
+          localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(merged));
+        }, (err) => {
+          console.warn(`Erro ao sincronizar submissions da loja ${stor.name}:`, err);
+        });
+        unsubs.push(unsubSub);
+
+        // Action Plans snapshot
+        const planRef = doc(db, 'stores', stor.id, 'checklists', 'action_plans');
+        const unsubPlan = onSnapshot(planRef, (snapshot) => {
+          const cloudList = snapshot.exists() ? (snapshot.data().data || []) : [];
+          storePlansMap[stor.id] = cloudList;
+
+          // Merge all
+          const merged: ActionPlan[] = [];
+          const seenIds = new Set<string>();
+          STORES.forEach(s => {
+            const list = storePlansMap[s.id] || [];
+            list.forEach(item => {
+              if (item && item.id && !seenIds.has(item.id)) {
+                seenIds.add(item.id);
+                merged.push(item);
+              }
+            });
+          });
+          // Sort by createdAt descending
+          merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setActionPlans(merged);
+          localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(merged));
+        }, (err) => {
+          console.warn(`Erro ao sincronizar action plans da loja ${stor.name}:`, err);
+        });
+        unsubs.push(unsubPlan);
+      });
+    } else {
+      // Listens to submissions and action plans for single store
+      // Fetch Submissions
+      const submissionsRef = doc(db, 'stores', storeId, 'checklists', 'submissions');
+      const unsubSubmissions = onSnapshot(submissionsRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const cloudSubmissions = snapshot.data().data || [];
+          setSubmissions(cloudSubmissions);
+          localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(cloudSubmissions));
         } else {
-          setActionPlans([]);
+          const stored = localStorage.getItem(`checklist_submissions_${storeId}`);
+          if (stored) {
+            setSubmissions(JSON.parse(stored));
+          } else {
+            setSubmissions([]);
+          }
         }
-      }
-    }, (err) => {
-      console.error("Erro ao sincronizar action plans em tempo real:", err);
-    });
+      }, (err) => {
+        console.error("Erro ao sincronizar submissions em tempo real:", err);
+      });
+      unsubs.push(unsubSubmissions);
+
+      // Fetch Action Plans
+      const plansRef = doc(db, 'stores', storeId, 'checklists', 'action_plans');
+      const unsubPlans = onSnapshot(plansRef, (snapshot) => {
+        if (snapshot.exists()) {
+          const cloudPlans = snapshot.data().data || [];
+          setActionPlans(cloudPlans);
+          localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(cloudPlans));
+        } else {
+          const stored = localStorage.getItem(`checklist_action_plans_${storeId}`);
+          if (stored) {
+            setActionPlans(JSON.parse(stored));
+          } else {
+            setActionPlans([]);
+          }
+        }
+      }, (err) => {
+        console.error("Erro ao sincronizar action plans em tempo real:", err);
+      });
+      unsubs.push(unsubPlans);
+    }
 
     return () => {
-      unsubTemplates();
-      unsubSubmissions();
-      unsubPlans();
+      unsubs.forEach(unsub => unsub());
     };
   }, [currentStore.id]);
 
@@ -244,8 +352,34 @@ export default function Checklist() {
     setSubmissions(updated);
     localStorage.setItem(`checklist_submissions_${currentStore.id}`, JSON.stringify(updated));
     try {
-      const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'submissions');
-      await setDoc(docRef, { data: sanitizeForFirestore(updated) });
+      if (currentStore.code === 'ROOT') {
+        const grouped: { [key: string]: ChecklistSubmission[] } = {};
+        STORES.forEach(s => {
+          grouped[s.id] = [];
+        });
+        
+        updated.forEach(sub => {
+          const sId = sub.storeId || 'admin-global';
+          if (!grouped[sId]) {
+            grouped[sId] = [];
+          }
+          grouped[sId].push(sub);
+        });
+
+        const promises = Object.entries(grouped).map(async ([storeId, list]) => {
+          try {
+            localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(list));
+            const docRef = doc(db, 'stores', storeId, 'checklists', 'submissions');
+            await setDoc(docRef, { data: sanitizeForFirestore(list) });
+          } catch (err) {
+            console.warn(`Erro ao salvar submissions para loja ${storeId}:`, err);
+          }
+        });
+        await Promise.all(promises);
+      } else {
+        const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'submissions');
+        await setDoc(docRef, { data: sanitizeForFirestore(updated) });
+      }
     } catch (err) {
       console.error("Erro ao salvar submissions:", err);
       throw err;
@@ -256,8 +390,34 @@ export default function Checklist() {
     setActionPlans(updated);
     localStorage.setItem(`checklist_action_plans_${currentStore.id}`, JSON.stringify(updated));
     try {
-      const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'action_plans');
-      await setDoc(docRef, { data: sanitizeForFirestore(updated) });
+      if (currentStore.code === 'ROOT') {
+        const grouped: { [key: string]: ActionPlan[] } = {};
+        STORES.forEach(s => {
+          grouped[s.id] = [];
+        });
+        
+        updated.forEach(plan => {
+          const sId = plan.storeId || 'admin-global';
+          if (!grouped[sId]) {
+            grouped[sId] = [];
+          }
+          grouped[sId].push(plan);
+        });
+
+        const promises = Object.entries(grouped).map(async ([storeId, list]) => {
+          try {
+            localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(list));
+            const docRef = doc(db, 'stores', storeId, 'checklists', 'action_plans');
+            await setDoc(docRef, { data: sanitizeForFirestore(list) });
+          } catch (err) {
+            console.warn(`Erro ao salvar action_plans para loja ${storeId}:`, err);
+          }
+        });
+        await Promise.all(promises);
+      } else {
+        const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'action_plans');
+        await setDoc(docRef, { data: sanitizeForFirestore(updated) });
+      }
     } catch (err) {
       console.error("Erro ao salvar action plans:", err);
       throw err;
@@ -412,6 +572,96 @@ export default function Checklist() {
                     </div>
                   </div>
                 </div>
+
+                {/* Vistorias em Andamento (Rascunhos em tempo real) */}
+                {activeDrafts.length > 0 && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <h3 className={`text-xs font-black uppercase italic tracking-widest ${isDarkMode ? 'text-slate-200' : 'text-slate-400'}`}>
+                        Vistorias em Andamento ({activeDrafts.length})
+                      </h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {activeDrafts.map((draft) => {
+                        const questionsCount = draft.questionsCount || 1;
+                        const answersCount = draft.answersCount || 0;
+                        const progressPercent = Math.round((answersCount / questionsCount) * 100);
+                        const progressClamped = Math.min(100, Math.max(0, progressPercent));
+
+                        const relatedTemplate = templates.find((t) => t.id === draft.templateId);
+
+                        return (
+                          <div
+                            key={draft.id}
+                            className={`p-5 rounded-3xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all ${
+                              isDarkMode
+                                ? 'bg-[#121212]/30 border-emerald-500/20 hover:border-emerald-500/40 shadow-lg'
+                                : 'bg-emerald-50/10 border-emerald-200/50 hover:border-emerald-300'
+                            }`}
+                          >
+                            <div className="space-y-3 flex-1 min-w-0 w-full">
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/25">
+                                    {draft.category}
+                                  </span>
+                                  <span className="text-[9px] font-bold text-slate-500 flex items-center gap-1">
+                                    <StoreIcon className="w-3 h-3" /> {draft.storeName}
+                                  </span>
+                                </div>
+                                <h4 className={`text-sm font-black uppercase italic tracking-tight mt-1.5 truncate ${
+                                  isDarkMode ? 'text-white' : 'text-slate-900'
+                                }`}>
+                                  {draft.templateTitle}
+                                </h4>
+                              </div>
+
+                              <div className="flex items-center gap-4 text-[10px] text-slate-500">
+                                <span className="flex items-center gap-1 truncate">
+                                  <User className="w-3.5 h-3.5 text-zinc-500" /> {draft.startedBy}
+                                </span>
+                                <span className="flex items-center gap-1 shrink-0">
+                                  <Timer className="w-3.5 h-3.5 text-zinc-500" /> Em Execução
+                                </span>
+                              </div>
+
+                              {/* Progress bar */}
+                              <div className="space-y-1 w-full">
+                                <div className="flex items-center justify-between text-[10px] font-bold">
+                                  <span className="text-emerald-500">{progressClamped}% Concluído</span>
+                                  <span className="text-slate-400">{answersCount}/{questionsCount} respondidas</span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+                                    style={{ width: `${progressClamped}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => {
+                                if (relatedTemplate) {
+                                  setExecutingTemplate(relatedTemplate);
+                                }
+                              }}
+                              disabled={!relatedTemplate}
+                              className={`w-full sm:w-auto px-4 py-3 rounded-2xl font-black text-[9px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                                relatedTemplate
+                                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer active:scale-95'
+                                  : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                              }`}
+                            >
+                              <Play className="w-3 h-3 fill-current" /> Continuar
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Templates Grid Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

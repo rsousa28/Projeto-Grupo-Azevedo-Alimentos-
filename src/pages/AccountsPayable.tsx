@@ -321,10 +321,10 @@ export default function AccountsPayable() {
 
   // State
   const [accounts, setAccounts] = useState<AccountPayable[]>([]);
-  const [formStoreId, setFormStoreId] = useState(currentStore.id);
+  const [formStoreId, setFormStoreId] = useState(currentStore.id === 'admin-global' ? '1' : currentStore.id);
 
   useEffect(() => {
-    setFormStoreId(currentStore.id);
+    setFormStoreId(currentStore.id === 'admin-global' ? '1' : currentStore.id);
   }, [currentStore.id]);
   const [selectedMonth, setSelectedMonth] = useState('05'); // Default to May (Maio)
   const [selectedYear, setSelectedYear] = useState('2026');
@@ -477,17 +477,25 @@ export default function AccountsPayable() {
       }
     }
 
-    // Process dates to auto-set overdue statuses ('Vencido')
+    // Process dates to auto-set overdue statuses ('Vencido') and normalize legacy/invalid storeId
     const todayStr = getTodayStr(); // Reference date matching metadata local time
     const processItems = (list: AccountPayable[]) => {
       return list.map(item => {
-        if (
-          (item.status === 'Pendente' || item.status === 'Agendado') &&
-          item.dueDate < todayStr
-        ) {
-          return { ...item, status: 'Vencido' as const };
+        let normalizedStoreId = item.storeId;
+        let normalizedStoreName = item.storeName;
+        // Fallback admin-global or invalid storeId to Bedelu Mossoró ('1') so it doesn't get lost
+        if (!normalizedStoreId || normalizedStoreId === 'admin-global') {
+          normalizedStoreId = '1';
+          normalizedStoreName = 'Bebelu Mossoró';
         }
-        return item;
+
+        const isOverdue = (item.status === 'Pendente' || item.status === 'Agendado') && item.dueDate < todayStr;
+        return { 
+          ...item, 
+          storeId: normalizedStoreId,
+          storeName: normalizedStoreName,
+          status: isOverdue ? 'Vencido' as const : item.status 
+        };
       });
     };
 
@@ -3101,7 +3109,7 @@ export default function AccountsPayable() {
                       style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
                       className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1 cursor-pointer"
                     >
-                      {STORES.map(s => (
+                      {STORES.filter(s => s.id !== 'admin-global').map(s => (
                         <option key={s.id} value={s.id}>{s.name} ({s.brand})</option>
                       ))}
                     </select>

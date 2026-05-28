@@ -17,6 +17,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../../contexts/StoreContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { db } from '../../lib/firebase';
+import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { 
   ChecklistTemplate, 
   ChecklistQuestion, 
@@ -56,26 +58,93 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
   // Loading or error states
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [loadingDraft, setLoadingDraft] = useState(true);
 
-  // Initialize answers with defaults where appropriate
+  // Initialize answers with defaults where appropriate, merged with existing draft
   useEffect(() => {
-    const initialAnswers: Record<string, string> = {};
-    template.questions.forEach(q => {
-      if (q.responseType === 'sim_nao') {
-        initialAnswers[q.id] = '';
-      } else if (q.responseType === 'temperatura') {
-        initialAnswers[q.id] = '';
-      } else if (q.responseType === 'data_hora') {
-        // Set standard ISO datetime
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        initialAnswers[q.id] = now.toISOString().slice(0, 16);
-      } else if (q.responseType === 'multipla_escolha') {
-        initialAnswers[q.id] = q.options && q.options.length > 0 ? q.options[0] : 'Bom';
+    const loadAndInit = async () => {
+      setLoadingDraft(true);
+      
+      const initialAnswers: Record<string, string> = {};
+      template.questions.forEach(q => {
+        if (q.responseType === 'sim_nao') {
+          initialAnswers[q.id] = '';
+        } else if (q.responseType === 'temperatura') {
+          initialAnswers[q.id] = '';
+        } else if (q.responseType === 'data_hora') {
+          const now = new Date();
+          now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+          initialAnswers[q.id] = now.toISOString().slice(0, 16);
+        } else if (q.responseType === 'multipla_escolha') {
+          initialAnswers[q.id] = q.options && q.options.length > 0 ? q.options[0] : 'Bom';
+        }
+      });
+
+      try {
+        const draftDocRef = doc(db, 'stores', currentStore.id, 'checklists', `draft_${template.id}`);
+        const snap = await getDoc(draftDocRef);
+        if (snap.exists()) {
+          const draftData = snap.data();
+          if (draftData.answers) setAnswers({ ...initialAnswers, ...draftData.answers });
+          if (draftData.photos) setPhotos(draftData.photos);
+          if (draftData.observations) setObservations(draftData.observations);
+          if (draftData.signatures) setSignatures(draftData.signatures);
+        } else {
+          setAnswers(initialAnswers);
+        }
+      } catch (err) {
+        console.warn("Erro ao carregar rascunho em andamento:", err);
+        setAnswers(initialAnswers);
+      } finally {
+        setLoadingDraft(false);
       }
-    });
-    setAnswers(initialAnswers);
-  }, [template]);
+    };
+
+    loadAndInit();
+  }, [template, currentStore.id]);
+
+  // Debounced auto-saving of draft to Firestore
+  useEffect(() => {
+    if (loadingDraft) return;
+
+    const saveDraft = async () => {
+      try {
+        const draftDocRef = doc(db, 'stores', currentStore.id, 'checklists', `draft_${template.id}`);
+        
+        // Find how many questions have been answered of the total
+        const answeredKeys = Object.keys(answers).filter(k => answers[k] !== '');
+        const answersCount = answeredKeys.length;
+
+        if (Object.keys(answers).length === 0) return;
+
+        await setDoc(draftDocRef, {
+          templateId: template.id,
+          templateTitle: template.title,
+          category: template.category,
+          storeId: currentStore.id,
+          storeName: currentStore.name,
+          startedBy: user?.name || user?.username || 'Colaborador',
+          startedAt: new Date().toISOString(), // Keep track of progress
+          updatedAt: new Date().toISOString(),
+          answers,
+          photos,
+          observations,
+          signatures,
+          answersCount,
+          questionsCount: template.questions.length,
+          status: 'IN_PROGRESS'
+        });
+      } catch (err) {
+        console.warn("Erro ao salvar rascunho de checklist:", err);
+      }
+    };
+
+    const delayDebounceFn = setTimeout(() => {
+      saveDraft();
+    }, 1200); // 1.2s debounce
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [answers, photos, observations, signatures, loadingDraft, template.id, currentStore.id, user]);
 
   // Handle Simple inputs
   const handleAnswerChange = (qId: string, value: string) => {
@@ -426,6 +495,13 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
 
     try {
       await onSubmit(submission, generatedPlans);
+      // Delete draft document upon successful submission
+      try {
+        const draftDocRef = doc(db, 'stores', currentStore.id, 'checklists', `draft_${template.id}`);
+        await deleteDoc(draftDocRef);
+      } catch (err) {
+        console.warn("Erro ao deletar rascunho pós-envio:", err);
+      }
     } catch (saveErr) {
       console.error("Erro ao enviar submissão:", saveErr);
       setErrorMsg("Ocorreu um erro ao salvar o checklist. Por favor tente novamente.");

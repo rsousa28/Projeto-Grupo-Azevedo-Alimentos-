@@ -70,8 +70,8 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
   };
 
   // Quick statistics
-  const pendingCount = actionPlans.filter(p => (currentStore.id === 'all' || p.storeId === currentStore.id) && p.status === 'PENDING').length;
-  const resolvedCount = actionPlans.filter(p => (currentStore.id === 'all' || p.storeId === currentStore.id) && p.status === 'RESOLVED').length;
+  const pendingCount = actionPlans.filter(p => (currentStore.id === 'admin-global' || p.storeId === currentStore.id) && p.status === 'PENDING').length;
+  const resolvedCount = actionPlans.filter(p => (currentStore.id === 'admin-global' || p.storeId === currentStore.id) && p.status === 'RESOLVED').length;
 
   return (
     <div className="space-y-6">

@@ -16,6 +16,7 @@ import {
 } from '../lib/mockData';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
+import { DREData } from '../types';
 import DataEntrySection from '../components/DataEntrySection';
 
 const formatCurrency = (val: number) => 
@@ -103,6 +104,56 @@ export default function Dashboard() {
   ];
 
   const { loadDREPeriod, loadCMVPeriod } = useStore();
+  const isRoot = currentStore.id === 'admin-global';
+
+  // Dynamic consolidation for Admin Global (ROOT)
+  const [allStoresDreData, setAllStoresDreData] = React.useState<{ [storeId: string]: DREData[] }>({});
+  const [loadingConsolidation, setLoadingConsolidation] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isRoot) {
+      const fetchAllStoresData = async () => {
+        setLoadingConsolidation(true);
+        const storeIds = ['1', '2', '3'];
+        const monthsList = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+        const yearsToLoad = [selectedYear, (parseInt(selectedYear) - 1).toString(), (parseInt(selectedYear) - 2).toString()];
+        
+        const tempDreData: { [storeId: string]: DREData[] } = { '1': [], '2': [], '3': [] };
+
+        try {
+          const { getDoc, doc } = await import('firebase/firestore');
+          const { db } = await import('../lib/firebase');
+
+          const promises = storeIds.flatMap(storeId => {
+            return yearsToLoad.flatMap(y => {
+              return monthsList.map(async (m) => {
+                const periodId = `${y}-${m}`;
+                try {
+                  const dreRef = doc(db, 'stores', storeId, 'dre_periods', periodId);
+                  const snap = await getDoc(dreRef);
+                  if (snap.exists()) {
+                    const data = { ...snap.data(), year: y } as DREData;
+                    tempDreData[storeId].push(data);
+                  }
+                } catch (e) {
+                  // Ignore single period load failures quietly
+                }
+              });
+            });
+          });
+
+          await Promise.all(promises);
+          setAllStoresDreData(tempDreData);
+        } catch (err) {
+          console.error("Error loading consolidation:", err);
+        } finally {
+          setLoadingConsolidation(false);
+        }
+      };
+
+      fetchAllStoresData();
+    }
+  }, [selectedYear, isRoot]);
 
   React.useEffect(() => {
     if (currentStore.id !== 'admin-global') {
@@ -128,8 +179,149 @@ export default function Dashboard() {
   }, [selectedMonth, selectedYear, currentStore.id]);
 
   const currentMonthLabel = months.find(m => m.value === selectedMonth)?.label;
-  
-  const currentMonthData = dreTimeline.find(d => 
+
+  const consolidatedTimeline = React.useMemo(() => {
+    if (!isRoot) return [];
+    
+    const timelineList: DREData[] = [];
+    const monthsMapToLabel: Record<string, string> = {
+      '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril', '05': 'Maio', '06': 'Junho',
+      '07': 'Julho', '08': 'Agosto', '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
+    };
+    
+    const yearsToCompile = [selectedYear, (parseInt(selectedYear) - 1).toString(), (parseInt(selectedYear) - 2).toString()];
+    const storeIds = ['1', '2', '3'];
+
+    yearsToCompile.forEach(y => {
+      Object.keys(monthsMapToLabel).forEach(mCode => {
+        const mLabel = monthsMapToLabel[mCode];
+        
+        let totalFat = 0;
+        let totalCmv = 0;
+        let totalPayroll = 0;
+        let totalRent = 0;
+        let totalMarketing = 0;
+        let totalOperational = 0;
+        let totalTaxes = 0;
+        let totalRoyalties = 0;
+        let totalEbitda = 0;
+        let totalNetProfit = 0;
+        let totalPedidos = 0;
+        let totalReceitaIfood = 0;
+        let totalReceitaWedo = 0;
+        let totalReceitaBalcao = 0;
+        let totalMetaFaturamento = 0;
+        let exists = false;
+
+        let totalDetailedFuncionamentoObj: Record<string, number> = {};
+        let totalDetailedColaboradoresObj: Record<string, number> = {};
+        let totalDetailedManutencaoObj: Record<string, number> = {};
+        let totalDetailedComerciaisObj: Record<string, number> = {};
+        let totalDetailedAdministrativasObj: Record<string, number> = {};
+        let totalDetailedDeducoesObj: Record<string, number> = {};
+        let totalDetailedDespesasVariaveisObj: Record<string, number> = {};
+
+        storeIds.forEach(sId => {
+          const list = allStoresDreData[sId] || [];
+          const match = list.find(d => d.month === mLabel && d.year === y);
+          if (match) {
+            exists = true;
+            totalFat += match.faturamento || 0;
+            totalCmv += match.cmv || 0;
+            totalPayroll += match.payroll || 0;
+            totalRent += match.rent || 0;
+            totalMarketing += match.marketing || 0;
+            totalOperational += match.operational || 0;
+            totalTaxes += match.taxes || 0;
+            totalRoyalties += match.royalties || 0;
+            totalEbitda += match.ebitda || 0;
+            totalNetProfit += match.netProfit || 0;
+            totalPedidos += match.quantidadePedidos || 0;
+            totalReceitaIfood += match.receitaIfood || 0;
+            totalReceitaWedo += match.receitaWedo || 0;
+            totalReceitaBalcao += match.receitaBalcao || 0;
+            totalMetaFaturamento += match.metaFaturamento || (sId === '1' ? 140000 : sId === '2' ? 140000 : 150000);
+
+            if (match.details) {
+              const det = match.details;
+              if (det.funcionamento) {
+                Object.entries(det.funcionamento).forEach(([k, v]) => {
+                  totalDetailedFuncionamentoObj[k] = (totalDetailedFuncionamentoObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.colaboradores) {
+                Object.entries(det.colaboradores).forEach(([k, v]) => {
+                  totalDetailedColaboradoresObj[k] = (totalDetailedColaboradoresObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.manutencao) {
+                Object.entries(det.manutencao).forEach(([k, v]) => {
+                  totalDetailedManutencaoObj[k] = (totalDetailedManutencaoObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.comerciais) {
+                Object.entries(det.comerciais).forEach(([k, v]) => {
+                  totalDetailedComerciaisObj[k] = (totalDetailedComerciaisObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.administrativas) {
+                Object.entries(det.administrativas).forEach(([k, v]) => {
+                  totalDetailedAdministrativasObj[k] = (totalDetailedAdministrativasObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.deducoes) {
+                Object.entries(det.deducoes).forEach(([k, v]) => {
+                  totalDetailedDeducoesObj[k] = (totalDetailedDeducoesObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.despesasVariaveis) {
+                Object.entries(det.despesasVariaveis).forEach(([k, v]) => {
+                  totalDetailedDespesasVariaveisObj[k] = (totalDetailedDespesasVariaveisObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+            }
+          }
+        });
+
+        if (exists) {
+          timelineList.push({
+            month: mLabel,
+            year: y,
+            faturamento: totalFat,
+            cmv: totalCmv,
+            payroll: totalPayroll,
+            rent: totalRent,
+            marketing: totalMarketing,
+            operational: totalOperational,
+            taxes: totalTaxes,
+            royalties: totalRoyalties,
+            ebitda: totalEbitda,
+            netProfit: totalNetProfit,
+            quantidadePedidos: totalPedidos,
+            receitaIfood: totalReceitaIfood,
+            receitaWedo: totalReceitaWedo,
+            receitaBalcao: totalReceitaBalcao,
+            metaFaturamento: totalMetaFaturamento,
+            details: {
+              funcionamento: totalDetailedFuncionamentoObj,
+              colaboradores: totalDetailedColaboradoresObj,
+              manutencao: totalDetailedManutencaoObj,
+              comerciais: totalDetailedComerciaisObj,
+              administrativas: totalDetailedAdministrativasObj,
+              deducoes: totalDetailedDeducoesObj,
+              despesasVariaveis: totalDetailedDespesasVariaveisObj
+            }
+          });
+        }
+      });
+    });
+
+    return timelineList;
+  }, [allStoresDreData, isRoot, selectedYear]);
+
+  const activeDreTimeline = isRoot ? consolidatedTimeline : dreTimeline;
+
+  const currentMonthData = activeDreTimeline.find(d => 
     d.month === currentMonthLabel && (d.year === selectedYear || (!d.year && selectedYear === '2026'))
   ) || {
     month: currentMonthLabel || 'Não Iniciado',
@@ -183,6 +375,72 @@ export default function Dashboard() {
     { name: 'Balcão', valor: currentMonthData.receitaBalcao || 0, color: isDarkMode ? '#64748b' : '#FFB800' }
   ];
 
+  // Memo to calculate performance breakdown of each store for ROOT mode
+  const storesPerformance = React.useMemo(() => {
+    if (!isRoot) return [];
+    
+    const storeIds = ['1', '2', '3'];
+    const storeNames: Record<string, string> = {
+      '1': 'Bebelu Mossoró',
+      '2': 'Bebelu Riomar Papicu',
+      '3': '4 Estylos Mossoró'
+    };
+    const storeColors: Record<string, string> = {
+      '1': '#E63946',
+      '2': '#FFCB05',
+      '3': '#4f46e5'
+    };
+    
+    return storeIds.map(sId => {
+      const list = allStoresDreData[sId] || [];
+      const match = list.find(d => d.month === currentMonthLabel && d.year === selectedYear);
+      const faturamento = match ? (match.faturamento || 0) : 0;
+      const cmv = match ? (match.cmv || 0) : 0;
+      const cmvPct = faturamento > 0 ? (cmv / faturamento) * 100 : 0;
+      const netProfit = match ? (match.netProfit || 0) : 0;
+      const netProfitPct = faturamento > 0 ? (netProfit / faturamento) * 100 : 0;
+      
+      return {
+        id: sId,
+        name: storeNames[sId],
+        faturamento,
+        cmvPct,
+        netProfit,
+        netProfitPct,
+        color: storeColors[sId]
+      };
+    }).sort((a, b) => b.faturamento - a.faturamento);
+  }, [allStoresDreData, isRoot, currentMonthLabel, selectedYear]);
+
+  const totalConsolidatedFat = storesPerformance.reduce((sum, item) => sum + item.faturamento, 0);
+
+  // Memo to calculate exact expense distribution of the DRE for individual store mode
+  const expenseDistribution = React.useMemo(() => {
+    if (isRoot) return [];
+    
+    const cmvVal = currentMonthData.cmv || 0;
+    const personnelVal = currentMonthData.payroll || 0;
+    const taxesVal = (currentMonthData.details?.deducoes?.darfSimples || currentMonthData.taxes || 0);
+    const rentVal = (currentMonthData.rent || 0);
+    const marketingVal = (currentMonthData.marketing || currentMonthData.details?.comerciais?.marketing || 0);
+    const royaltiesVal = (currentMonthData.royalties || 0);
+    const operationalVal = (currentMonthData.operational || 0);
+    
+    const otherCosts = Math.max(0, (currentMonthData.faturamento || 0) - (currentMonthData.netProfit || 0) - (cmvVal + personnelVal + taxesVal + rentVal + marketingVal + royaltiesVal + operationalVal));
+
+    const totalExp = cmvVal + personnelVal + taxesVal + rentVal + marketingVal + royaltiesVal + operationalVal + otherCosts;
+
+    return [
+      { name: 'CMV (Ingredientes/Estoque)', value: cmvVal, pct: totalExp > 0 ? (cmvVal / totalExp) * 100 : 0, color: '#E63946' },
+      { name: 'Pessoal (Salários/Encargos)', value: personnelVal, pct: totalExp > 0 ? (personnelVal / totalExp) * 100 : 0, color: '#0066FF' },
+      { name: 'Impostos e Deduções', value: taxesVal, pct: totalExp > 0 ? (taxesVal / totalExp) * 100 : 0, color: '#6B7280' },
+      { name: 'Ocupação (Aluguel/Energia)', value: rentVal, pct: totalExp > 0 ? (rentVal / totalExp) * 100 : 0, color: '#FFB800' },
+      { name: 'Marketing / Comercial', value: marketingVal, pct: totalExp > 0 ? (marketingVal / totalExp) * 100 : 0, color: '#EC4899' },
+      { name: 'Royalties / Franquia', value: royaltiesVal, pct: totalExp > 0 ? (royaltiesVal / totalExp) * 100 : 0, color: '#8B5CF6' },
+      { name: 'Outras Operacionais', value: operationalVal + otherCosts, pct: totalExp > 0 ? ((operationalVal + otherCosts) / totalExp) * 100 : 0, color: '#10B981' }
+    ].filter(item => item.value > 0);
+  }, [currentMonthData, isRoot]);
+
   // Dynamic yearly data for the current month comparison
   const yearNum = parseInt(selectedYear);
   const yearsToCompare = [
@@ -192,7 +450,7 @@ export default function Dashboard() {
   ];
 
   const yearlyComparisonData = yearsToCompare.map((y, idx) => {
-    const timelineData = dreTimeline.find(p => 
+    const timelineData = activeDreTimeline.find(p => 
       p.month === currentMonthLabel && 
       (p.year === y || (!p.year && y === '2026'))
     );
@@ -242,8 +500,8 @@ export default function Dashboard() {
 
   const featuredInsight = getFeaturedInsight();
 
-  // Filter and sort the dreTimeline for the "Crescimento Mensal" chart to show the selected year's data sorted chronologically
-  const sortedChartData = dreTimeline
+  // Filter and sort the activeDreTimeline for the "Crescimento Mensal" chart to show the selected year's data sorted chronologically
+  const sortedChartData = activeDreTimeline
     .filter(p => {
       const pYear = p.year || '2026';
       return pYear === selectedYear;
@@ -509,33 +767,90 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Hourly & Daily Sales */}
+      {/* Hourly & Daily Sales replaced with dynamic Unit Performance / Expenses Distribution */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Hourly Sales */}
-        <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className={`text-lg font-bold mb-6 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-            <Clock className="w-5 h-5 text-orange-500" /> Faturamento por Horário
-          </h3>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesByHour}>
-                <XAxis dataKey="hour" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 10}} />
-                <Tooltip 
-                  formatter={(val: number) => [formatCurrency(val), 'Faturamento']}
-                  labelStyle={{ color: '#888' }}
-                  contentStyle={{ 
-                    borderRadius: '12px', 
-                    border: 'none', 
-                    backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
-                    boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'
-                  }}
-                />
-                <Area type="monotone" dataKey="faturamento" name="Faturamento" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.1} strokeWidth={2} />
-              </AreaChart>
-            </ResponsiveContainer>
+        {/* Dynamic Card replacing Faturamento por Horário */}
+        {isRoot ? (
+          <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                  <PieIcon className="w-5 h-5 text-emerald-500" /> Desempenho por Unidade
+                </h3>
+                <p className="text-[10px] text-slate-500 font-medium italic">Faturamento por loja em {currentMonthLabel}/{selectedYear}</p>
+              </div>
+              <span className="text-xs bg-emerald-500/15 text-emerald-500 px-2.5 py-1 rounded-full font-bold uppercase italic">Rank</span>
+            </div>
+            
+            <div className="space-y-5">
+              {storesPerformance.map((store, i) => {
+                const pctOfTotal = totalConsolidatedFat > 0 ? (store.faturamento / totalConsolidatedFat) * 100 : 0;
+                return (
+                  <div key={store.id} className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-lg flex items-center justify-center bg-slate-100 dark:bg-[#333] text-[10px] font-black text-slate-500">#{i + 1}</span>
+                        <span className={isDarkMode ? 'text-white' : 'text-slate-800'}>{store.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={isDarkMode ? 'text-white' : 'text-slate-900'}>{formatCurrency(store.faturamento)}</span>
+                        <span className="text-slate-400 text-[10px] ml-1.5 font-normal flex-none">({pctOfTotal.toFixed(1)}%)</span>
+                      </div>
+                    </div>
+                    {/* Performance bar */}
+                    <div className="w-full bg-slate-100 dark:bg-black/20 h-2.5 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${pctOfTotal}%` }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                        className="h-full rounded-full" 
+                        style={{ backgroundColor: store.color }}
+                      />
+                    </div>
+                    {/* Tiny stats beneath */}
+                    <div className="flex justify-between text-[10px] text-slate-400 font-medium">
+                      <span>CMV: <strong className={store.cmvPct > 35 ? 'text-rose-500' : 'text-emerald-500'}>{store.cmvPct.toFixed(1)}%</strong></span>
+                      <span>Lucro Líquido: <strong className={store.netProfit < 0 ? 'text-rose-500' : 'text-emerald-500'}>{formatCurrency(store.netProfit)} ({store.netProfitPct.toFixed(1)}%)</strong></span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <p className="text-[10px] text-slate-500 mt-4 text-center italic">Horário de pico detectado: <span className="font-bold text-slate-900 dark:text-white">{peakHour}h</span></p>
-        </div>
+        ) : (
+          <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+            <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <PieIcon className="w-5 h-5 text-indigo-500" /> Distribuição de Custos e Despesas
+            </h3>
+            <p className="text-[10px] text-slate-500 mb-6 italic">Composição de gastos no acumulado de {currentMonthLabel}/{selectedYear}</p>
+            
+            <div className="space-y-4">
+              {expenseDistribution.length > 0 ? expenseDistribution.map((exp) => (
+                <div key={exp.name} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-slate-500 dark:text-slate-400">{exp.name}</span>
+                    <span className={isDarkMode ? 'text-white' : 'text-slate-900'}>
+                      {formatCurrency(exp.value)} <span className="text-[10px] text-slate-400 font-normal">({exp.pct.toFixed(1)}%)</span>
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-black/20 h-2 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${exp.pct}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                      className="h-full rounded-full" 
+                      style={{ backgroundColor: exp.color }}
+                    />
+                  </div>
+                </div>
+              )) : (
+                <div className="py-12 text-center text-slate-400 text-xs italic">
+                  Abra a aba Lançamentos para informar despesas relativas a este período.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Comparativo Mensal YoY */}
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
