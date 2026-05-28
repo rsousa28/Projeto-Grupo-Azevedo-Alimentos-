@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
+import { AuditService } from '../services/AuditService';
 import { db } from '../lib/firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { 
@@ -271,6 +272,18 @@ export default function Checklist() {
     if (newPlans.length > 0) {
       const updatedPlans = [...newPlans, ...actionPlans];
       await savePlans(updatedPlans);
+    }
+
+    if (user) {
+      await AuditService.logAction({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'CHECKLIST_SUBMIT',
+        description: `Enviou checklist '${sub.templateTitle}' (Conformidade: ${sub.conformityIndex.toFixed(1)}%). Plano de ações gerados: ${newPlans.length}.`,
+        storeCode: currentStore.code,
+        storeName: currentStore.name
+      }).catch(e => console.error("Error logging checklist submission:", e));
     }
 
     setExecutingTemplate(null);

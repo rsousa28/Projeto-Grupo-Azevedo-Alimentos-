@@ -84,9 +84,32 @@
         "data": { "type": "object" }
       },
       "required": ["data"]
+    },
+    "AuditLog": {
+      "title": "Audit Log Entry",
+      "description": "Secure append-only record of system events, logins, and configurations",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userRole": { "type": "string" },
+        "action": { "type": "string" },
+        "description": { "type": "string" },
+        "storeCode": { "type": "string" },
+        "storeName": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "userAgent": { "type": "string" },
+        "ipAddress": { "type": "string" },
+        "metadata": { "type": "object" }
+      },
+      "required": ["userId", "userName", "userRole", "action", "description", "timestamp", "userAgent"]
     }
   },
   "firestore": {
+    "/audit_logs/{logId}": {
+      "schema": "AuditLog",
+      "description": "Global append-only audit trail collection"
+    },
     "/users/{userId}": {
       "schema": "User",
       "description": "Global collection of system users"

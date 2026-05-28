@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { AuditService } from '../services/AuditService';
+import { sha256 } from '../utils/crypto';
 
 interface AuthContextType {
   user: User | null;
@@ -24,10 +26,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (username: string, password: string) => {
     setIsLoading(true);
+    const u = username?.trim().toLowerCase();
+    const p = password?.trim();
     try {
-      const u = username?.trim().toLowerCase();
-      const p = password?.trim();
-
       // 1. Check for root administrator fallback
       if (u === 'adm' && p === '88028837') {
         const adminUser: User = { 
@@ -38,6 +39,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setUser(adminUser);
         localStorage.setItem('auth_user', JSON.stringify(adminUser));
+        await AuditService.logAction({
+          userId: adminUser.id,
+          userName: adminUser.name,
+          userRole: adminUser.role,
+          action: 'LOGIN_SUCCESS',
+          description: `Login realizado com sucesso como Admin Geral.`
+        });
         return;
       }
 
@@ -50,6 +58,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setUser(victorUser);
         localStorage.setItem('auth_user', JSON.stringify(victorUser));
+        await AuditService.logAction({
+          userId: victorUser.id,
+          userName: victorUser.name,
+          userRole: victorUser.role,
+          action: 'LOGIN_SUCCESS',
+          description: `Login realizado com sucesso como Diretor.`
+        });
         return;
       }
 
@@ -62,6 +77,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setUser(pUser);
         localStorage.setItem('auth_user', JSON.stringify(pUser));
+        await AuditService.logAction({
+          userId: pUser.id,
+          userName: pUser.name,
+          userRole: pUser.role,
+          action: 'LOGIN_SUCCESS',
+          description: `Login realizado com sucesso como Gerente de Bebelu Papicu.`
+        });
         return;
       }
 
@@ -74,6 +96,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setUser(palomaUser);
         localStorage.setItem('auth_user', JSON.stringify(palomaUser));
+        await AuditService.logAction({
+          userId: palomaUser.id,
+          userName: palomaUser.name,
+          userRole: palomaUser.role,
+          action: 'LOGIN_SUCCESS',
+          description: `Login realizado com sucesso como Gerente de Bebelu Mossoró.`
+        });
         return;
       }
 
@@ -86,23 +115,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
         setUser(jefUser);
         localStorage.setItem('auth_user', JSON.stringify(jefUser));
+        await AuditService.logAction({
+          userId: jefUser.id,
+          userName: jefUser.name,
+          userRole: jefUser.role,
+          action: 'LOGIN_SUCCESS',
+          description: `Login realizado com sucesso como Gerente de 4 Estylos Mossoró.`
+        });
         return;
       }
 
       // 2. Check Firestore for custom users
       try {
         const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('username', '==', u), limit(1));
-        const querySnapshot = await getDocs(q);
+        const qUsers = query(usersRef, where('username', '==', u), limit(1));
+        const querySnapshot = await getDocs(qUsers);
 
         if (!querySnapshot.empty) {
-          const doc = querySnapshot.docs[0];
-          const userData = doc.data();
+          const docUser = querySnapshot.docs[0];
+          const userData = docUser.data();
           
-          // Verify password (stored in Firestore for this demo)
-          if (userData.password === p) {
+          // Verify password (stored in Firestore as SHA-256 with plaintext fallback)
+          const hashedEntered = await sha256(p);
+          const isMatched = userData.password === p || userData.password === hashedEntered;
+          
+          if (isMatched) {
             const newUser: User = {
-              id: doc.id,
+              id: docUser.id,
               name: userData.name,
               username: userData.username,
               role: userData.role,
@@ -110,15 +149,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             };
             setUser(newUser);
             localStorage.setItem('auth_user', JSON.stringify(newUser));
+            await AuditService.logAction({
+              userId: newUser.id,
+              userName: newUser.name,
+              userRole: newUser.role,
+              action: 'LOGIN_SUCCESS',
+              description: `Login via Banco de Dados com sucesso.`
+            });
             return;
           }
         }
       } catch (dbError) {
-        console.error("Database access error:", dbError);
+        console.error("Database access error during login:", dbError);
       }
 
+      // If we fall through, it's failed credentials
+      await AuditService.logAction({
+        userId: 'anonymous',
+        userName: u || 'unknown',
+        userRole: 'NONE',
+        action: 'LOGIN_FAILED',
+        description: `Tentativa de login malsucedida para usuário '${u}'.`
+      });
       throw new Error('Credenciais inválidas.');
     } catch (error: any) {
+      if (error.message !== 'Credenciais inválidas.') {
+        await AuditService.logAction({
+          userId: 'anonymous',
+          userName: u || 'unknown',
+          userRole: 'NONE',
+          action: 'LOGIN_FAILED',
+          description: `Erro durante o processo de login do usuário '${u}': ${error.message || error}`
+        });
+      }
       console.error('Login error:', error);
       throw error;
     } finally {
@@ -127,6 +190,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    if (user) {
+      AuditService.logAction({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'LOGOUT',
+        description: `Usuário '${user.name}' deslogou temporariamente do sistema.`
+      });
+    }
     setUser(null);
     localStorage.removeItem('auth_user');
     localStorage.removeItem('active_store_id');

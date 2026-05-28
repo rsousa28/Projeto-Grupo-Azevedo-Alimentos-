@@ -24,6 +24,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { User } from '../types';
 import { db, OperationType, handleFirestoreError } from '../lib/firebase';
+import { AuditService } from '../services/AuditService';
+import { sha256 } from '../utils/crypto';
 import { 
   collection, 
   getDocs, 
@@ -116,20 +118,40 @@ export default function Team() {
           role: formData.role,
           updatedAt: serverTimestamp()
         };
-        if (formData.password) {
-          updateData.password = formData.password;
+        // Hash password if modifying it
+        if (formData.password && formData.password !== editingUser.password) {
+          updateData.password = await sha256(formData.password);
         }
         await updateDoc(userRef, updateData);
+        if (currentUser) {
+          await AuditService.logAction({
+            userId: currentUser.id,
+            userName: currentUser.name,
+            userRole: currentUser.role,
+            action: 'TEAM_USER_UPDATE',
+            description: `Modificou as configurações/cargo do colaborador '${updateData.name}' (${updateData.role}).`
+          }).catch(e => console.error(e));
+        }
         setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...updateData } : u));
       } else {
+        const hashedPassword = await sha256(formData.password);
         const newUser = {
           name: formData.name,
           username: formData.username,
-          password: formData.password,
+          password: hashedPassword,
           role: formData.role,
           createdAt: serverTimestamp()
         };
         const docRef = await addDoc(collection(db, path), newUser);
+        if (currentUser) {
+          await AuditService.logAction({
+            userId: currentUser.id,
+            userName: currentUser.name,
+            userRole: currentUser.role,
+            action: 'TEAM_USER_CREATE',
+            description: `Cadastrou o novo colaborador '${newUser.name}' com privilégios '${newUser.role}'.`
+          }).catch(e => console.error(e));
+        }
         setUsers(prev => [...prev, { id: docRef.id, ...newUser } as User]);
       }
       setIsModalOpen(false);
@@ -159,9 +181,19 @@ export default function Team() {
   const confirmDelete = async () => {
     if (!deleteConfirmId) return;
     
+    const removedUser = users.find(u => u.id === deleteConfirmId);
     setLoading(true);
     try {
       await deleteDoc(doc(db, 'users', deleteConfirmId));
+      if (currentUser && removedUser) {
+        await AuditService.logAction({
+          userId: currentUser.id,
+          userName: currentUser.name,
+          userRole: currentUser.role,
+          action: 'TEAM_USER_DELETE',
+          description: `Excluiu permanentemente a conta de acesso de '${removedUser.name}' (${removedUser.role}).`
+        }).catch(e => console.error(e));
+      }
       setUsers(prev => prev.filter(u => u.id !== deleteConfirmId));
       setDeleteConfirmId(null);
       toastSuccess("Usuário removido com sucesso!");

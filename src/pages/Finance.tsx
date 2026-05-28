@@ -44,8 +44,25 @@ import {
 } from 'recharts';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
+import { useAuth } from '../contexts/AuthContext';
+import { AuditService } from '../services/AuditService';
 import DataEntrySection from '../components/DataEntrySection';
 import { chatWithConsultant } from '../services/geminiService';
+
+const monthsGlobal = [
+  { value: '01', label: 'Janeiro' },
+  { value: '02', label: 'Fevereiro' },
+  { value: '03', label: 'Março' },
+  { value: '04', label: 'Abril' },
+  { value: '05', label: 'Maio' },
+  { value: '06', label: 'Junho' },
+  { value: '07', label: 'Julho' },
+  { value: '08', label: 'Agosto' },
+  { value: '09', label: 'Setembro' },
+  { value: '10', label: 'Outubro' },
+  { value: '11', label: 'Novembro' },
+  { value: '12', label: 'Dezembro' },
+];
 
 const formatCurrency = (val: number) => 
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -53,6 +70,7 @@ const formatCurrency = (val: number) =>
 export default function Finance() {
   const { isDarkMode, dreTimeline, brandColors, currentStore, topProducts, loadDREPeriod, loadCMVPeriod, deletePeriodData, yearlyHistory } = useStore();
   const { success: toastSuccess, error: toastError } = useToast();
+  const { user } = useAuth();
   const isBebeluRioMar = currentStore?.id === '2' || currentStore?.code === 'B28';
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio as default
   const [selectedYear, setSelectedYear] = useState('2026');
@@ -104,23 +122,23 @@ export default function Finance() {
     loadDREPeriod(selectedMonth, prevYear2);
     
     loadCMVPeriod(selectedMonth, selectedYear);
+
+    if (user && currentStore && currentStore.code !== 'ROOT') {
+      const monthLabel = monthsGlobal.find(m => m.value === selectedMonth)?.label || selectedMonth;
+      AuditService.logAction({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'DRE_VIEW',
+        description: `Visualizou e analisou os demonstrativos financeiros (DRE) do período ${monthLabel}/${selectedYear}.`,
+        storeCode: currentStore.code,
+        storeName: currentStore.name
+      }).catch(err => console.error(err));
+    }
   }, [selectedMonth, selectedYear, currentStore.id]);
   const [expandedGroups, setExpandedGroups] = useState<string[]>(['receita', 'deducoes', 'cmv', 'despesas_var', 'despesas_fixas_5', 'despesas_fixas_6', 'despesas_fixas_7', 'despesas_fixas_8', 'despesas_fixas_9', 'financeiro']);
 
-  const months = [
-    { value: '01', label: 'Janeiro' },
-    { value: '02', label: 'Fevereiro' },
-    { value: '03', label: 'Março' },
-    { value: '04', label: 'Abril' },
-    { value: '05', label: 'Maio' },
-    { value: '06', label: 'Junho' },
-    { value: '07', label: 'Julho' },
-    { value: '08', label: 'Agosto' },
-    { value: '09', label: 'Setembro' },
-    { value: '10', label: 'Outubro' },
-    { value: '11', label: 'Novembro' },
-    { value: '12', label: 'Dezembro' },
-  ];
+  const months = monthsGlobal;
 
   const currentMonthLabel = months.find(m => m.value === selectedMonth)?.label;
   

@@ -19,8 +19,11 @@ import Team from './pages/Team';
 import CashClosing from './pages/CashClosing';
 import Checklist from './pages/Checklist';
 import AccountsPayable from './pages/AccountsPayable';
+import AuditLogs from './pages/AuditLogs';
 
+import { useEffect } from 'react';
 import { useAuth } from './contexts/AuthContext';
+import { AuditService } from './services/AuditService';
 
 /**
  * Detects if the current environment is a preview/proxy environment.
@@ -47,6 +50,23 @@ function checkPreviewEnvironment(): boolean {
 const isPreview = checkPreviewEnvironment();
 const Router = isPreview ? HashRouter : BrowserRouter;
 
+function UnauthorizedRedirect({ routeName }: { routeName: string }) {
+  const { user } = useAuth();
+  useEffect(() => {
+    if (user) {
+      AuditService.logAction({
+        userId: user.id || 'anonymous',
+        userName: user.name || 'unknown',
+        userRole: user.role || 'NONE',
+        action: 'UNAUTHORIZED_ACCESS',
+        description: `Negado: Tentativa de acesso não autorizada à rota restrita '${routeName}'.`
+      }).catch(err => console.error("Error logging security event:", err));
+    }
+  }, [user, routeName]);
+
+  return <Navigate to="/dashboard" replace />;
+}
+
 function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const hasAccess = user && (
@@ -60,7 +80,16 @@ function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
     user.role?.startsWith('MANAGER_')
   );
   if (!hasAccess) {
-    return <Navigate to="/dashboard" replace />;
+    return <UnauthorizedRedirect routeName="Contas a Pagar (Accounts Payable)" />;
+  }
+  return <>{children}</>;
+}
+
+function RootAdminOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const hasAccess = user && user.username === 'adm';
+  if (!hasAccess) {
+    return <UnauthorizedRedirect routeName="Painel de Controle / Auditoria / Colaboradores" />;
   }
   return <>{children}</>;
 }
@@ -72,7 +101,7 @@ function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
     user.username === 'victordiretor'
   );
   if (!hasAccess) {
-    return <Navigate to="/dashboard" replace />;
+    return <UnauthorizedRedirect routeName="Demonstrativo DRE / Fluxo Financeiro" />;
   }
   return <>{children}</>;
 }
@@ -111,10 +140,19 @@ function AppRoutes() {
              </AdminOnlyRoute>
            } />
            <Route path="/cmv" element={<CMV />} />
+            <Route path="/audit-logs" element={
+              <RootAdminOnlyRoute>
+                <AuditLogs />
+              </RootAdminOnlyRoute>
+            } />
            <Route path="/checklist" element={<Checklist />} />
            <Route path="/analysis" element={<Dashboard />} />
            <Route path="/reports" element={<Dashboard />} />
-           <Route path="/team" element={<Team />} />
+           <Route path="/team" element={
+              <RootAdminOnlyRoute>
+                <Team />
+              </RootAdminOnlyRoute>
+            } />
         </Route>
 
         <Route path="/" element={

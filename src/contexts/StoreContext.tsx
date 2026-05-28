@@ -4,6 +4,8 @@ import { useToast } from './ToastContext';
 import { mockMetrics, dreTimeline as mockDreTimeline, metaVsRealizado as mockMetaVsRealizado, topProducts as mockTopProducts, deliveryChannels as mockDeliveryChannels, salesByHour as mockSalesByHour, salesByDay as mockSalesByDay } from '../lib/mockData';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from './AuthContext';
+import { AuditService } from '../services/AuditService';
 
 interface StoreContextType {
   currentStore: Store;
@@ -305,9 +307,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return STORES[3]; // Admin consolidated global by default
   });
 
+  const { user } = useAuth();
+
   const setStore = (store: Store) => {
     setCurrentStore(store);
     localStorage.setItem('active_store_id', store.id);
+    if (user) {
+      AuditService.logAction({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'STORE_CHANGE',
+        description: `Selecionou a unidade '${store.name}' (${store.code || 'sem código'}) como ativa.`,
+        storeCode: store.code,
+        storeName: store.name
+      }).catch(err => console.error("Error logging store change: ", err));
+    }
   };
 
   // All units use the premium, optimized dark theme to establish a clean and professional layout standard without visual clutter.

@@ -36,6 +36,7 @@ import { useToast } from '../contexts/ToastContext';
 import { AccountPayable } from '../types';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { AuditService } from '../services/AuditService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
@@ -647,6 +648,19 @@ export default function AccountsPayable() {
         // Manager saves only their own store
         const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
         await setDoc(docRef, { data: cleanAccounts });
+      }
+      
+      if (user) {
+        const monthLabel = months.find(m => m.value === selectedMonth)?.label || selectedMonth;
+        await AuditService.logAction({
+          userId: user.id,
+          userName: user.name,
+          userRole: user.role,
+          action: 'ACCOUNT_PAYABLE_SAVE',
+          description: `Sincronizou registros do contas a pagar de ${monthLabel}/${selectedYear}.`,
+          storeCode: currentStore.code,
+          storeName: currentStore.name
+        }).catch(err => console.error(err));
       }
       
       setIsSaving(false);

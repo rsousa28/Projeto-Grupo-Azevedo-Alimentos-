@@ -26,6 +26,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { AuditService } from '../services/AuditService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -179,6 +180,18 @@ export default function CashClosing() {
     try {
       const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
       await setDoc(docRef, { data: closingsData });
+      if (user) {
+        const monthLabel = months.find(m => m.value === selectedMonth)?.label || selectedMonth;
+        await AuditService.logAction({
+          userId: user.id,
+          userName: user.name,
+          userRole: user.role,
+          action: 'CASH_CLOSING_SAVE',
+          description: `Salvou faturamentos e fechamentos de caixa do período ${monthLabel}/${selectedYear}.`,
+          storeCode: currentStore.code,
+          storeName: currentStore.name
+        }).catch(err => console.error(err));
+      }
       setIsSaving(false);
       toastSuccess(`Dados de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`);
     } catch (err) {

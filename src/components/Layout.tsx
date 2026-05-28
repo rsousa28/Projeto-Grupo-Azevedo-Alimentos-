@@ -15,7 +15,8 @@ import {
   Zap,
   Banknote,
   ClipboardCheck,
-  Receipt
+  Receipt,
+  Shield
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -40,6 +41,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Receipt, label: 'Contas a Pagar', path: '/accounts-payable', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: Calculator, label: 'CMV & Engenharia', path: '/cmv', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
+  { icon: Shield, label: 'Logs de Acesso', path: '/audit-logs', allowedRoles: ['ADMIN'] },
 ];
 
 const LOGO_URL = "/logo_azevedo.svg";
@@ -54,7 +56,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const location = useLocation();
 
   React.useEffect(() => {
-    if (currentStore.code === 'ROOT' && location.pathname !== '/team') {
+    if (currentStore.code === 'ROOT' && location.pathname !== '/team' && location.pathname !== '/audit-logs') {
       navigate('/team');
     }
   }, [currentStore.code, location.pathname, navigate]);
@@ -66,10 +68,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
   const filteredNavItems = NAV_ITEMS.filter(item => {
     if (currentStore.code === 'ROOT') {
-      return item.path === '/team';
+      return item.path === '/team' || (item.path === '/audit-logs' && user?.username === 'adm');
     }
-    if (item.path === '/team') {
-      return false; // Team tab is strictly restricted to consolidated ROOT view only
+    if (item.path === '/team' || item.path === '/audit-logs') {
+      return false; // Team and Audit Logs are strictly restricted to consolidated ROOT view only
     }
     if (item.path === '/finance') {
       return user?.username === 'adm' || user?.username === 'victordiretor';

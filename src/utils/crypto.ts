@@ -1,0 +1,12 @@
+/**
+ * Cryptographic utility functions.
+ * Uses native Web Crypto API for secure hashing.
+ */
+
+export async function sha256(message: string): Promise<string> {
+  if (!message) return '';
+  const msgBuffer = new TextEncoder().encode(message);
+  const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
