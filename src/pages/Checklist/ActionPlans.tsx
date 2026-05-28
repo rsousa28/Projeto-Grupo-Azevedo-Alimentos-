@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../../contexts/StoreContext';
 import { ActionPlan } from '../../types/checklist';
+import { PhotoZoomModal } from '../../components/PhotoZoomModal';
 
 interface ActionPlansProps {
   actionPlans: ActionPlan[];
@@ -35,6 +36,7 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
   const [resolvingPlanId, setResolvingPlanId] = useState<string | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [resolutionPhoto, setResolutionPhoto] = useState<string | null>(null);
+  const [zoomedPlanPhoto, setZoomedPlanPhoto] = useState<string | null>(null);
 
   // Filter plans based on active store and selected filter status
   const filteredPlans = React.useMemo(() => {
@@ -204,8 +206,15 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
                     </div>
                   )}
                   {plan.resolutionPhoto && (
-                    <div className="relative w-24 h-16 rounded-lg overflow-hidden border">
-                      <img src={plan.resolutionPhoto} alt="Resolução" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <div 
+                      onClick={() => setZoomedPlanPhoto(plan.resolutionPhoto || null)}
+                      className="relative w-24 h-16 rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-800 cursor-zoom-in group hover:brightness-95 transition-all shadow-sm shrink-0"
+                      title="Clique para Zoom"
+                    >
+                      <img src={plan.resolutionPhoto} alt="Resolução" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerPolicy="no-referrer" />
+                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-[8px] font-black uppercase text-white bg-indigo-600/60">
+                        ZOOM
+                      </div>
                     </div>
                   )}
                 </div>
@@ -271,14 +280,25 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
                   <span className="text-[10px] font-black uppercase italic text-slate-400 block">Comprovação Fotográfica da Solução</span>
                   
                   {resolutionPhoto ? (
-                    <div className="relative w-36 h-24 rounded-xl overflow-hidden border">
-                      <img src={resolutionPhoto} alt="Solução" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    <div 
+                      onClick={() => setZoomedPlanPhoto(resolutionPhoto)}
+                      className="relative w-36 h-24 rounded-xl overflow-hidden border border-slate-300 dark:border-slate-800 cursor-zoom-in group hover:brightness-95 transition-all shadow-md"
+                      title="Clique para Zoom"
+                    >
+                      <img src={resolutionPhoto} alt="Solução" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerPolicy="no-referrer" />
+                      <div className="absolute inset-z bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white text-[9px] font-black uppercase transition-opacity">
+                        ZOOM
+                      </div>
                       <button
                         type="button"
-                        onClick={() => setResolutionPhoto(null)}
-                        className="absolute inset-0 bg-black/60 flex items-center justify-center text-white text-xs font-bold"
+                        onClick={(e) => {
+                          e.stopPropagation(); // Stop trigger zoom click
+                          setResolutionPhoto(null);
+                        }}
+                        className="absolute bottom-2 right-2 bg-black/8 w-7 h-7 bg-zinc-950/80 backdrop-blur rounded-full flex items-center justify-center text-white font-bold hover:bg-rose-650 transition-colors cursor-pointer"
+                        title="Remover"
                       >
-                        Remover
+                        <X className="w-4 h-4 text-white" />
                       </button>
                     </div>
                   ) : (
@@ -386,6 +406,14 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
           </div>
         )}
       </AnimatePresence>
+
+      {/* Photo Zoom Lightbox in Action Plans */}
+      <PhotoZoomModal 
+        isOpen={!!zoomedPlanPhoto} 
+        src={zoomedPlanPhoto || ''} 
+        onClose={() => setZoomedPlanPhoto(null)} 
+        alt="Foto do Plano de Ação"
+      />
     </div>
   );
 }

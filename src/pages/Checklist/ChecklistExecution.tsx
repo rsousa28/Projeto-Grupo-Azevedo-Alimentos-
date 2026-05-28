@@ -19,6 +19,7 @@ import { useStore } from '../../contexts/StoreContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/firebase';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { PhotoZoomModal } from '../../components/PhotoZoomModal';
 import { 
   ChecklistTemplate, 
   ChecklistQuestion, 
@@ -59,6 +60,7 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingDraft, setLoadingDraft] = useState(true);
+  const [zoomedExecutionPhoto, setZoomedExecutionPhoto] = useState<string | null>(null);
 
   // Initialize answers with defaults where appropriate, merged with existing draft
   useEffect(() => {
@@ -784,30 +786,40 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
 
                   {photos[question.id] ? (
                     <div className="flex items-center gap-4">
-                      <div className="relative w-32 h-24 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-800 shadow-sm shrink-0">
+                      <div 
+                        onClick={() => setZoomedExecutionPhoto(photos[question.id])}
+                        className="relative w-32 h-24 rounded-2xl overflow-hidden border border-slate-300 dark:border-slate-800 shadow-sm shrink-0 cursor-zoom-in group hover:brightness-95 transition-all"
+                        title="Clique para ver em Zoom"
+                      >
                         <img 
                           src={photos[question.id]} 
                           alt="Evidência" 
-                          className="w-full h-full object-cover" 
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
                           referrerPolicy="no-referrer"
                         />
-                        <button
-                          type="button"
-                          onClick={() => removePhoto(question.id)}
-                          className="absolute inset-0 bg-black/60 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity text-white font-bold text-xs"
-                        >
-                          Remover
-                        </button>
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <span className="text-[8px] font-black uppercase text-white bg-indigo-600/90 px-2 py-0.5 rounded shadow-sm">ZOOM</span>
+                        </div>
                       </div>
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] text-green-500 font-bold flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Foto capturada!</span>
-                        <button
-                          type="button"
-                          onClick={() => removePhoto(question.id)}
-                          className="text-[10px] font-extrabold uppercase text-slate-500 hover:text-rose-500 text-left"
-                        >
-                          Excluir imagem
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setZoomedExecutionPhoto(photos[question.id])}
+                            className="text-[10px] font-black uppercase text-indigo-500 hover:text-indigo-600 dark:text-[#FFCB05] dark:hover:text-amber-400 text-left cursor-pointer transition-colors"
+                          >
+                            Visualizar Zoom
+                          </button>
+                          <span className="text-[10px] text-slate-300 dark:text-zinc-700">•</span>
+                          <button
+                            type="button"
+                            onClick={() => removePhoto(question.id)}
+                            className="text-[10px] font-extrabold uppercase text-slate-500 hover:text-rose-500 text-left cursor-pointer transition-colors"
+                          >
+                            Excluir imagem
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -909,6 +921,14 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
           </div>
         </div>
       </form>
+
+      {/* Photo Zoom Lightbox in Execution Screen */}
+      <PhotoZoomModal 
+        isOpen={!!zoomedExecutionPhoto} 
+        src={zoomedExecutionPhoto || ''} 
+        onClose={() => setZoomedExecutionPhoto(null)} 
+        alt="Visualização da Evidência Capturada"
+      />
     </div>
   );
 }

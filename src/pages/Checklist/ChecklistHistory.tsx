@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../../contexts/StoreContext';
 import { ChecklistSubmission, ChecklistAnswer } from '../../types/checklist';
+import { PhotoZoomModal } from '../../components/PhotoZoomModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -33,6 +34,7 @@ export default function ChecklistHistory({ submissions, onDeleteSubmission }: Hi
   
   // Modal state for inspecting a single submission
   const [activeInspection, setActiveInspection] = useState<ChecklistSubmission | null>(null);
+  const [zoomedPhotoUrl, setZoomedPhotoUrl] = useState<string | null>(null);
   
   // Modal state for double-confirm audit delete
   const [submissionToDelete, setSubmissionToDelete] = useState<ChecklistSubmission | null>(null);
@@ -428,14 +430,20 @@ export default function ChecklistHistory({ submissions, onDeleteSubmission }: Hi
 
                         {ans.photoUrl && (
                           <div className="space-y-1 md:col-span-2">
-                            <span className="text-[9px] font-black uppercase italic text-slate-500">Evidência Fotográfica Anexada</span>
-                            <div className="relative w-40 h-28 rounded-xl overflow-hidden border">
+                            <span className="text-[9px] font-black uppercase italic text-slate-500">Evidência Fotográfica Anexada (Clique para Zoom)</span>
+                            <div 
+                              onClick={() => setZoomedPhotoUrl(ans.photoUrl || null)}
+                              className="relative w-40 h-28 rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-850 cursor-zoom-in group hover:brightness-95 hover:border-indigo-500/50 transition-all shadow-sm active:scale-95"
+                            >
                               <img 
                                 src={ans.photoUrl} 
                                 alt="Evidência fotográfica" 
-                                className="w-full h-full object-cover" 
+                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
                                 referrerPolicy="no-referrer"
                               />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <span className="text-[8px] font-black uppercase tracking-wider text-white bg-indigo-600/90 px-2 py-1 rounded-lg shadow-md">ZOOM</span>
+                              </div>
                             </div>
                           </div>
                         )}
@@ -523,6 +531,14 @@ export default function ChecklistHistory({ submissions, onDeleteSubmission }: Hi
           </div>
         )}
       </AnimatePresence>
+
+      {/* Global Photo Zoom Lightbox in History */}
+      <PhotoZoomModal 
+        isOpen={!!zoomedPhotoUrl} 
+        src={zoomedPhotoUrl || ''} 
+        onClose={() => setZoomedPhotoUrl(null)} 
+        alt="Evidência de Checklist"
+      />
     </div>
   );
 }
