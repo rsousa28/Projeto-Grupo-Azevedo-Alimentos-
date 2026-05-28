@@ -321,6 +321,11 @@ export default function AccountsPayable() {
 
   // State
   const [accounts, setAccounts] = useState<AccountPayable[]>([]);
+  const [formStoreId, setFormStoreId] = useState(currentStore.id);
+
+  useEffect(() => {
+    setFormStoreId(currentStore.id);
+  }, [currentStore.id]);
   const [selectedMonth, setSelectedMonth] = useState('05'); // Default to May (Maio)
   const [selectedYear, setSelectedYear] = useState('2026');
   const [isSaving, setIsSaving] = useState(false);
@@ -597,6 +602,15 @@ export default function AccountsPayable() {
           }
           grouped[sId].push(ac);
         });
+
+        // Sync individual unit local storages so switching between units has no visual lags or stale caches
+        Object.entries(grouped).forEach(([storeId, storeAccounts]) => {
+          try {
+            localStorage.setItem(`g_azevedo_ap_items_clean_${storeId}`, JSON.stringify(storeAccounts));
+          } catch (err) {
+            console.warn(`Erro ao salvar localStorage individual para loja ${storeId}:`, err);
+          }
+        });
         
         const savePromises = Object.entries(grouped).map(async ([storeId, storeAccounts]) => {
           const docRef = doc(db, 'stores', storeId, 'accounts_payable', 'all');
@@ -636,6 +650,15 @@ export default function AccountsPayable() {
             grouped[sId] = [];
           }
           grouped[sId].push(ac);
+        });
+
+        // Sync individual unit local storages so switching between units has no visual lags or stale caches
+        Object.entries(grouped).forEach(([storeId, storeAccounts]) => {
+          try {
+            localStorage.setItem(`g_azevedo_ap_items_clean_${storeId}`, JSON.stringify(storeAccounts));
+          } catch (err) {
+            console.warn(`Erro ao salvar localStorage individual em handleSavePeriod para loja ${storeId}:`, err);
+          }
         });
         
         const savePromises = Object.entries(grouped).map(async ([storeId, storeAccounts]) => {
@@ -973,8 +996,8 @@ export default function AccountsPayable() {
 
       itemsCreated.push({
         id: `ap-${Date.now()}-${i}-${Math.floor(Math.random() * 1000)}`,
-        storeId: currentStore.id,
-        storeName: currentStore.name,
+        storeId: formStoreId,
+        storeName: STORES.find(s => s.id === formStoreId)?.name || currentStore.name,
         supplier: formSupplier,
         description: intCount > 1 
           ? `${formDescription} [Parcela ${i + 1}/${intCount}]` 
@@ -3069,6 +3092,22 @@ export default function AccountsPayable() {
               {/* MAIN RECORD FORM */}
               <form onSubmit={handleSubmitAccount} className="flex-1 flex flex-col gap-4">
                 
+                {currentStore.code === 'ROOT' && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Unidade Destinatária *</label>
+                    <select
+                      value={formStoreId}
+                      onChange={(e) => setFormStoreId(e.target.value)}
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1 cursor-pointer"
+                    >
+                      {STORES.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.brand})</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1">
                     <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Fornecedor *</label>
