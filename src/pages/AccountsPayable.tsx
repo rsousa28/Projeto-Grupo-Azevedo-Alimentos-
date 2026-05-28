@@ -2204,9 +2204,9 @@ export default function AccountsPayable() {
         </div>
 
         {/* Action Button Row */}
-        <div className="flex flex-wrap items-center gap-3 md:self-end">
+        <div className="flex flex-wrap items-center gap-3 md:items-center">
           {/* Greyish Period Selector capsule matching other pages exactly */}
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 mr-2">
+          <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5">
             <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
             <select 
               value={selectedMonth}
@@ -2242,40 +2242,24 @@ export default function AccountsPayable() {
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                // Ensure we start fresh
-                setFormSupplier('');
-                setFormDescription('');
-                setFormValue('');
-                setFormBarcode('');
-                setFormDocumentNumber('');
-                setFormNotes('');
-                setAttachedFileBase64(null);
-                setShowAddModal(true);
-              }}
-              style={{ backgroundColor: themeButtonBg, color: themeTextContrast }}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-black transition-all text-sm hover:opacity-90 hover:shadow-lg cursor-pointer"
-            >
-              <Plus className="w-5 h-5 stroke-[3]" />
-              Adicionar Conta
-            </button>
-
-            <button
-              onClick={() => setShowResetConfirm(true)}
-              onMouseEnter={() => setIsHoverReset(true)}
-              onMouseLeave={() => setIsHoverReset(false)}
-              style={{ 
-                borderColor: isHoverReset ? '#EF4444' : undefined, 
-                color: isHoverReset ? '#EF4444' : undefined 
-              }}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-slate-500 bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#333] dark:text-slate-400 font-bold transition-all text-sm group cursor-pointer"
-            >
-              <Trash2 className="w-4.5 h-4.5 group-hover:scale-110 transition-transform" />
-              Zerar Contas
-            </button>
-          </div>
+          <button
+            onClick={() => {
+              // Ensure we start fresh
+              setFormSupplier('');
+              setFormDescription('');
+              setFormValue('');
+              setFormBarcode('');
+              setFormDocumentNumber('');
+              setFormNotes('');
+              setAttachedFileBase64(null);
+              setShowAddModal(true);
+            }}
+            style={{ backgroundColor: themeButtonBg, color: themeTextContrast }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-black transition-all text-sm hover:opacity-90 hover:shadow-lg cursor-pointer shrink-0"
+          >
+            <Plus className="w-5 h-5 stroke-[3]" />
+            Adicionar Conta
+          </button>
         </div>
       </div>
 
