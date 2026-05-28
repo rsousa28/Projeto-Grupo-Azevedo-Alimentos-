@@ -515,7 +515,7 @@ export default function DataEntry() {
     <div className="space-y-8 pb-10">
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
         <div>
-          <h2 className={`text-3xl font-bold font-black ${isDarkMode ? 'text-white' : 'text-black'}`}>Lançamentos - {currentMonthLabel}/{selectedYear}</h2>
+          <h2 className={`text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>Lançamentos - {currentMonthLabel}/{selectedYear}</h2>
           <p className="text-slate-500 font-medium">Alimente o sistema com dados reais para atualizar os dashboards</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -534,7 +534,7 @@ export default function DataEntry() {
           <button 
             onClick={handleSave}
             className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-bold font-black uppercase tracking-widest text-sm transition-all shadow-lg active:scale-95 ${
-              currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'
+              currentStore.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'
             }`}
             style={{ backgroundColor: brandColors.button, boxShadow: `0 10px 15px -3px ${brandColors.button}30` }}
           >
@@ -569,7 +569,7 @@ export default function DataEntry() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
                 activeTab === tab.id 
-                  ? (currentStore.brand === 'BEBELU' ? 'text-black shadow-lg' : (isDarkMode ? 'bg-[#E63946] text-white shadow-lg' : 'bg-white text-slate-900 shadow-md'))
+                  ? (currentStore.brand === 'BEBELU' ? 'text-[#7F300C] shadow-lg' : (isDarkMode ? 'bg-[#E63946] text-white shadow-lg' : 'bg-white text-slate-900 shadow-md'))
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
               style={activeTab === tab.id && currentStore.brand === 'BEBELU' ? { backgroundColor: brandColors.button } : {}}

@@ -325,9 +325,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  // All units use the premium, optimized dark theme to establish a clean and professional layout standard without visual clutter.
-  // 4E09 and ROOT remain exactly the same as they were, while Bebelu (B32 & B28) is upgraded with custom yellow brand accents.
-  const isDarkMode = true;
+  // 4E09 and ROOT remain exactly the same as they were with dark layouts, while Bebelu (B32 & B28) uses a clean white background.
+  const isDarkMode = currentStore?.brand !== 'BEBELU';
   const [metrics, setMetrics] = useState<Metric[]>(mockMetrics.map(m => ({ ...m, valor: 0, trend: 'neutral', change: '0%' })));
   const [dreTimeline, setDreTimeline] = useState<DREData[]>([]);
   const [metaVsRealizado, setMetaVsRealizado] = useState<any[]>([
@@ -442,8 +441,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const brandColors = {
     primary: currentStore.brand === 'BEBELU' ? '#FFCB05' : '#E63946',
-    secondary: currentStore.brand === 'BEBELU' ? '#BC2C18' : '#312E81',
-    accent: currentStore.brand === 'BEBELU' ? '#6D912D' : '#10B981',
+    secondary: currentStore.brand === 'BEBELU' ? '#7F300C' : '#312E81',
+    accent: currentStore.brand === 'BEBELU' ? '#7F300C' : '#10B981',
     button: currentStore.brand === 'BEBELU' ? '#FFCB05' : (isDarkMode ? '#E63946' : '#0066FF')
   };
 

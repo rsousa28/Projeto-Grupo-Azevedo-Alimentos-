@@ -572,7 +572,7 @@ export default function Finance() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className={`text-3xl font-bold italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          <h2 className={`text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>
             {showEntry ? 'Lançamentos DRE' : `DRE Inteligente`}
           </h2>
           <div className="flex items-center gap-2 mt-1">

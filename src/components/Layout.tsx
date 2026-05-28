@@ -158,11 +158,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 style={{ backgroundColor: brandColors.button }}
               >
                 {currentStore.code ? (
-                  <span className={`text-[10px] font-black tracking-tighter ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`}>
+                  <span className={`text-[10px] font-black tracking-tighter ${currentStore.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'}`}>
                     {currentStore.code}
                   </span>
                 ) : (
-                  <StoreIcon className={`w-5 h-5 ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
+                  <StoreIcon className={`w-5 h-5 ${currentStore.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'}`} />
                 )}
               </div>
               <div className="flex-1 overflow-hidden">
@@ -182,7 +182,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                   className={`text-[10px] font-bold py-1.5 rounded-lg border transition-all`}
                   style={{ 
                     borderColor: currentStore.id === s.id ? (s.brand === 'BEBELU' ? '#FFCB05' : '#E63946') : (isDarkMode ? '#333' : '#E2E8F0'),
-                    color: currentStore.id === s.id ? (s.brand === 'BEBELU' ? '#B8860B' : (s.brand === '4ESTYLOS' ? '#E63946' : '#0066FF')) : '#94A3B8',
+                    color: currentStore.id === s.id ? (s.brand === 'BEBELU' ? '#7F300C' : (s.brand === '4ESTYLOS' ? '#E63946' : '#0066FF')) : '#94A3B8',
                     backgroundColor: currentStore.id === s.id ? (s.brand === 'BEBELU' ? '#FFCB0520' : (s.brand === '4ESTYLOS' ? '#E6394610' : '#0066FF10')) : 'transparent'
                   }}
                 >
@@ -202,7 +202,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             onClick={() => mobileMenuOpen && setMobileMenuOpen(false)}
             style={({ isActive }) => isActive ? { 
               backgroundColor: brandColors.button,
-              color: currentStore.brand === 'BEBELU' ? '#000' : '#fff',
+              color: currentStore.brand === 'BEBELU' ? '#7F300C' : '#fff',
               boxShadow: `0 10px 15px -3px ${brandColors.button}30`
             } : {}}
             className={({ isActive }) => `

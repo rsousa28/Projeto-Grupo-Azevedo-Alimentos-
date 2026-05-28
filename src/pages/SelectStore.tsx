@@ -81,11 +81,11 @@ export default function SelectStore() {
                 store.brand === '4ESTYLOS' ? 'bg-[#E63946] shadow-lg shadow-red-500/10' : 'bg-[#FFCB05] shadow-lg shadow-yellow-500/10'
               }`}>
                 {store.code ? (
-                  <span className={`text-sm font-black italic tracking-tighter ${store.brand === 'BEBELU' ? 'text-black' : 'text-white'}`}>
+                  <span className={`text-sm font-black italic tracking-tighter ${store.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'}`}>
                     {store.code}
                   </span>
                 ) : (
-                  <StoreIcon className={`w-7 h-7 ${store.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
+                  <StoreIcon className={`w-7 h-7 ${store.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'}`} />
                 )}
               </div>
 
