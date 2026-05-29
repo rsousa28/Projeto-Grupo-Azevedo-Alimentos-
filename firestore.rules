@@ -17,6 +17,20 @@ service cloud.firestore {
        return data.keys().size() <= 12;
     }
 
+    // 2b. Custom Audit Log schema validation for strict integrity controls
+    function isValidAuditLog(data) {
+       return data.userId is string && data.userId.size() <= 128
+           && data.userName is string && data.userName.size() <= 150
+           && data.userRole is string && data.userRole.size() <= 100
+           && data.action is string && data.action.size() <= 100
+           && data.description is string && data.description.size() <= 1000
+           && data.timestamp is string && data.timestamp.size() <= 60
+           && data.userAgent is string && data.userAgent.size() <= 500
+           && (!data.keys().contains('ipAddress') || data.ipAddress is string)
+           && (!data.keys().contains('storeCode') || data.storeCode is string)
+           && (!data.keys().contains('storeName') || data.storeName is string);
+    }
+
     // 3. Custom User Document schemas validation
     function isValidUser(data) {
        return data.name is string && data.name.size() <= 100
@@ -31,7 +45,7 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow list: if true; 
       allow get: if isValidId(logId);
-      allow create: if isValidId(logId) && request.resource.data.keys().size() <= 12;
+      allow create: if isValidId(logId) && request.resource.data.keys().size() <= 15 && isValidAuditLog(request.resource.data);
       allow update, delete: if false; // Immutability and security: once written, logs cannot be modified or deleted
     }
 

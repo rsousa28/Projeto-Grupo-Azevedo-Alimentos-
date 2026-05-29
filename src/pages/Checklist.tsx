@@ -452,8 +452,21 @@ export default function Checklist() {
 
   // Delete submission callback
   const handleDeleteSubmission = (id: string) => {
+    const targetSub = submissions.find(s => s.id === id);
     const updated = submissions.filter(s => s.id !== id);
     saveSubmissions(updated);
+
+    if (user && targetSub) {
+      AuditService.logAction({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'CHECKLIST_DELETE',
+        description: `Excluiu permanentemente a vistoria realizada '${targetSub.templateTitle}' enviada por ${targetSub.submittedBy}.`,
+        storeCode: currentStore.code,
+        storeName: currentStore.name
+      }).catch(e => console.error("Error logging checklist delete:", e));
+    }
   };
 
   // Resolve plan callback
@@ -475,8 +488,21 @@ export default function Checklist() {
 
   // Delete action plan callback
   const handleDeletePlan = (id: string) => {
+    const targetPlan = actionPlans.find(p => p.id === id);
     const updated = actionPlans.filter(p => p.id !== id);
     savePlans(updated);
+
+    if (user && targetPlan) {
+      AuditService.logAction({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'CHECKLIST_DELETE',
+        description: `Removeu o plano de ação gerado '${targetPlan.actionTitle}' (Unidade: ${targetPlan.storeName}, Categoria: ${targetPlan.category || 'N/A'}).`,
+        storeCode: currentStore.code,
+        storeName: currentStore.name
+      }).catch(e => console.error("Error logging checklist plan delete:", e));
+    }
   };
 
   return (

@@ -45,6 +45,20 @@ export default function AuditLogs() {
     fetchLogsData();
   }, []);
 
+  useEffect(() => {
+    if (user && user.username !== 'adm') {
+      AuditService.logAction({
+        userId: user.id,
+        userName: user.name,
+        userRole: user.role,
+        action: 'SECURITY_BREACH_ATTEMPT',
+        description: `TENTATIVA RESTRITA DE ACESSO: O usuário '${user.name}' tentou acessar o painel restrito de auditoria de segurança da informação sem permissão.`,
+        storeCode: 'SEC-WARN',
+        storeName: 'Painel de Auditoria'
+      }).catch(err => console.error(err));
+    }
+  }, [user]);
+
   const getActionBadgeColor = (action: string) => {
     switch (action) {
       case 'LOGIN_SUCCESS':
@@ -71,6 +85,16 @@ export default function AuditLogs() {
         return 'bg-pink-500/10 text-pink-400 border border-pink-500/20';
       case 'PAGE_VIEW':
         return 'bg-amber-500/15 text-[#FFCB05] border border-[#FFCB05]/25';
+      case 'DRE_SAVE':
+        return 'bg-amber-500/15 text-[#FFCB05] border border-[#FFCB05]/30 font-bold';
+      case 'DRE_DELETE':
+        return 'bg-rose-500/20 text-rose-400 border border-rose-500/40 font-black';
+      case 'CMV_SAVE':
+        return 'bg-teal-500/15 text-teal-400 border border-teal-500/30 font-bold';
+      case 'CHECKLIST_DELETE':
+        return 'bg-red-500/15 text-red-400 border border-red-500/30';
+      case 'SECURITY_BREACH_ATTEMPT':
+        return 'bg-orange-500/20 text-orange-400 border border-orange-500/40 animate-pulse font-black';
       default:
         return 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
     }
@@ -212,7 +236,12 @@ export default function AuditLogs() {
             <option value="TEAM_USER_UPDATE">Usuário de Equipe Editado</option>
             <option value="TEAM_USER_DELETE">Usuário de Equipe Excluído</option>
             <option value="UNAUTHORIZED_ACCESS">Acessos Não Autorizados</option>
+            <option value="SECURITY_BREACH_ATTEMPT">Atividade/Brecha Suspeita de Segurança</option>
             <option value="PAGE_VIEW">Navegação de Módulos (Visualização)</option>
+            <option value="DRE_SAVE">Salvar DRE</option>
+            <option value="DRE_DELETE">Exclusão de DRE/CMV</option>
+            <option value="CMV_SAVE">Salvar CMV/Estoque</option>
+            <option value="CHECKLIST_DELETE">Exclusão de Checklist</option>
             <option value="LOGOUT">Desconexões (Logouts)</option>
           </select>
         </div>

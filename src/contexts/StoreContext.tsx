@@ -487,6 +487,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         updatedAt: serverTimestamp()
       });
       console.log('Período salvo com sucesso:', periodId);
+
+      if (user) {
+        const monthNames = [
+          'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+          'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+        ];
+        const monthLabel = monthNames[parseInt(month, 10) - 1] || month;
+        await AuditService.logAction({
+          userId: user.id,
+          userName: user.name,
+          userRole: user.role,
+          action: 'CMV_SAVE',
+          description: `Atualizou os dados de CMV/DRE da unidade para o período de ${monthLabel}/${year} (${inventory.length} itens de estoque, ${products.length} itens principais).`,
+          storeCode: currentStore.code,
+          storeName: currentStore.name
+        });
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, path);
     }
@@ -528,6 +545,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         updatedAt: serverTimestamp()
       });
       console.log('DRE salva com sucesso:', periodId);
+
+      if (user) {
+        await AuditService.logAction({
+          userId: user.id,
+          userName: user.name,
+          userRole: user.role,
+          action: 'DRE_SAVE',
+          description: `Salvou as métricas de faturamento e despesas do DRE para o período de ${dreData.month}/${year}. Faturamento total lançado: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dreData.faturamento)}.`,
+          storeCode: currentStore.code,
+          storeName: currentStore.name,
+          metadata: { faturamento: dreData.faturamento, cmv: dreData.cmv }
+        });
+      }
       
       // Update local timeline
       setDreTimeline(prev => {
@@ -609,6 +639,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
       ];
       const monthLabel = monthNames[monthIndex];
+
+      if (user) {
+        await AuditService.logAction({
+          userId: user.id,
+          userName: user.name,
+          userRole: user.role,
+          action: 'DRE_DELETE',
+          description: `Excluiu permanentemente todas as informações e lançamentos referentes ao período de ${monthLabel}/${year}.`,
+          storeCode: currentStore.code,
+          storeName: currentStore.name
+        });
+      }
 
       // Atualizar estado local de forma agressiva
       // 1. DRE Timeline
