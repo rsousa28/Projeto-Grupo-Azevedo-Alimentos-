@@ -452,6 +452,23 @@ export default function AccountsPayable() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
+  // Reset pagination to first page when filtering conditions, store, or target date period changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    currentStore.id,
+    selectedMonth,
+    selectedYear,
+    search,
+    filterStatus,
+    filterCategory,
+    filterSupplier,
+    filterPeriodStart,
+    filterPeriodEnd,
+    filterMinVal,
+    filterMaxVal
+  ]);
+
   // Single Account selected for viewing files or marking payment
   const [selectedPayAccount, setSelectedPayAccount] = useState<AccountPayable | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
