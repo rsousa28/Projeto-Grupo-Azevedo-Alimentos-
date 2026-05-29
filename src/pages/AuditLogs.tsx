@@ -69,6 +69,8 @@ export default function AuditLogs() {
       case 'TEAM_USER_DELETE':
       case 'TEAM_USER_UPDATE':
         return 'bg-pink-500/10 text-pink-400 border border-pink-500/20';
+      case 'PAGE_VIEW':
+        return 'bg-amber-500/15 text-[#FFCB05] border border-[#FFCB05]/25';
       default:
         return 'bg-slate-500/10 text-slate-400 border border-slate-500/20';
     }
@@ -210,6 +212,7 @@ export default function AuditLogs() {
             <option value="TEAM_USER_UPDATE">Usuário de Equipe Editado</option>
             <option value="TEAM_USER_DELETE">Usuário de Equipe Excluído</option>
             <option value="UNAUTHORIZED_ACCESS">Acessos Não Autorizados</option>
+            <option value="PAGE_VIEW">Navegação de Módulos (Visualização)</option>
             <option value="LOGOUT">Desconexões (Logouts)</option>
           </select>
         </div>
