@@ -364,6 +364,11 @@ export default function AccountsPayable() {
   const [editSupplier, setEditSupplier] = useState<string>('');
   const [editDueDate, setEditDueDate] = useState<string>('');
   const [editDescription, setEditDescription] = useState<string>('');
+  const [editAttachedFile, setEditAttachedFile] = useState<string | null>(null);
+  const [editAttachedNF, setEditAttachedNF] = useState<string | null>(null);
+  
+  const editBoletoFileRef = useRef<HTMLInputElement>(null);
+  const editNfFileRef = useRef<HTMLInputElement>(null);
   
   // Hover states for dynamic themed interactivity
   const [isHoverUploadZone, setIsHoverUploadZone] = useState(false);
@@ -429,8 +434,10 @@ export default function AccountsPayable() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
   const docFileRef = useRef<HTMLInputElement>(null);
-  const nfFileRef = useRef<HTMLInputElement>(null);
-  const boletoFileRef = useRef<HTMLInputElement>(null);
+  const managerNfFileRef = useRef<HTMLInputElement>(null);
+  const managerBoletoFileRef = useRef<HTMLInputElement>(null);
+  const adminNfFileRef = useRef<HTMLInputElement>(null);
+  const adminBoletoFileRef = useRef<HTMLInputElement>(null);
 
   const [formSupplier, setFormSupplier] = useState('');
   const [formDescription, setFormDescription] = useState('');
@@ -1196,7 +1203,9 @@ export default function AccountsPayable() {
           value: valueNum,
           supplier: editSupplier,
           dueDate: editDueDate,
-          description: editDescription
+          description: editDescription,
+          attachedFile: editAttachedFile || undefined,
+          taxInvoiceFile: editAttachedNF || undefined
         };
       }
       return ac;
@@ -1277,6 +1286,38 @@ export default function AccountsPayable() {
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = ''; // Reset input to allow selecting the same file multiple times
+  };
+
+  const handleEditFileInputBase64 = (e: React.ChangeEvent<HTMLInputElement>, type: 'nf' | 'boleto') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const rawBase64 = ev.target?.result as string;
+      try {
+        const optimizedBase64 = await resizeImageBase64(rawBase64);
+        if (type === 'nf') {
+          setEditAttachedNF(optimizedBase64);
+          showToast("Nota Fiscal anexada com sucesso!", "success");
+        } else if (type === 'boleto') {
+          setEditAttachedFile(optimizedBase64);
+          showToast("Boleto anexado com sucesso!", "success");
+        }
+      } catch (err) {
+        console.error("Erro ao otimizar arquivo:", err);
+        if (type === 'nf') {
+          setEditAttachedNF(rawBase64);
+          showToast("Nota Fiscal anexada com sucesso!", "success");
+        } else if (type === 'boleto') {
+          setEditAttachedFile(rawBase64);
+          showToast("Boleto anexado com sucesso!", "success");
+        }
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
   };
 
   // Export fully functioning Excel
@@ -1823,14 +1864,14 @@ export default function AccountsPayable() {
                   <div className="flex flex-col gap-1 justify-end">
                     <input
                       type="file"
-                      ref={boletoFileRef}
+                      ref={managerBoletoFileRef}
                       onChange={(e) => handleFileInputBase64(e, 'boleto')}
-                      accept=".pdf,image/*"
+                      accept="image/*,.pdf"
                       className="hidden"
                     />
                     <button
                       type="button"
-                      onClick={() => boletoFileRef.current?.click()}
+                      onClick={() => managerBoletoFileRef.current?.click()}
                       className={`flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-black border transition-all cursor-pointer ${
                         attachedFileBase64 
                           ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
@@ -1849,14 +1890,14 @@ export default function AccountsPayable() {
                   <div className="flex flex-col gap-1 justify-end">
                     <input
                       type="file"
-                      ref={nfFileRef}
+                      ref={managerNfFileRef}
                       onChange={(e) => handleFileInputBase64(e, 'nf')}
-                      accept=".pdf,image/*"
+                      accept="image/*,.pdf"
                       className="hidden"
                     />
                     <button
                       type="button"
-                      onClick={() => nfFileRef.current?.click()}
+                      onClick={() => managerNfFileRef.current?.click()}
                       className={`flex items-center justify-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-black border transition-all cursor-pointer ${
                         attachedNFBase64 
                           ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
@@ -1982,6 +2023,8 @@ export default function AccountsPayable() {
                               setEditSupplier(ac.supplier);
                               setEditDueDate(ac.dueDate);
                               setEditDescription(ac.description);
+                              setEditAttachedFile(ac.attachedFile || null);
+                              setEditAttachedNF(ac.taxInvoiceFile || null);
                             }}
                             className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-500/10 transition-all cursor-pointer"
                             title="Editar Dados do Boleto"
@@ -2151,6 +2194,59 @@ export default function AccountsPayable() {
                         style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
                         className="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-300 focus:ring-1 [color-scheme:dark]"
                       />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5 mt-2">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Anexos do Lançamento</label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        type="file"
+                        ref={editBoletoFileRef}
+                        onChange={(e) => handleEditFileInputBase64(e, 'boleto')}
+                        accept="image/*,.pdf"
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => editBoletoFileRef.current?.click()}
+                        className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                          editAttachedFile 
+                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
+                            : 'bg-slate-100 border-slate-200 dark:bg-[#1C1C1C] dark:border-[#333] text-slate-500'
+                        }`}
+                      >
+                        {editAttachedFile ? (
+                          <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        ) : (
+                          <Paperclip className="w-4 h-4 text-slate-400" />
+                        )}
+                        {editAttachedFile ? 'Boleto Anexado ✓' : 'Anexar Boleto'}
+                      </button>
+
+                      <input
+                        type="file"
+                        ref={editNfFileRef}
+                        onChange={(e) => handleEditFileInputBase64(e, 'nf')}
+                        accept="image/*,.pdf"
+                        className="hidden"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => editNfFileRef.current?.click()}
+                        className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                          editAttachedNF 
+                            ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
+                            : 'bg-slate-100 border-slate-200 dark:bg-[#1C1C1C] dark:border-[#333] text-slate-500'
+                        }`}
+                      >
+                        {editAttachedNF ? (
+                          <CheckCircle className="w-4 h-4 text-emerald-500" />
+                        ) : (
+                          <FileText className="w-4 h-4 text-slate-400" />
+                        )}
+                        {editAttachedNF ? 'Nota Fiscal Anexada ✓' : 'Anexar Nota Fiscal'}
+                      </button>
                     </div>
                   </div>
 
@@ -2778,6 +2874,8 @@ export default function AccountsPayable() {
                               setEditSupplier(ac.supplier);
                               setEditDueDate(ac.dueDate);
                               setEditDescription(ac.description);
+                              setEditAttachedFile(ac.attachedFile || null);
+                              setEditAttachedNF(ac.taxInvoiceFile || null);
                             }}
                             className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/10 transition-all cursor-pointer"
                             title="Editar Dados do Boleto"
@@ -3337,14 +3435,14 @@ export default function AccountsPayable() {
                 <div className="flex flex-wrap items-center gap-2.5 mt-2">
                   <input
                     type="file"
-                    ref={boletoFileRef}
+                    ref={adminBoletoFileRef}
                     onChange={(e) => handleFileInputBase64(e, 'boleto')}
                     accept="image/*,.pdf"
                     className="hidden"
                   />
                   <button
                     type="button"
-                    onClick={() => boletoFileRef.current?.click()}
+                    onClick={() => adminBoletoFileRef.current?.click()}
                     className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                       attachedFileBase64 
                         ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
@@ -3361,14 +3459,14 @@ export default function AccountsPayable() {
 
                   <input
                     type="file"
-                    ref={nfFileRef}
+                    ref={adminNfFileRef}
                     onChange={(e) => handleFileInputBase64(e, 'nf')}
                     accept="image/*,.pdf"
                     className="hidden"
                   />
                   <button
                     type="button"
-                    onClick={() => nfFileRef.current?.click()}
+                    onClick={() => adminNfFileRef.current?.click()}
                     className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                       attachedNFBase64 
                         ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
@@ -3482,6 +3580,59 @@ export default function AccountsPayable() {
                       style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
                       className="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-300 focus:ring-1 [color-scheme:dark]"
                     />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5 mt-2">
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Anexos do Lançamento</label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="file"
+                      ref={editBoletoFileRef}
+                      onChange={(e) => handleEditFileInputBase64(e, 'boleto')}
+                      accept="image/*,.pdf"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => editBoletoFileRef.current?.click()}
+                      className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                        editAttachedFile 
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
+                          : 'bg-slate-100 border-slate-200 dark:bg-[#1C1C1C] dark:border-[#333] text-slate-500'
+                      }`}
+                    >
+                      {editAttachedFile ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      ) : (
+                        <Paperclip className="w-4 h-4 text-slate-400" />
+                      )}
+                      {editAttachedFile ? 'Boleto Anexado ✓' : 'Anexar Boleto'}
+                    </button>
+
+                    <input
+                      type="file"
+                      ref={editNfFileRef}
+                      onChange={(e) => handleEditFileInputBase64(e, 'nf')}
+                      accept="image/*,.pdf"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => editNfFileRef.current?.click()}
+                      className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
+                        editAttachedNF 
+                          ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600' 
+                          : 'bg-slate-100 border-slate-200 dark:bg-[#1C1C1C] dark:border-[#333] text-slate-500'
+                      }`}
+                    >
+                      {editAttachedNF ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-500" />
+                      ) : (
+                        <FileText className="w-4 h-4 text-slate-400" />
+                      )}
+                      {editAttachedNF ? 'Nota Fiscal Anexada ✓' : 'Anexar Nota Fiscal'}
+                    </button>
                   </div>
                 </div>
 
