@@ -47,13 +47,58 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
     });
   }, [actionPlans, currentStore, filterStatus]);
 
+  // Resize image before storing
+  const resizeImageBase64 = (base64: string, maxWidth = 1600, maxHeight = 1600): Promise<string> => {
+    return new Promise((resolve) => {
+      if (!base64.startsWith('data:image/')) {
+        resolve(base64);
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', 0.88));
+        } else {
+          resolve(base64);
+        }
+      };
+      img.onerror = () => {
+        resolve(base64);
+      };
+      img.src = base64;
+    });
+  };
+
   // Handle Preset photos for solving plan quickly
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setResolutionPhoto(reader.result as string);
+      reader.onloadend = async () => {
+        const rawBase64 = reader.result as string;
+        try {
+          const compressed = await resizeImageBase64(rawBase64, 1600, 1600);
+          setResolutionPhoto(compressed);
+        } catch (err) {
+          console.error("Erro ao compactar imagem:", err);
+          setResolutionPhoto(rawBase64);
+        }
       };
       reader.readAsDataURL(file);
     }

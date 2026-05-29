@@ -1207,7 +1207,7 @@ export default function AccountsPayable() {
     showToast('Boleto atualizado com sucesso!', 'success');
   };
 
-  const resizeImageBase64 = (base64: string, maxWidth = 800, maxHeight = 800): Promise<string> => {
+  const resizeImageBase64 = (base64: string, maxWidth = 1600, maxHeight = 1600): Promise<string> => {
     return new Promise((resolve) => {
       if (!base64.startsWith('data:image/')) {
         resolve(base64);
@@ -1232,7 +1232,7 @@ export default function AccountsPayable() {
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.6));
+          resolve(canvas.toDataURL('image/jpeg', 0.88));
         } else {
           resolve(base64);
         }

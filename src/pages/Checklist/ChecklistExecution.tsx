@@ -277,7 +277,7 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
     });
   };
 
-  const resizeImageBase64 = (base64: string, maxWidth = 600, maxHeight = 600): Promise<string> => {
+  const resizeImageBase64 = (base64: string, maxWidth = 1600, maxHeight = 1600): Promise<string> => {
     return new Promise((resolve) => {
       if (!base64.startsWith('data:image/')) {
         resolve(base64);
@@ -302,7 +302,7 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.65));
+          resolve(canvas.toDataURL('image/jpeg', 0.88));
         } else {
           resolve(base64);
         }
@@ -322,7 +322,7 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
       reader.onloadend = async () => {
         const rawBase64 = reader.result as string;
         try {
-          const compressed = await resizeImageBase64(rawBase64, 600, 600);
+          const compressed = await resizeImageBase64(rawBase64, 1600, 1600);
           setPhotos(prev => ({
             ...prev,
             [qId]: compressed

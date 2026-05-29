@@ -139,19 +139,17 @@ export const PhotoZoomModal: React.FC<PhotoZoomModalProps> = ({
               }}
               className="transition-transform duration-75 ease-out relative flex items-center justify-center max-w-full max-h-[70vh]"
             >
-              <motion.img
-                key={src}
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
+              <img
+                key={src || undefined}
                 style={{
-                  scale: scale,
-                  rotate: `${rotation}deg`
+                  transform: `scale(${scale}) rotate(${rotation}deg)`,
+                  transformOrigin: 'center center',
+                  transition: isDragging ? 'none' : 'transform 200ms cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
-                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                 src={src}
                 alt={alt}
                 onDoubleClick={handleDoubleClick}
-                className="max-w-[90vw] max-h-[70vh] rounded-2xl md:rounded-3xl object-contain shadow-2xl border border-white/10 pointer-events-none"
+                className="max-w-[90vw] max-h-[70vh] rounded-2xl md:rounded-3xl object-contain shadow-2xl border border-white/10 pointer-events-auto cursor-pointer"
                 referrerPolicy="no-referrer"
               />
               
