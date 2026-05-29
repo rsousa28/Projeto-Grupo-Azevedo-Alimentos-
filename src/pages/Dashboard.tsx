@@ -67,6 +67,7 @@ export default function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState('05');
   const [selectedYear, setSelectedYear] = useState('2026');
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
+  const [showAllProducts, setShowAllProducts] = useState(false);
 
   const businessQuotes = [
     "O segredo do sucesso no food service é constância e qualidade.",
@@ -1083,7 +1084,12 @@ export default function Dashboard() {
         }`}>
           <div className="flex items-center justify-between mb-8">
             <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>Engenharia de Cardápio</h3>
-            <button className="text-sm font-bold text-indigo-600 hover:underline">Ver Tabela ABC</button>
+            <button 
+              onClick={() => setShowAllProducts(!showAllProducts)}
+              className="text-sm font-bold text-indigo-600 dark:text-[#FFCB05] hover:underline cursor-pointer transition-all"
+            >
+              {showAllProducts ? 'Ver Resumo' : 'Ver Tabela ABC'}
+            </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -1096,39 +1102,43 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-[#333]">
-                {topProducts.length > 0 ? topProducts.map((p) => (
-                  <tr key={p.id} className="group">
-                    <td className="py-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
-                          isDarkMode ? 'bg-[#333] text-white' : 'bg-slate-50 text-slate-900'
+                {topProducts.length > 0 ? (showAllProducts ? topProducts : topProducts.slice(0, 5)).map((p) => {
+                  const mVal = typeof p.margin === 'number' ? p.margin : parseFloat(p.margin || '0');
+                  const isHigh = !isNaN(mVal) && mVal > 60;
+                  return (
+                    <tr key={p.id} className="group">
+                      <td className="py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold ${
+                            isDarkMode ? 'bg-[#333] text-white' : 'bg-slate-50 text-slate-900'
+                          }`}>
+                            {p.name[0]}
+                          </div>
+                          <div>
+                            <div className={`font-bold text-sm group-hover:text-amber-600 transition-colors uppercase italic break-words whitespace-normal leading-tight ${isDarkMode ? 'text-[#FFB800]' : 'text-slate-900'}`}>{p.name}</div>
+                            <div className="text-xs text-slate-500">{p.category}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-4">
+                        <div className={`font-bold text-sm ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>{p.quantidadeVendas} un</div>
+                        <div className="text-xs text-slate-500">{formatCurrency(p.faturamento)}</div>
+                      </td>
+                      <td className="py-4">
+                        <div className={`text-sm font-bold ${isHigh ? 'text-green-500' : 'text-yellow-500'}`}>
+                          {isNaN(mVal) ? '0.0%' : `${mVal.toFixed(1)}%`}
+                        </div>
+                      </td>
+                      <td className="py-4">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                          isHigh ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'
                         }`}>
-                          {p.name[0]}
-                        </div>
-                        <div>
-                          <div className={`font-bold text-sm group-hover:text-amber-600 transition-colors uppercase italic break-words whitespace-normal leading-tight ${isDarkMode ? 'text-[#FFB800]' : 'text-slate-900'}`}>{p.name}</div>
-                          <div className="text-xs text-slate-500">{p.category}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <div className={`font-bold text-sm ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>{p.quantidadeVendas} un</div>
-                      <div className="text-xs text-slate-500">{formatCurrency(p.faturamento)}</div>
-                    </td>
-                    <td className="py-4">
-                      <div className={`text-sm font-bold ${p.margin > 60 ? 'text-green-500' : 'text-yellow-500'}`}>
-                        {p.margin}%
-                      </div>
-                    </td>
-                    <td className="py-4">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        p.margin > 60 ? 'bg-green-500/10 text-green-500' : 'bg-yellow-500/10 text-yellow-500'
-                      }`}>
-                        {p.margin > 60 ? 'Estrela' : 'Burro de Carga'}
-                      </span>
-                    </td>
-                  </tr>
-                )) : (
+                          {isHigh ? 'Estrela' : 'Burro de Carga'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                }) : (
                   <tr>
                     <td colSpan={4} className="py-12 text-center text-slate-400 text-xs italic">
                       Nenhum produto cadastrado para análise. Use a seção de lançamentos.
