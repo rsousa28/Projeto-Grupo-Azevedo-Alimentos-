@@ -27,7 +27,10 @@ import {
   Info,
   Layers,
   FileSpreadsheet,
-  Paperclip
+  Paperclip,
+  ZoomIn,
+  ZoomOut,
+  RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -352,6 +355,46 @@ export default function AccountsPayable() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [currentBoletoUrl, setCurrentBoletoUrl] = useState<string | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    setZoomScale(1);
+    setPanOffset({ x: 0, y: 0 });
+    setIsDragging(false);
+  }, [currentBoletoUrl]);
+
+  const handleZoomWheel = (e: React.WheelEvent) => {
+    if (currentBoletoUrl && !currentBoletoUrl.startsWith('data:application/pdf')) {
+      e.preventDefault();
+      const zoomFactor = 0.12;
+      let newScale = zoomScale + (e.deltaY < 0 ? zoomFactor : -zoomFactor);
+      newScale = Math.min(Math.max(0.5, newScale), 5); // limits scale between 0.5x and 5x
+      setZoomScale(newScale);
+    }
+  };
+
+  const handleZoomMouseDown = (e: React.MouseEvent) => {
+    if (zoomScale > 1) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+    }
+  };
+
+  const handleZoomMouseMove = (e: React.MouseEvent) => {
+    if (isDragging && zoomScale > 1) {
+      setPanOffset({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    }
+  };
+
+  const handleZoomMouseUpOrLeave = () => {
+    setIsDragging(false);
+  };
   const [showOcrLoading, setShowOcrLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -1216,7 +1259,7 @@ export default function AccountsPayable() {
     showToast('Boleto atualizado com sucesso!', 'success');
   };
 
-  const resizeImageBase64 = (base64: string, maxWidth = 1600, maxHeight = 1600): Promise<string> => {
+  const resizeImageBase64 = (base64: string, maxWidth = 2600, maxHeight = 2600): Promise<string> => {
     return new Promise((resolve) => {
       if (!base64.startsWith('data:image/')) {
         resolve(base64);
@@ -1240,8 +1283,11 @@ export default function AccountsPayable() {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (ctx) {
+          // Enable sub-pixel / high quality rendering configuration on the canvas
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.88));
+          resolve(canvas.toDataURL('image/jpeg', 0.93));
         } else {
           resolve(base64);
         }
@@ -2090,8 +2136,8 @@ export default function AccountsPayable() {
 
         <AnimatePresence>
           {currentBoletoUrl && (
-            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-4">
-              <div className="absolute top-4 right-4 flex items-center gap-2">
+            <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4">
+              <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
                 <button
                   onClick={() => setCurrentBoletoUrl(null)}
                   className="bg-black/60 text-white p-2.5 rounded-full hover:bg-black/80 transition-all cursor-pointer border border-white/10"
@@ -2099,20 +2145,71 @@ export default function AccountsPayable() {
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              <div className="w-full max-w-4xl max-h-[85vh] overflow-auto flex items-center justify-center p-2">
+              <div className="w-full max-w-5xl h-[80vh] flex items-center justify-center p-2 relative">
                 {currentBoletoUrl.startsWith('data:application/pdf') ? (
                   <iframe 
                     src={currentBoletoUrl} 
-                    className="w-[80vw] h-[80vh] rounded-xl shadow-2xl bg-white border border-white/10"
+                    className="w-[85vw] h-[78vh] rounded-xl shadow-2xl bg-white border border-white/10"
                     title="Visualizador de PDF"
                   />
                 ) : (
-                  <img 
-                    src={currentBoletoUrl} 
-                    alt="Boleto Anexado" 
-                    className="max-w-full max-h-[80vh] rounded-xl shadow-2xl object-contain border border-white/10"
-                    referrerPolicy="no-referrer"
-                  />
+                  <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-black/20 rounded-2xl border border-white/10">
+                    <img 
+                      src={currentBoletoUrl} 
+                      alt="Boleto Anexado" 
+                      className="max-w-full max-h-full rounded-lg shadow-2xl object-contain select-none transition-transform duration-75 ease"
+                      onMouseDown={handleZoomMouseDown}
+                      onMouseMove={handleZoomMouseMove}
+                      onMouseUp={handleZoomMouseUpOrLeave}
+                      onMouseLeave={handleZoomMouseUpOrLeave}
+                      onWheel={handleZoomWheel}
+                      style={{
+                        transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
+                        cursor: zoomScale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                        transformOrigin: 'center center'
+                      }}
+                      referrerPolicy="no-referrer"
+                    />
+
+                    {/* Zoom / Pan Controls HUD */}
+                    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 z-10 pointer-events-auto">
+                      {zoomScale > 1 && (
+                        <span className="text-[10px] bg-black/50 text-white/90 px-2.5 py-1 rounded-full backdrop-blur-xs select-none pointer-events-none font-sans font-bold uppercase tracking-wider">
+                          Arraste com o mouse para movimentar a imagem
+                        </span>
+                      )}
+                      <div className="flex items-center gap-2.5 bg-slate-950/90 hover:bg-slate-950/95 border border-[#333]/80 backdrop-blur-md px-4 py-2 rounded-full select-none shadow-2xl transition-all">
+                        <button
+                          type="button"
+                          onClick={() => setZoomScale(prev => Math.max(0.5, prev - 0.25))}
+                          className="p-1 px-1.5 hover:bg-white/10 rounded-full text-slate-300 hover:text-white transition-all cursor-pointer"
+                          title="Diminuir Zoom"
+                        >
+                          <ZoomOut className="w-4 h-4" />
+                        </button>
+                        <span className="text-xs text-slate-100 font-mono tracking-wider font-extrabold min-w-[42px] text-center">
+                          {Math.round(zoomScale * 100)}%
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setZoomScale(prev => Math.min(5, prev + 0.25))}
+                          className="p-1 px-1.5 hover:bg-white/10 rounded-full text-slate-300 hover:text-white transition-all cursor-pointer"
+                          title="Aumentar Zoom"
+                        >
+                          <ZoomIn className="w-4 h-4" />
+                        </button>
+                        <div className="h-4 w-[1px] bg-white/20 mx-1"></div>
+                        <button
+                          type="button"
+                          onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}
+                          className="p-1 px-2.5 hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-all cursor-pointer"
+                          title="Resetar Zoom"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -2950,35 +3047,82 @@ export default function AccountsPayable() {
       {/* BOLETO VIEWER DRAWER / POPUP */}
       <AnimatePresence>
         {currentBoletoUrl && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className={`w-full max-w-3xl rounded-2xl border overflow-hidden p-6 ${
-                isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-200'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200 dark:border-[#222]">
-                <h3 className="text-lg font-bold uppercase tracking-tight italic">Visualizador do Boleto</h3>
-                <button
-                  onClick={() => setCurrentBoletoUrl(null)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-150 dark:hover:bg-[#202020] transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="w-full flex justify-center bg-slate-200 dark:bg-[#1E1E1E] rounded-xl overflow-hidden p-4 relative min-h-[400px]">
-                {currentBoletoUrl.startsWith('data:') ? (
-                  <img src={currentBoletoUrl} alt="Boleto Anexado" className="max-h-[500px] object-contain w-full" />
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-slate-400 gap-2">
-                    <FileText className="w-16 h-16 text-amber-500 animate-pulse" />
-                    <span className="font-bold">Visualização do Arquivo PDF carregado.</span>
+          <div className="fixed inset-0 bg-black/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4">
+            <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
+              <button
+                onClick={() => setCurrentBoletoUrl(null)}
+                className="bg-black/60 text-white p-2.5 rounded-full hover:bg-black/80 transition-all cursor-pointer border border-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="w-full max-w-5xl h-[80vh] flex items-center justify-center p-2 relative">
+              {currentBoletoUrl.startsWith('data:application/pdf') ? (
+                <iframe 
+                  src={currentBoletoUrl} 
+                  className="w-[85vw] h-[78vh] rounded-xl shadow-2xl bg-white border border-white/10"
+                  title="Visualizador de PDF"
+                />
+              ) : (
+                <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-black/20 rounded-2xl border border-white/10">
+                  <img 
+                    src={currentBoletoUrl} 
+                    alt="Boleto Anexado" 
+                    className="max-w-full max-h-full rounded-lg shadow-2xl object-contain select-none transition-transform duration-75 ease"
+                    onMouseDown={handleZoomMouseDown}
+                    onMouseMove={handleZoomMouseMove}
+                    onMouseUp={handleZoomMouseUpOrLeave}
+                    onMouseLeave={handleZoomMouseUpOrLeave}
+                    onWheel={handleZoomWheel}
+                    style={{
+                      transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoomScale})`,
+                      cursor: zoomScale > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default',
+                      transformOrigin: 'center center'
+                    }}
+                    referrerPolicy="no-referrer"
+                  />
+
+                  {/* Zoom / Pan Controls HUD */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 z-10 pointer-events-auto">
+                    {zoomScale > 1 && (
+                      <span className="text-[10px] bg-black/50 text-white/90 px-2.5 py-1 rounded-full backdrop-blur-xs select-none pointer-events-none font-sans font-bold uppercase tracking-wider">
+                        Arraste com o mouse para movimentar a imagem
+                      </span>
+                    )}
+                    <div className="flex items-center gap-2.5 bg-slate-950/90 hover:bg-slate-950/95 border border-[#333]/80 backdrop-blur-md px-4 py-2 rounded-full select-none shadow-2xl transition-all">
+                      <button
+                        type="button"
+                        onClick={() => setZoomScale(prev => Math.max(0.5, prev - 0.25))}
+                        className="p-1 px-1.5 hover:bg-white/10 rounded-full text-slate-300 hover:text-white transition-all cursor-pointer"
+                        title="Diminuir Zoom"
+                      >
+                        <ZoomOut className="w-4 h-4" />
+                      </button>
+                      <span className="text-xs text-slate-100 font-mono tracking-wider font-extrabold min-w-[42px] text-center">
+                        {Math.round(zoomScale * 100)}%
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setZoomScale(prev => Math.min(5, prev + 0.25))}
+                        className="p-1 px-1.5 hover:bg-white/10 rounded-full text-slate-300 hover:text-white transition-all cursor-pointer"
+                        title="Aumentar Zoom"
+                      >
+                        <ZoomIn className="w-4 h-4" />
+                      </button>
+                      <div className="h-4 w-[1px] bg-white/20 mx-1"></div>
+                      <button
+                        type="button"
+                        onClick={() => { setZoomScale(1); setPanOffset({ x: 0, y: 0 }); }}
+                        className="p-1 px-2.5 hover:bg-white/10 rounded-lg text-slate-300 hover:text-white transition-all cursor-pointer"
+                        title="Resetar Zoom"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
-                )}
-              </div>
-            </motion.div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </AnimatePresence>
