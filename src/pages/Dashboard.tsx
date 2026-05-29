@@ -819,42 +819,44 @@ export default function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-            <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
-              <PieIcon className="w-5 h-5 text-indigo-500" /> Distribuição de Custos e Despesas
-            </h3>
-            <p className="text-[10px] text-slate-500 mb-6 italic">Composição de gastos no acumulado de {currentMonthLabel}/{selectedYear}</p>
-            
-            <div className="space-y-4">
-              {expenseDistribution.length > 0 ? expenseDistribution.map((exp) => (
-                <div key={exp.name} className="space-y-1">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-500 dark:text-slate-400">{exp.name}</span>
-                    <span className={isDarkMode ? 'text-white' : 'text-slate-900'}>
-                      {formatCurrency(exp.value)} <span className="text-[10px] text-slate-400 font-normal">({exp.pct.toFixed(1)}%)</span>
-                    </span>
+          user?.role === 'ADMIN' ? (
+            <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+              <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                <PieIcon className="w-5 h-5 text-indigo-500" /> Distribuição de Custos e Despesas
+              </h3>
+              <p className="text-[10px] text-slate-500 mb-6 italic">Composição de gastos no acumulado de {currentMonthLabel}/{selectedYear}</p>
+              
+              <div className="space-y-4">
+                {expenseDistribution.length > 0 ? expenseDistribution.map((exp) => (
+                  <div key={exp.name} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span className="text-slate-500 dark:text-slate-400">{exp.name}</span>
+                      <span className={isDarkMode ? 'text-white' : 'text-slate-900'}>
+                        {formatCurrency(exp.value)} <span className="text-[10px] text-slate-400 font-normal">({exp.pct.toFixed(1)}%)</span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 dark:bg-black/20 h-2 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${exp.pct}%` }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                        className="h-full rounded-full" 
+                        style={{ backgroundColor: exp.color }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full bg-slate-100 dark:bg-black/20 h-2 rounded-full overflow-hidden">
-                    <motion.div 
-                      initial={{ width: 0 }}
-                      animate={{ width: `${exp.pct}%` }}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
-                      className="h-full rounded-full" 
-                      style={{ backgroundColor: exp.color }}
-                    />
+                )) : (
+                  <div className="py-12 text-center text-slate-400 text-xs italic">
+                    Abra a aba Lançamentos para informar despesas relativas a este período.
                   </div>
-                </div>
-              )) : (
-                <div className="py-12 text-center text-slate-400 text-xs italic">
-                  Abra a aba Lançamentos para informar despesas relativas a este período.
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
+          ) : null
         )}
 
         {/* Comparativo Mensal YoY */}
-        <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+        <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'} ${(!isRoot && user?.role !== 'ADMIN') ? 'lg:col-span-2' : ''}`}>
           <div className="flex items-center justify-between mb-6">
             <div className="flex flex-col">
               <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
