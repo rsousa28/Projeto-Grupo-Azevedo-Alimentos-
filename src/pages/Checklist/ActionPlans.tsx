@@ -48,7 +48,7 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
   }, [actionPlans, currentStore, filterStatus]);
 
   // Resize image before storing
-  const resizeImageBase64 = (base64: string, maxWidth = 1600, maxHeight = 1600): Promise<string> => {
+  const resizeImageBase64 = (base64: string, maxWidth = 1000, maxHeight = 1000): Promise<string> => {
     return new Promise((resolve) => {
       if (!base64.startsWith('data:image/')) {
         resolve(base64);
@@ -73,7 +73,7 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.88));
+          resolve(canvas.toDataURL('image/jpeg', 0.65)); // Extremely optimized quality for highly reduced storage (fits free tier perfectly)
         } else {
           resolve(base64);
         }
@@ -93,7 +93,7 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
       reader.onloadend = async () => {
         const rawBase64 = reader.result as string;
         try {
-          const compressed = await resizeImageBase64(rawBase64, 1600, 1600);
+          const compressed = await resizeImageBase64(rawBase64, 1000, 1000);
           setResolutionPhoto(compressed);
         } catch (err) {
           console.error("Erro ao compactar imagem:", err);

@@ -1276,7 +1276,7 @@ export default function AccountsPayable() {
     showToast('Boleto atualizado com sucesso!', 'success');
   };
 
-  const resizeImageBase64 = (base64: string, maxWidth = 2600, maxHeight = 2600): Promise<string> => {
+  const resizeImageBase64 = (base64: string, maxWidth = 1000, maxHeight = 1000): Promise<string> => {
     return new Promise((resolve) => {
       if (!base64.startsWith('data:image/')) {
         resolve(base64);
@@ -1304,7 +1304,7 @@ export default function AccountsPayable() {
           ctx.imageSmoothingEnabled = true;
           ctx.imageSmoothingQuality = 'high';
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.93));
+          resolve(canvas.toDataURL('image/jpeg', 0.65)); // Extremely optimized quality for highly reduced storage (fits free tier perfectly)
         } else {
           resolve(base64);
         }
