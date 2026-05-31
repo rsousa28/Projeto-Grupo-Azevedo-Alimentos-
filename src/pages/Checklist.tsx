@@ -20,7 +20,7 @@ import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { AuditService } from '../services/AuditService';
 import { db } from '../lib/firebase';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, collection, deleteDoc, getDoc } from 'firebase/firestore';
 import { 
   ChecklistTemplate, 
   ChecklistSubmission, 
@@ -216,37 +216,55 @@ export default function Checklist() {
     const unsubs: (() => void)[] = [unsubTemplates];
 
     if (currentStore.code === 'ROOT') {
-      // Listen to submissions and action plans across ALL stores
-      const storeSubmissionsMap: Record<string, ChecklistSubmission[]> = {};
+      // Listen to submissions and action plans across ALL stores (legacy document + new individual subcollection)
+      const storeLegacySubmissionsMap: Record<string, ChecklistSubmission[]> = {};
+      const storeIndividualSubmissionsMap: Record<string, ChecklistSubmission[]> = {};
       const storePlansMap: Record<string, ActionPlan[]> = {};
 
+      const mergeAllRoot = () => {
+        const merged: ChecklistSubmission[] = [];
+        const seenIds = new Set<string>();
+        STORES.forEach(s => {
+          const individual = storeIndividualSubmissionsMap[s.id] || [];
+          individual.forEach(item => {
+            if (item && item.id && !seenIds.has(item.id)) {
+              seenIds.add(item.id);
+              merged.push(item);
+            }
+          });
+          const legacy = storeLegacySubmissionsMap[s.id] || [];
+          legacy.forEach(item => {
+            if (item && item.id && !seenIds.has(item.id)) {
+              seenIds.add(item.id);
+              merged.push(item);
+            }
+          });
+        });
+        merged.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+        setSubmissions(merged);
+        localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(merged));
+      };
+
       STORES.forEach(stor => {
-        // Submissions snapshot
+        // Submissions legacy snapshot
         const subRef = doc(db, 'stores', stor.id, 'checklists', 'submissions');
         const unsubSub = onSnapshot(subRef, (snapshot) => {
-          const cloudList = snapshot.exists() ? (snapshot.data().data || []) : [];
-          storeSubmissionsMap[stor.id] = cloudList;
-
-          // Merge all
-          const merged: ChecklistSubmission[] = [];
-          const seenIds = new Set<string>();
-          STORES.forEach(s => {
-            const list = storeSubmissionsMap[s.id] || [];
-            list.forEach(item => {
-              if (item && item.id && !seenIds.has(item.id)) {
-                seenIds.add(item.id);
-                merged.push(item);
-              }
-            });
-          });
-          // Sort by submittedAt descending
-          merged.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
-          setSubmissions(merged);
-          localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(merged));
+          storeLegacySubmissionsMap[stor.id] = snapshot.exists() ? (snapshot.data().data || []) : [];
+          mergeAllRoot();
         }, (err) => {
-          console.warn(`Erro ao sincronizar submissions da loja ${stor.name}:`, err);
+          console.warn(`Erro ao sincronizar submissions legacy da loja ${stor.name}:`, err);
         });
         unsubs.push(unsubSub);
+
+        // Submissions individual snapshot
+        const subIndividualRef = collection(db, 'stores', stor.id, 'checklist_submissions');
+        const unsubIndividualSub = onSnapshot(subIndividualRef, (snapshot) => {
+          storeIndividualSubmissionsMap[stor.id] = snapshot.docs.map(doc => doc.data().data).filter(Boolean);
+          mergeAllRoot();
+        }, (err) => {
+          console.warn(`Erro ao sincronizar checklist_submissions da loja ${stor.name}:`, err);
+        });
+        unsubs.push(unsubIndividualSub);
 
         // Action Plans snapshot
         const planRef = doc(db, 'stores', stor.id, 'checklists', 'action_plans');
@@ -276,26 +294,48 @@ export default function Checklist() {
         unsubs.push(unsubPlan);
       });
     } else {
-      // Listens to submissions and action plans for single store
-      // Fetch Submissions
+      // Listens to submissions and action plans for single store (legacy + individual)
+      let legacyList: ChecklistSubmission[] = [];
+      let individualList: ChecklistSubmission[] = [];
+
+      const mergeAndSet = () => {
+        const merged = [...individualList];
+        const seen = new Set(merged.map(m => m.id));
+        legacyList.forEach(item => {
+          if (item && item.id && !seen.has(item.id)) {
+            seen.add(item.id);
+            merged.push(item);
+          }
+        });
+        merged.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+        setSubmissions(merged);
+        localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(merged));
+      };
+
+      // Fetch Legacy Submissions
       const submissionsRef = doc(db, 'stores', storeId, 'checklists', 'submissions');
       const unsubSubmissions = onSnapshot(submissionsRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const cloudSubmissions = snapshot.data().data || [];
-          setSubmissions(cloudSubmissions);
-          localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(cloudSubmissions));
-        } else {
-          const stored = localStorage.getItem(`checklist_submissions_${storeId}`);
-          if (stored) {
-            setSubmissions(JSON.parse(stored));
-          } else {
-            setSubmissions([]);
-          }
-        }
+        legacyList = snapshot.exists() ? (snapshot.data().data || []) : [];
+        mergeAndSet();
       }, (err) => {
-        console.error("Erro ao sincronizar submissions em tempo real:", err);
+        console.error("Erro ao sincronizar submissions legacy em tempo real:", err);
+        // Fallback to local storage if unavailable
+        const stored = localStorage.getItem(`checklist_submissions_${storeId}`);
+        if (stored && legacyList.length === 0 && individualList.length === 0) {
+          setSubmissions(JSON.parse(stored));
+        }
       });
       unsubs.push(unsubSubmissions);
+
+      // Fetch Individual Submissions
+      const checklistSubmissionsCollRef = collection(db, 'stores', storeId, 'checklist_submissions');
+      const unsubIndividualChecklists = onSnapshot(checklistSubmissionsCollRef, (snapshot) => {
+        individualList = snapshot.docs.map(doc => doc.data().data).filter(Boolean);
+        mergeAndSet();
+      }, (err) => {
+        console.error("Erro ao sincronizar checklist_submissions em tempo real:", err);
+      });
+      unsubs.push(unsubIndividualChecklists);
 
       // Fetch Action Plans
       const plansRef = doc(db, 'stores', storeId, 'checklists', 'action_plans');
@@ -369,16 +409,24 @@ export default function Checklist() {
         const promises = Object.entries(grouped).map(async ([storeId, list]) => {
           try {
             localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(list));
-            const docRef = doc(db, 'stores', storeId, 'checklists', 'submissions');
-            await setDoc(docRef, { data: sanitizeForFirestore(list) });
+            // Save each newly or updated submission individually to prevent document size exhaustion!
+            const individualSaves = list.map(async (sub) => {
+              const docRef = doc(db, 'stores', storeId, 'checklist_submissions', sub.id);
+              await setDoc(docRef, { data: sanitizeForFirestore(sub) });
+            });
+            await Promise.all(individualSaves);
           } catch (err) {
-            console.warn(`Erro ao salvar submissions para loja ${storeId}:`, err);
+            console.warn(`Erro ao salvar submissions de ROOT para loja ${storeId}:`, err);
           }
         });
         await Promise.all(promises);
       } else {
-        const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'submissions');
-        await setDoc(docRef, { data: sanitizeForFirestore(updated) });
+        // Save the newest submission individually under checklist_submissions subcollection
+        if (updated.length > 0) {
+          const newestSub = updated[0]; // The newest is inserted at the beginning in handleSubmissionCommitted
+          const docRef = doc(db, 'stores', currentStore.id, 'checklist_submissions', newestSub.id);
+          await setDoc(docRef, { data: sanitizeForFirestore(newestSub) });
+        }
       }
     } catch (err) {
       console.error("Erro ao salvar submissions:", err);
@@ -451,10 +499,34 @@ export default function Checklist() {
   };
 
   // Delete submission callback
-  const handleDeleteSubmission = (id: string) => {
+  const handleDeleteSubmission = async (id: string) => {
     const targetSub = submissions.find(s => s.id === id);
     const updated = submissions.filter(s => s.id !== id);
-    saveSubmissions(updated);
+    
+    // 1. Update state and local storage
+    setSubmissions(updated);
+    localStorage.setItem(`checklist_submissions_${currentStore.id}`, JSON.stringify(updated));
+
+    // 2. Delete the individual doc
+    try {
+      const docRef = doc(db, 'stores', currentStore.id, 'checklist_submissions', id);
+      await deleteDoc(docRef);
+    } catch (err) {
+      console.warn("Erro ao deletar doc individual de checklist_submissions:", err);
+    }
+
+    // 3. Remove from legacy single document of submissions if present
+    try {
+      const legacyRef = doc(db, 'stores', currentStore.id, 'checklists', 'submissions');
+      const storedLegacyDoc = await getDoc(legacyRef);
+      if (storedLegacyDoc.exists()) {
+        const legacyData = storedLegacyDoc.data().data || [];
+        const cleanLegacy = legacyData.filter((item: any) => item && item.id !== id);
+        await setDoc(legacyRef, { data: sanitizeForFirestore(cleanLegacy) });
+      }
+    } catch (err) {
+      console.warn("Erro ao remover do documento legacy de submissions:", err);
+    }
 
     if (user && targetSub) {
       AuditService.logAction({
