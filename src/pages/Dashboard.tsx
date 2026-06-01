@@ -8,8 +8,11 @@ import {
   TrendingUp, TrendingDown, DollarSign, PieChart as PieIcon, 
   ShoppingBag, Clock, Users, ArrowUpRight, ArrowDownRight,
   Zap, Info, Target, Calendar, ArrowRight, ArrowLeft, Sparkles, Trash2, Star,
-  AlertTriangle
+  AlertTriangle, Download
 } from 'lucide-react';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import 'jspdf-autotable';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   mostProfitable,
@@ -69,6 +72,13 @@ export default function Dashboard() {
   const [selectedYear, setSelectedYear] = useState('2026');
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const [showAllProducts, setShowAllProducts] = useState(false);
+  const [selectedChartMonthCode, setSelectedChartMonthCode] = useState<string>('05');
+  const [chartViewMode, setChartViewMode] = useState<'grouped' | 'stacked' | 'area'>('grouped');
+  const [exportingPDF, setExportingPDF] = useState(false);
+
+  React.useEffect(() => {
+    setSelectedChartMonthCode(selectedMonth);
+  }, [selectedMonth]);
 
   const businessQuotes = [
     "O segredo do sucesso no food service é constância e qualidade.",
@@ -512,6 +522,45 @@ export default function Dashboard() {
       return indexA - indexB;
     });
 
+  const deliveryVsBalcaoAnnualData = React.useMemo(() => {
+    const monthsMapToLabel: Record<string, string> = {
+      '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril', '05': 'Maio', '06': 'Junho',
+      '07': 'Julho', '08': 'Agosto', '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
+    };
+
+    return Object.entries(monthsMapToLabel).map(([code, name]) => {
+      const match = activeDreTimeline.find(p => p.month === name && (p.year === selectedYear || (!p.year && selectedYear === '2026')));
+      
+      const balcao = match ? (match.receitaBalcao || 0) : 0;
+      const ifoodVal = match ? (match.receitaIfood || 0) : 0;
+      const wedoVal = match ? (match.receitaWedo || 0) : 0;
+      const totalDeliveryCalculated = ifoodVal + wedoVal;
+      const faturamentoTotal = match ? (match.faturamento || 0) : 0;
+      
+      const delivery = totalDeliveryCalculated > 0 
+        ? totalDeliveryCalculated 
+        : Math.max(0, faturamentoTotal - balcao);
+
+      const total = balcao + delivery;
+      const balcaoPct = total > 0 ? (balcao / total) * 100 : 0;
+      const deliveryPct = total > 0 ? (delivery / total) * 100 : 0;
+
+      return {
+        monthCode: code,
+        month: name,
+        balcao,
+        delivery,
+        total,
+        balcaoPct,
+        deliveryPct
+      };
+    });
+  }, [activeDreTimeline, selectedYear]);
+
+  const selectedChartMonthData = React.useMemo(() => {
+    return deliveryVsBalcaoAnnualData.find(d => d.monthCode === selectedChartMonthCode) || deliveryVsBalcaoAnnualData[4]; // standard fallback is Maio
+  }, [deliveryVsBalcaoAnnualData, selectedChartMonthCode]);
+
   const isPatriciab = 
     user?.role === 'MANAGER' ||
     user?.role?.startsWith('MANAGER_') ||
@@ -526,6 +575,149 @@ export default function Dashboard() {
     { label: 'Pedidos Totais', valor: totalPedidos, format: 'number', trend: 'up', change: '0' },
     ...(!isPatriciab ? [{ label: 'Margem Operac.', valor: margemOperacional, format: 'percent', trend: margemOperacional < 0 ? 'down' : 'up', change: '0' }] : []),
   ];
+
+  const exportDashboardPDF = async () => {
+    setExportingPDF(true);
+    try {
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      // Banner topo
+      doc.setFillColor(79, 70, 229);
+      doc.rect(0, 0, 210, 42, 'F');
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(18);
+      doc.setTextColor(255, 255, 255);
+      doc.text("AZEVEDO FOODS - CORPORATIVO", 15, 16);
+      
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(200, 200, 255);
+      doc.text(`Relatório Consolidado de Desempenho e Canais de Distribuição`, 15, 23);
+      doc.text(`Unidade Selecionada: ${currentStore.name} (${currentStore.code})`, 15, 29);
+      
+      const mesExtenso = months.find(m => m.value === selectedMonth)?.label || selectedMonth;
+      doc.text(`Período de Análise: ${mesExtenso} / ${selectedYear}`, 135, 16);
+      doc.text(`Extraído em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 135, 23);
+      doc.text(`Assinado Digitalmente (b32 Conectividade)`, 135, 29);
+
+      // Linha de divisão amarela para separar o cabeçalho
+      doc.setFillColor(255, 184, 0); // Amarelo marca
+      doc.rect(0, 42, 210, 2, 'F');
+
+      // KPIs Principais
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(30, 41, 59);
+      doc.text("1. Principais Indicadores Financeiros e Operacionais", 15, 54);
+
+      const kpiRows = displayMetrics.map(m => {
+        let valStr = "";
+        if (m.format === 'currency') valStr = formatCurrency(m.valor as number);
+        else if (m.format === 'percent') valStr = formatPercent(m.valor as number);
+        else valStr = formatNumber(m.valor as number);
+        return [m.label, valStr];
+      });
+
+      (doc as any).autoTable({
+        startY: 58,
+        head: [['Indicador de Performance', 'Apurado no Período']],
+        body: kpiRows,
+        theme: 'grid',
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 9.5, cellPadding: 3 },
+        margin: { left: 15, right: 15 }
+      });
+
+      let currentY = (doc as any).lastAutoTable.finalY + 12;
+
+      // Seção do Gráfico Balcão vs Delivery
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(30, 41, 59);
+      doc.text("2. Gráfico Sincronizado do Ano - Balcão versus Delivery", 15, currentY);
+      currentY += 4;
+
+      const chartElement = document.getElementById('chart-balcao-delivery');
+      if (chartElement) {
+        // Opções para renderização em alta definição
+        const canvas = await html2canvas(chartElement, {
+          scale: 1.8,
+          useCORS: true,
+          backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
+          logging: false
+        });
+        const imgData = canvas.toDataURL('image/png');
+        
+        const imgWidth = 180;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        
+        if (currentY + imgHeight > 280) {
+          doc.addPage();
+          currentY = 15;
+        }
+
+        doc.addImage(imgData, 'PNG', 15, currentY, imgWidth, imgHeight);
+        currentY += imgHeight + 12;
+      } else {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        doc.text("[Gráfico indisponível para renderização visual estática]", 15, currentY + 4);
+        currentY += 12;
+      }
+
+      // Seção dados tabulares
+      if (currentY + 50 > 280) {
+        doc.addPage();
+        currentY = 15;
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(13);
+      doc.setTextColor(30, 41, 59);
+      doc.text("3. Tabela Histórica do Dashboard Canais (Mês a Mês)", 15, currentY);
+      currentY += 4;
+
+      const historyRows = deliveryVsBalcaoAnnualData.map(d => [
+        d.month,
+        formatCurrency(d.balcao),
+        `${d.balcaoPct.toFixed(1)}%`,
+        formatCurrency(d.delivery),
+        `${d.deliveryPct.toFixed(1)}%`,
+        formatCurrency(d.total)
+      ]);
+
+      (doc as any).autoTable({
+        startY: currentY,
+        head: [['Período', 'Faturamento Balcão', 'Participação Balcão', 'Faturamento Delivery', 'Participação Delivery', 'Total Consolidado']],
+        body: historyRows,
+        theme: 'striped',
+        headStyles: { fillColor: [100, 116, 139], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8.5, cellPadding: 2.2 },
+        margin: { left: 15, right: 15 }
+      });
+
+      // Numeração de páginas no rodapé
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Desempenho Corporativo Grupo Azevedo - Privado e Confidencial | Página ${i} de ${pageCount}`, 105, 287, { align: 'center' });
+      }
+
+      doc.save(`Relatorio_Performance_${currentStore.code}_${selectedYear}_${selectedMonth}.pdf`);
+    } catch (err) {
+      console.error("Erro ao gerar PDF:", err);
+    } finally {
+      setExportingPDF(false);
+    }
+  };
 
   return (
     <div className="space-y-8 pb-10">
@@ -564,6 +756,20 @@ export default function Dashboard() {
               ))}
             </select>
           </div>
+
+          <button
+            onClick={exportDashboardPDF}
+            disabled={exportingPDF}
+            aria-label="Baixar Relatório em PDF"
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg ${
+              isDarkMode 
+                ? 'bg-zinc-800 hover:bg-zinc-700 text-white shadow-black/20' 
+                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
+            } disabled:opacity-50 disabled:pointer-events-none cursor-pointer`}
+          >
+            <Download className={`w-4 h-4 ${exportingPDF ? 'animate-spin' : ''}`} />
+            {exportingPDF ? 'Gerando Relatório...' : 'Baixar Relatório (PDF)'}
+          </button>
 
           {currentStore.code !== 'ROOT' && (
             <>
@@ -943,6 +1149,257 @@ export default function Dashboard() {
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Comparativo de Canais do Ano: Balcão vs Delivery */}
+      <div id="chart-balcao-delivery" className={`p-6 rounded-3xl border transition-colors duration-500 ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6">
+          <div>
+            <h3 className={`text-lg font-black uppercase italic flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              <ShoppingBag className="w-5 h-5 text-indigo-500" /> Balcão vs. Delivery ({selectedYear})
+            </h3>
+            <p className="text-[10px] text-slate-500 font-medium italic">Histórico anual detalhado canal por canal. Clique nas colunas para selecionar o mês de análise.</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {/* View Mode Switcher */}
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-black/20 p-1 rounded-xl border border-slate-100 dark:border-[#333]">
+              {[
+                { id: 'grouped', name: 'Agrupado' },
+                { id: 'stacked', name: 'Empilhado' },
+                { id: 'area', name: 'Área' }
+              ].map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => setChartViewMode(m.id as any)}
+                  className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${
+                    chartViewMode === m.id
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
+
+            {/* Quick Month Selector */}
+            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-black/20 px-2.5 py-1 rounded-xl border border-slate-100 dark:border-[#333]">
+              <span className="text-[8px] font-black uppercase text-slate-400">Análise:</span>
+              <select
+                value={selectedChartMonthCode}
+                onChange={(e) => setSelectedChartMonthCode(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-black uppercase outline-none py-0.5 cursor-pointer text-slate-900 dark:text-white"
+              >
+                {months.map(m => (
+                  <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Channel Chart View */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                {chartViewMode === 'area' ? (
+                  <AreaChart data={deliveryVsBalcaoAnnualData} onClick={(data: any) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const payload = data.activePayload[0].payload;
+                      setSelectedChartMonthCode(payload.monthCode);
+                    }
+                  }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 10}} />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#888', fontSize: 10}} 
+                      tickFormatter={(val) => `R$ ${val/1000}k`}
+                    />
+                    <Tooltip
+                      labelStyle={{ color: '#888', fontWeight: 'bold' }}
+                      contentStyle={{
+                        borderRadius: '16px',
+                        border: 'none',
+                        backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
+                        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                        fontSize: '11px',
+                        fontWeight: 'bold'
+                      }}
+                      formatter={(val: number) => [formatCurrency(val)]}
+                    />
+                    <defs>
+                      <linearGradient id="colorBalcao" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={isDarkMode ? '#64748b' : '#FFB800'} stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor={isDarkMode ? '#64748b' : '#FFB800'} stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorDelivery" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <Area type="monotone" name="Balcão" dataKey="balcao" stroke={isDarkMode ? '#64748b' : '#FFB800'} strokeWidth={3} fillOpacity={1} fill="url(#colorBalcao)" />
+                    <Area type="monotone" name="Delivery" dataKey="delivery" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorDelivery)" />
+                  </AreaChart>
+                ) : (
+                  <BarChart data={deliveryVsBalcaoAnnualData} onClick={(data: any) => {
+                    if (data && data.activePayload && data.activePayload[0]) {
+                      const payload = data.activePayload[0].payload;
+                      setSelectedChartMonthCode(payload.monthCode);
+                    }
+                  }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
+                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 10}} />
+                    <YAxis 
+                      axisLine={false} 
+                      tickLine={false} 
+                      tick={{fill: '#888', fontSize: 10}} 
+                      tickFormatter={(val) => `R$ ${val/1000}k`}
+                    />
+                    <Tooltip
+                      labelStyle={{ color: '#888', fontWeight: 'bold' }}
+                      contentStyle={{
+                        borderRadius: '16px',
+                        border: 'none',
+                        backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
+                        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                        fontSize: '11px',
+                        fontWeight: 'bold'
+                      }}
+                      formatter={(val: number) => [formatCurrency(val)]}
+                    />
+                    <Bar 
+                      name="Balcão" 
+                      dataKey="balcao" 
+                      stackId={chartViewMode === 'stacked' ? 'a' : undefined} 
+                      fill={isDarkMode ? '#64748b' : '#FFB800'} 
+                      radius={chartViewMode === 'stacked' ? [0, 0, 0, 0] : [6, 6, 0, 0]}
+                    />
+                    <Bar 
+                      name="Delivery" 
+                      dataKey="delivery" 
+                      stackId={chartViewMode === 'stacked' ? 'a' : undefined} 
+                      fill="#4f46e5" 
+                      radius={[6, 6, 0, 0]}
+                    />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            </div>
+
+            {/* Custom Interactive Legends */}
+            <div className="flex flex-wrap items-center justify-center gap-6 text-xs font-bold pt-2">
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#64748b' : '#FFB800' }} />
+                <span className="text-slate-500 dark:text-slate-400">Faturamento Balcão (Retirada)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-[#4f46e5]" />
+                <span className="text-slate-500 dark:text-slate-400">Faturamento Delivery (Entregas)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Mini-dashboard details about the selected month */}
+          <div className={`p-5 rounded-2xl border flex flex-col justify-between ${
+            isDarkMode ? 'bg-[#121212] border-[#292929]' : 'bg-slate-50 border-slate-200'
+          }`}>
+            <div>
+              <div className="flex items-center justify-between mb-4 border-b border-dashed border-slate-200 dark:border-[#333] pb-3">
+                <span className={`text-[11px] font-black uppercase tracking-wider ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>
+                  Análise: {selectedChartMonthData.month}
+                </span>
+                <span className="text-[10px] bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded-full font-bold">
+                  {selectedYear}
+                </span>
+              </div>
+
+              {/* Total Row */}
+              <div className="mb-4">
+                <span className="text-[10px] text-slate-400 font-bold uppercase block">Faturamento Acumulado</span>
+                <span className={`text-2xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  {formatCurrency(selectedChartMonthData.total)}
+                </span>
+              </div>
+
+              <div className="space-y-4">
+                {/* Channel 1: Balcao */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Faturamento Balcão</span>
+                    <span className={`font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                      {formatCurrency(selectedChartMonthData.balcao)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span>Participação</span>
+                    <span className="font-bold">{selectedChartMonthData.balcaoPct.toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200/50 dark:bg-black/40 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500" 
+                      style={{ 
+                        width: `${selectedChartMonthData.balcaoPct}%`, 
+                        backgroundColor: isDarkMode ? '#64748b' : '#FFB800' 
+                      }} 
+                    />
+                  </div>
+                </div>
+
+                {/* Channel 2: Delivery */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 dark:text-slate-400 font-semibold">Faturamento Delivery</span>
+                    <span className="font-black text-indigo-500">
+                      {formatCurrency(selectedChartMonthData.delivery)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span>Participação</span>
+                    <span className="font-bold text-slate-300">{selectedChartMonthData.deliveryPct.toFixed(1)}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200/50 dark:bg-black/40 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full rounded-full transition-all duration-500 bg-[#4f46e5]" 
+                      style={{ width: `${selectedChartMonthData.deliveryPct}%` }} 
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-dashed border-slate-200 dark:border-[#333] space-y-1">
+              <span className="text-[10px] text-slate-400 font-black uppercase block">Canal Predominante</span>
+              <div className="flex items-center justify-between">
+                <span className={`text-xs font-bold uppercase tracking-wider ${
+                  selectedChartMonthData.total === 0 
+                    ? 'text-slate-400' 
+                    : selectedChartMonthData.delivery >= selectedChartMonthData.balcao 
+                      ? 'text-indigo-400' 
+                      : 'text-amber-500'
+                }`}>
+                  {selectedChartMonthData.total === 0 
+                    ? 'Sem dados líquidos' 
+                    : selectedChartMonthData.delivery >= selectedChartMonthData.balcao 
+                      ? 'Delivery predominante' 
+                      : 'Balcão predominante'}
+                </span>
+                <span className="text-[10px] text-slate-500 font-medium italic">
+                  {selectedChartMonthData.total > 0 && (
+                    selectedChartMonthData.delivery >= selectedChartMonthData.balcao 
+                      ? `${selectedChartMonthData.deliveryPct.toFixed(0)}% do volume`
+                      : `${selectedChartMonthData.balcaoPct.toFixed(0)}% do volume`
+                  )}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
