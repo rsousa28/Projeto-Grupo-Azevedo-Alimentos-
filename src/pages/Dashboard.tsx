@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   mostProfitable,
@@ -380,12 +380,6 @@ export default function Dashboard() {
     { name: 'Meta', valor: activeMeta, color: currentStore.brand === 'BEBELU' ? '#7F300C' : '#8884d8' },
     { name: 'Realizado', valor: activeRealizado, color: currentStore.brand === 'BEBELU' ? '#FFCB05' : (isDarkMode ? '#E63946' : '#0066FF') }
   ];
-  
-  const dynamicDeliveryChannels = [
-    { name: 'iFood', valor: currentMonthData.receitaIfood || 0, color: '#991B1B' },
-    { name: 'WEDO', valor: currentMonthData.receitaWedo || 0, color: '#0066FF' },
-    { name: 'Balcão', valor: currentMonthData.receitaBalcao || 0, color: isDarkMode ? '#64748b' : '#FFB800' }
-  ];
 
   // Memo to calculate performance breakdown of each store for ROOT mode
   const storesPerformance = React.useMemo(() => {
@@ -578,6 +572,110 @@ export default function Dashboard() {
 
   const exportDashboardPDF = async () => {
     setExportingPDF(true);
+
+    // Color conversion algorithms matching CSS Color Level 4
+    const oklabToRgb = (l: number, oklabA: number, oklabB: number, a: number = 1): string => {
+      const l_ = l + 0.3963377774 * oklabA + 0.2158037573 * oklabB;
+      const m_ = l - 0.1055613458 * oklabA - 0.0638541728 * oklabB;
+      const s_ = l - 0.0894841775 * oklabA - 1.2914855480 * oklabB;
+
+      const l_3 = l_ * l_ * l_;
+      const m_3 = m_ * m_ * m_;
+      const s_3 = s_ * s_ * s_;
+
+      let rLinear = +4.0767416621 * l_3 - 3.3077115913 * m_3 + 0.2309699292 * s_3;
+      let gLinear = -1.2684380046 * l_3 + 2.6097574011 * m_3 - 0.3413193965 * s_3;
+      let bLinear = -0.0041960863 * l_3 - 0.7034186147 * m_3 + 1.7076147010 * s_3;
+
+      const f = (cVal: number) => {
+        if (cVal <= 0.0031308) return 12.92 * cVal;
+        return 1.055 * Math.pow(cVal, 1 / 2.4) - 0.055;
+      };
+
+      const r = Math.round(Math.max(0, Math.min(1, f(rLinear))) * 255);
+      const g = Math.round(Math.max(0, Math.min(1, f(gLinear))) * 255);
+      const b = Math.round(Math.max(0, Math.min(1, f(bLinear))) * 255);
+
+      return `rgba(${r}, ${g}, ${b}, ${a})`;
+    };
+
+    const oklchToRgb = (l: number, c: number, h: number, a: number = 1): string => {
+      const hRad = (h * Math.PI) / 180;
+      const oklabA = c * Math.cos(hRad);
+      const oklabB = c * Math.sin(hRad);
+      return oklabToRgb(l, oklabA, oklabB, a);
+    };
+
+    const replaceOklchInText = (text: string): string => {
+      if (!text) return text;
+      const regex = /oklch\(\s*([0-9.]+%?)\s+([0-9.]+)\s+([0-9.]+)(?:\s*[\/,\s]\s*([0-9.]+%?))?\s*\)|oklch\(\s*([0-9.]+%?)\s*,\s*([0-9.]+)\s*,\s*([0-9.]+)(?:\s*,\s*([0-9.]+%?))?\s*\)/g;
+      return text.replace(regex, (match, l1, c1, h1, a1, l2, c2, h2, a2) => {
+        try {
+          const lStr = l1 || l2;
+          const cStr = c1 || c2;
+          const hStr = h1 || h2;
+          const aStr = a1 || a2;
+
+          let l = parseFloat(lStr);
+          if (lStr.includes('%')) l = l / 100;
+          let c = parseFloat(cStr);
+          let h = parseFloat(hStr);
+          let a = 1;
+          if (aStr) {
+            let parsedA = parseFloat(aStr);
+            if (aStr.includes('%')) parsedA = parsedA / 100;
+            a = parsedA;
+          }
+          return oklchToRgb(l, c, h, a);
+        } catch (e) {
+          return 'rgba(255, 255, 255, 1)';
+        }
+      });
+    };
+
+    const replaceOklabInText = (text: string): string => {
+      if (!text) return text;
+      const regex = /oklab\(\s*([0-9.]+%?)\s+([-+]?[0-9.]+)\s+([-+]?[0-9.]+)(?:\s*[\/,\s]\s*([0-9.]+%?))?\s*\)|oklab\(\s*([0-9.]+%?)\s*,\s*([-+]?[0-9.]+)\s*,\s*([-+]?[0-9.]+)(?:\s*,\s*([0-9.]+%?))?\s*\)/g;
+      return text.replace(regex, (match, l1, a1, b1, alpha1, l2, a2, b2, alpha2) => {
+        try {
+          const lStr = l1 || l2;
+          const aParamStr = a1 || a2;
+          const bParamStr = b1 || b2;
+          const aStr = alpha1 || alpha2;
+
+          let l = parseFloat(lStr);
+          if (lStr.includes('%')) l = l / 100;
+          let oklabA = parseFloat(aParamStr);
+          let oklabB = parseFloat(bParamStr);
+          let a = 1;
+          if (aStr) {
+            let parsedA = parseFloat(aStr);
+            if (aStr.includes('%')) parsedA = parsedA / 100;
+            a = parsedA;
+          }
+          return oklabToRgb(l, oklabA, oklabB, a);
+        } catch (e) {
+          return 'rgba(255, 255, 255, 1)';
+        }
+      });
+    };
+
+    const replaceColorsInText = (text: string): string => {
+      if (!text) return text;
+      let res = replaceOklchInText(text);
+      res = replaceOklabInText(res);
+      return res;
+    };
+
+    // Statefully map and swap styles for html2canvas
+    const savedStyles = new Map<HTMLStyleElement, string>();
+    document.querySelectorAll('style').forEach((styleTag) => {
+      if (styleTag.textContent && (styleTag.textContent.includes('oklch') || styleTag.textContent.includes('oklab'))) {
+        savedStyles.set(styleTag, styleTag.textContent);
+        styleTag.textContent = replaceColorsInText(styleTag.textContent);
+      }
+    });
+
     try {
       const doc = new jsPDF({
         orientation: 'portrait',
@@ -585,7 +683,7 @@ export default function Dashboard() {
         format: 'a4'
       });
 
-      // Banner topo
+      // Top Indigo Header Banner
       doc.setFillColor(79, 70, 229);
       doc.rect(0, 0, 210, 42, 'F');
 
@@ -597,7 +695,7 @@ export default function Dashboard() {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(200, 200, 255);
-      doc.text(`Relatório Consolidado de Desempenho e Canais de Distribuição`, 15, 23);
+      doc.text(`Relatório Consolidado de Desempenho e Indicadores Financeiros`, 15, 23);
       doc.text(`Unidade Selecionada: ${currentStore.name} (${currentStore.code})`, 15, 29);
       
       const mesExtenso = months.find(m => m.value === selectedMonth)?.label || selectedMonth;
@@ -605,15 +703,15 @@ export default function Dashboard() {
       doc.text(`Extraído em: ${new Date().toLocaleDateString('pt-BR')} ${new Date().toLocaleTimeString('pt-BR')}`, 135, 23);
       doc.text(`Assinado Digitalmente (b32 Conectividade)`, 135, 29);
 
-      // Linha de divisão amarela para separar o cabeçalho
-      doc.setFillColor(255, 184, 0); // Amarelo marca
+      // Yellow indicator line beneath banner
+      doc.setFillColor(255, 184, 0);
       doc.rect(0, 42, 210, 2, 'F');
 
-      // KPIs Principais
+      // SECTION 1: Indicadores Operacionais
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
+      doc.setFontSize(11);
       doc.setTextColor(30, 41, 59);
-      doc.text("1. Principais Indicadores Financeiros e Operacionais", 15, 54);
+      doc.text("1. PRINCIPAIS INDICADORES OPERACIONAIS", 15, 52);
 
       const kpiRows = displayMetrics.map(m => {
         let valStr = "";
@@ -623,67 +721,167 @@ export default function Dashboard() {
         return [m.label, valStr];
       });
 
-      (doc as any).autoTable({
-        startY: 58,
+      autoTable(doc, {
+        startY: 55,
         head: [['Indicador de Performance', 'Apurado no Período']],
         body: kpiRows,
         theme: 'grid',
         headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
-        styles: { fontSize: 9.5, cellPadding: 3 },
+        styles: { fontSize: 8.5, cellPadding: 2.2 },
         margin: { left: 15, right: 15 }
       });
 
-      let currentY = (doc as any).lastAutoTable.finalY + 12;
+      let currentY = (doc as any).lastAutoTable.finalY + 8;
 
-      // Seção do Gráfico Balcão vs Delivery
+      // SECTION 2: DRE Resumido
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
+      doc.setFontSize(11);
       doc.setTextColor(30, 41, 59);
-      doc.text("2. Gráfico Sincronizado do Ano - Balcão versus Delivery", 15, currentY);
-      currentY += 4;
+      doc.text("2. DEMONSTRATIVO DE RESULTADOS DO EXERCÍCIO (DRE RESUMIDO)", 15, currentY);
 
-      const chartElement = document.getElementById('chart-balcao-delivery');
-      if (chartElement) {
-        // Opções para renderização em alta definição
-        const canvas = await html2canvas(chartElement, {
-          scale: 1.8,
-          useCORS: true,
-          backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
-          logging: false
-        });
-        const imgData = canvas.toDataURL('image/png');
-        
-        const imgWidth = 180;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-        
-        if (currentY + imgHeight > 280) {
-          doc.addPage();
-          currentY = 15;
-        }
+      const faturamentoBase = currentMonthData.faturamento || 1;
+      const getPctStr = (val: number) => `${((val / faturamentoBase) * 100).toFixed(1)}%`;
 
-        doc.addImage(imgData, 'PNG', 15, currentY, imgWidth, imgHeight);
-        currentY += imgHeight + 12;
-      } else {
-        doc.setFont("helvetica", "italic");
-        doc.setFontSize(9);
-        doc.setTextColor(120, 120, 120);
-        doc.text("[Gráfico indisponível para renderização visual estática]", 15, currentY + 4);
-        currentY += 12;
-      }
+      const dreRows = [
+        ['Receita Bruta (Faturamento)', formatCurrency(currentMonthData.faturamento), '100%'],
+        ['(-) Custos Variáveis (CMV + Impostos)', formatCurrency(-dashVariableExpenses), getPctStr(-dashVariableExpenses)],
+        ['(=) Margem de Contribuição', formatCurrency(dashMargemContrib), getPctStr(dashMargemContrib)],
+        ['(-) Custos Fixos (Pessoal + Ocupação + Operacionais)', formatCurrency(-dashFixedExpenses), getPctStr(-dashFixedExpenses)],
+        ['(=) Resultado Líquido', formatCurrency(currentMonthData.netProfit), getPctStr(currentMonthData.netProfit)]
+      ];
 
-      // Seção dados tabulares
-      if (currentY + 50 > 280) {
+      autoTable(doc, {
+        startY: currentY + 3,
+        head: [['Rubrica Financeira', 'Valor Realizado', 'Fração sobre Receita']],
+        body: dreRows,
+        theme: 'striped',
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8.5, cellPadding: 2.2 },
+        margin: { left: 15, right: 15 }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 8;
+
+      // SECTION 3: Distribuição de Custos, Despesas / Desempenho
+      if (currentY + 45 > 280) {
         doc.addPage();
         currentY = 15;
       }
 
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
+      doc.setFontSize(11);
       doc.setTextColor(30, 41, 59);
-      doc.text("3. Tabela Histórica do Dashboard Canais (Mês a Mês)", 15, currentY);
-      currentY += 4;
 
-      const historyRows = deliveryVsBalcaoAnnualData.map(d => [
+      if (isRoot) {
+        doc.text("3. DESEMPENHO POR UNIDADE (VISÃO CONSOLIDADA)", 15, currentY);
+        const storeRows = storesPerformance.map((s, idx) => [
+          `#${idx + 1} - ${s.name}`,
+          formatCurrency(s.faturamento),
+          `${s.cmvPct.toFixed(1)}%`,
+          formatCurrency(s.netProfit),
+          `${s.netProfitPct.toFixed(1)}%`
+        ]);
+
+        autoTable(doc, {
+          startY: currentY + 3,
+          head: [['Unidade', 'Faturamento', 'CMV %', 'Lucro Líquido', 'Margem de Lucro']],
+          body: storeRows,
+          theme: 'grid',
+          headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 2.2 },
+          margin: { left: 15, right: 15 }
+        });
+      } else {
+        doc.text("3. COMPOSIÇÃO DE CUSTOS E DESPESAS OPERACIONAIS", 15, currentY);
+        const expenseRows = expenseDistribution.map(exp => [
+          exp.name,
+          formatCurrency(exp.value),
+          `${exp.pct.toFixed(1)}%`
+        ]);
+
+        autoTable(doc, {
+          startY: currentY + 3,
+          head: [['Categoria de Gasto', 'Valor Apurado', 'Percentual sobre Receita']],
+          body: expenseRows,
+          theme: 'grid',
+          headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 2.2 },
+          margin: { left: 15, right: 15 }
+        });
+      }
+
+      currentY = (doc as any).lastAutoTable.finalY + 12;
+
+      // Capture function to safely snapshot charts with double oklch/oklab replacement
+      const captureChart = async (id: string, title?: string): Promise<number> => {
+        const chartEl = document.getElementById(id);
+        if (!chartEl) return 0;
+        
+        try {
+          const canvas = await html2canvas(chartEl, {
+            scale: 1.8,
+            useCORS: true,
+            backgroundColor: isDarkMode ? '#1E1E1E' : '#FFFFFF',
+            logging: false,
+            onclone: (clonedDoc) => {
+              clonedDoc.querySelectorAll('*').forEach((el: any) => {
+                try {
+                  const styleAttr = el.getAttribute('style');
+                  if (styleAttr && (styleAttr.includes('oklch') || styleAttr.includes('oklab'))) {
+                    el.setAttribute('style', replaceColorsInText(styleAttr));
+                  }
+                  const style = window.getComputedStyle(el);
+                  const props = [
+                    'backgroundColor', 'color', 'borderColor', 
+                    'borderTopColor', 'borderRightColor', 'borderBottomColor', 'borderLeftColor', 
+                    'stroke', 'fill'
+                  ];
+                  props.forEach(prop => {
+                    const val = style[prop as any];
+                    if (val && (val.includes('oklch') || val.includes('oklab'))) {
+                      el.style[prop] = replaceColorsInText(val);
+                    }
+                  });
+                } catch (e) {}
+              });
+            }
+          });
+          
+          const imgData = canvas.toDataURL('image/png');
+          const imgWidth = 180;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          
+          if (currentY + imgHeight > 275) {
+            doc.addPage();
+            currentY = 15;
+            if (title) {
+              doc.setFont("helvetica", "bold");
+              doc.setFontSize(10);
+              doc.setTextColor(100, 116, 139);
+              doc.text(`${title} (Visualização Gráfica)`, 15, currentY);
+              currentY += 5;
+            }
+          }
+          
+          doc.addImage(imgData, 'PNG', 15, currentY, imgWidth, imgHeight);
+          return imgHeight;
+        } catch (e) {
+          console.warn(`Erro ao capturar gráfico com o ID ${id}:`, e);
+          return 0;
+        }
+      };
+
+      // PAGE 2: Canais de Distribuição
+      doc.addPage();
+      currentY = 15;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text("4. DESEMPENHO ANUAL DE CANAIS DE DISTRIBUIÇÃO", 15, currentY);
+      currentY += 3;
+
+      const channelRows = deliveryVsBalcaoAnnualData.map(d => [
         d.month,
         formatCurrency(d.balcao),
         `${d.balcaoPct.toFixed(1)}%`,
@@ -692,17 +890,172 @@ export default function Dashboard() {
         formatCurrency(d.total)
       ]);
 
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: currentY,
-        head: [['Período', 'Faturamento Balcão', 'Participação Balcão', 'Faturamento Delivery', 'Participação Delivery', 'Total Consolidado']],
-        body: historyRows,
+        head: [['Período', 'Faturamento Balcão', 'Participação Balcão', 'Faturamento Delivery', 'Participação Delivery', 'Total Canal']],
+        body: channelRows,
         theme: 'striped',
         headStyles: { fillColor: [100, 116, 139], textColor: [255, 255, 255], fontStyle: 'bold' },
-        styles: { fontSize: 8.5, cellPadding: 2.2 },
+        styles: { fontSize: 8, cellPadding: 2 },
         margin: { left: 15, right: 15 }
       });
 
-      // Numeração de páginas no rodapé
+      currentY = (doc as any).lastAutoTable.finalY + 8;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Gráfico de Origem dos Pedidos (Balcão vs. Delivery)", 15, currentY);
+      currentY += 3;
+
+      const chartBalcaoH = await captureChart('chart-balcao-delivery', "Balcão vs. Delivery");
+      if (chartBalcaoH > 0) {
+        currentY += chartBalcaoH + 12;
+      } else {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8.5);
+        doc.text("[Gráfico Balcão vs Delivery carregando ou indisponível]", 15, currentY + 3);
+        currentY += 10;
+      }
+
+      // PAGE 3: Crescimento Mensal
+      doc.addPage();
+      currentY = 15;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text("5. CRESCIMENTO E EVOLUÇÃO MENSAL DO FATURAMENTO (HISTÓRICO MÊS A MÊS)", 15, currentY);
+      currentY += 3;
+
+      const growthRows = sortedChartData.map(d => [
+        d.month,
+        formatCurrency(d.faturamento),
+        d.receitaBalcao ? formatCurrency(d.receitaBalcao) : '-',
+        d.receitaDelivery ? formatCurrency(d.receitaDelivery) : '-'
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Mês', 'Faturamento Total', 'Venda Balcão', 'Venda Delivery']],
+        body: growthRows,
+        theme: 'striped',
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8, cellPadding: 1.8 },
+        margin: { left: 15, right: 15 }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 8;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Gráfico de Tendência e Crescimento de Faturamento", 15, currentY);
+      currentY += 3;
+
+      const chartCrescimentoH = await captureChart('chart-crescimento-mensal', "Crescimento Mensal");
+      if (chartCrescimentoH > 0) {
+        currentY += chartCrescimentoH + 12;
+      } else {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8.5);
+        doc.text("[Gráfico de Crescimento Mensal indisponível]", 15, currentY + 3);
+        currentY += 10;
+      }
+
+      // PAGE 4: Acompanhamento de Metas de Faturamento & YoY History (2024, 2025, 2026)
+      doc.addPage();
+      currentY = 15;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text("6. ACOMPANHAMENTO DE METAS DE VENDAS", 15, currentY);
+      currentY += 3;
+
+      const metaDiff = activeRealizado - activeMeta;
+      const metaPct = activeMeta > 0 ? (activeRealizado / activeMeta) * 100 : 0;
+      const metaRows = [
+        ['Faturamento Meta Planejado', formatCurrency(activeMeta)],
+        ['Faturamento Realizado Praticado', formatCurrency(activeRealizado)],
+        ['Desvio Absoluto (Realizado vs. Meta)', formatCurrency(metaDiff)],
+        ['Aproveitamento de Meta (%)', `${metaPct.toFixed(1)}%`]
+      ];
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Métrica de Meta', 'Indicador Obtido']],
+        body: metaRows,
+        theme: 'grid',
+        headStyles: { fillColor: [51, 65, 85], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8.5, cellPadding: 2 },
+        margin: { left: 15, right: 15 }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 8;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Gráfico Comparativo de Metas vs. Realizado", 15, currentY);
+      currentY += 3;
+
+      const chartMetaRealizadoH = await captureChart('chart-meta-realizado', "Meta vs Realizado");
+      if (chartMetaRealizadoH > 0) {
+        currentY += chartMetaRealizadoH + 12;
+      } else {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8.5);
+        doc.text("[Gráfico de Meta vs Realizado indisponível]", 15, currentY + 3);
+        currentY += 10;
+      }
+
+      // SECTION 7: YoY Comparison (2024, 2025, 2026)
+      if (currentY + 50 > 280) {
+        doc.addPage();
+        currentY = 15;
+      }
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(30, 41, 59);
+      doc.text("7. COMPARATIVO HISTÓRICO ANUAL (YoY - 2024, 2025, 2026)", 15, currentY);
+      currentY += 3;
+
+      const yoyRows = yearlyComparisonData.map(d => [
+        `Ano ${d.year}`,
+        formatCurrency(d.faturamento)
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Ano de Exercício', 'Faturamento Realizado']],
+        body: yoyRows,
+        theme: 'striped',
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' },
+        styles: { fontSize: 8.5, cellPadding: 2 },
+        margin: { left: 15, right: 15 }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 8;
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(100, 116, 139);
+      doc.text("Gráfico de Evolução Histórica YoY", 15, currentY);
+      currentY += 3;
+
+      const chartYoyH = await captureChart('chart-historico-anos', "Histórico YoY");
+      if (chartYoyH > 0) {
+        currentY += chartYoyH + 12;
+      } else {
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(8.5);
+        doc.text("[Gráfico Histórico de Anos indisponível]", 15, currentY + 3);
+        currentY += 10;
+      }
+
+      // Add standard headers, page numbers to the footers of all pages
       const pageCount = (doc as any).internal.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -715,6 +1068,10 @@ export default function Dashboard() {
     } catch (err) {
       console.error("Erro ao gerar PDF:", err);
     } finally {
+      // Always restore document stylesheet text content to revert color replacements
+      savedStyles.forEach((content, styleTag) => {
+        styleTag.textContent = content;
+      });
       setExportingPDF(false);
     }
   };
@@ -925,7 +1282,7 @@ export default function Dashboard() {
       {/* Main Analysis Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Revenue Trend */}
-        <div className={`lg:col-span-2 p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+        <div id="chart-crescimento-mensal" className={`lg:col-span-2 p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <div className="flex items-center justify-between mb-6">
             <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
               <TrendingUp className="w-5 h-5" style={{ color: brandColors.primary }} /> Crescimento Mensal
@@ -961,7 +1318,7 @@ export default function Dashboard() {
         </div>
 
         {/* Meta vs Realizado */}
-        <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+        <div id="chart-meta-realizado" className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
           <h3 className={`text-lg font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>Meta vs. Realizado</h3>
           <div className="h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -1061,7 +1418,7 @@ export default function Dashboard() {
           </div>
         ) : (
           user?.role === 'ADMIN' ? (
-            <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+            <div id="chart-distribuicao-custos" className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
               <h3 className={`text-lg font-bold mb-4 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-black'}`}>
                 <PieIcon className="w-5 h-5 text-indigo-500" /> Distribuição de Custos e Despesas
               </h3>
@@ -1097,7 +1454,7 @@ export default function Dashboard() {
         )}
 
         {/* Comparativo Mensal YoY */}
-        <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'} ${(!isRoot && user?.role !== 'ADMIN') ? 'lg:col-span-2' : ''}`}>
+        <div id="chart-historico-anos" className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'} ${(!isRoot && user?.role !== 'ADMIN') ? 'lg:col-span-2' : ''}`}>
           <div className="flex items-center justify-between mb-6">
             <div className="flex flex-col">
               <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
@@ -1444,87 +1801,17 @@ export default function Dashboard() {
                      {isLoss && (
                        <AlertTriangle className="w-5 h-5 text-red-500 animate-bounce shrink-0" />
                      )}
-                     {formatCurrency(item.valor)}
-                   </span>
-                 </div>
-               );
-             })}
+                      {formatCurrency(item.valor)}
+                    </span>
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}
 
       {/* Distribution Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Delivery vs Counter */}
-        <div className={`p-6 rounded-3xl border transition-colors duration-500 ${
-          isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-200 shadow-sm'
-        }`}>
-          <h3 className={`text-lg font-bold flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-            <ShoppingBag className="w-5 h-5" style={{ color: '#991B1B' }} /> Origem dos Pedidos
-          </h3>
-          <div className="flex flex-col md:flex-row items-center gap-8">
-            <div className="h-[200px] w-full md:w-1/2 relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={dynamicDeliveryChannels}
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="valor"
-                  >
-                    {dynamicDeliveryChannels.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: any) => {
-                      const totalVal = dynamicDeliveryChannels.reduce((sum, channel) => sum + channel.valor, 0);
-                      const percentage = totalVal > 0 ? (Number(value) / totalVal) * 100 : 0;
-                      return [`${formatCurrency(Number(value))} (${percentage.toFixed(1)}%)`, 'Faturamento'];
-                    }}
-                    labelStyle={{ color: '#888' }}
-                    contentStyle={{ 
-                      borderRadius: '12px', 
-                      border: 'none', 
-                      backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
-                      boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
-                      fontSize: '11px',
-                      fontWeight: 'bold'
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <div className={`text-xl font-black ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
-                  R$ {(dynamicDeliveryChannels.reduce((sum, channel) => sum + channel.valor, 0) / 1000).toFixed(0)}k
-                </div>
-                <div className="text-[8px] text-slate-500 uppercase font-black">Total</div>
-              </div>
-            </div>
-            <div className="w-full md:w-1/2 space-y-4">
-              {(() => {
-                const totalVal = dynamicDeliveryChannels.reduce((sum, channel) => sum + channel.valor, 0);
-                return dynamicDeliveryChannels.map((channel) => {
-                  const percentage = totalVal > 0 ? (channel.valor / totalVal) * 100 : 0;
-                  return (
-                    <div key={channel.name} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channel.color }} />
-                        <span className="text-xs font-bold dark:text-slate-300 uppercase">{channel.name}</span>
-                      </div>
-                      <div className={`text-xs font-black uppercase flex items-center gap-2 ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
-                        <span>{formatCurrency(channel.valor)}</span>
-                        <span className="text-[10px] font-bold text-slate-400">({percentage.toFixed(1)}%)</span>
-                      </div>
-                    </div>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-        </div>
-
+      <div className="w-full">
         {/* Operational Indicators */}
         <div className={`p-6 rounded-3xl border transition-colors duration-500 ${
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-200 shadow-sm'
