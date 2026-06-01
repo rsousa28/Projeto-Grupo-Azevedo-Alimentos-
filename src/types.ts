@@ -32,6 +32,7 @@ export interface DREData {
   metaNps?: number;
   cmvAlvo?: number;
   tempoMedio?: number;
+  avaliacaoIfood?: number;
   receitaBalcao?: number;
   receitaDelivery?: number;
   receitaIfood?: number;

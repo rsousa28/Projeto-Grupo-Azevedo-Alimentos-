@@ -7,7 +7,8 @@ import {
 import { 
   TrendingUp, TrendingDown, DollarSign, PieChart as PieIcon, 
   ShoppingBag, Clock, Users, ArrowUpRight, ArrowDownRight,
-  Zap, Info, Target, Calendar, ArrowRight, ArrowLeft, Sparkles, Trash2
+  Zap, Info, Target, Calendar, ArrowRight, ArrowLeft, Sparkles, Trash2, Star,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -419,6 +420,7 @@ export default function Dashboard() {
   const expenseDistribution = React.useMemo(() => {
     if (isRoot) return [];
     
+    const faturamentoBase = currentMonthData.faturamento || 1;
     const cmvVal = currentMonthData.cmv || 0;
     const personnelVal = currentMonthData.payroll || 0;
     const taxesVal = (currentMonthData.details?.deducoes?.darfSimples || currentMonthData.taxes || 0);
@@ -429,16 +431,13 @@ export default function Dashboard() {
     
     const otherCosts = Math.max(0, (currentMonthData.faturamento || 0) - (currentMonthData.netProfit || 0) - (cmvVal + personnelVal + taxesVal + rentVal + marketingVal + royaltiesVal + operationalVal));
 
-    const totalExp = cmvVal + personnelVal + taxesVal + rentVal + marketingVal + royaltiesVal + operationalVal + otherCosts;
-
     return [
-      { name: 'CMV (Ingredientes/Estoque)', value: cmvVal, pct: totalExp > 0 ? (cmvVal / totalExp) * 100 : 0, color: '#E63946' },
-      { name: 'Pessoal (Salários/Encargos)', value: personnelVal, pct: totalExp > 0 ? (personnelVal / totalExp) * 100 : 0, color: '#0066FF' },
-      { name: 'Impostos e Deduções', value: taxesVal, pct: totalExp > 0 ? (taxesVal / totalExp) * 100 : 0, color: '#6B7280' },
-      { name: 'Ocupação (Aluguel/Energia)', value: rentVal, pct: totalExp > 0 ? (rentVal / totalExp) * 100 : 0, color: '#FFB800' },
-      { name: 'Marketing / Comercial', value: marketingVal, pct: totalExp > 0 ? (marketingVal / totalExp) * 100 : 0, color: '#EC4899' },
-      { name: 'Royalties / Franquia', value: royaltiesVal, pct: totalExp > 0 ? (royaltiesVal / totalExp) * 100 : 0, color: '#8B5CF6' },
-      { name: 'Outras Operacionais', value: operationalVal + otherCosts, pct: totalExp > 0 ? ((operationalVal + otherCosts) / totalExp) * 100 : 0, color: '#10B981' }
+      { name: 'Pessoal (Salários/Encargos)', value: personnelVal, pct: (personnelVal / faturamentoBase) * 100, color: '#0066FF' },
+      { name: 'Impostos e Deduções', value: taxesVal, pct: (taxesVal / faturamentoBase) * 100, color: '#6B7280' },
+      { name: 'Ocupação (Aluguel/Energia)', value: rentVal, pct: (rentVal / faturamentoBase) * 100, color: '#FFB800' },
+      { name: 'Marketing / Comercial', value: marketingVal, pct: (marketingVal / faturamentoBase) * 100, color: '#EC4899' },
+      { name: 'Royalties / Franquia', value: royaltiesVal, pct: (royaltiesVal / faturamentoBase) * 100, color: '#8B5CF6' },
+      { name: 'Outras Operacionais', value: operationalVal + otherCosts, pct: ((operationalVal + otherCosts) / faturamentoBase) * 100, color: '#10B981' }
     ].filter(item => item.value > 0);
   }, [currentMonthData, isRoot]);
 
@@ -461,9 +460,9 @@ export default function Dashboard() {
       : (timelineData ? timelineData.faturamento : (yearlyHistory[y] || 0));
 
     const colors = [
-      isDarkMode ? '#333' : '#cbd5e1',
-      '#6366f1',
-      '#4f46e5'
+      isDarkMode ? '#475569' : '#CBD5E1',
+      '#8B5CF6',
+      '#0EA5E9'
     ];
     
     return {
@@ -521,11 +520,11 @@ export default function Dashboard() {
 
   const displayMetrics = [
     { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: 'up', change: '0' },
-    ...(!isPatriciab ? [{ label: 'Lucro Líquido', valor: netProfit, format: 'currency', trend: 'up', change: '0' }] : []),
+    ...(!isPatriciab ? [{ label: 'Lucro Líquido', valor: netProfit, format: 'currency', trend: netProfit < 0 ? 'down' : 'up', change: '0' }] : []),
     { label: 'CMV Médio', valor: cmvRate, format: 'percent', trend: 'down', change: '0' },
     { label: 'Ticket Médio', valor: ticketMedio, format: 'currency', trend: 'up', change: '0' },
     { label: 'Pedidos Totais', valor: totalPedidos, format: 'number', trend: 'up', change: '0' },
-    ...(!isPatriciab ? [{ label: 'Margem Operac.', valor: margemOperacional, format: 'percent', trend: 'up', change: '0' }] : []),
+    ...(!isPatriciab ? [{ label: 'Margem Operac.', valor: margemOperacional, format: 'percent', trend: margemOperacional < 0 ? 'down' : 'up', change: '0' }] : []),
   ];
 
   return (
@@ -646,8 +645,31 @@ export default function Dashboard() {
       {/* Main KPIs */}
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${isPatriciab ? 'xl:grid-cols-4' : 'xl:grid-cols-6'} gap-4`}>
         {displayMetrics.map((metric, i) => {
-          const isHealthy = metric.trend === 'up' && metric.label !== 'CMV Médio' || (metric.label === 'CMV Médio' && metric.trend === 'down');
+          const isCmv = metric.label === 'CMV Médio';
+          const isHealthy = isCmv 
+            ? (metric.valor as number) <= 36 
+            : metric.trend === 'up';
           const statusColor = isHealthy ? 'text-green-500 bg-green-500/10' : 'text-red-700 bg-red-700/10';
+          
+          const isLossOrNegativeMargin = 
+            (isCmv && (metric.valor as number) > 36) ||
+            (!isCmv && (metric.label === 'Lucro Líquido' || metric.label === 'Margem Operac.') && (metric.valor as number) < 0);
+            
+          const isProfitOrPositiveMargin = 
+            (isCmv && (metric.valor as number) <= 36) ||
+            (!isCmv && (metric.label === 'Lucro Líquido' || metric.label === 'Margem Operac.') && (metric.valor as number) > 0);
+          
+          const cardBg = isLossOrNegativeMargin 
+            ? (isDarkMode ? 'bg-red-950/20' : 'bg-red-50/50') 
+            : isProfitOrPositiveMargin
+              ? (isDarkMode ? 'bg-emerald-950/20' : 'bg-emerald-50/50')
+              : (isDarkMode ? 'bg-[#1E1E1E]' : 'bg-white');
+            
+          const cardBorder = isLossOrNegativeMargin 
+            ? 'border-red-500/30' 
+            : isProfitOrPositiveMargin
+              ? 'border-emerald-500/30 shadow-sm shadow-emerald-500/5'
+              : (isDarkMode ? 'border-[#333]' : 'border-slate-100 shadow-sm');
           
           return (
             <motion.div
@@ -655,18 +677,31 @@ export default function Dashboard() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05 }}
-              className={`p-4 rounded-2xl border transition-all duration-300 ${
-                isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'
-              }`}
+              className={`p-4 rounded-2xl border transition-all duration-300 ${cardBg} ${cardBorder}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>{metric.label}</span>
                 <div className={`flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor}`}>
-                  {metric.trend === 'up' ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />}
+                  {isCmv 
+                    ? ((metric.valor as number) > 36 ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />)
+                    : (metric.trend === 'up' ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />)
+                  }
                   {metric.change}%
                 </div>
               </div>
-              <div className={`text-lg font-black break-all leading-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>
+              <div className={`text-lg font-black break-all leading-tight flex items-center gap-1.5 ${
+                isLossOrNegativeMargin 
+                  ? 'text-red-600 dark:text-red-400 animate-pulse' 
+                  : isProfitOrPositiveMargin
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : (isDarkMode ? 'text-white' : 'text-black')
+              }`}>
+                {isLossOrNegativeMargin && (
+                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+                )}
+                {isProfitOrPositiveMargin && (
+                  <TrendingUp className="w-4 h-4 text-emerald-500 shrink-0" />
+                )}
                 {metric.format === 'currency' ? (
                   formatCurrency(metric.valor as number)
                 ) : metric.format === 'percent' ? (
@@ -925,14 +960,38 @@ export default function Dashboard() {
                { label: 'Margem de Contrib.', valor: dashMargemContrib, bold: true },
                { label: 'Custos Fixos', valor: -dashFixedExpenses, color: 'text-red-700 dark:text-red-400' },
                { label: 'Resultado Líquido', valor: currentMonthData.netProfit, color: 'text-green-500 dark:text-green-400', bold: true, big: true }
-             ].map((item) => (
-               <div key={item.label} className={`flex flex-col justify-between p-4 rounded-2xl ${isDarkMode ? 'bg-black/20 border border-[#333]' : 'bg-slate-50 border border-slate-100'}`}>
-                 <span className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${item.bold ? (isDarkMode ? 'text-slate-200' : 'text-slate-900') : 'text-slate-400'}`}>{item.label}</span>
-                 <span className={`text-sm font-black ${item.color || (isDarkMode ? 'text-white' : 'text-slate-950')} ${item.big ? 'text-lg' : ''}`}>
-                   {formatCurrency(item.valor)}
-                 </span>
-               </div>
-             ))}
+             ].map((item) => {
+               const isResultadoLiquido = item.label === 'Resultado Líquido';
+               const isLoss = isResultadoLiquido && item.valor < 0;
+               const finalColor = isResultadoLiquido 
+                 ? (isLoss ? 'text-red-600 dark:text-red-400' : 'text-green-500 dark:text-green-400') 
+                 : item.color;
+               
+               const cardBg = isLoss 
+                 ? (isDarkMode ? 'bg-red-950/20' : 'bg-red-50/50') 
+                 : (isDarkMode ? 'bg-black/20' : 'bg-slate-50');
+                 
+               const cardBorder = isLoss 
+                 ? 'border-red-500/30 shadow-sm shadow-red-500/5' 
+                 : (isDarkMode ? 'border-[#333]' : 'border-slate-100 shadow-sm');
+
+               return (
+                 <div 
+                   key={item.label} 
+                   className={`flex flex-col justify-between p-4 rounded-2xl border transition-all duration-300 ${cardBg} ${cardBorder}`}
+                 >
+                   <span className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${item.bold ? (isDarkMode ? 'text-slate-200' : 'text-slate-900') : 'text-slate-400'}`}>
+                     {item.label}
+                   </span>
+                   <span className={`text-sm font-black flex items-center gap-1.5 ${finalColor || (isDarkMode ? 'text-white' : 'text-slate-950')} ${item.big ? 'text-lg' : ''}`}>
+                     {isLoss && (
+                       <AlertTriangle className="w-5 h-5 text-red-500 animate-bounce shrink-0" />
+                     )}
+                     {formatCurrency(item.valor)}
+                   </span>
+                 </div>
+               );
+             })}
           </div>
         </div>
       )}
@@ -1018,7 +1077,7 @@ export default function Dashboard() {
           </h3>
           <div className="space-y-6">
             {operationalMetrics.map((op) => {
-              const Icon = op.icon === 'Clock' ? Clock : op.icon === 'ShoppingBag' ? ShoppingBag : Target;
+              const Icon = op.icon === 'Clock' ? Clock : op.icon === 'Star' ? Star : op.icon === 'ShoppingBag' ? ShoppingBag : Target;
               return (
                 <div key={op.label}>
                   <div className="flex items-center justify-between mb-2">

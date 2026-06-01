@@ -361,7 +361,7 @@ export default function Finance() {
       isTotal: true,
       total: currentMonthData.netProfit,
       highlight: true,
-      color: 'text-green-600',
+      color: currentMonthData.netProfit < 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600',
       border: true
     }
   ];
@@ -558,7 +558,11 @@ export default function Finance() {
       ? currentMonthData.faturamento 
       : (timelineData ? timelineData.faturamento : (yearlyHistory[y] || 0));
 
-    const colors = ['#94a3b8', '#6366f1', '#4f46e5'];
+    const colors = [
+      isDarkMode ? '#475569' : '#CBD5E1',
+      '#8B5CF6',
+      '#0EA5E9'
+    ];
     
     return {
       year: y,
@@ -780,7 +784,7 @@ export default function Finance() {
                         group.isTotal 
                           ? (isDarkMode ? 'bg-black/40 border border-white/5' : 'bg-indigo-50/50 border border-indigo-100/50')
                           : (isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50')
-                      } ${group.border ? 'border-2 border-green-500/30 shadow-lg shadow-green-500/10' : ''}`}
+                      } ${group.border ? (group.total < 0 ? 'border-2 border-red-500/50 shadow-lg shadow-red-500/20' : 'border-2 border-green-500/30 shadow-lg shadow-green-500/10') : ''}`}
                     >
                       <div className="flex items-center gap-3">
                         {!group.isTotal && (
@@ -794,7 +798,10 @@ export default function Finance() {
                          <span className={`text-[10px] font-bold w-10 text-right ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>
                            {((Math.abs(group.total) / currentMonthData.faturamento) * 100).toFixed(1)}%
                          </span>
-                         <span className={`text-sm font-black w-32 text-right ${group.isTotal ? (group.color || (isDarkMode ? 'dark:text-white' : 'text-black')) : (isDarkMode ? 'text-slate-300' : 'text-black')}`}>
+                         <span className={`text-sm font-black w-32 text-right flex items-center justify-end gap-1.5 ${group.isTotal ? (group.color || (isDarkMode ? 'dark:text-white' : 'text-black')) : (isDarkMode ? 'text-slate-300' : 'text-black')}`}>
+                           {group.id === 'resultado_liquido' && group.total < 0 && (
+                             <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 animate-pulse" />
+                           )}
                            {formatCurrency(group.total)}
                          </span>
                       </div>

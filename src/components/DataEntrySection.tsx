@@ -14,7 +14,8 @@ import {
   Calendar,
   Clock,
   BookOpen,
-  Zap
+  Zap,
+  Star
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
@@ -141,6 +142,7 @@ export default function DataEntrySection({
   const allTabs = [
     { id: 'financial', label: 'Financeiro & DRE', icon: DollarSign },
     { id: 'channels', label: 'Canais de Venda', icon: PieChart },
+    { id: 'operational', label: 'Indicadores Operacionais', icon: Zap },
     { id: 'history', label: 'Histórico YoY', icon: TrendingUp },
     { id: 'goals', label: 'Metas & Performance', icon: Target },
   ];
@@ -151,7 +153,7 @@ export default function DataEntrySection({
     return true;
   });
 
-  const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels' | 'hourly'>(
+  const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels' | 'hourly' | 'operational'>(
     mode === 'dashboard' ? 'channels' : 'financial'
   );
   const [saved, setSaved] = useState(false);
@@ -172,6 +174,7 @@ export default function DataEntrySection({
   const [cmvAlvo, setCmvAlvo] = useState(0);
   const [tempoMedio, setTempoMedio] = useState(0);
   const [satisfacaoMeta, setSatisfacaoMeta] = useState(0);
+  const [avaliacaoIfood, setAvaliacaoIfood] = useState(4.8);
 
   // History states
   const [receita2025, setReceita2025] = useState(yearlyHistory['2025'] || 0);
@@ -349,6 +352,7 @@ export default function DataEntrySection({
       setCmvAlvo(monthData.cmvAlvo !== undefined ? monthData.cmvAlvo : 31);
       setTempoMedio(monthData.tempoMedio !== undefined ? monthData.tempoMedio : 25);
       setSatisfacaoMeta(monthData.metaNps !== undefined ? monthData.metaNps : 9.0);
+      setAvaliacaoIfood(monthData.avaliacaoIfood !== undefined ? monthData.avaliacaoIfood : 4.8);
       
       if (monthData.details) {
         if (monthData.details.deducoes) setDeducoes(monthData.details.deducoes);
@@ -407,6 +411,7 @@ export default function DataEntrySection({
       setCmvAlvo(31);
       setTempoMedio(25);
       setSatisfacaoMeta(9.0);
+      setAvaliacaoIfood(4.8);
 
       setLocalSalesByHour(() => {
         const initial: Record<string, number> = {};
@@ -445,8 +450,8 @@ export default function DataEntrySection({
     setMetaVsRealizado(updatedMeta);
     
     const updatedOperational = [...operationalMetrics];
-    updatedOperational[0] = { ...updatedOperational[0], valor: `${tempoMedio} min` };
-    updatedOperational[2] = { ...updatedOperational[2], valor: satisfacaoMeta.toFixed(1) };
+    if (updatedOperational[0]) updatedOperational[0] = { ...updatedOperational[0], valor: `${tempoMedio} min`, percent: Math.max(0, Math.min(100, (20 / (tempoMedio || 1)) * 100)) };
+    if (updatedOperational[1]) updatedOperational[1] = { ...updatedOperational[1], valor: `${avaliacaoIfood.toFixed(1)} / 5.0`, percent: (avaliacaoIfood / 5) * 100 };
     setOperationalMetrics(updatedOperational);
     
     setYearlyHistory({
@@ -468,6 +473,7 @@ export default function DataEntrySection({
       metaNps: satisfacaoMeta,
       cmvAlvo: cmvAlvo,
       tempoMedio: tempoMedio,
+      avaliacaoIfood: avaliacaoIfood,
       receitaBalcao,
       receitaIfood,
       receitaWedo,
@@ -949,6 +955,34 @@ export default function DataEntrySection({
                       onPaste={(e) => handleNumericPaste(e, setQuantidadePedidos)}
                       onChange={(e) => setQuantidadePedidos(Number(e.target.value))} 
                       onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
+                      className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
+                    />
+                  </div>
+               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'operational' && (
+            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
+               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Tempo Médio Geral (min)</label>
+                    <input 
+                      type="number" 
+                      value={tempoMedio} 
+                      onPaste={(e) => handleNumericPaste(e, setTempoMedio)} 
+                      onChange={(e) => setTempoMedio(Number(e.target.value))} 
+                      className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Média de Avaliação iFood</label>
+                    <input 
+                      type="number" 
+                      step="0.1"
+                      value={avaliacaoIfood} 
+                      onPaste={(e) => handleNumericPaste(e, setAvaliacaoIfood)} 
+                      onChange={(e) => setAvaliacaoIfood(Number(e.target.value))} 
                       className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                     />
                   </div>

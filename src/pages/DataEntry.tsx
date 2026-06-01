@@ -15,7 +15,8 @@ import {
   Clock,
   BookOpen,
   Zap,
-  Copy
+  Copy,
+  Star
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
@@ -130,7 +131,7 @@ export default function DataEntry() {
     const parsed = parseFloat(clean);
     setter(isNaN(parsed) ? 0 : parsed);
   };
-  const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels' | 'hourly'>('financial');
+  const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels' | 'hourly' | 'operational'>('financial');
   const [saved, setSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio
@@ -149,6 +150,7 @@ export default function DataEntry() {
   const [cmvAlvo, setCmvAlvo] = useState(31);
   const [tempoMedio, setTempoMedio] = useState(25);
   const [satisfacaoMeta, setSatisfacaoMeta] = useState(9.0);
+  const [avaliacaoIfood, setAvaliacaoIfood] = useState(4.8);
 
   // History states
   const [receita2025, setReceita2025] = useState(yearlyHistory['2025'] || 0);
@@ -405,6 +407,7 @@ export default function DataEntry() {
       setCmvAlvo(monthData.cmvAlvo !== undefined ? monthData.cmvAlvo : 31);
       setTempoMedio(monthData.tempoMedio !== undefined ? monthData.tempoMedio : 25);
       setSatisfacaoMeta(monthData.metaNps !== undefined ? monthData.metaNps : 9.0);
+      setAvaliacaoIfood(monthData.avaliacaoIfood !== undefined ? monthData.avaliacaoIfood : 4.8);
       
       if (monthData.details) {
         if (monthData.details.deducoes) setDeducoes(monthData.details.deducoes);
@@ -457,6 +460,7 @@ export default function DataEntry() {
       setCmvAlvo(31);
       setTempoMedio(25);
       setSatisfacaoMeta(9.0);
+      setAvaliacaoIfood(4.8);
 
       setSalesByHourData(() => {
         const initial: Record<string, number> = {};
@@ -504,8 +508,8 @@ export default function DataEntry() {
  
     // 2. Update Operational Metrics
     const updatedOperational = [...operationalMetrics];
-    updatedOperational[0] = { ...updatedOperational[0], valor: `${tempoMedio} min` };
-    updatedOperational[2] = { ...updatedOperational[2], valor: satisfacaoMeta.toFixed(1) };
+    if (updatedOperational[0]) updatedOperational[0] = { ...updatedOperational[0], valor: `${tempoMedio} min` };
+    if (updatedOperational[1]) updatedOperational[1] = { ...updatedOperational[1], valor: avaliacaoIfood.toFixed(1) };
     setOperationalMetrics(updatedOperational);
  
     // 3. Update History YoY
@@ -528,6 +532,7 @@ export default function DataEntry() {
       metaNps: satisfacaoMeta,
       cmvAlvo: cmvAlvo,
       tempoMedio: tempoMedio,
+      avaliacaoIfood: avaliacaoIfood,
       receitaBalcao,
       receitaIfood,
       receitaWedo,
@@ -666,6 +671,7 @@ export default function DataEntry() {
           {[
             { id: 'financial', label: 'Financeiro & DRE', icon: DollarSign },
             { id: 'channels', label: 'Canais de Venda', icon: PieChart },
+            { id: 'operational', label: 'Indicadores Operacionais', icon: Zap },
             { id: 'history', label: 'Histórico YoY', icon: TrendingUp },
             { id: 'goals', label: 'Metas & Performance', icon: Target },
           ].map(tab => (
@@ -1187,23 +1193,6 @@ export default function DataEntry() {
                       </div>
 
                       <div className="space-y-3">
-                        <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">Meta Satisfação (NPS)</div>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                            <Target className="w-4 h-4" />
-                          </span>
-                          <input 
-                            type="number" 
-                            step="0.1"
-                            value={satisfacaoMeta}
-                            onPaste={(e) => handleNumericPaste(e, setSatisfacaoMeta)}
-                            onChange={(e) => setSatisfacaoMeta(Number(e.target.value))}
-                            className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-3">
                         <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">Pedidos Totais no Mês</div>
                         <div className="relative">
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
@@ -1220,30 +1209,58 @@ export default function DataEntry() {
                       </div>
                    </div>
                 </div>
+              </div>
+            </motion.div>
+          )}
 
-                <div className="p-6 rounded-[2rem] bg-slate-500/5 border border-slate-500/10">
-                  <div className="flex items-center gap-3 mb-6">
-                    <Clock className="w-5 h-5 text-indigo-500" />
-                    <h4 className={`text-sm font-black uppercase tracking-wider italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Performance Operacional</h4>
-                  </div>
-                  <div className="max-w-md">
-                    <div className="space-y-3">
-                      <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">Tempo Médio Geral (min)</div>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                          <Clock className="w-4 h-4" />
-                        </span>
-                        <input 
-                          type="number" 
-                          value={tempoMedio}
-                          onPaste={(e) => handleNumericPaste(e, setTempoMedio)}
-                          onChange={(e) => setTempoMedio(Number(e.target.value))}
-                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
-                        />
-                      </div>
+          {activeTab === 'operational' && (
+            <motion.div 
+               initial={{ opacity: 0, x: -20 }} 
+               animate={{ opacity: 1, x: 0 }}
+               className="space-y-8"
+            >
+              <div className="space-y-8">
+                <div className="p-6 rounded-[2rem] bg-indigo-500/5 border border-indigo-500/10">
+                    <div className="flex items-center gap-3 mb-6">
+                      <Zap className="w-5 h-5 text-indigo-500" />
+                      <h4 className={`text-sm font-black uppercase tracking-wider italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Indicadores Operacionais</h4>
                     </div>
-                  </div>
-                </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">Tempo Médio Geral (min)</div>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                            <Clock className="w-4 h-4" />
+                          </span>
+                          <input 
+                            type="number" 
+                            value={tempoMedio}
+                            onPaste={(e) => handleNumericPaste(e, setTempoMedio)}
+                            onChange={(e) => setTempoMedio(Number(e.target.value))}
+                            className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-[#121212] border-[#333]' : 'bg-white border-slate-200'}`} 
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">Média de Avaliação iFood</div>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+                          </span>
+                          <input 
+                            type="number" 
+                            step="0.1"
+                            value={avaliacaoIfood}
+                            onPaste={(e) => handleNumericPaste(e, setAvaliacaoIfood)}
+                            onChange={(e) => setAvaliacaoIfood(Number(e.target.value))}
+                            className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-[#121212] border-[#333]' : 'bg-white border-slate-200'}`} 
+                          />
+                        </div>
+                      </div>
+
+                    </div>
+                 </div>
               </div>
             </motion.div>
           )}

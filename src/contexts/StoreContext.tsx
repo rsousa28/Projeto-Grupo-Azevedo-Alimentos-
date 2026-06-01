@@ -350,8 +350,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   });
   const [operationalMetrics, setOperationalMetrics] = useState<any[]>([
     { label: 'Tempo de Produção', valor: '0 min', target: '20 min', percent: 0, icon: 'Clock' },
-    { label: 'Desperdício / Perda', valor: '0%', target: '1.0%', percent: 0, icon: 'ShoppingBag', critical: true },
-    { label: 'Satisfação (NPS)', valor: '0', target: '9.0', percent: 0, icon: 'Target' },
+    { label: 'Avaliação iFood', valor: '0.0', target: '4.8', percent: 0, icon: 'Star' },
   ]);
 
   useEffect(() => {
