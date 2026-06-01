@@ -50,7 +50,9 @@ export default function DataEntry() {
     peakHour: globalPeakHour,
     setPeakHour,
     saveDREPeriod,
-    saveCMVPeriod
+    saveCMVPeriod,
+    loadDREPeriod,
+    loadCMVPeriod
   } = useStore();
 
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
@@ -65,6 +67,7 @@ export default function DataEntry() {
   };
   const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels' | 'hourly'>('financial');
   const [saved, setSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState('05'); // Maio
   const [selectedYear, setSelectedYear] = useState('2026');
 
@@ -288,9 +291,40 @@ export default function DataEntry() {
     setReceitaDelivery(receitaIfood + receitaWedo);
   }, [receitaIfood, receitaWedo]);
 
-  // EFFECT: Load data when month changes
+  // EFFECT: Fetch period data from Firestore whenever period or store changes
   useEffect(() => {
-    const monthData = dreTimeline.find(d => d.month === currentMonthLabel);
+    let isMounted = true;
+    const fetchPeriodData = async () => {
+      setIsLoading(true);
+      if (currentStore.id !== 'admin-global' && currentStore.id) {
+        try {
+          await Promise.all([
+            loadDREPeriod(selectedMonth, selectedYear),
+            loadCMVPeriod(selectedMonth, selectedYear)
+          ]);
+        } catch (err) {
+          console.error("Erro ao carregar dados do período do Firestore:", err);
+        }
+      }
+      if (isMounted) {
+        setIsLoading(false);
+      }
+    };
+    fetchPeriodData();
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedMonth, selectedYear, currentStore.id]);
+
+  // EFFECT: Load form fields once loading is complete or timeline finishes updating
+  useEffect(() => {
+    if (isLoading) return;
+
+    const monthData = dreTimeline.find(d => 
+      d.month === currentMonthLabel && 
+      (d.year === selectedYear || (!d.year && selectedYear === '2026'))
+    );
+
     if (monthData) {
       setRevenue(monthData.faturamento);
       setReceitaBalcao(monthData.receitaBalcao || 0);
@@ -367,7 +401,14 @@ export default function DataEntry() {
         return initial;
       });
     }
-  }, [selectedMonth, dreTimeline, currentMonthLabel, currentStore?.brand]);
+  }, [isLoading, selectedMonth, selectedYear, dreTimeline, currentMonthLabel, currentStore?.brand]);
+
+  // EFFECT: Keep local products state synchronized with topProducts loaded from Firestore
+  useEffect(() => {
+    if (!isLoading) {
+      setLocalProducts(topProducts);
+    }
+  }, [isLoading, topProducts]);
 
   const years = ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'];
 
@@ -603,8 +644,14 @@ export default function DataEntry() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Main Form Area */}
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center p-24 space-y-4 rounded-[2rem] bg-slate-50 dark:bg-black/10 border border-slate-100 dark:border-[#333]">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500"></div>
+          <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider text-xs">Carregando dados do período de {currentMonthLabel || ''}/{selectedYear}...</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Form Area */}
         <div className={`lg:col-span-2 p-8 rounded-[2rem] border transition-all ${
           isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'
         }`}>
@@ -1183,6 +1230,7 @@ export default function DataEntry() {
           </div>
         </div>
       </div>
+      )}
 
       <AnimatePresence>
         {showCopyModal && (
