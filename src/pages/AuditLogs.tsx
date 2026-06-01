@@ -35,8 +35,14 @@ import { BackupService, BackupRecord } from '../services/BackupService';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '../lib/firebase';
 import { collection, getDocs, doc, setDoc } from 'firebase/firestore';
+import { useNavigate } from 'react-router-dom';
 
-export default function AuditLogs() {
+interface AuditLogsProps {
+  forcedTab?: 'logs' | 'security' | 'backups' | 'diagnostics';
+}
+
+export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
+  const navigate = useNavigate();
   const { isDarkMode, brandColors } = useStore();
   const { user } = useAuth();
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
@@ -47,7 +53,14 @@ export default function AuditLogs() {
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null);
 
   // Backup & Restore states
-  const [activeTab, setActiveTab] = useState<'logs' | 'backups' | 'diagnostics'>('logs');
+  const [activeTab, setActiveTab] = useState<'logs' | 'backups' | 'diagnostics' | 'security'>(forcedTab || 'logs');
+
+  useEffect(() => {
+    if (forcedTab) {
+      setActiveTab(forcedTab);
+    }
+  }, [forcedTab]);
+
   const [backupsList, setBackupsList] = useState<Omit<BackupRecord, 'payload'>[]>([]);
   const [backupsLoading, setBackupsLoading] = useState(false);
   const [isCreatingBackup, setIsCreatingBackup] = useState(false);
@@ -479,6 +492,50 @@ export default function AuditLogs() {
     return { total, logins, failed, dbWrites };
   }, [logs]);
 
+  const recentSecurityEvents = React.useMemo(() => {
+    const fortyEightHoursAgo = new Date();
+    fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
+    return logs.filter(log => {
+      const isSecurityEvent = log.action === 'SECURITY_BREACH_ATTEMPT' || log.action === 'UNAUTHORIZED_ACCESS';
+      if (!isSecurityEvent) return false;
+      const logDate = new Date(log.timestamp);
+      return logDate >= fortyEightHoursAgo;
+    });
+  }, [logs]);
+
+  const simulateSecurityEvent = async (type: 'BREACH' | 'UNAUTHORIZED') => {
+    if (!user) return;
+    try {
+      if (type === 'BREACH') {
+        await AuditService.logAction({
+          userId: 'IP-SIM-ATTACK',
+          userName: 'Simulated Attacker Bot',
+          userRole: 'NONE',
+          action: 'SECURITY_BREACH_ATTEMPT',
+          description: 'SIMULAÇÃO CENTRAL: Padrão repetido de varredura/exploração (Port Scan) detectado em logs de integração.',
+          storeCode: 'ROOT',
+          storeName: 'Central de Segurança'
+        });
+        toastSuccess('Tentativa de invasão simulada gravada com sucesso!');
+      } else {
+        await AuditService.logAction({
+          userId: 'IP-SIM-UNAUTH',
+          userName: 'Simulated Guest (Sem Permissão)',
+          userRole: 'NONE',
+          action: 'UNAUTHORIZED_ACCESS',
+          description: 'SIMULAÇÃO CENTRAL: Tentativa de leitura forçada de logs de pagamento e DRE sem credenciais válidas.',
+          storeCode: 'ROOT',
+          storeName: 'Central de Segurança'
+        });
+        toastSuccess('Acesso não autorizado simulado gravado com sucesso!');
+      }
+      await fetchLogsData();
+    } catch (err) {
+      console.error(err);
+      toastError('Falha ao gravar evento simulado.');
+    }
+  };
+
   // Restrict access
   if (!user || user.username !== 'adm') {
     return (
@@ -494,16 +551,52 @@ export default function AuditLogs() {
     );
   }
 
+  const getHeaderInfo = () => {
+    switch (activeTab) {
+      case 'logs':
+        return {
+          title: 'LOGS DE ACESSO E ATIVIDADES',
+          description: 'Histórico de ações administrativas e acessos em tempo real',
+          icon: <Shield className="w-7 h-7 text-indigo-500" />
+        };
+      case 'security':
+        return {
+          title: 'RESUMO E CENTRAL DE SEGURANÇA',
+          description: 'Incidentes de segurança e tentativas de acessos não autorizados recentes',
+          icon: <Lock className="w-7 h-7 text-rose-500" />
+        };
+      case 'backups':
+        return {
+          title: 'CENTRAL DE BACKUPS E RESILIÊNCIA',
+          description: 'Gestão de pontos de restauração e cópias de dados corporativas',
+          icon: <Database className="w-7 h-7 text-emerald-500" />
+        };
+      case 'diagnostics':
+        return {
+          title: 'INTEGRIDADE E VARREDURA (DEEP DIAGNOSIS)',
+          description: 'Auditoria de integridade estrutural e conformidade heurística dos dados',
+          icon: <Activity className="w-7 h-7 text-amber-500" />
+        };
+      default:
+        return {
+          title: 'CENTRAL DE AUDITORIA',
+          description: 'Auditoria corporativa e segurança heurística',
+          icon: <Shield className="w-7 h-7 text-indigo-505 text-indigo-500" />
+        };
+    }
+  };
+  const headerInfo = getHeaderInfo();
+
   return (
     <div className="space-y-6">
       {/* Title Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
-            <Shield className="w-7 h-7 text-indigo-500" /> CENTRAL DE AUDITORIA E SEGURANÇA
+            {headerInfo.icon} {headerInfo.title}
           </h1>
           <p className="text-xs text-slate-500 font-bold uppercase tracking-wider mt-1">
-            Logs de acesso em tempo real e gerenciamento de backups resilientes
+            {headerInfo.description}
           </p>
         </div>
         
@@ -543,47 +636,96 @@ export default function AuditLogs() {
         )}
       </div>
 
-      {/* Tab Selector Navigation Switcher */}
-      <div className="flex border-b border-[#222] gap-4 pb-1 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('logs')}
-          className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all ${
-            activeTab === 'logs'
-              ? 'border-indigo-500 text-indigo-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300'
-          }`}
+      {recentSecurityEvents.length > 0 && activeTab !== 'security' && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-955/20 border border-red-500/25 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 duration-1000"
         >
-          <Shield className="w-4 h-4 shrink-0" />
-          Logs de Atividades
-        </button>
-        <button
-          onClick={() => setActiveTab('backups')}
-          className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all ${
-            activeTab === 'backups'
-              ? 'border-emerald-500 text-emerald-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300'
-          }`}
-        >
-          <Database className="w-4 h-4 shrink-0" />
-          Backups e Rollbacks
-        </button>
-        <button
-          onClick={() => {
-            setActiveTab('diagnostics');
-            if (scanResult.length === 0) runDeepScan();
-          }}
-          className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all ${
-            activeTab === 'diagnostics'
-              ? 'border-amber-500 text-amber-400'
-              : 'border-transparent text-slate-500 hover:text-slate-300'
-          }`}
-        >
-          <Activity className="w-4 h-4 shrink-0" />
-          Varredura e Integridade (Deep Diagnosis)
-        </button>
-      </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 shrink-0">
+              <AlertTriangle className="w-5 h-5 animate-bounce" />
+            </div>
+            <div>
+              <h4 className="text-[10px] font-black text-rose-500 uppercase tracking-widest">ALERTA CRÍTICO DA CENTRAL DE SEGURANÇA</h4>
+              <p className="text-[11px] text-slate-300 font-semibold mt-0.5">
+                Detectamos <strong className="text-red-400 text-xs font-black">{recentSecurityEvents.length}</strong> tentativa(s) de invasão ou acesso não autorizado nas últimas 48 horas!
+              </p>
+            </div>
+          </div>
+          
+          <button
+            onClick={() => navigate('/security-summary')}
+            className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-xs font-black text-white transition self-start sm:self-auto uppercase tracking-wider animate-pulse"
+          >
+            Investigar Brecha
+          </button>
+        </motion.div>
+      )}
 
-      {activeTab === 'logs' ? (
+      {/* Tab Selector Navigation Switcher */}
+      {!forcedTab && (
+        <div className="flex border-b border-[#222] gap-4 pb-1 overflow-x-auto">
+          <button
+            onClick={() => setActiveTab('logs')}
+            className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all ${
+              activeTab === 'logs'
+                ? 'border-indigo-500 text-indigo-400'
+                : 'border-transparent text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <Shield className="w-4 h-4 shrink-0" />
+            Logs de Atividades
+          </button>
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all relative ${
+              activeTab === 'security'
+                ? 'border-rose-500 text-rose-400 font-black'
+                : 'border-transparent text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            {recentSecurityEvents.length > 0 ? (
+              <AlertTriangle className="w-4 h-4 text-rose-500 animate-pulse shrink-0" />
+            ) : (
+              <Lock className="w-4 h-4 text-emerald-500 shrink-0" />
+            )}
+            Resumo de Segurança
+            {recentSecurityEvents.length > 0 && (
+              <span className="ml-1.5 px-1.5 py-0.5 text-[9px] font-black leading-none rounded-full bg-red-600 text-white animate-pulse">
+                {recentSecurityEvents.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('backups')}
+            className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all ${
+              activeTab === 'backups'
+                ? 'border-emerald-500 text-emerald-400'
+                : 'border-transparent text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <Database className="w-4 h-4 shrink-0" />
+            Backups e Rollbacks
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab('diagnostics');
+              if (scanResult.length === 0) runDeepScan();
+            }}
+            className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all ${
+              activeTab === 'diagnostics'
+                ? 'border-amber-500 text-amber-400'
+                : 'border-transparent text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            <Activity className="w-4 h-4 shrink-0" />
+            Varredura e Integridade (Deep Diagnosis)
+          </button>
+        </div>
+      )}
+
+      {activeTab === 'logs' && (
         <>
           {/* Audit Stats Dashboard */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -760,7 +902,9 @@ export default function AuditLogs() {
             )}
           </div>
         </>
-      ) : (
+      )}
+
+      {activeTab === 'backups' && (
         /* BACKUP & RESTORE TAB INTERFACE */
         <div className="space-y-6">
           
@@ -984,6 +1128,210 @@ export default function AuditLogs() {
             )}
           </div>
 
+        </div>
+      )}
+
+      {activeTab === 'security' && (
+        <div className="space-y-6 animate-fadeIn">
+          {/* Main Security Status Dashboard */}
+          <div className="grid lg:grid-cols-3 gap-6">
+            
+            {/* Left/Main Column - Status Card & Security List */}
+            <div className="lg:col-span-2 space-y-6">
+              
+              {/* Threat Level status badge */}
+              <div className={`p-6 rounded-2xl border transition-all duration-300 ${
+                recentSecurityEvents.length === 0
+                  ? 'bg-emerald-950/20 border-emerald-500/20 text-emerald-400'
+                  : recentSecurityEvents.length <= 3
+                  ? 'bg-amber-955/20 border-amber-500/30 text-amber-500 animate-pulse'
+                  : 'bg-red-955/20 border-red-500/40 text-red-400 animate-pulse'
+              }`}>
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${
+                    recentSecurityEvents.length === 0
+                      ? 'bg-emerald-500/10 text-emerald-400'
+                      : recentSecurityEvents.length <= 3
+                      ? 'bg-amber-500/10 text-amber-400'
+                      : 'bg-red-500/10 text-red-500'
+                  }`}>
+                    {recentSecurityEvents.length === 0 ? (
+                      <CheckCircle className="w-8 h-8" />
+                    ) : (
+                      <AlertTriangle className="w-8 h-8 animate-bounce" />
+                    )}
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500 block mb-0.5">Diagnóstico de Ameaça Recente (48h)</span>
+                    <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
+                      Nível de Alerta: {' '}
+                      <span className={
+                        recentSecurityEvents.length === 0 
+                          ? 'text-emerald-400' 
+                          : recentSecurityEvents.length <= 3 
+                          ? 'text-amber-400' 
+                          : 'text-rose-500 font-bold'
+                      }>
+                        {recentSecurityEvents.length === 0 
+                          ? 'Mínimo (Seguro)' 
+                          : recentSecurityEvents.length <= 3 
+                          ? 'Moderado (Atenção)' 
+                          : 'Crítico (Alto Risco)'
+                        }
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 font-semibold mt-1 leading-relaxed">
+                      {recentSecurityEvents.length === 0
+                        ? 'Nenhuma brecha de segurança ou tentativa de acesso não autorizado detectada nas últimas 48 horas.'
+                        : `Mapeamos ${recentSecurityEvents.length} incidente(s) de segurança nas últimas 48 horas. Verifique os relatórios forenses abaixo.`
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Incidents timeline lists */}
+              <div className="bg-[#111] border border-[#222] rounded-2xl p-6">
+                <div className="flex items-center justify-between pb-4 border-b border-[#222] mb-4">
+                  <h4 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-rose-500 animate-pulse" /> Histórico de Alertas Recentes (Últimas 48h)
+                  </h4>
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-[#1a1a1a] text-slate-400 font-mono font-bold uppercase tracking-wider border border-[#222]">
+                    {recentSecurityEvents.length} Ocorrências
+                  </span>
+                </div>
+
+                {recentSecurityEvents.length === 0 ? (
+                  <div className="text-center py-16 text-slate-500 flex flex-col items-center justify-center space-y-4">
+                    <div className="w-16 h-16 rounded-full bg-emerald-500/5 flex items-center justify-center text-emerald-500">
+                      <Lock className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <h5 className="text-sm font-bold text-white uppercase">Nenhum incidente de segurança</h5>
+                      <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                        O monitoramento heurístico do Firebase está ativo. Tentativas de invasão, tentativas de login malsucedidas de IPs bloqueados e acessos de rotas desautorizadas serão mostradas aqui instantaneamente.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {recentSecurityEvents.map((log) => (
+                      <div 
+                        key={log.id} 
+                        className={`p-5 rounded-2xl border transition duration-300 relative overflow-hidden group ${
+                          log.action === 'SECURITY_BREACH_ATTEMPT'
+                            ? 'bg-red-950/10 border-red-500/20 hover:border-red-500/30'
+                            : 'bg-amber-955/10 border-amber-500/20 hover:border-amber-500/30'
+                        }`}
+                      >
+                        {/* Status bar highlighting threat type */}
+                        <div className={`absolute top-0 left-0 bottom-0 w-1 ${
+                          log.action === 'SECURITY_BREACH_ATTEMPT' ? 'bg-red-600 animate-pulse' : 'bg-amber-500'
+                        }`} />
+
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`px-2 py-0.5 rounded text-[9px] font-black tracking-widest uppercase ${
+                                log.action === 'SECURITY_BREACH_ATTEMPT'
+                                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                  : 'bg-amber-500/15 text-amber-400 border border-amber-500/25'
+                              }`}>
+                                {log.action}
+                              </span>
+                              
+                              <span className="text-[10px] text-slate-500 font-mono flex items-center gap-1 font-bold">
+                                <Clock className="w-3.5 h-3.5 shrink-0" />
+                                {new Date(log.timestamp).toLocaleString('pt-BR')}
+                              </span>
+                            </div>
+
+                            <p className="text-white text-xs font-semibold leading-relaxed">
+                              {log.description}
+                            </p>
+
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1 text-[10px] text-slate-400 font-semibold uppercase">
+                              <div>IP: <span className="font-mono text-slate-300 font-bold">{log.ipAddress || 'Não resolvido'}</span></div>
+                              {log.userName && <div>Usuário: <span className="text-slate-300 font-bold">{log.userName} ({log.userRole})</span></div>}
+                              {log.storeCode !== 'N/A' && <div>Store: <span className="text-[#FFCB05] font-mono font-bold">{log.storeCode} - {log.storeName}</span></div>}
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => setSelectedLog(log)}
+                            className="shrink-0 p-2 text-slate-400 hover:text-white border border-[#222] bg-[#0c0c0c] hover:bg-[#1a1a1a] rounded-xl text-xs font-bold transition flex items-center gap-1.5 self-end sm:self-auto hover:scale-[1.02]"
+                          >
+                            <Terminal className="w-3.5 h-3.5 text-[#FFCB05]" />
+                            Forense
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column - Simulator Box & Guides */}
+            <div className="space-y-6">
+              
+              {/* Simulator Card block */}
+              <div className="bg-gradient-to-b from-[#111] to-black border border-[#222] p-6 rounded-2xl space-y-4">
+                <div>
+                  <h4 className="text-xs font-black text-[#FFCB05] uppercase tracking-widest flex items-center gap-2">
+                    <Terminal className="w-4 h-4 text-amber-500" /> Console de Simulação de Riscos
+                  </h4>
+                  <p className="text-[11px] text-slate-500 font-semibold leading-relaxed mt-1">
+                    Como administrador geral, você pode usar este sandbox para simular eventos de segurança reais direto no Firebase. Isso injeta logs imediatos e valida visualmente o comportamento dos relatórios.
+                  </p>
+                </div>
+
+                <div className="space-y-2 pt-2">
+                  <button
+                    onClick={() => simulateSecurityEvent('BREACH')}
+                    className="w-full py-2.5 px-3 rounded-xl bg-red-950/30 hover:bg-red-900/45 border border-red-500/20 hover:border-red-500/40 text-red-300 hover:text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 transition duration-200"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-500 animate-pulse shrink-0" />
+                    Simular Tentativa de Invasão (Breach)
+                  </button>
+
+                  <button
+                    onClick={() => simulateSecurityEvent('UNAUTHORIZED')}
+                    className="w-full py-2.5 px-3 rounded-xl bg-amber-950/20 hover:bg-amber-900/35 border border-amber-500/20 hover:border-amber-500/40 text-amber-300 hover:text-white font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-2 transition duration-200"
+                  >
+                    <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    Simular Acesso Não Autorizado
+                  </button>
+                </div>
+              </div>
+
+              {/* Security Recommendations Guidelines Card */}
+              <div className="bg-[#111] border border-[#222] p-6 rounded-2xl space-y-4">
+                <h4 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-indigo-400" /> Cartilha de Segurança de TI
+                </h4>
+                
+                <div className="space-y-4 text-[11px] text-slate-400 font-semibold leading-relaxed">
+                  <div className="border-l-2 border-indigo-500 pl-3">
+                    <h5 className="font-bold text-slate-200 uppercase text-[10px]">Proteção da Credencial 'adm'</h5>
+                    <p className="mt-0.5 text-slate-400">As credenciais com nível de acesso ROOT devem possuir chaves RSA fortes e rotação periódica das senhas no Google Firebase Auth.</p>
+                  </div>
+
+                  <div className="border-l-2 border-emerald-500 pl-3">
+                    <h5 className="font-bold text-slate-200 uppercase text-[10px]">Restrições de IP Geográfico</h5>
+                    <p className="mt-0.5 text-slate-400">Dispositivos externos que tentem transacionar ou alterar valores do CMV em canais desautorizados são marcados automaticamente em tempo real.</p>
+                  </div>
+
+                  <div className="border-l-2 border-amber-500 pl-3">
+                    <h5 className="font-bold text-slate-200 uppercase text-[10px]">Auditoria Forense Ativa</h5>
+                    <p className="mt-0.5 text-slate-400">Sempre que um alerta for gerado (indicador vermelho piscando no painel), inspecione os metadados brutos (User Agent, IPs, etc.) e as rotinas executadas para resguardar a integridade corporativa.</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
         </div>
       )}
 

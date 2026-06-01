@@ -16,7 +16,10 @@ import {
   Banknote,
   ClipboardCheck,
   Receipt,
-  Shield
+  Shield,
+  Lock,
+  Database,
+  Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -42,6 +45,9 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Calculator, label: 'CMV & Engenharia', path: '/cmv', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
   { icon: Shield, label: 'Logs de Acesso', path: '/audit-logs', allowedRoles: ['ADMIN'] },
+  { icon: Lock, label: 'Resumo de Segurança', path: '/security-summary', allowedRoles: ['ADMIN'] },
+  { icon: Database, label: 'Backups e Rollbacks', path: '/backups', allowedRoles: ['ADMIN'] },
+  { icon: Activity, label: 'Varredura e Integridade', path: '/diagnostics', allowedRoles: ['ADMIN'] },
 ];
 
 const LOGO_URL = "/logo_azevedo.svg";
@@ -56,7 +62,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const location = useLocation();
 
   React.useEffect(() => {
-    if (currentStore.code === 'ROOT' && location.pathname !== '/team' && location.pathname !== '/audit-logs') {
+    const allowedPathnames = ['/team', '/audit-logs', '/security-summary', '/backups', '/diagnostics'];
+    if (currentStore.code === 'ROOT' && !allowedPathnames.includes(location.pathname)) {
       navigate('/team');
     }
   }, [currentStore.code, location.pathname, navigate]);
@@ -67,11 +74,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   };
 
   const filteredNavItems = NAV_ITEMS.filter(item => {
+    const isSpecialAdminPath = ['/team', '/audit-logs', '/security-summary', '/backups', '/diagnostics'].includes(item.path);
     if (currentStore.code === 'ROOT') {
-      return item.path === '/team' || (item.path === '/audit-logs' && user?.username === 'adm');
+      return item.path === '/team' || (isSpecialAdminPath && user?.username === 'adm');
     }
-    if (item.path === '/team' || item.path === '/audit-logs') {
-      return false; // Team and Audit Logs are strictly restricted to consolidated ROOT view only
+    if (isSpecialAdminPath) {
+      return false; // strictly restricted to consolidated ROOT view only
     }
     if (item.path === '/finance') {
       return user?.username === 'adm' || user?.username === 'victordiretor';

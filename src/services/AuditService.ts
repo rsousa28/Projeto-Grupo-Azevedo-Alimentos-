@@ -65,35 +65,75 @@ export const AuditService = {
         metadata: params.metadata || {}
       };
 
-      // Writing to /audit_logs collection
+      if (params.action === 'PAGE_VIEW') {
+        // Guardar localmente no LocalStorage do cliente para poupar a cota de gravação do Firebase (plano gratuito)
+        let localLogs: AuditLog[] = [];
+        try {
+          const localLogsStr = localStorage.getItem('g_azevedo_local_page_views') || '[]';
+          localLogs = JSON.parse(localLogsStr);
+        } catch (e) {
+          localLogs = [];
+        }
+        
+        // Atribuir uma identificação única local
+        payload.id = `local-pv-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+        localLogs.push(payload);
+        
+        // Manter no máximo 150 visualizações recentes para não sobrecarregar o LocalStorage
+        if (localLogs.length > 150) {
+          localLogs.shift();
+        }
+        
+        localStorage.setItem('g_azevedo_local_page_views', JSON.stringify(localLogs));
+        return;
+      }
+
+      // Escrita real no Firestore apenas para ações críticas de auditoria/segurança
       await addDoc(collection(db, 'audit_logs'), payload);
     } catch (err) {
-      // Catch error to avoid disrupting application state for end user
       console.error("Audit Logging Error: ", err);
     }
   },
 
   /**
-   * Fetch all audit logs, ordered by timestamp descending
+   * Fetch all audit logs, ordered by timestamp descending, blending critical Firestore events and local page views
    */
-  async fetchLogs(maxCount: number = 200): Promise<AuditLog[]> {
+  async fetchLogs(maxCount: number = 300): Promise<AuditLog[]> {
     try {
       const logsRef = collection(db, 'audit_logs');
       const q = query(logsRef, orderBy('timestamp', 'desc'), limit(maxCount));
       const querySnapshot = await getDocs(q);
       
-      const logs: AuditLog[] = [];
+      const firestoreLogs: AuditLog[] = [];
       querySnapshot.forEach((doc) => {
-        logs.push({
+        firestoreLogs.push({
           id: doc.id,
           ...doc.data()
         } as AuditLog);
       });
-      return logs;
+
+      // Recuperar histórico local de visualizações de páginas
+      let localLogs: AuditLog[] = [];
+      try {
+        const localLogsStr = localStorage.getItem('g_azevedo_local_page_views') || '[]';
+        localLogs = JSON.parse(localLogsStr);
+      } catch (e) {
+        localLogs = [];
+      }
+
+      // Unir as fontes de dados e ordenar pelo timestamp em ordem decrescente
+      const combined = [...firestoreLogs, ...localLogs];
+      combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+      return combined.slice(0, maxCount);
     } catch (err) {
       console.error("Failed to fetch audit logs: ", err);
-      // Fallback: search localStorage if firestore permissions or network fails
-      return [];
+      try {
+        const localLogsStr = localStorage.getItem('g_azevedo_local_page_views') || '[]';
+        return JSON.parse(localLogsStr);
+      } catch (e) {
+        return [];
+      }
     }
   }
 };

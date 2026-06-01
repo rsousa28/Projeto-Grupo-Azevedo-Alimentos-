@@ -144,6 +144,15 @@ function AuditNavigationTracker() {
       case '/audit-logs':
         routeDescription = 'Investigou os logs na Auditoria de Segurança.';
         break;
+      case '/security-summary':
+        routeDescription = 'Visualizou o Resumo e a Central de Segurança Heurística.';
+        break;
+      case '/backups':
+        routeDescription = 'Acessou o gerenciador de Backups e Rollbacks do sistema.';
+        break;
+      case '/diagnostics':
+        routeDescription = 'Iniciou a varredura e diagnóstico de dados (Deep Scan).';
+        break;
       case '/team':
         routeDescription = 'Consultou o controle de Colaboradores e Equipes.';
         break;
@@ -204,10 +213,25 @@ function AppRoutes() {
            <Route path="/cmv" element={<CMV />} />
             <Route path="/audit-logs" element={
               <RootAdminOnlyRoute>
-                <AuditLogs />
+                <AuditLogs forcedTab="logs" />
               </RootAdminOnlyRoute>
             } />
-           <Route path="/checklist" element={<Checklist />} />
+           <Route path="/security-summary" element={
+              <RootAdminOnlyRoute>
+                <AuditLogs forcedTab="security" />
+              </RootAdminOnlyRoute>
+            } />
+            <Route path="/backups" element={
+              <RootAdminOnlyRoute>
+                <AuditLogs forcedTab="backups" />
+              </RootAdminOnlyRoute>
+            } />
+            <Route path="/diagnostics" element={
+              <RootAdminOnlyRoute>
+                <AuditLogs forcedTab="diagnostics" />
+              </RootAdminOnlyRoute>
+            } />
+            <Route path="/checklist" element={<Checklist />} />
            <Route path="/analysis" element={<Dashboard />} />
            <Route path="/reports" element={<Dashboard />} />
            <Route path="/team" element={
