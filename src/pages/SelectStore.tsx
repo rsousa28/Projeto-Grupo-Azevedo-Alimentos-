@@ -30,6 +30,9 @@ export default function SelectStore() {
       return STORES.filter(s => s.code === 'B28');
     }
     if (user.role === 'MANAGER_4ESTYLOS_MOSSORO') {
+      if (user.username?.toLowerCase().includes('jef')) {
+        return STORES.filter(s => s.code === '4E09' || s.code === 'B32');
+      }
       return STORES.filter(s => s.code === '4E09');
     }
     
