@@ -72,6 +72,71 @@ export default function DataEntrySection({
     }).format(val);
   };
 
+  const handleNumericPaste = (e: React.ClipboardEvent<HTMLInputElement>, setter: (val: number) => void) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text') || '';
+    
+    // Remove currency indicators like R$ or $ and trim leading/trailing whitespace
+    let clean = text.replace(/R\$\s?/gi, '').replace(/\$\s?/gi, '').trim();
+    if (!clean) {
+      setter(0);
+      return;
+    }
+
+    // Replace any spaces with standard space
+    clean = clean.replace(/\s/g, ' ');
+
+    const hasComma = clean.includes(',');
+    const hasDot = clean.includes('.');
+
+    if (hasComma && hasDot) {
+      const lastCommaIndex = clean.lastIndexOf(',');
+      const lastDotIndex = clean.lastIndexOf('.');
+      if (lastCommaIndex > lastDotIndex) {
+        // e.g. "32.935,15" or "1.234.567,89"
+        // Dot is thousands separator, Comma is decimal separator
+        clean = clean.replace(/[\s\.]/g, '').replace(/,/g, '.');
+      } else {
+        // e.g. "32,935.15" or "1,234,567.89"
+        // Comma is thousands separator, Dot is decimal separator
+        clean = clean.replace(/[\s,]/g, '');
+      }
+    } else if (hasComma) {
+      // Only commas, no dots, e.g. "32935,15" or "1,234,567"
+      const commaCount = (clean.match(/,/g) || []).length;
+      if (commaCount > 1) {
+        clean = clean.replace(/[\s,]/g, '');
+      } else {
+        clean = clean.replace(/\s/g, '').replace(/,/g, '.');
+      }
+    } else if (hasDot) {
+      // Only dots, no commas, e.g. "32935.15" or "1.234.567" or "4.536"
+      const dotCount = (clean.match(/\./g) || []).length;
+      if (dotCount > 1) {
+        clean = clean.replace(/[\s\.]/g, '');
+      } else {
+        const parts = clean.split('.');
+        if (parts[1] && parts[1].length === 3) {
+          if (parts[0] === '0') {
+            clean = clean.replace(/\s/g, '');
+          } else {
+            clean = clean.replace(/[\s\.]/g, '');
+          }
+        } else {
+          clean = clean.replace(/\s/g, '');
+        }
+      }
+    } else {
+      clean = clean.replace(/\s/g, '');
+    }
+
+    // Keep only numeric characters, minus sign, and dot
+    clean = clean.replace(/[^\d\.-]/g, '');
+
+    const parsed = parseFloat(clean);
+    setter(isNaN(parsed) ? 0 : parsed);
+  };
+
   // Define available tabs based on mode
   const allTabs = [
     { id: 'financial', label: 'Financeiro & DRE', icon: DollarSign },
@@ -609,6 +674,7 @@ export default function DataEntrySection({
                        <input 
                          type="number" 
                          value={receitaBalcao} 
+                         onPaste={(e) => handleNumericPaste(e, setReceitaBalcao)}
                          onChange={(e) => setReceitaBalcao(Number(e.target.value))} 
                          onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
@@ -641,6 +707,7 @@ export default function DataEntrySection({
                      <input 
                        type="number" 
                        value={deducoes.darfSimples} 
+                       onPaste={(e) => handleNumericPaste(e, (val) => setDeducoes({...deducoes, darfSimples: val}))}
                        onChange={(e) => setDeducoes({...deducoes, darfSimples: Number(e.target.value)})} 
                        onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
                        className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
@@ -661,11 +728,11 @@ export default function DataEntrySection({
                    </div>
                    <div className="space-y-2">
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">CMV - Balcão</label>
-                     <input type="number" value={cmvBalcao} onChange={(e) => setCmvBalcao(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                     <input type="number" value={cmvBalcao} onPaste={(e) => handleNumericPaste(e, setCmvBalcao)} onChange={(e) => setCmvBalcao(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
                    </div>
                    <div className="space-y-2">
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">CMV - Delivery</label>
-                     <input type="number" value={cmvDelivery} onChange={(e) => setCmvDelivery(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                     <input type="number" value={cmvDelivery} onPaste={(e) => handleNumericPaste(e, setCmvDelivery)} onChange={(e) => setCmvDelivery(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
                    </div>
                 </div>
               </section>
@@ -694,6 +761,7 @@ export default function DataEntrySection({
                        <label className="text-[8px] font-black uppercase text-slate-500 truncate block">{item.label}</label>
                        <input 
                          type="number" 
+                         onPaste={(e) => handleNumericPaste(e, (val) => setDespesasVariaveis({...despesasVariaveis, [item.key]: val}))}
                          value={(despesasVariaveis as any)[item.key]} 
                          onChange={(e) => setDespesasVariaveis({...despesasVariaveis, [item.key]: Number(e.target.value)})} 
                          onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
@@ -719,6 +787,7 @@ export default function DataEntrySection({
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
                         <input 
                           type="number" 
+                          onPaste={(e) => handleNumericPaste(e, (val) => setColaboradores({...colaboradores, [item.key]: val}))}
                           value={(colaboradores as any)[item.key]} 
                           onChange={(e) => setColaboradores({...colaboradores, [item.key]: Number(e.target.value)})} 
                           onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
@@ -738,6 +807,7 @@ export default function DataEntrySection({
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
                         <input 
                           type="number" 
+                          onPaste={(e) => handleNumericPaste(e, (val) => setFuncionamento({...funcionamento, [item.key]: val}))}
                           value={(funcionamento as any)[item.key]} 
                           onChange={(e) => setFuncionamento({...funcionamento, [item.key]: Number(e.target.value)})} 
                           onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
@@ -757,6 +827,7 @@ export default function DataEntrySection({
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
                         <input 
                           type="number" 
+                          onPaste={(e) => handleNumericPaste(e, (val) => setManutencao({...manutencao, [item.key]: val}))}
                           value={(manutencao as any)[item.key]} 
                           onChange={(e) => setManutencao({...manutencao, [item.key]: Number(e.target.value)})} 
                           onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
@@ -776,6 +847,7 @@ export default function DataEntrySection({
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
                         <input 
                           type="number" 
+                          onPaste={(e) => handleNumericPaste(e, (val) => setComerciais({...comerciais, [item.key]: val}))}
                           value={(comerciais as any)[item.key]} 
                           onChange={(e) => setComerciais({...comerciais, [item.key]: Number(e.target.value)})} 
                           onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
@@ -795,6 +867,7 @@ export default function DataEntrySection({
                         <label className="text-[8px] font-bold text-slate-400 block mb-1">{item.label}</label>
                        <input 
                          type="number" 
+                         onPaste={(e) => handleNumericPaste(e, (val) => setAdministrativas({...administrativas, [item.key]: val}))}
                          value={(administrativas as any)[item.key]} 
                          onChange={(e) => setAdministrativas({...administrativas, [item.key]: Number(e.target.value)})} 
                          onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
@@ -821,21 +894,21 @@ export default function DataEntrySection({
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda Balcão</label>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
-                       <input type="number" value={receitaBalcao} onChange={(e) => setReceitaBalcao(Number(e.target.value))} className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                       <input type="number" value={receitaBalcao} onPaste={(e) => handleNumericPaste(e, setReceitaBalcao)} onChange={(e) => setReceitaBalcao(Number(e.target.value))} className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
                      </div>
                    </div>
                    <div className="space-y-2">
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda iFood</label>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
-                       <input type="number" value={receitaIfood} onChange={(e) => setReceitaIfood(Number(e.target.value))} className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                       <input type="number" value={receitaIfood} onPaste={(e) => handleNumericPaste(e, setReceitaIfood)} onChange={(e) => setReceitaIfood(Number(e.target.value))} className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
                      </div>
                    </div>
                    <div className="space-y-2">
                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Venda WEDO</label>
                      <div className="relative">
                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
-                       <input type="number" value={receitaWedo} onChange={(e) => setReceitaWedo(Number(e.target.value))} className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
+                       <input type="number" value={receitaWedo} onPaste={(e) => handleNumericPaste(e, setReceitaWedo)} onChange={(e) => setReceitaWedo(Number(e.target.value))} className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} />
                       </div>
                     </div>
                  </div>
@@ -859,6 +932,7 @@ export default function DataEntrySection({
                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">R$</span>
                         <input 
                           type="number" 
+                          onPaste={(e) => handleNumericPaste(e, (val) => setLocalSalesByHour({...localSalesByHour, [hour]: val}))}
                           value={localSalesByHour[hour] || ''} 
                           onChange={(e) => setLocalSalesByHour({...localSalesByHour, [hour]: e.target.value === '' ? 0 : Number(e.target.value)})} 
                           onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
@@ -884,11 +958,11 @@ export default function DataEntrySection({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Faturamento {currentMonthLabel} / 2025</label>
-                    <input type="number" value={receita2025} onChange={(e) => setReceita2025(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
+                    <input type="number" value={receita2025} onPaste={(e) => handleNumericPaste(e, setReceita2025)} onChange={(e) => setReceita2025(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Faturamento {currentMonthLabel} / 2024</label>
-                    <input type="number" value={receita2024} onChange={(e) => setReceita2024(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
+                    <input type="number" value={receita2024} onPaste={(e) => handleNumericPaste(e, setReceita2024)} onChange={(e) => setReceita2024(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
                   </div>
               </div>
             </motion.div>
@@ -899,17 +973,18 @@ export default function DataEntrySection({
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Faturamento Esperado</label>
-                    <input type="number" value={faturamentoMeta} onChange={(e) => setFaturamentoMeta(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
+                    <input type="number" value={faturamentoMeta} onPaste={(e) => handleNumericPaste(e, setFaturamentoMeta)} onChange={(e) => setFaturamentoMeta(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">CMV Alvo (%)</label>
-                    <input type="number" value={cmvAlvo} onChange={(e) => setCmvAlvo(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
+                    <input type="number" value={cmvAlvo} onPaste={(e) => handleNumericPaste(e, setCmvAlvo)} onChange={(e) => setCmvAlvo(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Pedidos Totais no Mês</label>
                     <input 
                       type="number" 
                       value={quantidadePedidos} 
+                      onPaste={(e) => handleNumericPaste(e, setQuantidadePedidos)}
                       onChange={(e) => setQuantidadePedidos(Number(e.target.value))} 
                       onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
                       className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
