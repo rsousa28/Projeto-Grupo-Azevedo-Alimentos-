@@ -1008,7 +1008,11 @@ export default function Dashboard() {
                     ))}
                   </Pie>
                   <Tooltip 
-                    formatter={(value: any) => [formatCurrency(Number(value)), 'Faturamento']}
+                    formatter={(value: any) => {
+                      const totalVal = dynamicDeliveryChannels.reduce((sum, channel) => sum + channel.valor, 0);
+                      const percentage = totalVal > 0 ? (Number(value) / totalVal) * 100 : 0;
+                      return [`${formatCurrency(Number(value))} (${percentage.toFixed(1)}%)`, 'Faturamento'];
+                    }}
                     labelStyle={{ color: '#888' }}
                     contentStyle={{ 
                       borderRadius: '12px', 
@@ -1029,17 +1033,24 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="w-full md:w-1/2 space-y-4">
-              {dynamicDeliveryChannels.map((channel) => (
-                <div key={channel.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channel.color }} />
-                    <span className="text-xs font-bold dark:text-slate-300 uppercase">{channel.name}</span>
-                  </div>
-                  <div className={`text-xs font-black uppercase ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
-                    {formatCurrency(channel.valor)}
-                  </div>
-                </div>
-              ))}
+              {(() => {
+                const totalVal = dynamicDeliveryChannels.reduce((sum, channel) => sum + channel.valor, 0);
+                return dynamicDeliveryChannels.map((channel) => {
+                  const percentage = totalVal > 0 ? (channel.valor / totalVal) * 100 : 0;
+                  return (
+                    <div key={channel.name} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: channel.color }} />
+                        <span className="text-xs font-bold dark:text-slate-300 uppercase">{channel.name}</span>
+                      </div>
+                      <div className={`text-xs font-black uppercase flex items-center gap-2 ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>
+                        <span>{formatCurrency(channel.valor)}</span>
+                        <span className="text-[10px] font-bold text-slate-400">({percentage.toFixed(1)}%)</span>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
