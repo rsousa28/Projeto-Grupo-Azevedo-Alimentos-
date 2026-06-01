@@ -527,7 +527,7 @@ export default function AccountsPayable() {
 
   // Load and sync accounts per active store
   useEffect(() => {
-    // Read from store-isolated local storage key to prevent managers (Paloma, Jef, Patricia) 
+    // Read from store-isolated local storage key to prevent managers (Andressa, Jef, Patricia) 
     // from overwriting each other's data on the same browser/machine.
     const storageKey = `g_azevedo_ap_items_clean_${currentStore.id}`;
     let stored = localStorage.getItem(storageKey);
@@ -605,7 +605,7 @@ export default function AccountsPayable() {
             localStorage.setItem(storageKey, JSON.stringify(processed));
           }
         } else {
-          // Single store scenario (e.g. Manager like Patricia, Paloma, Jef)
+          // Single store scenario (e.g. Manager like Patricia, Andressa, Jef)
           const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
           const docSnap = await getDoc(docRef);
           if (docSnap.exists() && isMounted) {
@@ -1660,7 +1660,7 @@ export default function AccountsPayable() {
     user.role === 'MANAGER' || 
     user.role?.startsWith('MANAGER_') ||
     user.username === 'patriciab28' || 
-    user.username?.toLowerCase().includes('paloma') ||
+    user.username?.toLowerCase().includes('andressa') ||
     user.username?.toLowerCase().includes('jef')
   ) && user.username !== 'adm' && user.username !== 'victordiretor';
 

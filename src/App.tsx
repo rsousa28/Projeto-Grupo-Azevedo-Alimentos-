@@ -73,7 +73,7 @@ function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
     user.username === 'adm' || 
     user.username === 'victordiretor' || 
     user.username === 'patriciab28' || 
-    user.username?.toLowerCase().includes('paloma') ||
+    user.username?.toLowerCase().includes('andressa') ||
     user.username?.toLowerCase().includes('jef') ||
     user.role === 'ADMIN' ||
     user.role === 'MANAGER' ||

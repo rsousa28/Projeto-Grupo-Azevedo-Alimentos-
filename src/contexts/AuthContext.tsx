@@ -87,19 +87,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      if ((u === 'paloma' || u === 'palomab32') && p === 'b32') {
-        const palomaUser: User = { 
-          id: 'paloma-b32', 
-          name: 'Paloma - Bebelu Mossoró', 
-          username: 'palomab32', 
+      if ((u === 'andressa' || u === 'andressab32') && p === 'b32') {
+        const andressaUser: User = { 
+          id: 'andressa-b32', 
+          name: 'Andressa - Bebelu Mossoró', 
+          username: 'andressab32', 
           role: 'MANAGER_BEBELU_MOSSORO' 
         };
-        setUser(palomaUser);
-        localStorage.setItem('auth_user', JSON.stringify(palomaUser));
+        setUser(andressaUser);
+        localStorage.setItem('auth_user', JSON.stringify(andressaUser));
         await AuditService.logAction({
-          userId: palomaUser.id,
-          userName: palomaUser.name,
-          userRole: palomaUser.role,
+          userId: andressaUser.id,
+          userName: andressaUser.name,
+          userRole: andressaUser.role,
           action: 'LOGIN_SUCCESS',
           description: `Login realizado com sucesso como Gerente de Bebelu Mossoró.`
         });
