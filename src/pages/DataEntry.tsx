@@ -77,30 +77,51 @@ export default function DataEntry() {
       return;
     }
 
-    const lastCommaIndex = clean.lastIndexOf(',');
-    const lastDotIndex = clean.lastIndexOf('.');
+    // Replace any spaces with standard space
+    clean = clean.replace(/\s/g, ' ');
 
-    if (lastCommaIndex > lastDotIndex) {
-      // Comma is the decimal separator, e.g., "4.536,58" or "4536,58"
-      clean = clean.replace(/\./g, '').replace(/,/g, '.');
-    } else if (lastDotIndex > lastCommaIndex) {
-      // Dot is the decimal separator, e.g., "4,536.58" or "4536.58"
-      clean = clean.replace(/,/g, '');
-    } else {
-      // Only dot or only comma exists, or none.
-      if (lastCommaIndex !== -1) {
-        // Only a comma exists, e.g., "4536,58" or "4,536"
-        if (/^\d{1,3}(,\d{3})+$/.test(clean)) {
-          clean = clean.replace(/,/g, '');
+    const hasComma = clean.includes(',');
+    const hasDot = clean.includes('.');
+
+    if (hasComma && hasDot) {
+      const lastCommaIndex = clean.lastIndexOf(',');
+      const lastDotIndex = clean.lastIndexOf('.');
+      if (lastCommaIndex > lastDotIndex) {
+        // e.g. "32.935,15" or "1.234.567,89"
+        // Dot is thousands separator, Comma is decimal separator
+        clean = clean.replace(/[\s\.]/g, '').replace(/,/g, '.');
+      } else {
+        // e.g. "32,935.15" or "1,234,567.89"
+        // Comma is thousands separator, Dot is decimal separator
+        clean = clean.replace(/[\s,]/g, '');
+      }
+    } else if (hasComma) {
+      // Only commas, no dots, e.g. "32935,15" or "1,234,567"
+      const commaCount = (clean.match(/,/g) || []).length;
+      if (commaCount > 1) {
+        clean = clean.replace(/[\s,]/g, '');
+      } else {
+        clean = clean.replace(/\s/g, '').replace(/,/g, '.');
+      }
+    } else if (hasDot) {
+      // Only dots, no commas, e.g. "32935.15" or "1.234.567" or "4.536"
+      const dotCount = (clean.match(/\./g) || []).length;
+      if (dotCount > 1) {
+        clean = clean.replace(/[\s\.]/g, '');
+      } else {
+        const parts = clean.split('.');
+        if (parts[1] && parts[1].length === 3) {
+          if (parts[0] === '0') {
+            clean = clean.replace(/\s/g, '');
+          } else {
+            clean = clean.replace(/[\s\.]/g, '');
+          }
         } else {
-          clean = clean.replace(/,/g, '.');
-        }
-      } else if (lastDotIndex !== -1) {
-        // Only a dot exists, e.g., "4536.58" or "4.536"
-        if (/^\d{1,3}(\.\d{3})+$/.test(clean)) {
-          clean = clean.replace(/\./g, '');
+          clean = clean.replace(/\s/g, '');
         }
       }
+    } else {
+      clean = clean.replace(/\s/g, '');
     }
 
     // Keep only numeric characters, minus sign, and dot
