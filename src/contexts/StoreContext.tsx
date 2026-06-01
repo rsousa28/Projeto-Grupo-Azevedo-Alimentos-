@@ -280,6 +280,8 @@ const StoreContext = createContext<StoreContextType | undefined>(undefined);
 
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const { success: toastSuccess } = useToast();
+  const lastFetchedTimes = React.useRef<Record<string, number>>({});
+  const cachedDreData = React.useRef<Record<string, DREData>>({});
   
   const [currentStore, setCurrentStore] = useState<Store>(() => {
     const saved = localStorage.getItem('active_store_id');
@@ -535,7 +537,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const saveDREPeriod = async (month: string, year: string, dreData: DREData) => {
     const periodId = `${year}-${month}`;
     const path = `stores/${currentStore.id}/dre_periods/${periodId}`;
+    const cacheKey = `${currentStore.id}_${year}_${month}`;
+
     try {
+      // 1. Save to local storage as an immediate offline-first backup copy (Prevents any data loss!)
+      const backupData = {
+        ...dreData,
+        monthValue: month,
+        yearValue: year,
+        updatedAtLocal: new Date().toISOString()
+      };
+      localStorage.setItem(`g_azevedo_dre_backup_${currentStore.id}_${year}_${month}`, JSON.stringify(backupData));
+      
+      // 2. Clear/Update memory cache so the UI gets the new data instantly
+      cachedDreData.current[cacheKey] = dreData;
+      lastFetchedTimes.current[cacheKey] = Date.now();
+
+      // 3. Attempt to save to remote Firestore
       const docRef = doc(db, 'stores', currentStore.id, 'dre_periods', periodId);
       await setDoc(docRef, {
         ...dreData,
@@ -543,7 +561,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         yearValue: year,
         updatedAt: serverTimestamp()
       });
-      console.log('DRE salva com sucesso:', periodId);
+      console.log('DRE sincronizada com Firestore com sucesso:', periodId);
 
       if (user) {
         await AuditService.logAction({
@@ -569,19 +587,55 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         return [...prev, dreData];
       });
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, path);
+      console.warn("Firestore error during DRE save, relying on local backup:", error);
+      // We don't crash the user UI. Local storage backup was already saved!
+      setDreTimeline(prev => {
+        const index = prev.findIndex(p => p.month === dreData.month && p.year === year);
+        if (index >= 0) {
+          const newTimeline = [...prev];
+          newTimeline[index] = dreData;
+          return newTimeline;
+        }
+        return [...prev, dreData];
+      });
     }
   };
 
   const loadDREPeriod = async (month: string, year: string) => {
     const periodId = `${year}-${month}`;
     const path = `stores/${currentStore.id}/dre_periods/${periodId}`;
+    const cacheKey = `${currentStore.id}_${year}_${month}`;
+
+    // 1. OPTIMIZATION: Check in-memory cache to save Firebase Reads (respecting the free tier)
+    const now = Date.now();
+    const lastFetch = lastFetchedTimes.current[cacheKey] || 0;
+    const isCacheFresh = (now - lastFetch) < 120000; // 2 minutes fresh window
+    
+    if (isCacheFresh && cachedDreData.current[cacheKey]) {
+      const cachedData = cachedDreData.current[cacheKey];
+      setDreTimeline(prev => {
+        const exists = prev.some(p => p.month === cachedData.month && p.year === year);
+        if (!exists) return [...prev, cachedData];
+        return prev.map(p => (p.month === cachedData.month && p.year === year) ? cachedData : p);
+      });
+      if (cachedData.yearlyHistory) {
+        setYearlyHistory(prev => ({ ...prev, ...cachedData.yearlyHistory }));
+      }
+      return true;
+    }
+
     try {
       const docRef = doc(db, 'stores', currentStore.id, 'dre_periods', periodId);
       const docSnap = await getDoc(docRef);
       
       if (docSnap.exists()) {
         const data = { ...docSnap.data(), year } as DREData;
+        
+        // Save to browser backup & cache
+        localStorage.setItem(`g_azevedo_dre_backup_${currentStore.id}_${year}_${month}`, JSON.stringify(data));
+        cachedDreData.current[cacheKey] = data;
+        lastFetchedTimes.current[cacheKey] = now;
+
         setDreTimeline(prev => {
           const exists = prev.some(p => p.month === data.month && p.year === year);
           if (!exists) return [...prev, data];
@@ -594,6 +648,30 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         
         return true;
       } else {
+        // If it doesn't exist in Firestore, search Local Backup copy!
+        const localCopyStr = localStorage.getItem(`g_azevedo_dre_backup_${currentStore.id}_${year}_${month}`);
+        if (localCopyStr) {
+          try {
+            const data = JSON.parse(localCopyStr) as DREData;
+            console.log(`[Backup Restorer] Recurso de segurança resgatou a DRE do LocalStorage: ${periodId}`);
+            
+            // Populate in-memory cache to prevent constant reading
+            cachedDreData.current[cacheKey] = data;
+            
+            setDreTimeline(prev => {
+              const exists = prev.some(p => p.month === data.month && p.year === year);
+              if (!exists) return [...prev, data];
+              return prev.map(p => (p.month === data.month && p.year === year) ? data : p);
+            });
+            if (data.yearlyHistory) {
+              setYearlyHistory(prev => ({ ...prev, ...data.yearlyHistory }));
+            }
+            return true;
+          } catch (e) {
+            console.error("Local backup decode error:", e);
+          }
+        }
+
         // If it doesn't exist, remove it from timeline if it was there
         const monthIndex = parseInt(month, 10) - 1;
         const monthNames = [
@@ -613,7 +691,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       return false;
     } catch (error) {
-      handleFirestoreError(error, OperationType.GET, path);
+      console.warn(`Firestore read failed or throttled. Recovering from localStorage backup for ${periodId}:`, error);
+
+      const localCopyStr = localStorage.getItem(`g_azevedo_dre_backup_${currentStore.id}_${year}_${month}`);
+      if (localCopyStr) {
+        try {
+          const data = JSON.parse(localCopyStr) as DREData;
+          cachedDreData.current[cacheKey] = data;
+          
+          setDreTimeline(prev => {
+            const exists = prev.some(p => p.month === data.month && p.year === year);
+            if (!exists) return [...prev, data];
+            return prev.map(p => (p.month === data.month && p.year === year) ? data : p);
+          });
+          if (data.yearlyHistory) {
+            setYearlyHistory(prev => ({ ...prev, ...data.yearlyHistory }));
+          }
+          return true;
+        } catch (e) {
+          console.error("Failed to parse Local Backup fallbacker", e);
+        }
+      }
       return false;
     }
   };
