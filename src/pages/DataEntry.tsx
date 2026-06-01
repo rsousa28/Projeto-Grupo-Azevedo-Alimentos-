@@ -65,6 +65,50 @@ export default function DataEntry() {
       currency: 'BRL',
     }).format(val);
   };
+
+  const handleNumericPaste = (e: React.ClipboardEvent<HTMLInputElement>, setter: (val: number) => void) => {
+    e.preventDefault();
+    const text = e.clipboardData.getData('text') || '';
+    
+    // Remove currency indicators like R$ or $ and trim leading/trailing whitespace
+    let clean = text.replace(/R\$\s?/gi, '').replace(/\$\s?/gi, '').trim();
+    if (!clean) {
+      setter(0);
+      return;
+    }
+
+    const lastCommaIndex = clean.lastIndexOf(',');
+    const lastDotIndex = clean.lastIndexOf('.');
+
+    if (lastCommaIndex > lastDotIndex) {
+      // Comma is the decimal separator, e.g., "4.536,58" or "4536,58"
+      clean = clean.replace(/\./g, '').replace(/,/g, '.');
+    } else if (lastDotIndex > lastCommaIndex) {
+      // Dot is the decimal separator, e.g., "4,536.58" or "4536.58"
+      clean = clean.replace(/,/g, '');
+    } else {
+      // Only dot or only comma exists, or none.
+      if (lastCommaIndex !== -1) {
+        // Only a comma exists, e.g., "4536,58" or "4,536"
+        if (/^\d{1,3}(,\d{3})+$/.test(clean)) {
+          clean = clean.replace(/,/g, '');
+        } else {
+          clean = clean.replace(/,/g, '.');
+        }
+      } else if (lastDotIndex !== -1) {
+        // Only a dot exists, e.g., "4536.58" or "4.536"
+        if (/^\d{1,3}(\.\d{3})+$/.test(clean)) {
+          clean = clean.replace(/\./g, '');
+        }
+      }
+    }
+
+    // Keep only numeric characters, minus sign, and dot
+    clean = clean.replace(/[^\d\.-]/g, '');
+
+    const parsed = parseFloat(clean);
+    setter(isNaN(parsed) ? 0 : parsed);
+  };
   const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels' | 'hourly'>('financial');
   const [saved, setSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -675,6 +719,7 @@ export default function DataEntry() {
                        <input 
                          type="number" 
                          value={receitaBalcao || ''}
+                          onPaste={(e) => handleNumericPaste(e, setReceitaBalcao)}
                          onChange={(e) => setReceitaBalcao(e.target.value === '' ? 0 : Number(e.target.value))}
                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
@@ -707,6 +752,7 @@ export default function DataEntry() {
                      <input 
                         type="number" 
                         value={deducoes.darfSimples}
+                         onPaste={(e) => handleNumericPaste(e, (val) => setDeducoes({...deducoes, darfSimples: val}))}
                         onChange={(e) => setDeducoes({...deducoes, darfSimples: Number(e.target.value)})}
                         className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                      />
@@ -716,6 +762,7 @@ export default function DataEntry() {
                      <input 
                         type="number" 
                         value={cmvTotal}
+                         onPaste={(e) => handleNumericPaste(e, setCmvTotal)}
                         onChange={(e) => setCmvTotal(Number(e.target.value))}
                         className={`w-full px-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                      />
@@ -748,6 +795,7 @@ export default function DataEntry() {
                        <input 
                           type="number" 
                           value={(despesasVariaveis as any)[item.key]}
+                           onPaste={(e) => handleNumericPaste(e, (val) => setDespesasVariaveis({...despesasVariaveis, [item.key]: val}))}
                           onChange={(e) => setDespesasVariaveis({...despesasVariaveis, [item.key]: Number(e.target.value)})}
                           className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
@@ -793,6 +841,7 @@ export default function DataEntry() {
                         <input 
                            type="number" 
                            value={(colaboradores as any)[item.key]}
+                           onPaste={(e) => handleNumericPaste(e, (val) => setColaboradores({...colaboradores, [item.key]: val}))}
                            onChange={(e) => setColaboradores({...colaboradores, [item.key]: Number(e.target.value)})}
                            className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                         />
@@ -820,6 +869,7 @@ export default function DataEntry() {
                         <input 
                            type="number" 
                            value={(funcionamento as any)[item.key]}
+                           onPaste={(e) => handleNumericPaste(e, (val) => setFuncionamento({...funcionamento, [item.key]: val}))}
                            onChange={(e) => setFuncionamento({...funcionamento, [item.key]: Number(e.target.value)})}
                            className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                         />
@@ -844,6 +894,7 @@ export default function DataEntry() {
                         <input 
                            type="number" 
                            value={(manutencao as any)[item.key]}
+                           onPaste={(e) => handleNumericPaste(e, (val) => setManutencao({...manutencao, [item.key]: val}))}
                            onChange={(e) => setManutencao({...manutencao, [item.key]: Number(e.target.value)})}
                            className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                         />
@@ -866,6 +917,7 @@ export default function DataEntry() {
                         <input 
                            type="number" 
                            value={(comerciais as any)[item.key]}
+                           onPaste={(e) => handleNumericPaste(e, (val) => setComerciais({...comerciais, [item.key]: val}))}
                            onChange={(e) => setComerciais({...comerciais, [item.key]: Number(e.target.value)})}
                            className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                         />
@@ -905,6 +957,7 @@ export default function DataEntry() {
                         <input 
                            type="number" 
                            value={(administrativas as any)[item.key]}
+                           onPaste={(e) => handleNumericPaste(e, (val) => setAdministrativas({...administrativas, [item.key]: val}))}
                            onChange={(e) => setAdministrativas({...administrativas, [item.key]: Number(e.target.value)})}
                            className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                         />
@@ -932,6 +985,7 @@ export default function DataEntry() {
                        <input 
                           type="number" 
                           value={(resultadoFinanceiro as any)[item.key]}
+                          onPaste={(e) => handleNumericPaste(e, (val) => setResultadoFinanceiro({...resultadoFinanceiro, [item.key]: val}))}
                           onChange={(e) => setResultadoFinanceiro({...resultadoFinanceiro, [item.key]: Number(e.target.value)})}
                           className={`w-full px-2 py-2 rounded-lg border outline-none text-[10px] font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
@@ -952,6 +1006,7 @@ export default function DataEntry() {
                      <input 
                         type="number" 
                         value={griFinal}
+                        onPaste={(e) => handleNumericPaste(e, setGriFinal)}
                         onChange={(e) => setGriFinal(Number(e.target.value))}
                         className={`w-full px-4 py-3 rounded-xl border outline-none text-sm font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                      />
@@ -980,6 +1035,7 @@ export default function DataEntry() {
                        <input 
                          type="number" 
                          value={receitaBalcao}
+                         onPaste={(e) => handleNumericPaste(e, setReceitaBalcao)}
                          onChange={(e) => setReceitaBalcao(Number(e.target.value))}
                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
@@ -992,6 +1048,7 @@ export default function DataEntry() {
                        <input 
                          type="number" 
                          value={receitaIfood}
+                         onPaste={(e) => handleNumericPaste(e, setReceitaIfood)}
                          onChange={(e) => setReceitaIfood(Number(e.target.value))}
                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
@@ -1004,6 +1061,7 @@ export default function DataEntry() {
                        <input 
                          type="number" 
                          value={receitaWedo}
+                         onPaste={(e) => handleNumericPaste(e, setReceitaWedo)}
                          onChange={(e) => setReceitaWedo(Number(e.target.value))}
                          className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
                        />
@@ -1031,6 +1089,7 @@ export default function DataEntry() {
                         <input 
                           type="number" 
                           value={salesByHourLocal[hour] || ''} 
+                          onPaste={(e) => handleNumericPaste(e, (val) => setSalesByHourData({...salesByHourLocal, [hour]: val}))}
                           onChange={(e) => setSalesByHourData({...salesByHourLocal, [hour]: e.target.value === '' ? 0 : Number(e.target.value)})} 
                           onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
                           className={`w-full pl-8 pr-3 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-center text-xs ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
@@ -1070,6 +1129,7 @@ export default function DataEntry() {
                       <input 
                         type="number" 
                         value={receita2025}
+                        onPaste={(e) => handleNumericPaste(e, setReceita2025)}
                         onChange={(e) => setReceita2025(Number(e.target.value))}
                         placeholder="0,00" 
                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
@@ -1084,6 +1144,7 @@ export default function DataEntry() {
                       <input 
                         type="number" 
                         value={receita2024}
+                        onPaste={(e) => handleNumericPaste(e, setReceita2024)}
                         onChange={(e) => setReceita2024(Number(e.target.value))}
                         placeholder="0,00" 
                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
@@ -1122,6 +1183,7 @@ export default function DataEntry() {
                           <input 
                             type="number" 
                             value={faturamentoMeta}
+                           onPaste={(e) => handleNumericPaste(e, setFaturamentoMeta)}
                             onChange={(e) => setFaturamentoMeta(Number(e.target.value))}
                             className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                           />
@@ -1134,6 +1196,7 @@ export default function DataEntry() {
                           <input 
                             type="number" 
                             value={cmvAlvo}
+                             onPaste={(e) => handleNumericPaste(e, setCmvAlvo)}
                             onChange={(e) => setCmvAlvo(Number(e.target.value))}
                             className={`w-full pl-4 pr-12 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                           />
@@ -1150,6 +1213,7 @@ export default function DataEntry() {
                             type="number" 
                             step="0.1"
                             value={satisfacaoMeta}
+                            onPaste={(e) => handleNumericPaste(e, setSatisfacaoMeta)}
                             onChange={(e) => setSatisfacaoMeta(Number(e.target.value))}
                             className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                           />
@@ -1165,6 +1229,7 @@ export default function DataEntry() {
                           <input 
                             type="number" 
                             value={quantidadePedidos || ''}
+                            onPaste={(e) => handleNumericPaste(e, setQuantidadePedidos)}
                             onChange={(e) => setQuantidadePedidos(e.target.value === '' ? 0 : Number(e.target.value))}
                             className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                           />
@@ -1188,6 +1253,7 @@ export default function DataEntry() {
                         <input 
                           type="number" 
                           value={tempoMedio}
+                          onPaste={(e) => handleNumericPaste(e, setTempoMedio)}
                           onChange={(e) => setTempoMedio(Number(e.target.value))}
                           className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                         />
