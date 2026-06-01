@@ -75,17 +75,26 @@ service cloud.firestore {
       
       // Strict payload control and integrity enforcement for each subcollection
       allow create, update: if isValidId(storeId) && isValidId(docId) 
-                            && request.resource.data.keys().size() <= 10
                             && (
-                              // Check for 'all' document in sub-resource containing a 'data' array or object
-                              (request.resource.data.keys().hasAll(['data']) && (request.resource.data.data is list || request.resource.data.data is map))
+                              // Standard sub-resources containing a single 'data' item (e.g. checklists list, submissions, etc.)
+                              (request.resource.data.keys().size() <= 10 && request.resource.data.keys().hasAll(['data']) && (request.resource.data.data is list || request.resource.data.data is map))
                               || 
-                              // Check for legacy or specific CMV period entries
-                              (collectionName == "cmv_periods" && request.resource.data.month is string && request.resource.data.year is string)
+                              // DRE operational period metrics (containing flat fields, higher field limit of 40)
+                              (collectionName == "dre_periods" && request.resource.data.keys().size() <= 40 && request.resource.data.month is string)
+                              || 
+                              // CMV inventories and menu engineering lists (higher field limit of 20)
+                              (collectionName == "cmv_periods" && request.resource.data.keys().size() <= 20 && request.resource.data.month is string && request.resource.data.year is string)
                             );
       
       // Operations are protected and restricted
       allow delete: if isValidId(storeId) && isValidId(docId);
+    }
+
+    // 4. Backups administrative collection rules
+    match /backups/{backupId} {
+      allow list: if true; 
+      allow get: if isValidId(backupId);
+      allow create, update, delete: if isValidId(backupId) && request.resource.data.keys().size() <= 15;
     }
   }
 }
