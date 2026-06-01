@@ -666,7 +666,6 @@ export default function DataEntry() {
           {[
             { id: 'financial', label: 'Financeiro & DRE', icon: DollarSign },
             { id: 'channels', label: 'Canais de Venda', icon: PieChart },
-            { id: 'hourly', label: 'Faturamento por Horário', icon: Clock },
             { id: 'history', label: 'Histórico YoY', icon: TrendingUp },
             { id: 'goals', label: 'Metas & Performance', icon: Target },
           ].map(tab => (
@@ -1090,43 +1089,6 @@ export default function DataEntry() {
                     </div>
                  </div>
               </section>
-            </motion.div>
-          )}
-
-          {activeTab === 'hourly' && (
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} className="space-y-8">
-              <div className="flex flex-col gap-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1.5 h-6 bg-cyan-500 rounded-full" />
-                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Faturamento por Horário</h4>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {Object.keys(salesByHourLocal).sort().map(hour => (
-                    <div key={hour} className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block text-center">{hour}</label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-[10px]">R$</span>
-                        <input 
-                          type="number" 
-                          value={salesByHourLocal[hour] || ''} 
-                          onPaste={(e) => handleNumericPaste(e, (val) => setSalesByHourData({...salesByHourLocal, [hour]: val}))}
-                          onChange={(e) => setSalesByHourData({...salesByHourLocal, [hour]: e.target.value === '' ? 0 : Number(e.target.value)})} 
-                          onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
-                          className={`w-full pl-8 pr-3 py-3 rounded-xl border outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-bold text-center text-xs ${isDarkMode ? 'bg-[#121212] border-[#333] text-white' : 'bg-slate-50 border-slate-100'}`} 
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-black/40 border-cyan-500/20' : 'bg-cyan-50 border-cyan-100'}`}>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-600 mb-1">Total Lançado por Hora:</p>
-                  <p className={`text-lg font-black italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                    {formatCurrency(Object.values(salesByHourLocal).reduce((a, b) => a + b, 0))}
-                  </p>
-                </div>
-              </div>
             </motion.div>
           )}
 
