@@ -912,76 +912,30 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Products Analysis Row */}
-      <div className={`grid grid-cols-1 ${isPatriciab ? 'lg:grid-cols-2' : 'lg:grid-cols-3'} gap-6`}>
-        {/* Most Profitable */}
+      {/* DRE Resumido Row */}
+      {!isPatriciab && (
         <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <div className="flex items-center gap-2 mb-6">
-            <TrendingUp className="w-5 h-5 text-green-500" />
-            <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>Oportunidade: Ticket Médio</h3>
+          <div className="flex items-center justify-between mb-6">
+            <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>DRE Resumido</h3>
           </div>
-          <div className="space-y-4">
-            {dynamicMostProfitable.length > 0 ? dynamicMostProfitable.map((p, i) => (
-              <div key={p.id || `profit-${i}`} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
-                <div className="overflow-visible pr-2">
-                  <div className="text-xs font-bold dark:text-white uppercase italic break-words whitespace-normal leading-tight">{p.name}</div>
-                  <div className="text-[10px] text-slate-500">Margem: {p.margin}%</div>
-                </div>
-                <div className="text-sm font-black text-green-500 whitespace-nowrap">+{formatCurrency(p.profit)}</div>
-              </div>
-            )) : (
-              <div className="text-center py-8 text-slate-400 text-xs italic">Nenhum produto cadastrado</div>
-            )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+             {[
+               { label: 'Receita Bruta', valor: currentMonthData.faturamento, color: 'text-indigo-600 dark:text-indigo-400' },
+               { label: 'Custos Variáveis', valor: -dashVariableExpenses, color: 'text-red-700 dark:text-red-400' },
+               { label: 'Margem de Contrib.', valor: dashMargemContrib, bold: true },
+               { label: 'Custos Fixos', valor: -dashFixedExpenses, color: 'text-red-700 dark:text-red-400' },
+               { label: 'Resultado Líquido', valor: currentMonthData.netProfit, color: 'text-green-500 dark:text-green-400', bold: true, big: true }
+             ].map((item) => (
+               <div key={item.label} className={`flex flex-col justify-between p-4 rounded-2xl ${isDarkMode ? 'bg-black/20 border border-[#333]' : 'bg-slate-50 border border-slate-100'}`}>
+                 <span className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${item.bold ? (isDarkMode ? 'text-slate-200' : 'text-slate-900') : 'text-slate-400'}`}>{item.label}</span>
+                 <span className={`text-sm font-black ${item.color || (isDarkMode ? 'text-white' : 'text-slate-950')} ${item.big ? 'text-lg' : ''}`}>
+                   {formatCurrency(item.valor)}
+                 </span>
+               </div>
+             ))}
           </div>
         </div>
-
-        {/* Low Margin Products */}
-        <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <div className="flex items-center gap-2 mb-6">
-            <TrendingDown className="w-5 h-5 text-red-700" />
-            <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>CMV Alerta: Proteínas</h3>
-          </div>
-          <div className="space-y-4">
-            {dynamicLowMargin.length > 0 ? dynamicLowMargin.map((p, i) => (
-              <div key={p.id || `low-${i}`} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-black/20">
-                <div className="overflow-visible pr-2">
-                  <div className="text-xs font-bold dark:text-white uppercase italic break-words whitespace-normal leading-tight">{p.name}</div>
-                  <div className="text-[10px] text-slate-500">Status: {p.status}</div>
-                </div>
-                <div className={`text-sm font-black text-red-700 whitespace-nowrap`}>
-                  {p.margin}%
-                </div>
-              </div>
-            )) : (
-              <div className="text-center py-8 text-slate-400 text-xs italic">Nenhum produto cadastrado</div>
-            )}
-          </div>
-        </div>
-
-        {/* Resumo DRE */}
-        {!isPatriciab && (
-          <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-            <h3 className={`text-lg font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>DRE Resumido</h3>
-            <div className="space-y-3">
-               {[
-                 { label: 'Receita Bruta', valor: currentMonthData.faturamento, color: 'text-indigo-600' },
-                 { label: 'Custos Variáveis', valor: -dashVariableExpenses, color: 'text-red-700' },
-                 { label: 'Margem de Contrib.', valor: dashMargemContrib, bold: true },
-                 { label: 'Custos Fixos', valor: -dashFixedExpenses, color: 'text-red-700' },
-                 { label: 'Resultado Líquido', valor: currentMonthData.netProfit, color: 'text-green-500', bold: true, big: true }
-               ].map((item) => (
-                 <div key={item.label} className={`flex items-center justify-between py-1 ${item.big ? 'border-t dark:border-[#333] pt-4 mt-2' : ''}`}>
-                   <span className={`text-[10px] font-bold uppercase tracking-wider ${item.bold ? (isDarkMode ? 'dark:text-white' : 'text-black') : (isDarkMode ? 'text-slate-500' : 'text-slate-700')}`}>{item.label}</span>
-                   <span className={`text-sm font-black ${item.color || (isDarkMode ? 'dark:text-white' : 'text-black')} ${item.big ? 'text-lg' : ''}`}>
-                     {formatCurrency(item.valor)}
-                   </span>
-                 </div>
-               ))}
-            </div>
-            <button className="w-full mt-6 py-2 text-[10px] font-bold uppercase tracking-widest text-indigo-600 hover:underline">Ver DRE Completo</button>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Distribution Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
