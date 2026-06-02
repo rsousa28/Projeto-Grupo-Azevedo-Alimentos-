@@ -91,10 +91,19 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         user?.username === 'patriciab28' || 
         user?.username?.toLowerCase().includes('andressa') ||
         user?.username?.toLowerCase().includes('jef') ||
+        user?.username?.toLowerCase().includes('michele') ||
         user?.role === 'ADMIN' ||
         user?.role === 'MANAGER' ||
         user?.role?.startsWith('MANAGER_')
       );
+    }
+    if (item.path === '/cmv') {
+      const isAndressaOrMichele = 
+        user?.username?.toLowerCase().includes('andressa') || 
+        user?.username?.toLowerCase().includes('michele');
+      if (isAndressaOrMichele) {
+        return false;
+      }
     }
     return !item.allowedRoles || (user && item.allowedRoles.includes(user.role));
   });

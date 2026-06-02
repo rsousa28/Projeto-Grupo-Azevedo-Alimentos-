@@ -321,6 +321,7 @@ function getFutureDateStr(daysAhead: number) {
 export default function AccountsPayable() {
   const { currentStore, isDarkMode, brandColors } = useStore();
   const { user } = useAuth();
+  const hideTotalLancado = user?.username?.toLowerCase().includes('andressa') || user?.username?.toLowerCase().includes('michele');
 
   // State
   const [accounts, setAccounts] = useState<AccountPayable[]>([]);
@@ -1661,7 +1662,8 @@ export default function AccountsPayable() {
     user.role?.startsWith('MANAGER_') ||
     user.username === 'patriciab28' || 
     user.username?.toLowerCase().includes('andressa') ||
-    user.username?.toLowerCase().includes('jef')
+    user.username?.toLowerCase().includes('jef') ||
+    user.username?.toLowerCase().includes('michele')
   ) && user.username !== 'adm' && user.username !== 'victordiretor';
 
   if (isManagerUser) {
@@ -2018,9 +2020,11 @@ export default function AccountsPayable() {
                 Lista de seus boletos deste período. Confira os dados antes de clicar em "Salvar Período" para salvar no servidor!
               </p>
             </div>
-            <div className="text-xs font-black px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 font-sans">
-              Total Lançado: {formatValueBrl(riomarAccounts.reduce((sum, ac) => sum + ac.value, 0))}
-            </div>
+            {!hideTotalLancado && (
+              <div className="text-xs font-black px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 font-sans">
+                Total Lançado: {formatValueBrl(riomarAccounts.reduce((sum, ac) => sum + ac.value, 0))}
+              </div>
+            )}
           </div>
 
           {riomarAccounts.length === 0 ? (

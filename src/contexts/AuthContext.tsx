@@ -106,7 +106,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      if ((u === 'jef' || u === 'jef4e09') && p === '4e09') {
+      if ((u === 'jef' || u === 'jef4e09') && p === 'jqc26') {
         const jefUser: User = { 
           id: 'jef-4e09', 
           name: 'Jefferson - 4 Estylos Mossoró', 
@@ -119,6 +119,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userId: jefUser.id,
           userName: jefUser.name,
           userRole: jefUser.role,
+          action: 'LOGIN_SUCCESS',
+          description: `Login realizado com sucesso como Gerente de 4 Estylos Mossoró.`
+        });
+        return;
+      }
+
+      if ((u === 'michele' || u === 'michele4e09') && p === '4e09') {
+        const micheleUser: User = { 
+          id: 'michele-4e09', 
+          name: 'Michele - 4 Estylos Mossoró', 
+          username: 'michele4e09', 
+          role: 'MANAGER_4ESTYLOS_MOSSORO' 
+        };
+        setUser(micheleUser);
+        localStorage.setItem('auth_user', JSON.stringify(micheleUser));
+        await AuditService.logAction({
+          userId: micheleUser.id,
+          userName: micheleUser.name,
+          userRole: micheleUser.role,
           action: 'LOGIN_SUCCESS',
           description: `Login realizado com sucesso como Gerente de 4 Estylos Mossoró.`
         });

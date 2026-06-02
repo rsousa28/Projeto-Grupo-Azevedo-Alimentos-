@@ -75,6 +75,7 @@ function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
     user.username === 'patriciab28' || 
     user.username?.toLowerCase().includes('andressa') ||
     user.username?.toLowerCase().includes('jef') ||
+    user.username?.toLowerCase().includes('michele') ||
     user.role === 'ADMIN' ||
     user.role === 'MANAGER' ||
     user.role?.startsWith('MANAGER_')
@@ -102,6 +103,18 @@ function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
   );
   if (!hasAccess) {
     return <UnauthorizedRedirect routeName="Demonstrativo DRE / Fluxo Financeiro" />;
+  }
+  return <>{children}</>;
+}
+
+function CMVAccessRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const hasAccess = user && !(
+    user.username?.toLowerCase().includes('andressa') ||
+    user.username?.toLowerCase().includes('michele')
+  );
+  if (!hasAccess) {
+    return <UnauthorizedRedirect routeName="CMV & Engenharia" />;
   }
   return <>{children}</>;
 }
@@ -210,7 +223,11 @@ function AppRoutes() {
                <AccountsPayable />
              </AdminOnlyRoute>
            } />
-           <Route path="/cmv" element={<CMV />} />
+           <Route path="/cmv" element={
+             <CMVAccessRoute>
+               <CMV />
+             </CMVAccessRoute>
+           } />
             <Route path="/audit-logs" element={
               <RootAdminOnlyRoute>
                 <AuditLogs forcedTab="logs" />

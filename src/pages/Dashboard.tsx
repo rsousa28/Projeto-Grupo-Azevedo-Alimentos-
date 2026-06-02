@@ -559,7 +559,8 @@ export default function Dashboard() {
     user?.role === 'MANAGER' ||
     user?.role?.startsWith('MANAGER_') ||
     user?.username === 'patriciab28' || 
-    user?.username?.toLowerCase().includes('andressa');
+    user?.username?.toLowerCase().includes('andressa') ||
+    user?.username?.toLowerCase().includes('michele');
 
   const displayMetrics = [
     { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: 'up', change: '0' },
