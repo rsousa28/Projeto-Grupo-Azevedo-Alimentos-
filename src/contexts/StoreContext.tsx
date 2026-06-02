@@ -292,15 +292,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     
     // Fallback: check matching role if user is stored in local storage
     const savedUserStr = localStorage.getItem('auth_user');
-    if (savedUserStr) {
+    if (savedUserStr && savedUserStr !== 'undefined' && savedUserStr !== 'null') {
       try {
         const u = JSON.parse(savedUserStr);
-        if (u.role === 'MANAGER_BEBELU_MOSSORO') {
-          return STORES.find(s => s.code === 'B32') || STORES[3];
-        } else if (u.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
-          return STORES.find(s => s.code === 'B28') || STORES[3];
-        } else if (u.role === 'MANAGER_4ESTYLOS_MOSSORO') {
-          return STORES.find(s => s.code === '4E09') || STORES[3];
+        if (u && u.role) {
+          if (u.role === 'MANAGER_BEBELU_MOSSORO') {
+            return STORES.find(s => s.code === 'B32') || STORES[3];
+          } else if (u.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
+            return STORES.find(s => s.code === 'B28') || STORES[3];
+          } else if (u.role === 'MANAGER_4ESTYLOS_MOSSORO') {
+            return STORES.find(s => s.code === '4E09') || STORES[3];
+          }
         }
       } catch (e) {
         console.error("Error reading role for initial store:", e);

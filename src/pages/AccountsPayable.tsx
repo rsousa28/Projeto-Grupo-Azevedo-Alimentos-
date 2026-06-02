@@ -326,6 +326,7 @@ export default function AccountsPayable() {
   // State
   const [accounts, setAccounts] = useState<AccountPayable[]>([]);
   const [formStoreId, setFormStoreId] = useState(currentStore.id === 'admin-global' ? '1' : currentStore.id);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     setFormStoreId(currentStore.id === 'admin-global' ? '1' : currentStore.id);
@@ -528,6 +529,7 @@ export default function AccountsPayable() {
 
   // Load and sync accounts per active store
   useEffect(() => {
+    setIsSyncing(true);
     // Read from store-isolated local storage key to prevent managers (Andressa, Jef, Patricia) 
     // from overwriting each other's data on the same browser/machine.
     const storageKey = `g_azevedo_ap_items_clean_${currentStore.id}`;
@@ -624,6 +626,10 @@ export default function AccountsPayable() {
         }
       } catch (err) {
         console.error("Erro ao sincronizar contas a pagar do Firestore:", err);
+      } finally {
+        if (isMounted) {
+          setIsSyncing(false);
+        }
       }
     };
 
@@ -1693,8 +1699,14 @@ export default function AccountsPayable() {
                 Lançamento Rápido de Contas
               </span>
             </div>
-            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
+            <h1 className="text-3xl font-black italic uppercase tracking-tighter text-slate-900 dark:text-white leading-none flex items-center gap-2">
               Contas a Pagar
+              {isSyncing && (
+                <span className="flex items-center gap-1.5 text-[10px] lowercase font-bold not-italic font-mono text-indigo-500 dark:text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20 shadow-xs">
+                  <RefreshCw className="w-3 h-3 animate-spin text-indigo-500" />
+                  sincronizando...
+                </span>
+              )}
             </h1>
             <p className="text-slate-500 text-sm mt-1.5 font-medium">
               Envie e registre faturas de {currentStore.name}. Ao finalizar, salve o período para enviar ao administrador.
@@ -2409,8 +2421,14 @@ export default function AccountsPayable() {
               Gestão Financeira Ativa
             </span>
           </div>
-          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
+          <h1 className="text-3xl font-black italic uppercase tracking-tighter text-slate-900 dark:text-white leading-none flex items-center gap-2">
             Contas a Pagar
+            {isSyncing && (
+              <span className="flex items-center gap-1.5 text-[10px] lowercase font-bold not-italic font-mono text-indigo-500 dark:text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20 shadow-xs">
+                <RefreshCw className="w-3 h-3 animate-spin text-indigo-500" />
+                sincronizando...
+              </span>
+            )}
           </h1>
           <p className="text-slate-500 text-sm mt-1.5 font-medium">
             Gerencie faturas, agendamentos, parcelamentos e leitura digital automatizada de boletos.
