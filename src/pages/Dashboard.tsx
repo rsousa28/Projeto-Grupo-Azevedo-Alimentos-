@@ -565,8 +565,6 @@ export default function Dashboard() {
     { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: 'up', change: '0' },
     ...(!isPatriciab ? [{ label: 'Lucro Líquido', valor: netProfit, format: 'currency', trend: netProfit < 0 ? 'down' : 'up', change: '0' }] : []),
     { label: 'CMV Médio', valor: cmvRate, format: 'percent', trend: 'down', change: '0' },
-    { label: 'Ticket Médio', valor: ticketMedio, format: 'currency', trend: 'up', change: '0' },
-    { label: 'Pedidos Totais', valor: totalPedidos, format: 'number', trend: 'up', change: '0' },
     ...(!isPatriciab ? [{ label: 'Margem Operac.', valor: margemOperacional, format: 'percent', trend: margemOperacional < 0 ? 'down' : 'up', change: '0' }] : []),
   ];
 
@@ -1206,7 +1204,7 @@ export default function Dashboard() {
       </motion.div>
 
       {/* Main KPIs */}
-      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${isPatriciab ? 'xl:grid-cols-4' : 'xl:grid-cols-6'} gap-4`}>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isPatriciab ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-4`}>
         {displayMetrics.map((metric, i) => {
           const isCmv = metric.label === 'CMV Médio';
           const isHealthy = isCmv 
