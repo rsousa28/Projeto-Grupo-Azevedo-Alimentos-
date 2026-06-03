@@ -689,24 +689,30 @@ export default function Finance() {
       ) : (
         <>
           {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Margem Bruta', value: `${marginBruta.toFixed(1)}%`, trend: '+2.1%', color: 'text-indigo-600' },
-            { label: 'Lucratividade', value: `${lucratividade.toFixed(1)}%`, trend: '+0.8%', color: 'text-green-500' },
-            { label: 'Ponto Equilíbrio', value: pontoEquilibrio > 0 ? formatCurrency(pontoEquilibrio) : '---', trend: pontoEquilibrio > 0 ? (pontoEquilibrio > (currentMonthData.faturamento || 0) ? 'Crítico' : 'Saudável') : 'MC Negativa', color: 'text-amber-500' },
-            { label: 'Ticket Médio', value: formatCurrency(ticketMedio), trend: ticketMedio > 0 ? (ticketMedio > 60 ? 'Alto' : 'Normal') : '---', color: 'text-blue-500' },
-          ].map((stat) => (
-           <div key={stat.label} className={`p-5 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-             <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{stat.label}</div>
-             <div className="flex items-center justify-between">
-               <div className={`text-2xl font-black ${stat.color}`}>{stat.value}</div>
-               <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stat.trend.startsWith('+') ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                 {stat.trend}
-               </div>
-             </div>
-           </div>
-         ))}
-      </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { label: 'Margem Bruta', value: `${marginBruta.toFixed(1)}%`, trend: '+2.1%', color: 'text-indigo-600' },
+              { label: 'Lucratividade', value: `${lucratividade.toFixed(1)}%`, trend: '+0.8%', color: 'text-green-500' },
+              { label: 'Ponto Equilíbrio', value: pontoEquilibrio > 0 ? formatCurrency(pontoEquilibrio) : '---', trend: pontoEquilibrio > 0 ? (pontoEquilibrio > (currentMonthData.faturamento || 0) ? 'Crítico' : 'Saudável') : 'MC Negativa', color: 'text-amber-500' },
+              { 
+                label: 'Custo de Pessoal', 
+                value: `${payrollPercent.toFixed(1)}%`, 
+                trend: payrollPercent > 0 ? (payrollPercent <= 22 ? 'Saudável' : 'Elevado') : '---', 
+                trendColor: payrollPercent > 0 ? (payrollPercent <= 22 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500') : 'bg-slate-500/10 text-slate-400',
+                color: 'text-blue-500' 
+              },
+            ].map((stat) => (
+              <div key={stat.label} className={`p-5 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{stat.label}</div>
+                <div className="flex items-center justify-between">
+                  <div className={`text-2xl font-black ${stat.color}`}>{stat.value}</div>
+                  <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${(stat as any).trendColor ? (stat as any).trendColor : (stat.trend.startsWith('+') ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500')}`}>
+                    {stat.trend}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
 
       {/* Comparativo Anual do Mês Chart */}
       <div className={`p-8 rounded-[2.5rem] border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
