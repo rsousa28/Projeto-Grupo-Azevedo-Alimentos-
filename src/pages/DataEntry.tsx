@@ -131,11 +131,15 @@ export default function DataEntry() {
     const parsed = parseFloat(clean);
     setter(isNaN(parsed) ? 0 : parsed);
   };
+  const currentInitialDate = new Date();
+  const initialMonthStr = String(currentInitialDate.getMonth() + 1).padStart(2, '0');
+  const initialYearStr = String(currentInitialDate.getFullYear());
+
   const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels' | 'hourly' | 'operational'>('financial');
   const [saved, setSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedMonth, setSelectedMonth] = useState('05'); // Maio
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const [selectedMonth, setSelectedMonth] = useState(initialMonthStr); // Current dynamic month
+  const [selectedYear, setSelectedYear] = useState(initialYearStr);
 
   const [salesByHourLocal, setSalesByHourData] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
@@ -273,8 +277,16 @@ export default function DataEntry() {
 
   // Copy period states
   const [showCopyModal, setShowCopyModal] = useState(false);
-  const [copySrcMonth, setCopySrcMonth] = useState('04'); // Defaults to April
-  const [copySrcYear, setCopySrcYear] = useState('2026');
+  const [copySrcMonth, setCopySrcMonth] = useState(() => {
+    const d = new Date();
+    const prevMonthDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+    return String(prevMonthDate.getMonth() + 1).padStart(2, '0');
+  }); // Defaults to previous month
+  const [copySrcYear, setCopySrcYear] = useState(() => {
+    const d = new Date();
+    const prevMonthDate = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+    return String(prevMonthDate.getFullYear());
+  });
   const [isCopying, setIsCopying] = useState(false);
 
   const handleCopyFromPeriod = async (srcMonth: string, srcYear: string) => {

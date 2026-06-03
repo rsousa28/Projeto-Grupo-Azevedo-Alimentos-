@@ -44,11 +44,15 @@ export default function CMV() {
 
   const { success: toastSuccess, error: toastError } = useToast();
 
+  const currentInitialDate = new Date();
+  const initialMonthStr = String(currentInitialDate.getMonth() + 1).padStart(2, '0');
+  const initialYearStr = String(currentInitialDate.getFullYear());
+
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('05'); // Default to May
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const [selectedMonth, setSelectedMonth] = useState(initialMonthStr); // Current dynamic month
+  const [selectedYear, setSelectedYear] = useState(initialYearStr);
   const [isSaving, setIsSaving] = useState(false);
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);

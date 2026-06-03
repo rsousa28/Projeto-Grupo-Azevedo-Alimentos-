@@ -67,12 +67,16 @@ export default function Dashboard() {
     clearAllData
   } = useStore();
 
+  const currentInitialDate = new Date();
+  const initialMonthStr = String(currentInitialDate.getMonth() + 1).padStart(2, '0');
+  const initialYearStr = String(currentInitialDate.getFullYear());
+
   const [showEntry, setShowEntry] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('05');
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const [selectedMonth, setSelectedMonth] = useState(initialMonthStr);
+  const [selectedYear, setSelectedYear] = useState(initialYearStr);
   const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const [showAllProducts, setShowAllProducts] = useState(false);
-  const [selectedChartMonthCode, setSelectedChartMonthCode] = useState<string>('05');
+  const [selectedChartMonthCode, setSelectedChartMonthCode] = useState<string>(initialMonthStr);
   const [chartViewMode, setChartViewMode] = useState<'grouped' | 'stacked' | 'area'>('grouped');
   const [exportingPDF, setExportingPDF] = useState(false);
 

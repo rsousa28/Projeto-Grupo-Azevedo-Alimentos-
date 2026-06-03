@@ -68,10 +68,14 @@ export default function CashClosing() {
   const { user } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
   const isAdmin = user?.role === 'ADMIN' || user?.username === 'adm';
+  const currentInitialDate = new Date();
+  const initialMonthStr = String(currentInitialDate.getMonth() + 1).padStart(2, '0');
+  const initialYearStr = String(currentInitialDate.getFullYear());
+
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [selectedMonth, setSelectedMonth] = useState('05');
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const [selectedMonth, setSelectedMonth] = useState(initialMonthStr);
+  const [selectedYear, setSelectedYear] = useState(initialYearStr);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');

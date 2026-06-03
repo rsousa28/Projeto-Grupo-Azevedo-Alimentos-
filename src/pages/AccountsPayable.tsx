@@ -331,8 +331,12 @@ export default function AccountsPayable() {
   useEffect(() => {
     setFormStoreId(currentStore.id === 'admin-global' ? '1' : currentStore.id);
   }, [currentStore.id]);
-  const [selectedMonth, setSelectedMonth] = useState('05'); // Default to May (Maio)
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const currentInitialDate = new Date();
+  const initialMonthStr = String(currentInitialDate.getMonth() + 1).padStart(2, '0');
+  const initialYearStr = String(currentInitialDate.getFullYear());
+
+  const [selectedMonth, setSelectedMonth] = useState(initialMonthStr); // Default to current dynamic month
+  const [selectedYear, setSelectedYear] = useState(initialYearStr);
   const [isSaving, setIsSaving] = useState(false);
 
   const months = [

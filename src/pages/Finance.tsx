@@ -72,8 +72,12 @@ export default function Finance() {
   const { success: toastSuccess, error: toastError } = useToast();
   const { user } = useAuth();
   const isBebeluRioMar = currentStore?.id === '2' || currentStore?.code === 'B28';
-  const [selectedMonth, setSelectedMonth] = useState('05'); // Maio as default
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const currentInitialDate = new Date();
+  const initialMonthStr = String(currentInitialDate.getMonth() + 1).padStart(2, '0');
+  const initialYearStr = String(currentInitialDate.getFullYear());
+
+  const [selectedMonth, setSelectedMonth] = useState(initialMonthStr); // Current dynamic month
+  const [selectedYear, setSelectedYear] = useState(initialYearStr);
   const [showEntry, setShowEntry] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
