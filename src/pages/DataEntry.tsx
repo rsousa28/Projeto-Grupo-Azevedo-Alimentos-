@@ -1207,21 +1207,7 @@ export default function DataEntry() {
                         </div>
                       </div>
 
-                      <div className="space-y-3">
-                        <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">Pedidos Totais no Mês</div>
-                        <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                            <TrendingUp className="w-4 h-4" />
-                          </span>
-                          <input 
-                            type="number" 
-                            value={quantidadePedidos || ''}
-                            onPaste={(e) => handleNumericPaste(e, setQuantidadePedidos)}
-                            onChange={(e) => setQuantidadePedidos(e.target.value === '' ? 0 : Number(e.target.value))}
-                            className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
-                          />
-                        </div>
-                      </div>
+
                    </div>
                 </div>
               </div>

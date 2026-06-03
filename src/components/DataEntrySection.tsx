@@ -947,17 +947,6 @@ export default function DataEntrySection({
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">CMV Alvo (%)</label>
                     <input type="number" value={cmvAlvo} onPaste={(e) => handleNumericPaste(e, setCmvAlvo)} onChange={(e) => setCmvAlvo(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
                   </div>
-                  <div className="space-y-3">
-                    <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Pedidos Totais no Mês</label>
-                    <input 
-                      type="number" 
-                      value={quantidadePedidos} 
-                      onPaste={(e) => handleNumericPaste(e, setQuantidadePedidos)}
-                      onChange={(e) => setQuantidadePedidos(Number(e.target.value))} 
-                      onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
-                      className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
-                    />
-                  </div>
                </div>
             </motion.div>
           )}
