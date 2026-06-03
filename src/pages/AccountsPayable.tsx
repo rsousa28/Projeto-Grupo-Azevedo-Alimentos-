@@ -1632,16 +1632,16 @@ export default function AccountsPayable() {
         }
       }
       
-      // Pagas no Mês: payment occurred in selected month and year
+      // Pagas no Mês: due in selected month OR paid within selected month
+      const hasDueDateInRange = ac.dueDate?.startsWith(`${selectedYear}-${selectedMonth}`);
       const hasPaymentDateInRange = ac.paymentDate && (
         ac.paymentDate.startsWith(`${selectedYear}-${selectedMonth}`) || 
         ac.paymentDate.includes(`${selectedYear}-${selectedMonth}`)
       );
-      const hasDueDateInRangeFallback = !ac.paymentDate && ac.dueDate?.startsWith(`${selectedYear}-${selectedMonth}`);
       
-      if (ac.status === 'Pago' && (hasPaymentDateInRange || hasDueDateInRangeFallback)) {
+      if (ac.status === 'Pago' && (hasDueDateInRange || hasPaymentDateInRange)) {
         paid += ac.value;
-      } else if (ac.status === 'Parcialmente Pago' && hasPaymentDateInRange && ac.partialAmountPaid) {
+      } else if (ac.status === 'Parcialmente Pago' && (hasDueDateInRange || hasPaymentDateInRange) && ac.partialAmountPaid) {
         paid += ac.partialAmountPaid;
       }
       
