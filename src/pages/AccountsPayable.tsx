@@ -1402,7 +1402,7 @@ export default function AccountsPayable() {
 
   // Export fully functioning Excel
   const handleExportExcel = () => {
-    const targetStoreAccounts = accounts.filter(ac => currentStore.code === 'ROOT' || ac.storeId === currentStore.id);
+    const targetStoreAccounts = sortedAccounts;
     const mapped = targetStoreAccounts.map((ac, idx) => ({
       'Item': idx + 1,
       'Unidade': ac.storeName,
@@ -1439,7 +1439,7 @@ export default function AccountsPayable() {
   // Export fully functioning PDF Report using jsPDF
   const handleExportPdf = () => {
     const doc = new jsPDF('l', 'mm', 'a4'); // Landscape layout
-    const targetStoreAccounts = accounts.filter(ac => currentStore.code === 'ROOT' || ac.storeId === currentStore.id);
+    const targetStoreAccounts = sortedAccounts;
 
     // Header stylings
     doc.setFillColor(127, 48, 12); // Grupo Azevedo Main Brand Color (Dark Red/Brown)
