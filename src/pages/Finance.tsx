@@ -440,6 +440,38 @@ export default function Finance() {
       }
     });
 
+    const finalY = (doc as any).lastAutoTable.finalY || 40;
+    
+    // Add Operational Indicators section
+    const tempoMedioVal = currentMonthData?.tempoMedio !== undefined ? currentMonthData.tempoMedio : 25;
+    const avaliacaoIfoodVal = currentMonthData?.avaliacaoIfood !== undefined ? currentMonthData.avaliacaoIfood : 4.8;
+    
+    const tempoStatus = tempoMedioVal <= 20 ? 'Excelente (<= 20 min)' : 'Abaixo do Esperado (> 20 min)';
+    const avaliacaoStatus = avaliacaoIfoodVal >= 4.8 ? 'Excelente (>= 4.8)' : 'Abaixo do Esperado (< 4.8)';
+
+    const opData = [
+      ['Tempo Médio de Produção Geral', `${tempoMedioVal} minutos`, '20 minutos', tempoStatus],
+      ['Avaliação de Atendimento iFood', `${avaliacaoIfoodVal.toFixed(1)} / 5.0`, '4.8 / 5.0', avaliacaoStatus]
+    ];
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Indicadores Operacionais do Período', 14, finalY + 12);
+
+    autoTable(doc, {
+      startY: finalY + 16,
+      head: [['Indicador Operacional', 'Valor Realizado', 'Meta Estabelecida', 'Status']],
+      body: opData,
+      theme: 'grid',
+      styles: { fontSize: 8.5, cellPadding: 3 },
+      headStyles: { fillColor: [80, 80, 80], textColor: [255, 255, 255], fontStyle: 'bold' },
+      columnStyles: {
+        0: { fontStyle: 'bold' },
+        3: { fontStyle: 'bold' }
+      }
+    });
+
     doc.save(`DRE_${currentStore.name.replace(/\s+/g, '_')}_${selectedMonth}_${selectedYear}.pdf`);
   };
 
