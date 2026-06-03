@@ -316,6 +316,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const setStore = (store: Store) => {
     setCurrentStore(store);
     localStorage.setItem('active_store_id', store.id);
+    
+    // Reset data immediately and synchronously during the event handler to ensure isolation and prevent race conditions!
+    setMetrics(mockMetrics.map(m => ({ ...m, valor: 0, trend: 'neutral', change: '0%' })));
+    setDreTimeline([]);
+    setTopProducts([]);
+    setInventoryItems([]);
+    setClosingsData({});
+    setMetaVsRealizado([
+      { name: 'Meta', valor: 0, color: store.brand === 'BEBELU' ? '#7F300C' : '#8884d8' },
+      { name: 'Realizado', valor: 0, color: store.brand === 'BEBELU' ? '#FFCB05' : '#0066FF' },
+    ]);
+
     if (user) {
       AuditService.logAction({
         userId: user.id,
@@ -358,17 +370,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   useEffect(() => {
-    // Reset data when store changes to ensure isolation
-    setMetrics(mockMetrics.map(m => ({ ...m, valor: 0, trend: 'neutral', change: '0%' })));
-    setDreTimeline([]);
-    setTopProducts([]);
-    setInventoryItems([]);
-    setClosingsData({});
-    setMetaVsRealizado([
-      { name: 'Meta', valor: 0, color: brandColors.primary },
-      { name: 'Realizado', valor: 0, color: brandColors.button },
-    ]);
-
     // Background migration to assist copying April 2026 data over to January 2026
     const runMigration = async () => {
       const storeId = currentStore.id;
