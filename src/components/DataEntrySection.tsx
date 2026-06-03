@@ -972,6 +972,7 @@ export default function DataEntrySection({
                       value={tempoMedio} 
                       onPaste={(e) => handleNumericPaste(e, setTempoMedio)} 
                       onChange={(e) => setTempoMedio(Number(e.target.value))} 
+                      onBlur={handleSave}
                       className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                     />
                   </div>
@@ -983,6 +984,7 @@ export default function DataEntrySection({
                       value={avaliacaoIfood} 
                       onPaste={(e) => handleNumericPaste(e, setAvaliacaoIfood)} 
                       onChange={(e) => setAvaliacaoIfood(Number(e.target.value))} 
+                      onBlur={handleSave}
                       className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                     />
                   </div>
