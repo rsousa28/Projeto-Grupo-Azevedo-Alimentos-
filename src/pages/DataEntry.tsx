@@ -539,6 +539,7 @@ export default function DataEntry() {
     
     const newDRE: DREData = {
       month: currentMonthLabel || '',
+      year: selectedYear,
       faturamento: totalRevenue,
       metaFaturamento: faturamentoMeta,
       metaNps: satisfacaoMeta,
@@ -576,7 +577,9 @@ export default function DataEntry() {
     };
 
     const updatedTimeline = [...dreTimeline];
-    const existingIndex = updatedTimeline.findIndex(d => d.month === currentMonthLabel);
+    const existingIndex = updatedTimeline.findIndex(d => 
+      d.month === currentMonthLabel && (d.year === selectedYear || (!d.year && selectedYear === '2026'))
+    );
     if (existingIndex >= 0) {
       updatedTimeline[existingIndex] = newDRE;
     } else {

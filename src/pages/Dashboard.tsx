@@ -508,6 +508,34 @@ export default function Dashboard() {
 
   const featuredInsight = getFeaturedInsight();
 
+  // Derived operational metrics based on selected month/year data
+  const derivedOperationalMetrics = React.useMemo(() => {
+    const tempoMedioVal = currentMonthData?.tempoMedio !== undefined ? currentMonthData.tempoMedio : 25;
+    const avaliacaoIfoodVal = currentMonthData?.avaliacaoIfood !== undefined ? currentMonthData.avaliacaoIfood : 4.8;
+
+    const tempoPercent = Math.max(0, Math.min(100, (20 / (tempoMedioVal || 1)) * 100));
+    const avaliacaoPercent = (avaliacaoIfoodVal / 5) * 100;
+
+    return [
+      { 
+        label: 'Tempo de Produção', 
+        valor: `${tempoMedioVal} min`, 
+        target: '20 min', 
+        percent: tempoPercent, 
+        icon: 'Clock',
+        critical: tempoMedioVal > 20
+      },
+      { 
+        label: 'Avaliação iFood', 
+        valor: `${avaliacaoIfoodVal.toFixed(1)} / 5.0`, 
+        target: '4.8', 
+        percent: avaliacaoPercent, 
+        icon: 'Star',
+        critical: avaliacaoIfoodVal < 4.8 
+      }
+    ];
+  }, [currentMonthData]);
+
   // Filter and sort the activeDreTimeline for the "Crescimento Mensal" chart to show the selected year's data sorted chronologically
   const sortedChartData = activeDreTimeline
     .filter(p => {
@@ -1823,7 +1851,7 @@ export default function Dashboard() {
             <Zap className="w-5 h-5 text-yellow-500" /> Indicadores Operacionais
           </h3>
           <div className="space-y-6">
-            {operationalMetrics.map((op) => {
+            {derivedOperationalMetrics.map((op) => {
               const Icon = op.icon === 'Clock' ? Clock : op.icon === 'Star' ? Star : op.icon === 'ShoppingBag' ? ShoppingBag : Target;
               return (
                 <div key={op.label}>
