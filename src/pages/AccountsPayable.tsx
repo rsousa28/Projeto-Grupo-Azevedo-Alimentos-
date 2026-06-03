@@ -1700,9 +1700,9 @@ export default function AccountsPayable() {
       // 2. Classification Filter
       if (overdueClassificationFilter !== 'all') {
         const days = getDaysOverdue(ac.dueDate);
-        if (overdueClassificationFilter === 'critical' && days <= 30) return false;
-        if (overdueClassificationFilter === 'attention' && (days < 8 || days > 30)) return false;
-        if (overdueClassificationFilter === 'recent' && days > 7) return false;
+        if (overdueClassificationFilter === 'critical' && days < 7) return false;
+        if (overdueClassificationFilter === 'attention' && (days < 4 || days > 6)) return false;
+        if (overdueClassificationFilter === 'recent' && days > 3) return false;
       }
 
       return true;
@@ -1732,10 +1732,10 @@ export default function AccountsPayable() {
       const days = getDaysOverdue(ac.dueDate);
       const val = ac.value - (ac.partialAmountPaid || 0);
 
-      if (days > 30) {
+      if (days >= 7) {
         criticalCount++;
         criticalSum += val;
-      } else if (days >= 8) {
+      } else if (days >= 4) {
         attentionCount++;
         attentionSum += val;
       } else {
@@ -3129,6 +3129,50 @@ export default function AccountsPayable() {
                   const dateParts = ac.dueDate.split('-');
                   const dueFormatted = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
  
+                  // Calculate dynamic visual indicator styles for overdue accounts
+                  const daysOverdue = isOverdue ? getDaysOverdue(ac.dueDate) : 0;
+                  let overdueRowBorder = '';
+                  let statusBadgeColor = 'bg-slate-500/15 border border-slate-500/20 text-slate-500 dark:text-slate-400';
+                  let dueDateColor = 'text-slate-700 dark:text-slate-300';
+                  let overdueDaysLabel = null;
+
+                  if (isOverdue) {
+                    if (daysOverdue >= 7) {
+                      overdueRowBorder = 'border-l-[4px] border-l-red-500 dark:border-l-red-650';
+                      statusBadgeColor = 'bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 font-extrabold';
+                      dueDateColor = 'text-red-600 dark:text-red-400';
+                      overdueDaysLabel = (
+                        <span className="text-[10px] font-bold font-sans text-red-650 dark:text-red-450 leading-none mt-0.5">
+                          Critico ({daysOverdue}d)
+                        </span>
+                      );
+                    } else if (daysOverdue >= 4) {
+                      overdueRowBorder = 'border-l-[4px] border-l-amber-500 dark:border-l-amber-500';
+                      statusBadgeColor = 'bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-500 font-bold';
+                      dueDateColor = 'text-amber-600 dark:text-amber-450';
+                      overdueDaysLabel = (
+                        <span className="text-[10px] font-bold font-sans text-amber-650 dark:text-amber-450 leading-none mt-0.5">
+                          Atenção ({daysOverdue}d)
+                        </span>
+                      );
+                    } else {
+                      overdueRowBorder = 'border-l-[4px] border-l-emerald-500 dark:border-l-emerald-500';
+                      statusBadgeColor = 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-500 font-bold';
+                      dueDateColor = 'text-emerald-600 dark:text-emerald-400';
+                      overdueDaysLabel = (
+                        <span className="text-[10px] font-bold font-sans text-emerald-650 dark:text-emerald-450 leading-none mt-0.5">
+                          Recente ({daysOverdue}d)
+                        </span>
+                      );
+                    }
+                  } else if (isPaid) {
+                    statusBadgeColor = 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500';
+                  } else if (isPartial) {
+                    statusBadgeColor = 'bg-amber-500/10 border border-amber-500/20 text-amber-500';
+                  } else if (ac.status === 'Agendado') {
+                    statusBadgeColor = 'bg-blue-500/15 border border-blue-500/20 text-blue-500 dark:text-blue-400';
+                  }
+
                   return (
                     <motion.tr
                       key={ac.id}
@@ -3136,7 +3180,7 @@ export default function AccountsPayable() {
                       style={isSelect ? { backgroundColor: `${themePrimary}12` } : undefined}
                       className="hover:bg-slate-50/65 dark:hover:bg-[#1A1A1A]/80 transition-colors"
                     >
-                      <td className="px-4 py-4 text-center">
+                      <td className={`px-4 py-4 text-center transition-all ${overdueRowBorder}`}>
                         <input
                           type="checkbox"
                           checked={isSelect}
@@ -3174,8 +3218,9 @@ export default function AccountsPayable() {
                         </span>
                       </td>
                       <td className="px-4 py-4">
-                        <div className={`flex flex-col gap-0.5 font-semibold ${isOverdue ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
+                        <div className={`flex flex-col gap-0.5 font-semibold ${dueDateColor}`}>
                           <span className="text-xs font-mono">{dueFormatted}</span>
+                          {overdueDaysLabel}
                           {isPaid && ac.paymentDate && (
                             <span className="text-[9px] text-[#5D811D] dark:text-[#a3d943] font-medium leading-none">
                               Pago: {ac.paymentDate.split(' ')[0]}
@@ -3196,17 +3241,7 @@ export default function AccountsPayable() {
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <span className={`inline-flex items-center justify-center text-[10px] font-bold px-2.5 py-1 rounded-md tracking-wider uppercase ${
-                          isOverdue 
-                            ? 'bg-red-500/10 border border-red-500/20 text-red-500' 
-                            : isPaid 
-                            ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500' 
-                            : isPartial 
-                            ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500'
-                            : ac.status === 'Agendado'
-                            ? 'bg-blue-500/15 border border-blue-500/20 text-blue-500 dark:text-blue-400'
-                            : 'bg-slate-500/15 border border-slate-500/20 text-slate-500 dark:text-slate-400'
-                        }`}>
+                        <span className={`inline-flex items-center justify-center text-[10px] font-bold px-2.5 py-1 rounded-md tracking-wider uppercase ${statusBadgeColor}`}>
                           {isOverdue ? 'Vencido' : ac.status}
                         </span>
                       </td>
@@ -3304,10 +3339,54 @@ export default function AccountsPayable() {
               const dateParts = ac.dueDate.split('-');
               const dueFormatted = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
 
+              // Calculate dynamic visual indicator styles for overdue accounts (Mobile cards)
+              const daysOverdue = isOverdue ? getDaysOverdue(ac.dueDate) : 0;
+              let overdueCardBorder = 'border-l-[4px] border-l-transparent pl-4';
+              let statusBadgeColor = 'bg-slate-500/15 border border-slate-500/20 text-slate-500 dark:text-slate-400';
+              let dueDateColor = 'text-slate-700 dark:text-slate-300';
+              let overdueDaysLabel = null;
+
+              if (isOverdue) {
+                if (daysOverdue >= 7) {
+                  overdueCardBorder = 'border-l-[4px] border-l-red-500 dark:border-l-red-650 pl-3';
+                  statusBadgeColor = 'bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 font-extrabold';
+                  dueDateColor = 'text-red-500 dark:text-red-400';
+                  overdueDaysLabel = (
+                    <span className="text-[10px] font-bold font-sans text-red-650 dark:text-red-450 mt-0.5">
+                      Crítico (+{daysOverdue}d)
+                    </span>
+                  );
+                } else if (daysOverdue >= 4) {
+                  overdueCardBorder = 'border-l-[4px] border-l-amber-500 dark:border-l-amber-500 pl-3';
+                  statusBadgeColor = 'bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-500 font-bold';
+                  dueDateColor = 'text-amber-600 dark:text-amber-450';
+                  overdueDaysLabel = (
+                    <span className="text-[10px] font-bold font-sans text-amber-650 dark:text-amber-450 mt-0.5">
+                      Atenção ({daysOverdue}d)
+                    </span>
+                  );
+                } else {
+                  overdueCardBorder = 'border-l-[4px] border-l-emerald-500 dark:border-l-emerald-500 pl-3';
+                  statusBadgeColor = 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-500 font-bold';
+                  dueDateColor = 'text-emerald-600 dark:text-emerald-400';
+                  overdueDaysLabel = (
+                    <span className="text-[10px] font-bold font-sans text-emerald-650 dark:text-emerald-450 mt-0.5">
+                      Recente ({daysOverdue}d)
+                    </span>
+                  );
+                }
+              } else if (isPaid) {
+                statusBadgeColor = 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500';
+              } else if (isPartial) {
+                statusBadgeColor = 'bg-amber-500/10 border border-amber-500/20 text-amber-500';
+              } else if (ac.status === 'Agendado') {
+                statusBadgeColor = 'bg-blue-500/15 border border-blue-500/20 text-blue-500 dark:text-blue-400';
+              }
+
               return (
                 <div 
                   key={ac.id} 
-                  className={`p-4 transition-colors flex flex-col gap-3 ${
+                  className={`p-4 transition-colors flex flex-col gap-3 ${overdueCardBorder} ${
                     isSelect ? 'bg-indigo-500/5' : 'hover:bg-slate-50/50 dark:hover:bg-[#1C1C1C]'
                   }`}
                 >
@@ -3333,17 +3412,7 @@ export default function AccountsPayable() {
                       </div>
                     </div>
 
-                    <span className={`inline-flex items-center justify-center text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wider uppercase shrink-0 ${
-                      isOverdue 
-                        ? 'bg-red-500/10 border border-red-500/20 text-red-500' 
-                        : isPaid 
-                        ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500' 
-                        : isPartial 
-                        ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500'
-                        : ac.status === 'Agendado'
-                        ? 'bg-blue-500/15 border border-blue-500/20 text-blue-500 dark:text-blue-400'
-                        : 'bg-slate-500/15 border border-slate-500/20 text-slate-500 dark:text-slate-400'
-                    }`}>
+                    <span className={`inline-flex items-center justify-center text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wider uppercase shrink-0 ${statusBadgeColor}`}>
                       {isOverdue ? 'Vencido' : ac.status}
                     </span>
                   </div>
@@ -3373,9 +3442,12 @@ export default function AccountsPayable() {
                       <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Vencimento</span>
                       <div className="flex items-center gap-1 mt-0.5">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                        <span className={`text-xs font-mono font-semibold ${isOverdue ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
-                          {dueFormatted}
-                        </span>
+                        <div className="flex flex-col">
+                          <span className={`text-xs font-mono font-semibold ${dueDateColor}`}>
+                            {dueFormatted}
+                          </span>
+                          {overdueDaysLabel}
+                        </div>
                       </div>
                     </div>
 
@@ -4522,9 +4594,9 @@ export default function AccountsPayable() {
                         let emailBody = `Prezados,\n\n`;
                         emailBody += `Segue o resumo de boletos e contas em atraso da unidade ${currentStore.name.toUpperCase()}:\n\n`;
                         emailBody += `• Total em Atraso: ${formatValueBrl(bentoOverdueVal)} (${rawOverdueAccounts.length} boletos)\n`;
-                        emailBody += `• Crítico (+30 dias): ${criticalCount} boletos (${formatValueBrl(criticalSum)})\n`;
-                        emailBody += `• Atenção (8-30 dias): ${attentionCount} boletos (${formatValueBrl(attentionSum)})\n`;
-                        emailBody += `• Recente (1-7 dias): ${recentCount} boletos (${formatValueBrl(recentSum)})\n\n`;
+                        emailBody += `• Crítico (> 7 dias): ${criticalCount} boletos (${formatValueBrl(criticalSum)})\n`;
+                        emailBody += `• Atenção (4-6 dias): ${attentionCount} boletos (${formatValueBrl(attentionSum)})\n`;
+                        emailBody += `• Recente (1-3 dias): ${recentCount} boletos (${formatValueBrl(recentSum)})\n\n`;
                         
                         emailBody += `--------------------------------------------------\n`;
                         emailBody += `RELAÇÃO DE BOLETOS EM ATRASO:\n`;
@@ -4611,7 +4683,7 @@ export default function AccountsPayable() {
                     </div>
                     <div className="mt-2.5">
                       <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
-                        +30 dias
+                        &gt; 7 dias
                       </span>
                       <span className="text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 block leading-none">
                         {formatValueBrl(overdueStats.criticalSum)}
@@ -4638,7 +4710,7 @@ export default function AccountsPayable() {
                     </div>
                     <div className="mt-2.5">
                       <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
-                        8-30 dias
+                        4-6 dias
                       </span>
                       <span className="text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 block leading-none">
                         {formatValueBrl(overdueStats.attentionSum)}
@@ -4665,7 +4737,7 @@ export default function AccountsPayable() {
                     </div>
                     <div className="mt-2.5">
                       <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
-                        1-7 dias
+                        1-3 dias
                       </span>
                       <span className="text-sm font-mono font-bold text-slate-950 dark:text-zinc-100 block leading-none">
                         {formatValueBrl(overdueStats.recentSum)}
@@ -4767,15 +4839,15 @@ export default function AccountsPayable() {
                       const dueReverse = ac.dueDate.split('-').reverse().join('/');
                       
                       // Fine indicators instead of thick blocky alert styles
-                      const badgeSeverityColor = daysOverdue > 30 
+                      const badgeSeverityColor = daysOverdue >= 7 
                         ? 'bg-red-500/10 text-red-650 dark:text-red-400 font-extrabold' 
-                        : daysOverdue >= 8
+                        : daysOverdue >= 4
                           ? 'bg-amber-500/10 text-amber-700 dark:text-amber-450 font-bold'
                           : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold';
 
-                      const severityDot = daysOverdue > 30 
+                      const severityDot = daysOverdue >= 7 
                         ? 'bg-red-500' 
-                        : daysOverdue >= 8
+                        : daysOverdue >= 4
                           ? 'bg-amber-500'
                           : 'bg-blue-500';
 
