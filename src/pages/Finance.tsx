@@ -426,8 +426,42 @@ export default function Finance() {
       return rows;
     });
 
+    // Add Key Financial Performance Metrics Section BEFORE the main table
+    const perfData = [
+      ['Margem Bruta (Meta: > 50%)', `${marginBruta.toFixed(1)}%`, '---'],
+      ['Lucratividade', `${lucratividade.toFixed(1)}%`, lucratividade < 0 ? 'Crítico (Prejuízo)' : 'Saudável'],
+      ['Ponto de Equilíbrio', pontoEquilibrio > 0 ? formatCurrency(pontoEquilibrio) : '---', pontoEquilibrio > 0 ? (pontoEquilibrio > faturamentoVal ? 'Crítico (Acima do Fat.)' : 'Saudável (Abaixo do Fat.)') : 'Margem Contribuição Negativa'],
+      ['CMV + CMO (Meta: <= 52%)', faturamentoVal > 0 ? `${cmvCmoPercent.toFixed(1)}%` : '---', cmvCmoPercent > 0 ? (cmvCmoPercent <= 52 ? 'Saudável' : 'Elevado') : '---']
+    ];
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Medidas de Desempenho e Saúde Financeira', 14, 38);
+
     autoTable(doc, {
-      startY: 40,
+      startY: 42,
+      head: [['Métrica de Performance', 'Valor Mês', 'Status / Avaliação']],
+      body: perfData,
+      theme: 'grid',
+      styles: { fontSize: 8.5, cellPadding: 3 },
+      headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255], fontStyle: 'bold' }, // Indigo tint
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 70 },
+        1: { fontStyle: 'bold', cellWidth: 50 },
+        2: { fontStyle: 'bold' }
+      }
+    });
+
+    const kpiEndY = (doc as any).lastAutoTable.finalY + 14;
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Detalhamento da Demonstração do Resultado do Exercício (DRE)', 14, kpiEndY - 4);
+
+    autoTable(doc, {
+      startY: kpiEndY,
       head: [['Descrição', 'AV %', 'Valor']],
       body: tableData as any,
       theme: 'plain',
@@ -440,7 +474,7 @@ export default function Finance() {
       }
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 40;
+    const finalY = (doc as any).lastAutoTable.finalY || kpiEndY;
     
     // Add Operational Indicators section
     const tempoMedioVal = currentMonthData?.tempoMedio !== undefined ? currentMonthData.tempoMedio : 25;
