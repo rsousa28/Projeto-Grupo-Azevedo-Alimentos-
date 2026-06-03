@@ -30,7 +30,8 @@ import {
   Paperclip,
   ZoomIn,
   ZoomOut,
-  RotateCcw
+  RotateCcw,
+  Mail
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -360,6 +361,10 @@ export default function AccountsPayable() {
   const [search, setSearch] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showOverdueModal, setShowOverdueModal] = useState(false);
+  const [overdueSearch, setOverdueSearch] = useState('');
+  const [overdueClassificationFilter, setOverdueClassificationFilter] = useState<'all' | 'critical' | 'attention' | 'recent'>('all');
+  const [overdueSort, setOverdueSort] = useState<'days_desc' | 'value_desc' | 'supplier_asc'>('days_desc');
   const [currentBoletoUrl, setCurrentBoletoUrl] = useState<string | null>(null);
   const [zoomScale, setZoomScale] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
@@ -1657,6 +1662,94 @@ export default function AccountsPayable() {
     return { bentoTodayVal: today, bentoOverdueVal: overdue, bentoPaidMonthVal: paid, bentoUpcomingVal: upcoming };
   }, [storeKPIAccounts, selectedYear, selectedMonth, todayStr]);
 
+  const getDaysOverdue = (dueDateStr: string) => {
+    try {
+      const d1 = new Date(dueDateStr + 'T12:00:00');
+      const d2 = new Date(todayStr + 'T12:00:00');
+      const diffMs = d2.getTime() - d1.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 24 * 60 * 60));
+      return diffDays > 0 ? diffDays : 0;
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  const rawOverdueAccounts = useMemo(() => {
+    return storeKPIAccounts.filter(ac => {
+      const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado' || ac.status === 'Parcialmente Pago') && ac.dueDate < todayStr);
+      const remainingVal = ac.value - (ac.partialAmountPaid || 0);
+      return isAcOverdue && ac.status !== 'Pago' && ac.status !== 'Cancelado' && remainingVal > 0;
+    });
+  }, [storeKPIAccounts, todayStr]);
+
+  const overdueAccounts = useMemo(() => {
+    let result = rawOverdueAccounts.filter(ac => {
+      // 1. Search Query
+      if (overdueSearch.trim() !== '') {
+        const query = overdueSearch.toLowerCase();
+        const matchesSupplier = ac.supplier?.toLowerCase().includes(query);
+        const matchesDesc = ac.description?.toLowerCase().includes(query);
+        const matchesCategory = ac.category?.toLowerCase().includes(query);
+        const matchesCc = ac.costCenter?.toLowerCase().includes(query);
+        if (!matchesSupplier && !matchesDesc && !matchesCategory && !matchesCc) {
+          return false;
+        }
+      }
+
+      // 2. Classification Filter
+      if (overdueClassificationFilter !== 'all') {
+        const days = getDaysOverdue(ac.dueDate);
+        if (overdueClassificationFilter === 'critical' && days <= 30) return false;
+        if (overdueClassificationFilter === 'attention' && (days < 8 || days > 30)) return false;
+        if (overdueClassificationFilter === 'recent' && days > 7) return false;
+      }
+
+      return true;
+    });
+
+    // 3. Sorting
+    return result.sort((a, b) => {
+      if (overdueSort === 'days_desc') {
+        const daysA = getDaysOverdue(a.dueDate);
+        const daysB = getDaysOverdue(b.dueDate);
+        return daysB - daysA;
+      } else if (overdueSort === 'value_desc') {
+        return b.value - a.value;
+      } else if (overdueSort === 'supplier_asc') {
+        return (a.supplier || '').localeCompare(b.supplier || '');
+      }
+      return 0;
+    });
+  }, [rawOverdueAccounts, overdueSearch, overdueClassificationFilter, overdueSort, todayStr]);
+
+  const overdueStats = useMemo(() => {
+    let criticalCount = 0, criticalSum = 0;
+    let attentionCount = 0, attentionSum = 0;
+    let recentCount = 0, recentSum = 0;
+
+    rawOverdueAccounts.forEach(ac => {
+      const days = getDaysOverdue(ac.dueDate);
+      const val = ac.value - (ac.partialAmountPaid || 0);
+
+      if (days > 30) {
+        criticalCount++;
+        criticalSum += val;
+      } else if (days >= 8) {
+        attentionCount++;
+        attentionSum += val;
+      } else {
+        recentCount++;
+        recentSum += val;
+      }
+    });
+
+    return {
+      criticalCount, criticalSum,
+      attentionCount, attentionSum,
+      recentCount, recentSum
+    };
+  }, [rawOverdueAccounts, todayStr]);
+
   // Sorting logic (Optimized & Memoized)
   const sortedAccounts = useMemo(() => {
     return [...filteredAccounts].sort((a, b) => {
@@ -2574,20 +2667,24 @@ export default function AccountsPayable() {
         </div>
 
         {/* KPI 2 - Vencidos */}
-        <div className={`p-4 rounded-2xl border transition-all ${
-          isDarkMode ? 'bg-[#121212] border-[#222] border-l-4 border-l-red-500' : 'bg-white border-slate-100 border-l-4 border-l-red-500 shadow-sm'
-        }`}>
+        <div 
+          onClick={() => setShowOverdueModal(true)}
+          className={`p-4 rounded-2xl border transition-all cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-95 duration-200 ${
+            isDarkMode ? 'bg-[#121212] border-[#222] border-l-4 border-l-red-500 hover:border-red-500/30' : 'bg-white border-slate-100 border-l-4 border-l-red-500 hover:border-red-500/30 shadow-sm'
+          }`}
+          title="Clique para ver boletos vencidos"
+        >
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">Total Vencido</span>
-            <div className="p-2 rounded-xl bg-red-500/10">
+            <div className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-colors">
               <AlertCircle className="w-5 h-5 text-red-500" />
             </div>
           </div>
           <h3 className="text-2xl font-black italic font-mono text-red-600 dark:text-red-400 leading-none">
             {formatValueBrl(bentoOverdueVal)}
           </h3>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2.5">
-            Prioridade de Quitação Fina
+          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2.5 flex items-center gap-1">
+            Prioridade de Quitação Fina <span className="text-red-500 font-black">({overdueAccounts.length})</span>
           </p>
         </div>
 
@@ -4058,6 +4155,397 @@ export default function AccountsPayable() {
                 </div>
 
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* SIDEBAR DRAWER - BOLETOS VENCIDOS */}
+      <AnimatePresence>
+        {showOverdueModal && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-end">
+            <div className="absolute inset-0 cursor-default" onClick={() => setShowOverdueModal(false)} />
+            
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 24, stiffness: 210 }}
+              className={`w-full max-w-xl h-full shadow-2xl flex flex-col pt-4 p-0 relative z-10 ${
+                isDarkMode ? 'bg-[#0A0A0A] text-slate-100 border-l border-[#1F1F1F]' : 'bg-slate-50 text-slate-800 border-l border-slate-200'
+              }`}
+            >
+              
+              {/* HEADER SECTION WITH BRAND IDENTITY */}
+              <div className="px-6 pt-4 pb-5 border-b border-slate-200 dark:border-[#1F1F1F] bg-slate-100/50 dark:bg-[#111111]/40">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="p-2 rounded-xl bg-red-500/10 text-red-500 animate-pulse">
+                      <AlertCircle className="w-5.5 h-5.5" />
+                    </span>
+                    <div>
+                      <h3 className="text-lg font-display font-black tracking-tight uppercase italic text-red-500 dark:text-red-400">
+                        Boletos Vencidos
+                      </h3>
+                      <p className="text-[10px] text-slate-400 tracking-wider uppercase font-extrabold font-mono mt-0.5">
+                        {currentStore.name}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (rawOverdueAccounts.length === 0) {
+                          showToast("Nenhuma conta vencida para gerar relatório.", "info");
+                          return;
+                        }
+
+                        const { criticalCount, criticalSum, attentionCount, attentionSum, recentCount, recentSum } = overdueStats;
+
+                        let emailBody = `Prezados,\n\n`;
+                        emailBody += `Segue o resumo de boletos e contas em atraso da unidade ${currentStore.name.toUpperCase()}:\n\n`;
+                        emailBody += `• Total em Atraso: ${formatValueBrl(bentoOverdueVal)} (${rawOverdueAccounts.length} boletos)\n`;
+                        emailBody += `• Crítico (+30 dias): ${criticalCount} boletos (${formatValueBrl(criticalSum)})\n`;
+                        emailBody += `• Atenção (8-30 dias): ${attentionCount} boletos (${formatValueBrl(attentionSum)})\n`;
+                        emailBody += `• Recente (1-7 dias): ${recentCount} boletos (${formatValueBrl(recentSum)})\n\n`;
+                        
+                        emailBody += `--------------------------------------------------\n`;
+                        emailBody += `RELAÇÃO DE BOLETOS EM ATRASO:\n`;
+                        emailBody += `--------------------------------------------------\n`;
+                        
+                        rawOverdueAccounts.forEach((ac, idx) => {
+                          const days = getDaysOverdue(ac.dueDate);
+                          const remaining = ac.value - (ac.partialAmountPaid || 0);
+                          const dateFormatted = ac.dueDate.split('-').reverse().join('/');
+                          emailBody += `${idx + 1}. ${ac.supplier} - ${formatValueBrl(remaining)} (Atrasado: ${days} dias • Vecto: ${dateFormatted})\n`;
+                        });
+                        
+                        emailBody += `--------------------------------------------------\n`;
+                        emailBody += `Gerado eletronicamente em seu Painel Gestor em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.\n`;
+
+                        const recipients = "rennaninacio0003@gmail.com,azevedogas@yahoo.com.br";
+                        const subject = `🚨 RELATÓRIO: Boletos Vencidos - ${currentStore.name.toUpperCase()}`;
+
+                        // Copy to clipboard as a high-reliability fallback
+                        navigator.clipboard.writeText(emailBody)
+                          .then(() => {
+                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                            window.location.href = mailtoUrl;
+                            showToast("E-mail iniciado e relatório copiado para área de transferência! Caso seu app de e-mail oculte o texto, é só colar (Ctrl+V).", "success");
+                          })
+                          .catch(() => {
+                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                            window.location.href = mailtoUrl;
+                            showToast("E-mail iniciado com sucesso!", "success");
+                          });
+                      }}
+                      title="Enviar relatório por e-mail para diretores"
+                      className="p-2 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-500 dark:text-indigo-400 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                    >
+                      <Mail className="w-3.5 h-3.5" /> Enviar por E-mail
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowOverdueModal(false)}
+                      className="p-2 rounded-xl bg-slate-200/50 dark:bg-[#202020] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* OVERALL DYNAMIC SUM */}
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Total Vencido em Atraso:</span>
+                  <span className="text-2xl font-black font-mono text-red-500 dark:text-red-400 tracking-tight">
+                    {formatValueBrl(bentoOverdueVal)}
+                  </span>
+                </div>
+              </div>
+
+              {/* INTERACTIVE AGING BENTO METRICS */}
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-[#1F1F1F]">
+                <div className="grid grid-cols-3 gap-2.5">
+                  
+                  {/* CRITICAL BUTTON KEY */}
+                  <button
+                    onClick={() => setOverdueClassificationFilter(prev => prev === 'critical' ? 'all' : 'critical')}
+                    className={`p-3.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between h-22 ${
+                      overdueClassificationFilter === 'critical'
+                        ? 'bg-red-500/15 border-red-500 ring-2 ring-red-500/20'
+                        : isDarkMode ? 'bg-[#121212] border-[#222] hover:bg-red-500/5' : 'bg-white border-slate-200 hover:bg-red-500/5'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-black tracking-widest uppercase text-red-500">Crítico</span>
+                        <span className="text-[10px] font-black text-red-600 bg-red-500/10 px-1.5 rounded font-mono">
+                          {overdueStats.criticalCount}
+                        </span>
+                      </div>
+                      <span className="text-[9px] text-slate-400 block font-semibold mt-1 leading-none font-mono">
+                        +30 dias
+                      </span>
+                    </div>
+                    <span className="text-xs font-black text-red-500 font-mono mt-1 leading-none">
+                      {formatValueBrl(overdueStats.criticalSum)}
+                    </span>
+                  </button>
+
+                  {/* ATTENTION BUTTON KEY */}
+                  <button
+                    onClick={() => setOverdueClassificationFilter(prev => prev === 'attention' ? 'all' : 'attention')}
+                    className={`p-3.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between h-22 ${
+                      overdueClassificationFilter === 'attention'
+                        ? 'bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/20'
+                        : isDarkMode ? 'bg-[#121212] border-[#222] hover:bg-amber-500/5' : 'bg-white border-slate-200 hover:bg-amber-500/5'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-black tracking-widest uppercase text-amber-500">Atenção</span>
+                        <span className="text-[10px] font-black text-amber-600 bg-amber-500/10 px-1.5 rounded font-mono">
+                          {overdueStats.attentionCount}
+                        </span>
+                      </div>
+                      <span className="text-[9px] text-slate-400 block font-semibold mt-1 leading-none font-mono">
+                        8-30 dias
+                      </span>
+                    </div>
+                    <span className="text-xs font-black text-amber-500 font-mono mt-1 leading-none">
+                      {formatValueBrl(overdueStats.attentionSum)}
+                    </span>
+                  </button>
+
+                  {/* RECENT BUTTON KEY */}
+                  <button
+                    onClick={() => setOverdueClassificationFilter(prev => prev === 'recent' ? 'all' : 'recent')}
+                    className={`p-3.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between h-22 ${
+                      overdueClassificationFilter === 'recent'
+                        ? 'bg-blue-500/15 border-blue-500 ring-2 ring-blue-500/20'
+                        : isDarkMode ? 'bg-[#121212] border-[#222] hover:bg-blue-500/5' : 'bg-white border-slate-200 hover:bg-blue-500/5'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] font-black tracking-widest uppercase text-blue-500">Recente</span>
+                        <span className="text-[10px] font-black text-blue-600 bg-blue-500/10 px-1.5 rounded font-mono">
+                          {overdueStats.recentCount}
+                        </span>
+                      </div>
+                      <span className="text-[9px] text-slate-400 block font-semibold mt-1 leading-none font-mono">
+                        1-7 dias
+                      </span>
+                    </div>
+                    <span className="text-xs font-black text-blue-500 font-mono mt-1 leading-none">
+                      {formatValueBrl(overdueStats.recentSum)}
+                    </span>
+                  </button>
+
+                </div>
+              </div>
+
+              {/* SEARCH & FILTERS CONTROLS ROW */}
+              <div className="px-6 py-4 border-b border-slate-200 dark:border-[#1F1F1F] flex flex-col gap-3">
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                    <Search className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    value={overdueSearch}
+                    onChange={(e) => setOverdueSearch(e.target.value)}
+                    placeholder="Buscar por fornecedor, categoria, centro de custo..."
+                    className={`w-full pl-9 pr-8 py-2.5 rounded-xl border text-xs outline-none focus:ring-1 transition-all ${
+                      isDarkMode 
+                        ? 'bg-[#111] border-[#2c2c2c] text-white focus:border-red-500 focus:ring-red-500' 
+                        : 'bg-white border-slate-250 text-slate-800 focus:border-red-500 focus:ring-red-500'
+                    }`}
+                  />
+                  {overdueSearch && (
+                    <button 
+                      onClick={() => setOverdueSearch('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-2.5">
+                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-400 font-mono">
+                    Ordenar listagem:
+                  </span>
+                  
+                  <div className="flex gap-1">
+                    {[
+                      { value: 'days_desc', label: '⏳ Dias Atraso' },
+                      { value: 'value_desc', label: '💰 Maior Valor' },
+                      { value: 'supplier_asc', label: '🔠 Nome' }
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setOverdueSort(opt.value as any)}
+                        className={`text-[9px] font-extrabold uppercase px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                          overdueSort === opt.value
+                            ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white'
+                            : isDarkMode ? 'bg-[#111] text-slate-400 border-[#222]' : 'bg-slate-100 text-slate-600 border-slate-200'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* MAIN CONTENT AREA */}
+              <div className="flex-1 flex flex-col overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-black/20">
+                {overdueAccounts.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-4 ring-8 ring-emerald-500/5 animate-pulse">
+                      <CheckCircle className="w-8 h-8" />
+                    </div>
+                    <h4 className="text-base font-display font-black tracking-tight uppercase italic text-slate-800 dark:text-white">
+                      Sem pendências encontradas
+                    </h4>
+                    <p className="text-slate-500 text-xs font-semibold max-w-xs mt-2 leading-relaxed">
+                      {rawOverdueAccounts.length === 0 
+                        ? 'Parabéns! Não existem contas vencidas cadastradas para o período selecionado.'
+                        : 'Nenhuma conta correspondente aos filtros de pesquisa aplicados.'}
+                    </p>
+                    {(overdueSearch || overdueClassificationFilter !== 'all') && (
+                      <button
+                        onClick={() => {
+                          setOverdueSearch('');
+                          setOverdueClassificationFilter('all');
+                        }}
+                        className="mt-4 px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-[#222] bg-white dark:bg-[#121212] cursor-pointer hover:bg-slate-100 transition-all text-slate-600 dark:text-slate-300"
+                      >
+                        Limpar Filtros
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 pb-8">
+                    {overdueAccounts.map((ac) => {
+                      const daysOverdue = getDaysOverdue(ac.dueDate);
+                      const hasBoleto = !!ac.attachedFile;
+                      
+                      // Highlight styles based on overdue days duration
+                      const alertSeverityColor = daysOverdue > 30 
+                        ? 'border-l-red-600 bg-red-500/[0.03] dark:bg-red-500/[0.01]' 
+                        : daysOverdue >= 8
+                          ? 'border-l-amber-500 bg-amber-500/[0.03] dark:bg-amber-500/[0.01]'
+                          : 'border-l-blue-400 bg-blue-500/[0.03] dark:bg-blue-500/[0.01]';
+
+                      return (
+                        <div 
+                          key={ac.id}
+                          className={`p-4 rounded-xl border border-slate-200 dark:border-[#1C1C1C] border-l-4 ${alertSeverityColor} flex flex-col gap-3.5 transition-all shadow-xs hover:shadow-md hover:scale-[1.01] duration-155`}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-display font-bold text-sm text-slate-900 dark:text-white leading-tight">
+                                  {ac.supplier}
+                                </span>
+                                <span className={`text-[8.5px] px-2 py-0.5 rounded font-black tracking-widest uppercase ${
+                                  isDarkMode ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/10' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                                }`}>
+                                  {ac.category}
+                                </span>
+                              </div>
+                              
+                              <p className="text-slate-400 dark:text-slate-400 text-xs italic font-medium leading-relaxed">
+                                {ac.description || 'Sem descrição cadastrada.'}
+                              </p>
+                              
+                              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
+                                <span>Centro: <span className="text-slate-600 dark:text-slate-300 font-black">{ac.costCenter || 'N/A'}</span></span>
+                              </div>
+                            </div>
+
+                            {/* Overdue Badge */}
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider font-mono ${
+                                daysOverdue > 30 
+                                  ? 'text-red-500 bg-red-500/10' 
+                                  : daysOverdue >= 8 
+                                    ? 'text-amber-500 bg-amber-500/10' 
+                                    : 'text-blue-500 bg-blue-500/10'
+                              }`}>
+                                {daysOverdue} {daysOverdue === 1 ? 'dia' : 'dias'} atrasado
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-black font-mono">
+                                Vecto: {ac.dueDate.split('-').reverse().join('/')}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* FINANCIAL BENTO INFOS */}
+                          <div className="grid grid-cols-2 gap-3 py-2.5 border-t border-b border-dashed border-slate-200 dark:border-[#222]">
+                            <div>
+                              <span className="text-[8.5px] uppercase font-black tracking-wide text-slate-400 font-mono block mb-0.5">Valor Original</span>
+                              <span className="font-bold text-slate-800 dark:text-slate-200 font-mono text-base tracking-tight">
+                                {formatValueBrl(ac.value)}
+                              </span>
+                            </div>
+                            
+                            {ac.partialAmountPaid && ac.partialAmountPaid > 0 ? (
+                              <div>
+                                <span className="text-[8.5px] uppercase font-black tracking-wide text-emerald-500 font-mono block mb-0.5">Abatimento Parcial</span>
+                                <span className="font-bold text-emerald-500 font-mono text-sm">
+                                  -{formatValueBrl(ac.partialAmountPaid)}
+                                </span>
+                              </div>
+                            ) : (
+                              <div>
+                                <span className="text-[8.5px] uppercase font-black tracking-wide text-slate-400 font-mono block mb-0.5">Valor Aberto</span>
+                                <span className="font-bold text-red-500/80 dark:text-red-400 font-mono text-xs">
+                                  Integral
+                                </span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* ACTION BUTTONS WITH TRANSITIONS */}
+                          <div className="flex items-center gap-2 justify-end pt-1">
+                            {hasBoleto && (
+                              <button
+                                onClick={() => {
+                                  setCurrentBoletoUrl(ac.attachedFile);
+                                }}
+                                className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-[10px] tracking-wide font-black uppercase text-indigo-500 hover:text-indigo-600 border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/40 transition-all cursor-pointer"
+                              >
+                                <Eye className="w-3.5 h-3.5" /> Ver Boleto / NF
+                              </button>
+                            )}
+
+                            <button
+                              onClick={() => {
+                                setSelectedPayAccount(ac);
+                                setPaymentFine(ac.fine && ac.fine > 0 ? String(ac.fine) : '');
+                                setPaymentInterest(ac.interest && ac.interest > 0 ? String(ac.interest) : '');
+                                setPaymentAmount(String(ac.value + (ac.fine || 0) + (ac.interest || 0)));
+                                setPaymentDateVal(getTodayStr());
+                                setShowPaymentModal(true);
+                                setShowOverdueModal(false);
+                              }}
+                              style={{ backgroundColor: themeButtonBg, color: themeTextContrast }}
+                              className="flex items-center gap-1.5 py-1.5 px-3.5 rounded-lg text-[10px] tracking-wide font-black uppercase hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-xs"
+                            >
+                              <CheckCircle className="w-3.5 h-3.5" /> Baixar / Pagar
+                            </button>
+                          </div>
+
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </motion.div>
           </div>
         )}
