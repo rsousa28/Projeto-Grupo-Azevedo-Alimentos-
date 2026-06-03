@@ -391,6 +391,7 @@ export default function Finance() {
   const lucratividade = faturamentoVal > 0 ? (currentMonthData.netProfit / faturamentoVal) * 100 : 0;
   const cmvPercent = faturamentoVal > 0 ? (currentMonthData.cmv / faturamentoVal) * 100 : 0;
   const payrollPercent = faturamentoVal > 0 ? (currentMonthData.payroll / faturamentoVal) * 100 : 0;
+  const cmvCmoPercent = cmvPercent + payrollPercent;
 
   const handleExportPDF = () => {
     const doc = new jsPDF();
@@ -695,10 +696,10 @@ export default function Finance() {
               { label: 'Lucratividade', value: `${lucratividade.toFixed(1)}%`, trend: '+0.8%', color: 'text-green-500' },
               { label: 'Ponto Equilíbrio', value: pontoEquilibrio > 0 ? formatCurrency(pontoEquilibrio) : '---', trend: pontoEquilibrio > 0 ? (pontoEquilibrio > (currentMonthData.faturamento || 0) ? 'Crítico' : 'Saudável') : 'MC Negativa', color: 'text-amber-500' },
               { 
-                label: 'Custo de Pessoal', 
-                value: `${payrollPercent.toFixed(1)}%`, 
-                trend: payrollPercent > 0 ? (payrollPercent <= 22 ? 'Saudável' : 'Elevado') : '---', 
-                trendColor: payrollPercent > 0 ? (payrollPercent <= 22 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500') : 'bg-slate-500/10 text-slate-400',
+                label: 'CMV + CMO', 
+                value: faturamentoVal > 0 ? `${cmvCmoPercent.toFixed(1)}%` : '---', 
+                trend: cmvCmoPercent > 0 ? (cmvCmoPercent <= 52 ? 'Saudável' : 'Elevado') : '---', 
+                trendColor: cmvCmoPercent > 0 ? (cmvCmoPercent <= 52 ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500') : 'bg-slate-500/10 text-slate-400',
                 color: 'text-blue-500' 
               },
             ].map((stat) => (
