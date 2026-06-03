@@ -19,7 +19,9 @@ import {
   Shield,
   Lock,
   Database,
-  Activity
+  Activity,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -55,7 +57,7 @@ const LOGO_URL = "/logo_azevedo.svg";
 export default function Layout({ children }: { children?: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { currentStore, setStore, isDarkMode, brandColors } = useStore();
+  const { currentStore, setStore, isDarkMode, toggleDarkMode, brandColors } = useStore();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -313,7 +315,20 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 lg:gap-6">
+            {/* Elegant Global Dark/Light Mode Toggle */}
+            <button
+              onClick={toggleDarkMode}
+              title={isDarkMode ? "Alternar para Modo Claro" : "Alternar para Modo Escuro (Foco Noturno)"}
+              className={`p-2.5 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center ${
+                isDarkMode 
+                  ? 'bg-[#1E1E1E] border-[#2A2A2A] text-amber-400 hover:bg-[#252525] hover:text-amber-300' 
+                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-850'
+              }`}
+            >
+              {isDarkMode ? <Sun className="w-4 h-4 animate-spin-slow" /> : <Moon className="w-4 h-4" />}
+            </button>
+
             <div className="text-right">
               <div className={`text-sm font-bold uppercase tracking-tighter italic leading-none mb-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                 {user?.username || user?.name || 'Visitante'}

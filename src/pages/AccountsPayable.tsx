@@ -1781,15 +1781,22 @@ export default function AccountsPayable() {
 
   // Pagination bounds
   const totalPages = Math.ceil(sortedAccounts.length / itemsPerPage);
-  const paginatedAccounts = sortedAccounts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedAccounts = useMemo(() => {
+    return sortedAccounts.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  }, [sortedAccounts, currentPage, itemsPerPage]);
 
   // Category chart groupings
-  const expensesByCategory = activeKPIAccounts.reduce((acc: Record<string, number>, item) => {
-    acc[item.category] = (acc[item.category] || 0) + item.value;
-    return acc;
-  }, {});
+  const expensesByCategory = useMemo(() => {
+    return activeKPIAccounts.reduce((acc: Record<string, number>, item) => {
+      acc[item.category] = (acc[item.category] || 0) + item.value;
+      return acc;
+    }, {});
+  }, [activeKPIAccounts]);
 
-  const maxExpenseVal = Math.max(...Object.values(expensesByCategory), 1) || 1;
+  const maxExpenseVal = useMemo(() => {
+    const vals = Object.values(expensesByCategory);
+    return vals.length > 0 ? Math.max(...vals, 1) : 1;
+  }, [expensesByCategory]);
 
   const isManagerUser = user && (
     user.role === 'MANAGER' || 
@@ -2172,7 +2179,8 @@ export default function AccountsPayable() {
               Nenhum boleto lançado para este período até o momento. Use o formulário acima para registrar o primeiro!
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              <div className="hidden md:block overflow-x-auto">
               <table className="min-w-full table-auto text-left text-sm font-medium">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-[#222] bg-slate-50 dark:bg-[#181818] select-none text-slate-500 uppercase text-[10px] tracking-wider font-extrabold font-sans">
@@ -2252,6 +2260,97 @@ export default function AccountsPayable() {
                 </tbody>
               </table>
             </div>
+
+            {/* MOBILE VIEW FOR PERIOD LAUNCHED BOLETOS */}
+            <div className="block md:hidden divide-y divide-slate-150 dark:divide-zinc-800/60">
+              {riomarAccounts.map(ac => (
+                <div key={ac.id} className="py-4.5 flex flex-col gap-3 text-xs text-slate-705 dark:text-slate-300">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-900 dark:text-white uppercase tracking-tight text-[13px]">
+                        {ac.supplier}
+                      </span>
+                      {ac.category && (
+                        <span className="text-[10px] text-indigo-500 font-extrabold uppercase mt-0.5 tracking-wider">
+                          {ac.category}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-sm font-black text-slate-900 dark:text-white font-mono shrink-0">
+                      {formatValueBrl(ac.value)}
+                    </span>
+                  </div>
+
+                  {ac.description && (
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium leading-tight">
+                      {ac.description}
+                    </p>
+                  )}
+
+                  <div className="flex items-center justify-between gap-1.5 border-t border-b border-dotted border-slate-150 dark:border-zinc-800/85 py-2 mt-1">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider">Vencimento</span>
+                      <span className="font-bold text-slate-700 dark:text-slate-200 mt-0.5 font-mono">
+                        {ac.dueDate.split('-').reverse().join('/')}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5 text-right">
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-black tracking-wider">Documentos</span>
+                      <div className="flex items-center gap-1.5 justify-end mt-0.5">
+                        {ac.attachedFile && (
+                          <span 
+                            onClick={() => setCurrentBoletoUrl(ac.attachedFile || null)}
+                            className="text-indigo-600 dark:text-indigo-400 hover:scale-105 cursor-pointer bg-indigo-500/10 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                          >
+                            Boleto ✓
+                          </span>
+                        )}
+                        {ac.taxInvoiceFile && (
+                          <span 
+                            onClick={() => setCurrentBoletoUrl(ac.taxInvoiceFile || null)}
+                            className="text-emerald-600 dark:text-emerald-400 hover:scale-105 cursor-pointer bg-emerald-500/10 px-1.5 py-0.5 rounded text-[10px] font-bold"
+                          >
+                            NF ✓
+                          </span>
+                        )}
+                        {!ac.attachedFile && !ac.taxInvoiceFile && (
+                          <span className="text-slate-400 text-xs font-semibold">—</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-1.5 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingAccount(ac);
+                        setEditValue(String(ac.value));
+                        setEditSupplier(ac.supplier);
+                        setEditDueDate(ac.dueDate);
+                        setEditDescription(ac.description);
+                        setEditAttachedFile(ac.attachedFile || null);
+                        setEditAttachedNF(ac.taxInvoiceFile || null);
+                      }}
+                      className="p-2 rounded-xl text-indigo-500 hover:text-indigo-505 hover:bg-indigo-500/10 active:scale-95 transition-all cursor-pointer h-10 w-10 flex items-center justify-center border border-slate-100 dark:border-zinc-800"
+                      title="Editar Dados do Boleto"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteSingle(ac.id, ac.supplier)}
+                      className="p-2 rounded-xl text-red-500 hover:text-red-505 hover:bg-red-500/10 active:scale-95 transition-all cursor-pointer h-10 w-10 flex items-center justify-center border border-slate-100 dark:border-zinc-800"
+                      title="Excluir Lançamento"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
           )}
         </div>
 
@@ -2649,19 +2748,19 @@ export default function AccountsPayable() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         
         {/* KPI 1 - Hoje */}
-        <div className={`p-4 rounded-2xl border transition-all ${
-          isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
+        <div className={`p-5 rounded-2xl border transition-all ${
+          isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-md shadow-slate-100/40'
         }`}>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">A Pagar Hoje</span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">A Pagar Hoje</span>
             <div className="p-2 rounded-xl bg-amber-500/10">
-              <Calendar className="w-5 h-5 text-amber-500" />
+              <Calendar className="w-4 h-4 text-amber-500" />
             </div>
           </div>
-          <h3 className="text-2xl font-black italic font-mono text-slate-900 dark:text-white leading-none">
+          <div className="text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
             {formatValueBrl(bentoTodayVal)}
-          </h3>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2.5">
+          </div>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5">
             Ref. {todayStr.split('-').reverse().slice(0,2).join('/')}
           </p>
         </div>
@@ -2669,57 +2768,57 @@ export default function AccountsPayable() {
         {/* KPI 2 - Vencidos */}
         <div 
           onClick={() => setShowOverdueModal(true)}
-          className={`p-4 rounded-2xl border transition-all cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-95 duration-200 ${
-            isDarkMode ? 'bg-[#121212] border-[#222] border-l-4 border-l-red-500 hover:border-red-500/30' : 'bg-white border-slate-100 border-l-4 border-l-red-500 hover:border-red-500/30 shadow-sm'
+          className={`p-5 rounded-2xl border transition-all cursor-pointer hover:shadow-lg hover:scale-[1.01] active:scale-95 duration-200 ${
+            isDarkMode ? 'bg-[#121212] border-zinc-800 border-l-4 border-l-red-500 hover:border-red-500/30' : 'bg-white border-slate-100 border-l-4 border-l-red-500 hover:border-red-500/30 shadow-md shadow-slate-100/40'
           }`}
           title="Clique para ver boletos vencidos"
         >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">Total Vencido</span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">Total Vencido</span>
             <div className="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/20 transition-colors">
-              <AlertCircle className="w-5 h-5 text-red-500" />
+              <AlertCircle className="w-4 h-4 text-red-500" />
             </div>
           </div>
-          <h3 className="text-2xl font-black italic font-mono text-red-600 dark:text-red-400 leading-none">
+          <div className="text-2xl font-display font-extrabold tracking-tight text-red-600 dark:text-red-400 leading-none">
             {formatValueBrl(bentoOverdueVal)}
-          </h3>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2.5 flex items-center gap-1">
-            Prioridade de Quitação Fina <span className="text-red-500 font-black">({overdueAccounts.length})</span>
+          </div>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5 flex items-center gap-1">
+            Prioridade de Quitação Fina <span className="text-red-550 dark:text-red-400 font-mono font-bold">({overdueAccounts.length})</span>
           </p>
         </div>
 
         {/* KPI 3 - Pagos no Mês */}
-        <div className={`p-4 rounded-2xl border transition-all ${
-          isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
+        <div className={`p-5 rounded-2xl border transition-all ${
+          isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-md shadow-slate-100/40'
         }`}>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">Pagas no Mês</span>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">Pagas no Mês</span>
             <div className="p-2 rounded-xl bg-emerald-500/10">
-              <CheckCircle className="w-5 h-5 text-emerald-500" />
+              <CheckCircle className="w-4 h-4 text-emerald-500" />
             </div>
           </div>
-          <h3 className="text-2xl font-black italic font-mono text-emerald-600 dark:text-emerald-400 leading-none">
+          <div className="text-2xl font-display font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
             {formatValueBrl(bentoPaidMonthVal)}
-          </h3>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2.5">
+          </div>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5">
             Volume liquidado em {months.find(m => m.value === selectedMonth)?.label || 'este mês'}
           </p>
         </div>
 
         {/* KPI 4 - Próximos Vencimentos */}
-        <div className={`p-4 rounded-2xl border transition-all ${
-          isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
+        <div className={`p-5 rounded-2xl border transition-all ${
+          isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-md shadow-slate-100/40'
         }`}>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold tracking-wider text-slate-400 uppercase">Compromissos Futuros</span>
-            <div className="p-2 rounded-xl" style={{ backgroundColor: `${themePrimary}15` }}>
-              <DollarSign className="w-5 h-5" style={{ color: themePrimary }} />
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">Compromissos Futuros</span>
+            <div className="p-2 rounded-xl" style={{ backgroundColor: `${themePrimary}12` }}>
+              <DollarSign className="w-4 h-4" style={{ color: themePrimary }} />
             </div>
           </div>
-          <h3 className="text-2xl font-black italic font-mono text-slate-900 dark:text-white leading-none">
+          <div className="text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
             {formatValueBrl(bentoUpcomingVal)}
-          </h3>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2.5">
+          </div>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5">
             Destaques de Provisão
           </p>
         </div>
@@ -2959,10 +3058,11 @@ export default function AccountsPayable() {
       <div className={`rounded-2xl border transition-all overflow-hidden ${
         isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
       }`}>
-        <div className="overflow-x-auto min-w-full">
+        {/* DESKTOP TABLE VIEW */}
+        <div className="hidden md:block overflow-x-auto min-w-full">
           <table className="min-w-full table-auto border-collapse text-left text-sm font-medium">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-[#222] bg-slate-50 dark:bg-[#181818] select-none text-slate-500 uppercase text-[10px] tracking-wider">
+              <tr className="border-b border-slate-150 dark:border-[#222] bg-slate-50/80 dark:bg-[#181818] select-none text-slate-400 dark:text-slate-500 uppercase text-[9.5px] tracking-widest font-bold">
                 <th className="px-4 py-4 w-10 text-center">
                   <input
                     type="checkbox"
@@ -3006,13 +3106,13 @@ export default function AccountsPayable() {
                   const isPartial = ac.status === 'Parcialmente Pago';
                   const dateParts = ac.dueDate.split('-');
                   const dueFormatted = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-
+ 
                   return (
                     <motion.tr
                       key={ac.id}
                       layoutId={ac.id}
                       style={isSelect ? { backgroundColor: `${themePrimary}12` } : undefined}
-                      className="hover:bg-slate-50 dark:hover:bg-[#1A1A1A] transition-colors"
+                      className="hover:bg-slate-50/65 dark:hover:bg-[#1A1A1A]/80 transition-colors"
                     >
                       <td className="px-4 py-4 text-center">
                         <input
@@ -3025,10 +3125,10 @@ export default function AccountsPayable() {
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex flex-col gap-0.5 max-w-[280px]">
-                          <span className="font-bold text-slate-850 dark:text-slate-100 truncate uppercase tracking-tight">
+                          <span className="font-display font-semibold text-slate-850 dark:text-slate-100 truncate uppercase tracking-tight text-sm">
                             {ac.supplier}
                           </span>
-                          <span className="text-[11px] text-slate-400 truncate tracking-tight font-medium">
+                          <span className="text-[11px] text-slate-450 dark:text-slate-400 truncate tracking-tight font-medium">
                             {ac.description}
                           </span>
                           {ac.documentNumber && (
@@ -3038,8 +3138,8 @@ export default function AccountsPayable() {
                           )}
                           {ac.installmentNumber && ac.installmentsCount && (
                             <span 
-                              style={{ color: isBebelu ? '#7F300C' : themePrimary, backgroundColor: `${themePrimary}15` }}
-                              className="inline-block self-start text-[8px] tracking-widest font-black uppercase px-1.5 py-0.5 rounded mt-1 leading-none"
+                              style={{ color: isBebelu ? '#7F300C' : themePrimary, backgroundColor: `${themePrimary}12` }}
+                              className="inline-block self-start text-[8px] tracking-widest font-black uppercase px-2 py-0.5 rounded mt-1 leading-none"
                             >
                               Parcela {ac.installmentNumber}/{ac.installmentsCount}
                             </span>
@@ -3047,43 +3147,43 @@ export default function AccountsPayable() {
                         </div>
                       </td>
                       <td className="px-4 py-4 hidden md:table-cell">
-                        <span className="text-xs px-2.5 py-1 rounded-full font-bold bg-slate-100 dark:bg-[#1E1E1E] text-slate-500 uppercase tracking-wide">
+                        <span className="text-[10px] px-2 py-1 rounded-md font-bold bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-slate-400 uppercase tracking-wide">
                           {ac.category}
                         </span>
                       </td>
                       <td className="px-4 py-4">
-                        <div className={`flex flex-col gap-0.5 font-bold ${isOverdue ? 'text-red-500' : ''}`}>
-                          <span className="text-sm">{dueFormatted}</span>
+                        <div className={`flex flex-col gap-0.5 font-semibold ${isOverdue ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
+                          <span className="text-xs font-mono">{dueFormatted}</span>
                           {isPaid && ac.paymentDate && (
-                            <span className="text-[9px] text-[#6D912D] font-medium leading-none">
+                            <span className="text-[9px] text-[#5D811D] dark:text-[#a3d943] font-medium leading-none">
                               Pago: {ac.paymentDate.split(' ')[0]}
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-4 py-4 text-right font-mono font-bold">
+                      <td className="px-4 py-4 text-right font-mono text-xs">
                         <div className="flex flex-col">
-                          <span className="text-sm text-slate-900 dark:text-slate-100">
+                          <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
                             {formatValueBrl(ac.value)}
                           </span>
                           {isPartial && ac.partialAmountPaid && (
-                            <span className="text-[9px] text-amber-500 font-bold leading-none">
+                            <span className="text-[9.5px] text-amber-500 font-bold leading-none mt-0.5">
                               Pago R$ {ac.partialAmountPaid}
                             </span>
                           )}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center">
-                        <span className={`inline-block text-[10px] uppercase font-black px-2.5 py-1 rounded-full italic tracking-tight ${
+                        <span className={`inline-flex items-center justify-center text-[10px] font-bold px-2.5 py-1 rounded-md tracking-wider uppercase ${
                           isOverdue 
-                            ? 'bg-red-500/10 border border-red-500/25 text-red-500' 
+                            ? 'bg-red-500/10 border border-red-500/20 text-red-500' 
                             : isPaid 
-                            ? 'bg-emerald-500/10 border border-emerald-500/25 text-emerald-500' 
+                            ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500' 
                             : isPartial 
-                            ? 'bg-amber-500/10 border border-amber-500/25 text-amber-500'
+                            ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500'
                             : ac.status === 'Agendado'
-                            ? 'bg-blue-500/15 border border-blue-500/25 text-blue-400'
-                            : 'bg-slate-500/15 border border-slate-500/25 text-slate-400'
+                            ? 'bg-blue-500/15 border border-blue-500/20 text-blue-500 dark:text-blue-400'
+                            : 'bg-slate-500/15 border border-slate-500/20 text-slate-500 dark:text-slate-400'
                         }`}>
                           {isOverdue ? 'Vencido' : ac.status}
                         </span>
@@ -3165,6 +3265,194 @@ export default function AccountsPayable() {
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* MOBILE RESPONSIVE CARDS VIEW */}
+        <div className="block md:hidden divide-y divide-slate-150 dark:divide-[#1C1C1C]">
+          {paginatedAccounts.length === 0 ? (
+            <div className="text-center py-12 text-slate-400 font-bold text-sm">
+              Nenhuma conta a pagar encontrada.
+            </div>
+          ) : (
+            paginatedAccounts.map(ac => {
+              const isSelect = selectedAccounts.includes(ac.id);
+              const isOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado') && ac.dueDate < getTodayStr());
+              const isPaid = ac.status === 'Pago';
+              const isPartial = ac.status === 'Parcialmente Pago';
+              const dateParts = ac.dueDate.split('-');
+              const dueFormatted = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+
+              return (
+                <div 
+                  key={ac.id} 
+                  className={`p-4 transition-colors flex flex-col gap-3 ${
+                    isSelect ? 'bg-indigo-500/5' : 'hover:bg-slate-50/50 dark:hover:bg-[#1C1C1C]'
+                  }`}
+                >
+                  {/* TOP HEADER ROW OF THE CARD */}
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={isSelect}
+                        onChange={() => handleSelectOne(ac.id)}
+                        style={{ accentColor: themePrimary }}
+                        className="rounded border-slate-300 dark:border-[#333] cursor-pointer w-4 h-4 shrink-0 animate-none"
+                      />
+                      <div className="flex flex-col">
+                        <span className="font-display font-semibold text-slate-900 dark:text-slate-100 text-[13px] break-all uppercase leading-tight">
+                          {ac.supplier}
+                        </span>
+                        {ac.documentNumber && (
+                          <span className="text-[10px] font-mono text-slate-450 dark:text-slate-500 font-bold mt-0.5">
+                            Doc: {ac.documentNumber}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <span className={`inline-flex items-center justify-center text-[10px] font-bold px-2 py-0.5 rounded-md tracking-wider uppercase shrink-0 ${
+                      isOverdue 
+                        ? 'bg-red-500/10 border border-red-500/20 text-red-500' 
+                        : isPaid 
+                        ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-500' 
+                        : isPartial 
+                        ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500'
+                        : ac.status === 'Agendado'
+                        ? 'bg-blue-500/15 border border-blue-500/20 text-blue-500 dark:text-blue-400'
+                        : 'bg-slate-500/15 border border-slate-500/20 text-slate-500 dark:text-slate-400'
+                    }`}>
+                      {isOverdue ? 'Vencido' : ac.status}
+                    </span>
+                  </div>
+
+                  {/* DESCRIPTION / INFO BLOCK */}
+                  {ac.description && (
+                    <p className="text-xs text-slate-550 dark:text-slate-400 font-medium leading-tight">
+                      {ac.description}
+                    </p>
+                  )}
+
+                  {/* PARCEL BAR */}
+                  {ac.installmentNumber && ac.installmentsCount && (
+                    <div className="flex">
+                      <span 
+                        style={{ color: isBebelu ? '#7F300C' : themePrimary, backgroundColor: `${themePrimary}12` }}
+                        className="text-[9px] tracking-wider font-extrabold uppercase px-2 py-0.5 rounded-md leading-none"
+                      >
+                        Parcela {ac.installmentNumber}/{ac.installmentsCount}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* METRIC SPECS GRID */}
+                  <div className="grid grid-cols-2 gap-2 mt-1 py-2 border-t border-b border-slate-150 dark:border-zinc-800/65 border-dashed">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Vencimento</span>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span className={`text-xs font-mono font-semibold ${isOverdue ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`}>
+                          {dueFormatted}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-0.5 text-right">
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Valor</span>
+                      <span className="text-[13px] font-bold text-slate-900 dark:text-white font-mono mt-0.5">
+                        {formatValueBrl(ac.value)}
+                      </span>
+                      {isPartial && ac.partialAmountPaid && (
+                        <span className="text-[9.5px] text-amber-500 font-bold leading-none mt-0.5">
+                          Pago R$ {ac.partialAmountPaid}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ATTACHMENT QUICK SHORTCUTS AND ACTION ROW */}
+                  <div className="flex items-center justify-between gap-1.5 mt-1">
+                    {/* Attachments Section */}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider">Anexos:</span>
+                      <div className="flex items-center gap-1">
+                        {ac.attachedFile ? (
+                          <button
+                            type="button"
+                            title="Ver Boleto"
+                            onClick={() => setCurrentBoletoUrl(ac.attachedFile || null)}
+                            style={{ backgroundColor: `${themePrimary}15`, color: isBebelu ? '#7F300C' : themePrimary }}
+                            className="p-1 px-1.5 rounded-lg transition-all cursor-pointer hover:opacity-85 min-w-[28px] min-h-[28px] flex items-center justify-center border border-transparent"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                          </button>
+                        ) : null}
+
+                        {ac.receiptFile ? (
+                          <button
+                            type="button"
+                            title="Ver Comprovante"
+                            onClick={() => setCurrentBoletoUrl(ac.receiptFile || null)}
+                            className="p-1 px-1.5 rounded-lg transition-all cursor-pointer hover:opacity-85 bg-emerald-500/10 text-emerald-600 min-w-[28px] min-h-[28px] flex items-center justify-center"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" />
+                          </button>
+                        ) : null}
+
+                        {!ac.attachedFile && !ac.receiptFile && (
+                          <span className="text-xs font-semibold text-slate-400">—</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Touch Targeted Action Buttons (at least 43px touch target height for mobile ergonomics) */}
+                    <div className="flex items-center gap-1 ml-auto">
+                      {(!isPaid) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPayAccount(ac);
+                            setPaymentFine(ac.fine && ac.fine > 0 ? String(ac.fine) : '');
+                            setPaymentInterest(ac.interest && ac.interest > 0 ? String(ac.interest) : '');
+                            setPaymentAmount(String(ac.value + (ac.fine || 0) + (ac.interest || 0)));
+                            setPaymentDateVal(getTodayStr());
+                            setShowPaymentModal(true);
+                          }}
+                          className="px-3 py-1.5.5 text-[11px] font-bold rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 active:scale-95 transition-all cursor-pointer h-10 flex items-center justify-center font-sans"
+                        >
+                          Pagar
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingAccount(ac);
+                          setEditValue(String(ac.value));
+                          setEditSupplier(ac.supplier);
+                          setEditDueDate(ac.dueDate);
+                          setEditDescription(ac.description);
+                          setEditAttachedFile(ac.attachedFile || null);
+                          setEditAttachedNF(ac.taxInvoiceFile || null);
+                        }}
+                        className="p-2 rounded-xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/10 active:scale-95 transition-all cursor-pointer w-10 h-10 flex items-center justify-center border border-slate-100 dark:border-zinc-800"
+                        title="Editar"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteSingle(ac.id, ac.supplier)}
+                        className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-500/10 active:scale-95 transition-all cursor-pointer w-10 h-10 flex items-center justify-center border border-slate-100 dark:border-zinc-800"
+                        title="Excluir"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* COMPREHENSIVE PAGINATION CONTROL */}
@@ -4175,19 +4463,18 @@ export default function AccountsPayable() {
                 isDarkMode ? 'bg-[#0A0A0A] text-slate-100 border-l border-[#1F1F1F]' : 'bg-slate-50 text-slate-800 border-l border-slate-200'
               }`}
             >
-              
               {/* HEADER SECTION WITH BRAND IDENTITY */}
-              <div className="px-6 pt-4 pb-5 border-b border-slate-200 dark:border-[#1F1F1F] bg-slate-100/50 dark:bg-[#111111]/40">
+              <div className="px-6 pt-5 pb-5 border-b border-slate-150 dark:border-[#1F1F1F] bg-slate-50/50 dark:bg-[#111111]/40">
                 <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <span className="p-2 rounded-xl bg-red-500/10 text-red-500 animate-pulse">
-                      <AlertCircle className="w-5.5 h-5.5" />
+                  <div className="flex items-center gap-3">
+                    <span className="p-2.5 rounded-xl bg-red-500/10 text-red-500">
+                      <AlertCircle className="w-5 h-5 animate-pulse" />
                     </span>
                     <div>
-                      <h3 className="text-lg font-display font-black tracking-tight uppercase italic text-red-500 dark:text-red-400">
+                      <h3 className="text-lg font-display font-bold tracking-tight uppercase text-red-500 dark:text-red-400">
                         Boletos Vencidos
                       </h3>
-                      <p className="text-[10px] text-slate-400 tracking-wider uppercase font-extrabold font-mono mt-0.5">
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 tracking-widest uppercase font-extrabold mt-0.5">
                         {currentStore.name}
                       </p>
                     </div>
@@ -4241,9 +4528,9 @@ export default function AccountsPayable() {
                           });
                       }}
                       title="Enviar relatório por e-mail para diretores"
-                      className="p-2 rounded-xl bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-500 dark:text-indigo-400 hover:scale-105 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                      className="py-2 px-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
                     >
-                      <Mail className="w-3.5 h-3.5" /> Enviar por E-mail
+                      <Mail className="w-4 h-4" /> Enviar por E-mail
                     </button>
                     
                     <button
@@ -4256,39 +4543,39 @@ export default function AccountsPayable() {
                 </div>
 
                 {/* OVERALL DYNAMIC SUM */}
-                <div className="flex items-baseline gap-2 mt-2">
-                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono">Total Vencido em Atraso:</span>
-                  <span className="text-2xl font-black font-mono text-red-500 dark:text-red-400 tracking-tight">
+                <div className="flex flex-col gap-0.5 mt-2 ml-1">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Total Vencido em Atraso</span>
+                  <span className="text-3xl font-display font-extrabold text-red-500 dark:text-red-400 tracking-tight">
                     {formatValueBrl(bentoOverdueVal)}
                   </span>
                 </div>
               </div>
 
               {/* INTERACTIVE AGING BENTO METRICS */}
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-[#1F1F1F]">
-                <div className="grid grid-cols-3 gap-2.5">
+              <div className="px-6 py-4.5 border-b border-slate-150 dark:border-[#1F1F1F] bg-white dark:bg-[#090909]">
+                <div className="grid grid-cols-3 gap-3">
                   
                   {/* CRITICAL BUTTON KEY */}
                   <button
                     onClick={() => setOverdueClassificationFilter(prev => prev === 'critical' ? 'all' : 'critical')}
                     className={`p-3.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between h-22 ${
                       overdueClassificationFilter === 'critical'
-                        ? 'bg-red-500/15 border-red-500 ring-2 ring-red-500/20'
-                        : isDarkMode ? 'bg-[#121212] border-[#222] hover:bg-red-500/5' : 'bg-white border-slate-200 hover:bg-red-500/5'
+                        ? 'bg-red-500/10 border-red-500 ring-2 ring-red-500/20'
+                        : isDarkMode ? 'bg-[#121212] border-zinc-800/80 hover:bg-red-500/5' : 'bg-white border-slate-150 hover:bg-red-500/5'
                     }`}
                   >
-                    <div>
+                    <div className="w-full">
                       <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black tracking-widest uppercase text-red-500">Crítico</span>
-                        <span className="text-[10px] font-black text-red-600 bg-red-500/10 px-1.5 rounded font-mono">
+                        <span className="text-[9px] font-bold tracking-wider uppercase text-red-500">Crítico</span>
+                        <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-md font-mono">
                           {overdueStats.criticalCount}
                         </span>
                       </div>
-                      <span className="text-[9px] text-slate-400 block font-semibold mt-1 leading-none font-mono">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-1 leading-none font-medium">
                         +30 dias
                       </span>
                     </div>
-                    <span className="text-xs font-black text-red-500 font-mono mt-1 leading-none">
+                    <span className="text-sm font-display font-extrabold text-red-500 mt-2 block leading-none">
                       {formatValueBrl(overdueStats.criticalSum)}
                     </span>
                   </button>
@@ -4298,22 +4585,22 @@ export default function AccountsPayable() {
                     onClick={() => setOverdueClassificationFilter(prev => prev === 'attention' ? 'all' : 'attention')}
                     className={`p-3.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between h-22 ${
                       overdueClassificationFilter === 'attention'
-                        ? 'bg-amber-500/15 border-amber-500 ring-2 ring-amber-500/20'
-                        : isDarkMode ? 'bg-[#121212] border-[#222] hover:bg-amber-500/5' : 'bg-white border-slate-200 hover:bg-amber-500/5'
+                        ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/20'
+                        : isDarkMode ? 'bg-[#121212] border-zinc-800/80 hover:bg-amber-500/5' : 'bg-white border-slate-150 hover:bg-amber-500/5'
                     }`}
                   >
-                    <div>
+                    <div className="w-full">
                       <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black tracking-widest uppercase text-amber-500">Atenção</span>
-                        <span className="text-[10px] font-black text-amber-600 bg-amber-500/10 px-1.5 rounded font-mono">
+                        <span className="text-[9px] font-bold tracking-wider uppercase text-amber-500">Atenção</span>
+                        <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md font-mono">
                           {overdueStats.attentionCount}
                         </span>
                       </div>
-                      <span className="text-[9px] text-slate-400 block font-semibold mt-1 leading-none font-mono">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-1 leading-none font-medium">
                         8-30 dias
                       </span>
                     </div>
-                    <span className="text-xs font-black text-amber-500 font-mono mt-1 leading-none">
+                    <span className="text-sm font-display font-extrabold text-amber-500 mt-2 block leading-none">
                       {formatValueBrl(overdueStats.attentionSum)}
                     </span>
                   </button>
@@ -4323,22 +4610,22 @@ export default function AccountsPayable() {
                     onClick={() => setOverdueClassificationFilter(prev => prev === 'recent' ? 'all' : 'recent')}
                     className={`p-3.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between h-22 ${
                       overdueClassificationFilter === 'recent'
-                        ? 'bg-blue-500/15 border-blue-500 ring-2 ring-blue-500/20'
-                        : isDarkMode ? 'bg-[#121212] border-[#222] hover:bg-blue-500/5' : 'bg-white border-slate-200 hover:bg-blue-500/5'
+                        ? 'bg-blue-500/10 border-blue-500 ring-2 ring-blue-500/20'
+                        : isDarkMode ? 'bg-[#121212] border-zinc-800/80 hover:bg-blue-500/5' : 'bg-white border-slate-150 hover:bg-blue-500/5'
                     }`}
                   >
-                    <div>
+                    <div className="w-full">
                       <div className="flex items-center justify-between">
-                        <span className="text-[8px] font-black tracking-widest uppercase text-blue-500">Recente</span>
-                        <span className="text-[10px] font-black text-blue-600 bg-blue-500/10 px-1.5 rounded font-mono">
+                        <span className="text-[9px] font-bold tracking-wider uppercase text-blue-500">Recente</span>
+                        <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-md font-mono">
                           {overdueStats.recentCount}
                         </span>
                       </div>
-                      <span className="text-[9px] text-slate-400 block font-semibold mt-1 leading-none font-mono">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-1 leading-none font-medium">
                         1-7 dias
                       </span>
                     </div>
-                    <span className="text-xs font-black text-blue-500 font-mono mt-1 leading-none">
+                    <span className="text-sm font-display font-extrabold text-blue-500 mt-2 block leading-none">
                       {formatValueBrl(overdueStats.recentSum)}
                     </span>
                   </button>
@@ -4407,7 +4694,7 @@ export default function AccountsPayable() {
                     <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-4 ring-8 ring-emerald-500/5 animate-pulse">
                       <CheckCircle className="w-8 h-8" />
                     </div>
-                    <h4 className="text-base font-display font-black tracking-tight uppercase italic text-slate-800 dark:text-white">
+                    <h4 className="text-base font-display font-semibold tracking-tight text-slate-850 dark:text-white">
                       Sem pendências encontradas
                     </h4>
                     <p className="text-slate-500 text-xs font-semibold max-w-xs mt-2 leading-relaxed">
@@ -4439,7 +4726,7 @@ export default function AccountsPayable() {
                         : daysOverdue >= 8
                           ? 'border-l-amber-500 bg-amber-500/[0.03] dark:bg-amber-500/[0.01]'
                           : 'border-l-blue-400 bg-blue-500/[0.03] dark:bg-blue-500/[0.01]';
-
+ 
                       return (
                         <div 
                           key={ac.id}
@@ -4448,28 +4735,28 @@ export default function AccountsPayable() {
                           <div className="flex items-start justify-between gap-4">
                             <div className="space-y-1.5">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-display font-bold text-sm text-slate-900 dark:text-white leading-tight">
+                                <span className="font-display font-semibold text-[15px] text-slate-900 dark:text-white leading-tight">
                                   {ac.supplier}
                                 </span>
-                                <span className={`text-[8.5px] px-2 py-0.5 rounded font-black tracking-widest uppercase ${
+                                <span className={`text-[9px] px-2 py-0.5 rounded-md font-bold tracking-wider uppercase ${
                                   isDarkMode ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/10' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
                                 }`}>
                                   {ac.category}
                                 </span>
                               </div>
                               
-                              <p className="text-slate-400 dark:text-slate-400 text-xs italic font-medium leading-relaxed">
+                              <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
                                 {ac.description || 'Sem descrição cadastrada.'}
                               </p>
                               
-                              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 font-mono">
-                                <span>Centro: <span className="text-slate-600 dark:text-slate-300 font-black">{ac.costCenter || 'N/A'}</span></span>
+                              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                <span>Centro: <span className="text-slate-700 dark:text-slate-300 font-bold">{ac.costCenter || 'N/A'}</span></span>
                               </div>
                             </div>
-
+ 
                             {/* Overdue Badge */}
                             <div className="flex flex-col items-end gap-1.5 shrink-0">
-                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider font-mono ${
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider font-mono ${
                                 daysOverdue > 30 
                                   ? 'text-red-500 bg-red-500/10' 
                                   : daysOverdue >= 8 
@@ -4478,33 +4765,33 @@ export default function AccountsPayable() {
                               }`}>
                                 {daysOverdue} {daysOverdue === 1 ? 'dia' : 'dias'} atrasado
                               </span>
-                              <span className="text-[10px] text-slate-400 font-black font-mono">
-                                Vecto: {ac.dueDate.split('-').reverse().join('/')}
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold font-mono">
+                                Vct: {ac.dueDate.split('-').reverse().join('/')}
                               </span>
                             </div>
                           </div>
-
+ 
                           {/* FINANCIAL BENTO INFOS */}
                           <div className="grid grid-cols-2 gap-3 py-2.5 border-t border-b border-dashed border-slate-200 dark:border-[#222]">
                             <div>
-                              <span className="text-[8.5px] uppercase font-black tracking-wide text-slate-400 font-mono block mb-0.5">Valor Original</span>
-                              <span className="font-bold text-slate-800 dark:text-slate-200 font-mono text-base tracking-tight">
+                              <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block mb-0.5">Valor Original</span>
+                              <span className="font-bold text-slate-800 dark:text-slate-100 font-mono text-sm tracking-tight">
                                 {formatValueBrl(ac.value)}
                               </span>
                             </div>
                             
                             {ac.partialAmountPaid && ac.partialAmountPaid > 0 ? (
                               <div>
-                                <span className="text-[8.5px] uppercase font-black tracking-wide text-emerald-500 font-mono block mb-0.5">Abatimento Parcial</span>
+                                <span className="text-[9px] uppercase font-bold tracking-wider text-emerald-500 block mb-0.5">Abatimento Parcial</span>
                                 <span className="font-bold text-emerald-500 font-mono text-sm">
                                   -{formatValueBrl(ac.partialAmountPaid)}
                                 </span>
                               </div>
                             ) : (
                               <div>
-                                <span className="text-[8.5px] uppercase font-black tracking-wide text-slate-400 font-mono block mb-0.5">Valor Aberto</span>
-                                <span className="font-bold text-red-500/80 dark:text-red-400 font-mono text-xs">
-                                  Integral
+                                <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block mb-0.5">Valor Aberto</span>
+                                <span className="font-bold text-red-500/85 dark:text-red-400 font-mono text-xs">
+                                  Integral em Aberto
                                 </span>
                               </div>
                             )}

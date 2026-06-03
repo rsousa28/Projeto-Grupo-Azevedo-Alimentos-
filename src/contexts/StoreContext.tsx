@@ -11,6 +11,7 @@ interface StoreContextType {
   currentStore: Store;
   setStore: (store: Store) => void;
   isDarkMode: boolean;
+  toggleDarkMode: () => void;
   metrics: Metric[];
   setMetrics: React.Dispatch<React.SetStateAction<Metric[]>>;
   dreTimeline: DREData[];
@@ -342,7 +343,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   // 4E09 and ROOT remain exactly the same as they were with dark layouts, while Bebelu (B32 & B28) uses a clean white background.
-  const isDarkMode = currentStore?.brand !== 'BEBELU';
+  const [localDarkTheme, setLocalDarkTheme] = useState<boolean | null>(() => {
+    const saved = localStorage.getItem('theme_preference_dark');
+    if (saved === 'true') return true;
+    if (saved === 'false') return false;
+    return null;
+  });
+
+  const isDarkMode = localDarkTheme !== null ? localDarkTheme : (currentStore?.brand !== 'BEBELU');
+
+  const toggleDarkMode = () => {
+    const newVal = !isDarkMode;
+    setLocalDarkTheme(newVal);
+    localStorage.setItem('theme_preference_dark', String(newVal));
+  };
+
   const [metrics, setMetrics] = useState<Metric[]>(mockMetrics.map(m => ({ ...m, valor: 0, trend: 'neutral', change: '0%' })));
   const [dreTimeline, setDreTimeline] = useState<DREData[]>([]);
   const [metaVsRealizado, setMetaVsRealizado] = useState<any[]>([
@@ -815,6 +830,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       currentStore, 
       setStore, 
       isDarkMode,
+      toggleDarkMode,
       brandColors,
       metrics,
       setMetrics,
