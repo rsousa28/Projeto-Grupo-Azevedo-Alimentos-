@@ -8,6 +8,7 @@ import {
   Filter, 
   Download, 
   AlertCircle, 
+  AlertTriangle,
   Calendar, 
   CheckCircle, 
   Building2, 
@@ -2723,23 +2724,44 @@ export default function AccountsPayable() {
       </div>
 
       {/* ALERT AND BADGES BANNER */}
-      <div className="mb-6 flex flex-col sm:flex-row flex-wrap items-center gap-2.5">
+      <div className="mb-6 flex flex-col md:flex-row flex-wrap items-stretch md:items-center gap-3.5">
         {dueTodayCount > 0 && (
-          <div className="flex items-center gap-2 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold leading-none">
-            <AlertCircle className="w-4 h-4 text-amber-500 animate-pulse shrink-0" />
-            🚀 Atenção: {dueTodayCount} {dueTodayCount === 1 ? 'conta vence' : 'contas vencem'} hoje ({todayStr.split('-').reverse().join('/')})!
+          <div className="flex items-center gap-3.5 p-3.5 px-4.5 rounded-2xl border bg-amber-500/[0.03] border-amber-500/15 text-amber-805 dark:text-amber-300 dark:bg-amber-500/[0.02] dark:border-amber-500/12 text-xs shadow-sm w-full md:w-auto transition-all hover:bg-amber-500/[0.05] hover:border-amber-500/25">
+            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 shadow-sm">
+              <AlertCircle className="w-4 h-4 animate-pulse text-amber-555 dark:text-amber-400" />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9.5px] font-extrabold tracking-widest text-amber-600 dark:text-amber-450 uppercase font-sans">Vencimento Hoje</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                {dueTodayCount} {dueTodayCount === 1 ? 'conta vence' : 'contas vencem'} hoje ({todayStr.split('-').reverse().join('/')})
+              </span>
+            </div>
           </div>
         )}
         {dueTomorrowCount > 0 && (
-          <div className="flex items-center gap-2 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-orange-600 dark:text-orange-400 text-xs font-bold leading-none">
-            <Clock className="w-4 h-4 text-orange-400 shrink-0" />
-            🔔 Próximo: {dueTomorrowCount} {dueTomorrowCount === 1 ? 'conta vence' : 'contas vencem'} amanhã.
+          <div className="flex items-center gap-3.5 p-3.5 px-4.5 rounded-2xl border bg-orange-500/[0.03] border-orange-500/15 text-orange-805 dark:text-orange-300 dark:bg-orange-500/[0.02] dark:border-orange-500/12 text-xs shadow-sm w-full md:w-auto transition-all hover:bg-orange-500/[0.05] hover:border-orange-500/25">
+            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0 shadow-sm">
+              <Clock className="w-4 h-4 text-orange-555 dark:text-orange-450" />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9.5px] font-extrabold tracking-widest text-orange-600 dark:text-orange-450 uppercase font-sans">Prazo Próximo</span>
+              <span className="font-bold text-slate-800 dark:text-slate-200">
+                {dueTomorrowCount} {dueTomorrowCount === 1 ? 'conta vence' : 'contas vencem'} amanhã
+              </span>
+            </div>
           </div>
         )}
         {overdueCount > 0 && (
-          <div className="flex items-center gap-2 w-full sm:w-auto px-4 py-2.5 rounded-xl bg-red-600/10 border border-red-500/20 text-red-600 dark:text-red-400 text-xs font-bold leading-none">
-            <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
-            ⚠️ Atraso: {overdueCount} {overdueCount === 1 ? 'conta está atrasada' : 'contas estão atrasadas'} no sistema!
+          <div className="flex items-center gap-3.5 p-3.5 px-4.5 rounded-2xl border bg-red-500/[0.03] border-red-500/15 text-red-805 dark:text-red-300 dark:bg-red-500/[0.02] dark:border-red-500/12 text-xs shadow-sm w-full md:w-auto transition-all hover:bg-red-500/[0.05] hover:border-red-500/25">
+            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-red-500/10 text-red-605 dark:text-red-400 shrink-0 shadow-sm animate-pulse">
+              <AlertTriangle className="w-4 h-4 text-red-555 dark:text-red-400" />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[9.5px] font-extrabold tracking-widest text-red-650 dark:text-red-450 uppercase font-sans font-sans">Atraso Crítico</span>
+              <span className="font-bold text-slate-850 dark:text-slate-150">
+                {overdueCount} {overdueCount === 1 ? 'conta está vencida' : 'contas estão vencidas'} no sistema
+              </span>
+            </div>
           </div>
         )}
       </div>
@@ -4436,7 +4458,7 @@ export default function AccountsPayable() {
                   <button
                     type="submit"
                     style={{ backgroundColor: themeButtonBg, color: themeTextContrast }}
-                    className="flex-1 py-2.5 text-xs font-black rounded-xl cursor-pointer hover:opacity-90 animate-subtle-pulse"
+                    className="flex-1 py-2.5 text-xs font-black rounded-xl cursor-pointer hover:opacity-95 text-white"
                   >
                     Salvar Pagamento
                   </button>
@@ -4451,30 +4473,37 @@ export default function AccountsPayable() {
       {/* SIDEBAR DRAWER - BOLETOS VENCIDOS */}
       <AnimatePresence>
         {showOverdueModal && (
-          <div className="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-end">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[5px] z-50 flex items-center justify-end">
             <div className="absolute inset-0 cursor-default" onClick={() => setShowOverdueModal(false)} />
             
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 24, stiffness: 210 }}
-              className={`w-full max-w-xl h-full shadow-2xl flex flex-col pt-4 p-0 relative z-10 ${
-                isDarkMode ? 'bg-[#0A0A0A] text-slate-100 border-l border-[#1F1F1F]' : 'bg-slate-50 text-slate-800 border-l border-slate-200'
+              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+              className={`w-full max-w-xl h-full shadow-2xl flex flex-col pt-0 p-0 relative z-10 ${
+                isDarkMode 
+                  ? 'bg-[#0E0E11] text-[#E4E4E7] border-l border-[#1F1F23]' 
+                  : 'bg-white text-slate-800 border-l border-slate-200/80'
               }`}
             >
               {/* HEADER SECTION WITH BRAND IDENTITY */}
-              <div className="px-6 pt-5 pb-5 border-b border-slate-150 dark:border-[#1F1F1F] bg-slate-50/50 dark:bg-[#111111]/40">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="p-2.5 rounded-xl bg-red-500/10 text-red-500">
-                      <AlertCircle className="w-5 h-5 animate-pulse" />
-                    </span>
+              <div className="px-6 pt-7 pb-6 border-b border-slate-100 dark:border-[#1F1F23] bg-linear-to-b from-slate-50/40 to-transparent dark:from-[#131316]/40">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-red-500/[0.08] dark:bg-red-500/10 text-red-500">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
                     <div>
-                      <h3 className="text-lg font-display font-bold tracking-tight uppercase text-red-500 dark:text-red-400">
-                        Boletos Vencidos
-                      </h3>
-                      <p className="text-[10px] text-slate-400 dark:text-slate-500 tracking-widest uppercase font-extrabold mt-0.5">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-display font-semibold tracking-tight text-slate-850 dark:text-white">
+                          Boletos Vencidos
+                        </h3>
+                        <span className="inline-flex items-center text-[9.5px] bg-red-500/10 text-red-650 dark:text-red-400 font-extrabold px-1.5 py-0.5 rounded-md uppercase select-none font-mono">
+                          Atrasados
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 dark:text-zinc-500 tracking-wider font-semibold font-mono mt-0.5 uppercase">
                         {currentStore.name}
                       </p>
                     </div>
@@ -4528,156 +4557,172 @@ export default function AccountsPayable() {
                           });
                       }}
                       title="Enviar relatório por e-mail para diretores"
-                      className="py-2 px-3 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-500 dark:text-indigo-400 hover:scale-[1.02] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                      className="py-2 px-3.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-605 dark:text-indigo-400 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
                     >
                       <Mail className="w-4 h-4" /> Enviar por E-mail
                     </button>
                     
                     <button
                       onClick={() => setShowOverdueModal(false)}
-                      className="p-2 rounded-xl bg-slate-200/50 dark:bg-[#202020] text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 transition-all cursor-pointer"
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E1E22] dark:hover:bg-[#202025] text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                {/* OVERALL DYNAMIC SUM */}
-                <div className="flex flex-col gap-0.5 mt-2 ml-1">
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Total Vencido em Atraso</span>
-                  <span className="text-3xl font-display font-extrabold text-red-500 dark:text-red-400 tracking-tight">
-                    {formatValueBrl(bentoOverdueVal)}
-                  </span>
+                {/* OVERALL DYNAMIC SUM (Premium Typography Style) */}
+                <div className="bg-slate-50 dark:bg-[#131316]/50 border border-slate-100 dark:border-[#1F1F23]/80 p-5 rounded-2xl flex items-center justify-between shadow-xs">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Total Consolidado</span>
+                    <span className="text-2xl font-display font-extrabold tracking-tight text-red-600 dark:text-red-400">
+                      {formatValueBrl(bentoOverdueVal)}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider block">Pendências</span>
+                    <span className="text-sm font-bold font-mono text-slate-800 dark:text-zinc-300">
+                      {rawOverdueAccounts.length} boletos
+                    </span>
+                  </div>
                 </div>
               </div>
 
               {/* INTERACTIVE AGING BENTO METRICS */}
-              <div className="px-6 py-4.5 border-b border-slate-150 dark:border-[#1F1F1F] bg-white dark:bg-[#090909]">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-[#1F1F23] bg-linear-to-b from-transparent to-slate-50/20 dark:to-transparent">
                 <div className="grid grid-cols-3 gap-3">
                   
                   {/* CRITICAL BUTTON KEY */}
                   <button
                     onClick={() => setOverdueClassificationFilter(prev => prev === 'critical' ? 'all' : 'critical')}
-                    className={`p-3.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between h-22 ${
+                    className={`p-4 rounded-xl border text-left transition-all duration-200 hover:translate-y-[-1px] select-none cursor-pointer flex flex-col justify-between h-24 ${
                       overdueClassificationFilter === 'critical'
-                        ? 'bg-red-500/10 border-red-500 ring-2 ring-red-500/20'
-                        : isDarkMode ? 'bg-[#121212] border-zinc-800/80 hover:bg-red-500/5' : 'bg-white border-slate-150 hover:bg-red-500/5'
+                        ? 'bg-red-500/[0.08] border-red-500 shadow-xs ring-1 ring-red-500/20'
+                        : isDarkMode 
+                          ? 'bg-[#121215] border-[#1F1F23] hover:bg-zinc-800/10 hover:border-zinc-700/50' 
+                          : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200 shadow-xs'
                     }`}
                   >
-                    <div className="w-full">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold tracking-wider uppercase text-red-500">Crítico</span>
-                        <span className="text-[10px] font-bold text-red-500 bg-red-500/10 px-2 py-0.5 rounded-md font-mono">
-                          {overdueStats.criticalCount}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-1 leading-none font-medium">
-                        +30 dias
+                    <div className="w-full flex items-center justify-between">
+                      <span className="text-[9.5px] font-extrabold tracking-wider uppercase text-red-600 dark:text-red-400">Crítico</span>
+                      <span className="text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-md font-mono">
+                        {overdueStats.criticalCount}
                       </span>
                     </div>
-                    <span className="text-sm font-display font-extrabold text-red-500 mt-2 block leading-none">
-                      {formatValueBrl(overdueStats.criticalSum)}
-                    </span>
+                    <div className="mt-2.5">
+                      <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
+                        +30 dias
+                      </span>
+                      <span className="text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 block leading-none">
+                        {formatValueBrl(overdueStats.criticalSum)}
+                      </span>
+                    </div>
                   </button>
 
                   {/* ATTENTION BUTTON KEY */}
                   <button
                     onClick={() => setOverdueClassificationFilter(prev => prev === 'attention' ? 'all' : 'attention')}
-                    className={`p-3.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between h-22 ${
+                    className={`p-4 rounded-xl border text-left transition-all duration-200 hover:translate-y-[-1px] select-none cursor-pointer flex flex-col justify-between h-24 ${
                       overdueClassificationFilter === 'attention'
-                        ? 'bg-amber-500/10 border-amber-500 ring-2 ring-amber-500/20'
-                        : isDarkMode ? 'bg-[#121212] border-zinc-800/80 hover:bg-amber-500/5' : 'bg-white border-slate-150 hover:bg-amber-500/5'
+                        ? 'bg-amber-500/[0.08] border-amber-500 shadow-xs ring-1 ring-amber-500/20'
+                        : isDarkMode 
+                          ? 'bg-[#121215] border-[#1F1F23] hover:bg-zinc-800/10 hover:border-zinc-700/50' 
+                          : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200 shadow-xs'
                     }`}
                   >
-                    <div className="w-full">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold tracking-wider uppercase text-amber-500">Atenção</span>
-                        <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md font-mono">
-                          {overdueStats.attentionCount}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-1 leading-none font-medium">
-                        8-30 dias
+                    <div className="w-full flex items-center justify-between">
+                      <span className="text-[9.5px] font-extrabold tracking-wider uppercase text-amber-600 dark:text-amber-450">Atenção</span>
+                      <span className="text-[10px] font-bold text-amber-605 dark:text-amber-450 bg-amber-500/10 px-1.5 py-0.5 rounded-md font-mono">
+                        {overdueStats.attentionCount}
                       </span>
                     </div>
-                    <span className="text-sm font-display font-extrabold text-amber-500 mt-2 block leading-none">
-                      {formatValueBrl(overdueStats.attentionSum)}
-                    </span>
+                    <div className="mt-2.5">
+                      <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
+                        8-30 dias
+                      </span>
+                      <span className="text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 block leading-none">
+                        {formatValueBrl(overdueStats.attentionSum)}
+                      </span>
+                    </div>
                   </button>
 
                   {/* RECENT BUTTON KEY */}
                   <button
                     onClick={() => setOverdueClassificationFilter(prev => prev === 'recent' ? 'all' : 'recent')}
-                    className={`p-3.5 rounded-xl border text-left transition-all hover:scale-[1.02] active:scale-95 cursor-pointer flex flex-col justify-between h-22 ${
+                    className={`p-4 rounded-xl border text-left transition-all duration-200 hover:translate-y-[-1px] select-none cursor-pointer flex flex-col justify-between h-24 ${
                       overdueClassificationFilter === 'recent'
-                        ? 'bg-blue-500/10 border-blue-500 ring-2 ring-blue-500/20'
-                        : isDarkMode ? 'bg-[#121212] border-zinc-800/80 hover:bg-blue-500/5' : 'bg-white border-slate-150 hover:bg-blue-500/5'
+                        ? 'bg-blue-500/[0.08] border-blue-500/80 shadow-xs ring-1 ring-blue-500/20'
+                        : isDarkMode 
+                          ? 'bg-[#121215] border-[#1F1F23] hover:bg-zinc-800/10 hover:border-zinc-700/50' 
+                          : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200 shadow-xs'
                     }`}
                   >
-                    <div className="w-full">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9px] font-bold tracking-wider uppercase text-blue-500">Recente</span>
-                        <span className="text-[10px] font-bold text-blue-500 bg-blue-500/10 px-2 py-0.5 rounded-md font-mono">
-                          {overdueStats.recentCount}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block mt-1 leading-none font-medium">
-                        1-7 dias
+                    <div className="w-full flex items-center justify-between">
+                      <span className="text-[9.5px] font-extrabold tracking-wider uppercase text-blue-600 dark:text-blue-400">Recente</span>
+                      <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-md font-mono">
+                        {overdueStats.recentCount}
                       </span>
                     </div>
-                    <span className="text-sm font-display font-extrabold text-blue-500 mt-2 block leading-none">
-                      {formatValueBrl(overdueStats.recentSum)}
-                    </span>
+                    <div className="mt-2.5">
+                      <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
+                        1-7 dias
+                      </span>
+                      <span className="text-sm font-mono font-bold text-slate-950 dark:text-zinc-100 block leading-none">
+                        {formatValueBrl(overdueStats.recentSum)}
+                      </span>
+                    </div>
                   </button>
 
                 </div>
               </div>
 
               {/* SEARCH & FILTERS CONTROLS ROW */}
-              <div className="px-6 py-4 border-b border-slate-200 dark:border-[#1F1F1F] flex flex-col gap-3">
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-[#1F1F23] bg-slate-50/10 dark:bg-[#111113]/20 flex flex-col gap-3.5">
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-550">
                     <Search className="w-4 h-4" />
                   </span>
                   <input
                     type="text"
                     value={overdueSearch}
                     onChange={(e) => setOverdueSearch(e.target.value)}
-                    placeholder="Buscar por fornecedor, categoria, centro de custo..."
-                    className={`w-full pl-9 pr-8 py-2.5 rounded-xl border text-xs outline-none focus:ring-1 transition-all ${
+                    placeholder="Filtrar por fornecedor, categoria, centro..."
+                    className={`w-full pl-10 pr-9 py-2.5 rounded-xl border text-xs outline-none focus:ring-1 transition-all ${
                       isDarkMode 
-                        ? 'bg-[#111] border-[#2c2c2c] text-white focus:border-red-500 focus:ring-red-500' 
-                        : 'bg-white border-slate-250 text-slate-800 focus:border-red-500 focus:ring-red-500'
+                        ? 'bg-[#131316] border-[#1F1F23] text-white focus:border-red-500/55 focus:ring-red-500/30' 
+                        : 'bg-white border-slate-200 text-slate-805 focus:border-red-500/50 focus:ring-red-500/30'
                     }`}
                   />
                   {overdueSearch && (
                     <button 
                       onClick={() => setOverdueSearch('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-200 cursor-pointer"
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-405 hover:text-slate-605 dark:hover:text-zinc-205 cursor-pointer transitions-colors"
                     >
-                      <X className="w-3 h-3" />
+                      <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
 
-                <div className="flex items-center justify-between gap-2.5">
-                  <span className="text-[9px] uppercase font-black tracking-widest text-slate-400 font-mono">
-                    Ordenar listagem:
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-450 dark:text-zinc-500 font-sans">
+                    Ordenar por:
                   </span>
                   
-                  <div className="flex gap-1">
+                  <div className="flex gap-1.5">
                     {[
-                      { value: 'days_desc', label: '⏳ Dias Atraso' },
-                      { value: 'value_desc', label: '💰 Maior Valor' },
-                      { value: 'supplier_asc', label: '🔠 Nome' }
+                      { value: 'days_desc', label: 'Dias Atraso' },
+                      { value: 'value_desc', label: 'Maior Valor' },
+                      { value: 'supplier_asc', label: 'Fornecedor' }
                     ].map(opt => (
                       <button
                         key={opt.value}
                         onClick={() => setOverdueSort(opt.value as any)}
-                        className={`text-[9px] font-extrabold uppercase px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer ${
+                        className={`text-[10px] font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
                           overdueSort === opt.value
-                            ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white'
-                            : isDarkMode ? 'bg-[#111] text-slate-400 border-[#222]' : 'bg-slate-100 text-slate-600 border-slate-200'
+                            ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white shadow-xs'
+                            : isDarkMode 
+                              ? 'bg-[#131316] text-zinc-400 border-[#1F1F23] hover:text-zinc-200 hover:bg-[#1C1C20]' 
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:text-slate-800 hover:bg-slate-100'
                         }`}
                       >
                         {opt.label}
@@ -4688,7 +4733,7 @@ export default function AccountsPayable() {
               </div>
 
               {/* MAIN CONTENT AREA */}
-              <div className="flex-1 flex flex-col overflow-y-auto p-4 md:p-6 bg-slate-50 dark:bg-black/20">
+              <div className="flex-1 flex flex-col overflow-y-auto p-4 md:p-6 bg-slate-50/50 dark:bg-[#111113]/10">
                 {overdueAccounts.length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
                     <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-4 ring-8 ring-emerald-500/5 animate-pulse">
@@ -4719,84 +4764,101 @@ export default function AccountsPayable() {
                     {overdueAccounts.map((ac) => {
                       const daysOverdue = getDaysOverdue(ac.dueDate);
                       const hasBoleto = !!ac.attachedFile;
+                      const dueReverse = ac.dueDate.split('-').reverse().join('/');
                       
-                      // Highlight styles based on overdue days duration
-                      const alertSeverityColor = daysOverdue > 30 
-                        ? 'border-l-red-600 bg-red-500/[0.03] dark:bg-red-500/[0.01]' 
+                      // Fine indicators instead of thick blocky alert styles
+                      const badgeSeverityColor = daysOverdue > 30 
+                        ? 'bg-red-500/10 text-red-650 dark:text-red-400 font-extrabold' 
                         : daysOverdue >= 8
-                          ? 'border-l-amber-500 bg-amber-500/[0.03] dark:bg-amber-500/[0.01]'
-                          : 'border-l-blue-400 bg-blue-500/[0.03] dark:bg-blue-500/[0.01]';
- 
+                          ? 'bg-amber-500/10 text-amber-700 dark:text-amber-450 font-bold'
+                          : 'bg-blue-500/10 text-blue-600 dark:text-blue-400 font-bold';
+
+                      const severityDot = daysOverdue > 30 
+                        ? 'bg-red-500' 
+                        : daysOverdue >= 8
+                          ? 'bg-amber-500'
+                          : 'bg-blue-500';
+
                       return (
                         <div 
                           key={ac.id}
-                          className={`p-4 rounded-xl border border-slate-200 dark:border-[#1C1C1C] border-l-4 ${alertSeverityColor} flex flex-col gap-3.5 transition-all shadow-xs hover:shadow-md hover:scale-[1.01] duration-155`}
+                          className={`p-5 rounded-2xl border transition-all duration-200 ${
+                            isDarkMode 
+                              ? 'bg-[#111114] border-[#1F1F24] hover:border-zinc-800' 
+                              : 'bg-white border-slate-100 hover:border-slate-200/80 shadow-xs hover:shadow-sm'
+                          } flex flex-col gap-3.5`}
                         >
                           <div className="flex items-start justify-between gap-4">
-                            <div className="space-y-1.5">
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-display font-semibold text-[15px] text-slate-900 dark:text-white leading-tight">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`w-2 h-2 rounded-full ring-4 ${
+                                  severityDot === 'bg-red-500' 
+                                    ? 'ring-red-500/10' 
+                                    : severityDot === 'bg-amber-500' 
+                                    ? 'ring-amber-500/10' 
+                                    : 'ring-blue-500/10'
+                                } ${severityDot}`} />
+                                <span className="font-display font-semibold text-slate-850 dark:text-slate-100 uppercase tracking-tight text-sm">
                                   {ac.supplier}
                                 </span>
-                                <span className={`text-[9px] px-2 py-0.5 rounded-md font-bold tracking-wider uppercase ${
-                                  isDarkMode ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/10' : 'bg-indigo-50 text-indigo-600 border border-indigo-100'
-                                }`}>
+                                <span className="text-[9px] px-2 py-0.5 rounded-md font-bold tracking-wider uppercase bg-slate-100 dark:bg-[#1C1C20] text-slate-500 dark:text-zinc-400 border border-transparent dark:border-zinc-900">
                                   {ac.category}
                                 </span>
                               </div>
                               
-                              <p className="text-slate-500 dark:text-slate-400 text-xs leading-relaxed">
-                                {ac.description || 'Sem descrição cadastrada.'}
-                              </p>
+                              {ac.description && (
+                                <p className="text-[11px] text-slate-450 dark:text-zinc-400 tracking-tight font-medium leading-relaxed">
+                                  {ac.description}
+                                </p>
+                              )}
                               
-                              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                                <span>Centro: <span className="text-slate-700 dark:text-slate-300 font-bold">{ac.costCenter || 'N/A'}</span></span>
+                              <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-550">
+                                <span>Centro: <span className="text-slate-700 dark:text-zinc-300 font-bold">{ac.costCenter || 'Não Definido'}</span></span>
                               </div>
                             </div>
- 
+  
                             {/* Overdue Badge */}
-                            <div className="flex flex-col items-end gap-1.5 shrink-0">
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider font-mono ${
-                                daysOverdue > 30 
-                                  ? 'text-red-500 bg-red-500/10' 
-                                  : daysOverdue >= 8 
-                                    ? 'text-amber-500 bg-amber-500/10' 
-                                    : 'text-blue-500 bg-blue-500/10'
-                              }`}>
-                                {daysOverdue} {daysOverdue === 1 ? 'dia' : 'dias'} atrasado
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className={`text-[10px] px-2 py-0.5 rounded-md uppercase tracking-wide font-mono ${badgeSeverityColor}`}>
+                                {daysOverdue} {daysOverdue === 1 ? 'dia' : 'dias'}
                               </span>
-                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold font-mono">
-                                Vct: {ac.dueDate.split('-').reverse().join('/')}
+                              <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-semibold font-mono">
+                                Vct: {dueReverse}
                               </span>
                             </div>
                           </div>
- 
+  
                           {/* FINANCIAL BENTO INFOS */}
-                          <div className="grid grid-cols-2 gap-3 py-2.5 border-t border-b border-dashed border-slate-200 dark:border-[#222]">
+                          <div className="grid grid-cols-2 gap-4 py-3 border-t border-b border-slate-100 dark:border-[#1F1F23]/60">
                             <div>
-                              <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block mb-0.5">Valor Original</span>
-                              <span className="font-bold text-slate-800 dark:text-slate-100 font-mono text-sm tracking-tight">
+                              <span className="text-[9.5px] uppercase font-bold tracking-wider text-slate-400 dark:text-zinc-500 block mb-1">Valor Original</span>
+                              <span className="font-bold text-slate-805 dark:text-zinc-150 font-mono text-[13.5px] tracking-tight">
                                 {formatValueBrl(ac.value)}
                               </span>
                             </div>
                             
                             {ac.partialAmountPaid && ac.partialAmountPaid > 0 ? (
                               <div>
-                                <span className="text-[9px] uppercase font-bold tracking-wider text-emerald-500 block mb-0.5">Abatimento Parcial</span>
-                                <span className="font-bold text-emerald-500 font-mono text-sm">
-                                  -{formatValueBrl(ac.partialAmountPaid)}
-                                </span>
+                                <span className="text-[9.5px] uppercase font-bold tracking-wider text-emerald-500 block mb-1 font-sans">Valor Restante</span>
+                                <div className="flex flex-col">
+                                  <span className="font-bold text-red-600 dark:text-red-400 font-mono text-[13px] leading-tight">
+                                    {formatValueBrl(ac.value - ac.partialAmountPaid)}
+                                  </span>
+                                  <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 font-semibold leading-none mt-0.5">
+                                    Restante de: {formatValueBrl(ac.value)}
+                                  </span>
+                                </div>
                               </div>
                             ) : (
                               <div>
-                                <span className="text-[9px] uppercase font-bold tracking-wider text-slate-400 block mb-0.5">Valor Aberto</span>
-                                <span className="font-bold text-red-500/85 dark:text-red-400 font-mono text-xs">
+                                <span className="text-[9.5px] uppercase font-bold tracking-wider text-slate-400 dark:text-zinc-500 block mb-1">Valor Aberto</span>
+                                <span className="text-xs font-extrabold text-red-550 dark:text-red-400 block mt-0.5">
                                   Integral em Aberto
                                 </span>
                               </div>
                             )}
                           </div>
-
+ 
                           {/* ACTION BUTTONS WITH TRANSITIONS */}
                           <div className="flex items-center gap-2 justify-end pt-1">
                             {hasBoleto && (
@@ -4804,12 +4866,12 @@ export default function AccountsPayable() {
                                 onClick={() => {
                                   setCurrentBoletoUrl(ac.attachedFile);
                                 }}
-                                className="flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-[10px] tracking-wide font-black uppercase text-indigo-500 hover:text-indigo-600 border border-indigo-500/20 bg-indigo-500/5 hover:bg-indigo-500/10 hover:border-indigo-500/40 transition-all cursor-pointer"
+                                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase text-indigo-550 dark:text-indigo-400 border border-indigo-500/10 bg-indigo-505/[0.03] hover:bg-indigo-505/[0.08] hover:border-indigo-505/20 transition-all cursor-pointer h-9"
                               >
-                                <Eye className="w-3.5 h-3.5" /> Ver Boleto / NF
+                                <Eye className="w-4 h-4" /> Ver Anexo
                               </button>
                             )}
-
+ 
                             <button
                               onClick={() => {
                                 setSelectedPayAccount(ac);
@@ -4821,12 +4883,12 @@ export default function AccountsPayable() {
                                 setShowOverdueModal(false);
                               }}
                               style={{ backgroundColor: themeButtonBg, color: themeTextContrast }}
-                              className="flex items-center gap-1.5 py-1.5 px-3.5 rounded-lg text-[10px] tracking-wide font-black uppercase hover:brightness-105 active:scale-95 transition-all cursor-pointer shadow-xs"
+                              className="flex items-center gap-1.5 py-2 px-4 rounded-xl text-[10.5px] font-bold uppercase hover:opacity-95 active:scale-95 transition-all cursor-pointer shadow-xs h-9"
                             >
-                              <CheckCircle className="w-3.5 h-3.5" /> Baixar / Pagar
+                              <CheckCircle className="w-4 h-4" /> Dar Baixa
                             </button>
                           </div>
-
+ 
                         </div>
                       );
                     })}
