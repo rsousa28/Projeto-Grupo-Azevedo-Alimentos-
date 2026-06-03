@@ -1594,6 +1594,16 @@ export default function AccountsPayable() {
     });
   }, [accounts, currentStore, selectedYear, selectedMonth]);
   
+  const storeKPIAccounts = useMemo(() => {
+    return accounts.filter(ac => {
+      // 1. Store Isolation filter
+      if (currentStore.code !== 'ROOT' && ac.storeId !== currentStore.id) {
+        return false;
+      }
+      return true;
+    });
+  }, [accounts, currentStore]);
+  
   const todayStr = getTodayStr();
   
   // Single-pass aggregation for peak performance (O(N) instead of O(4N))
@@ -1603,28 +1613,49 @@ export default function AccountsPayable() {
     let paid = 0;
     let upcoming = 0;
 
-    activeKPIAccounts.forEach(ac => {
-      const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado') && ac.dueDate < todayStr);
+    storeKPIAccounts.forEach(ac => {
+      const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado' || ac.status === 'Parcialmente Pago') && ac.dueDate < todayStr);
       
+      // A Pagar Hoje: due today and not paid/canceled
       if (ac.dueDate === todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
-        today += ac.value;
+        const remainingVal = ac.value - (ac.partialAmountPaid || 0);
+        if (remainingVal > 0) {
+          today += remainingVal;
+        }
       }
       
-      if (isAcOverdue) {
-        overdue += ac.value;
+      // Total Vencido: overdue unpaid/partially-unpaid balance as of today
+      if (isAcOverdue && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
+        const remainingVal = ac.value - (ac.partialAmountPaid || 0);
+        if (remainingVal > 0) {
+          overdue += remainingVal;
+        }
       }
       
-      if (ac.status === 'Pago' && ac.paymentDate?.includes(`${selectedYear}-${selectedMonth}`)) {
+      // Pagas no Mês: payment occurred in selected month and year
+      const hasPaymentDateInRange = ac.paymentDate && (
+        ac.paymentDate.startsWith(`${selectedYear}-${selectedMonth}`) || 
+        ac.paymentDate.includes(`${selectedYear}-${selectedMonth}`)
+      );
+      const hasDueDateInRangeFallback = !ac.paymentDate && ac.dueDate?.startsWith(`${selectedYear}-${selectedMonth}`);
+      
+      if (ac.status === 'Pago' && (hasPaymentDateInRange || hasDueDateInRangeFallback)) {
         paid += ac.value;
+      } else if (ac.status === 'Parcialmente Pago' && hasPaymentDateInRange && ac.partialAmountPaid) {
+        paid += ac.partialAmountPaid;
       }
       
+      // Compromissos Futuros: due in the future (after today) and not paid/canceled
       if (ac.dueDate > todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
-        upcoming += ac.value;
+        const remainingVal = ac.value - (ac.partialAmountPaid || 0);
+        if (remainingVal > 0) {
+          upcoming += remainingVal;
+        }
       }
     });
 
     return { bentoTodayVal: today, bentoOverdueVal: overdue, bentoPaidMonthVal: paid, bentoUpcomingVal: upcoming };
-  }, [activeKPIAccounts, selectedYear, selectedMonth, todayStr]);
+  }, [storeKPIAccounts, selectedYear, selectedMonth, todayStr]);
 
   // Sorting logic (Optimized & Memoized)
   const sortedAccounts = useMemo(() => {
@@ -2574,7 +2605,7 @@ export default function AccountsPayable() {
             {formatValueBrl(bentoPaidMonthVal)}
           </h3>
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2.5">
-            Volume liquidado em Maio
+            Volume liquidado em {months.find(m => m.value === selectedMonth)?.label || 'este mês'}
           </p>
         </div>
 
