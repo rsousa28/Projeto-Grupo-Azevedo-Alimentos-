@@ -3181,11 +3181,11 @@ export default function AccountsPayable() {
                         </span>
                       );
                     } else {
-                      overdueRowBorder = 'border-l-[4px] border-l-emerald-500 dark:border-l-emerald-500';
-                      statusBadgeColor = 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-500 font-bold';
-                      dueDateColor = 'text-emerald-600 dark:text-emerald-400';
+                      overdueRowBorder = 'border-l-[4px] border-l-blue-500 dark:border-l-blue-500';
+                      statusBadgeColor = 'bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 font-bold';
+                      dueDateColor = 'text-blue-600 dark:text-blue-400';
                       overdueDaysLabel = (
-                        <span className="text-[10px] font-bold font-sans text-emerald-650 dark:text-emerald-450 leading-none mt-0.5">
+                        <span className="text-[10px] font-bold font-sans text-blue-650 dark:text-blue-450 leading-none mt-0.5">
                           Recente ({daysOverdue}d)
                         </span>
                       );
@@ -3391,11 +3391,11 @@ export default function AccountsPayable() {
                     </span>
                   );
                 } else {
-                  overdueCardBorder = 'border-l-[4px] border-l-emerald-500 dark:border-l-emerald-500 pl-3';
-                  statusBadgeColor = 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-500 font-bold';
-                  dueDateColor = 'text-emerald-600 dark:text-emerald-400';
+                  overdueCardBorder = 'border-l-[4px] border-l-blue-500 dark:border-l-blue-500 pl-3';
+                  statusBadgeColor = 'bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-500 font-bold';
+                  dueDateColor = 'text-blue-600 dark:text-blue-400';
                   overdueDaysLabel = (
-                    <span className="text-[10px] font-bold font-sans text-emerald-650 dark:text-emerald-450 mt-0.5">
+                    <span className="text-[10px] font-bold font-sans text-blue-650 dark:text-blue-450 mt-0.5">
                       Recente ({daysOverdue}d)
                     </span>
                   );
