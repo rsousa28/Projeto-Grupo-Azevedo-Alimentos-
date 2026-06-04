@@ -1552,10 +1552,19 @@ export default function AccountsPayable() {
         if (filterPeriodStart && ac.dueDate < filterPeriodStart) return false;
         if (filterPeriodEnd && ac.dueDate > filterPeriodEnd) return false;
       } else {
-        // By default, filter strictly by selected month and year from the main period selector
+        // By default, filter by selected month and year from the main period selector
+        // Include accounts that are EITHER due in the selected month/year,
+        // OR paid/partially paid within the selected month/year.
         if (ac.dueDate) {
           const parts = ac.dueDate.split('-');
-          if (parts[0] !== selectedYear || parts[1] !== selectedMonth) {
+          const isDueInPeriod = parts[0] === selectedYear && parts[1] === selectedMonth;
+          
+          const isPaidInPeriod = ac.paymentDate && (
+            ac.paymentDate.startsWith(`${selectedYear}-${selectedMonth}`) || 
+            ac.paymentDate.includes(`${selectedYear}-${selectedMonth}`)
+          );
+
+          if (!isDueInPeriod && !isPaidInPeriod) {
             return false;
           }
         }
@@ -1590,9 +1599,18 @@ export default function AccountsPayable() {
         return false;
       }
       // 2. Default to selected month/year for KPIs
+      // Include accounts that are EITHER due in the selected month/year,
+      // OR paid/partially paid within the selected month/year.
       if (ac.dueDate) {
         const parts = ac.dueDate.split('-');
-        if (parts[0] !== selectedYear || parts[1] !== selectedMonth) {
+        const isDueInPeriod = parts[0] === selectedYear && parts[1] === selectedMonth;
+        
+        const isPaidInPeriod = ac.paymentDate && (
+          ac.paymentDate.startsWith(`${selectedYear}-${selectedMonth}`) || 
+          ac.paymentDate.includes(`${selectedYear}-${selectedMonth}`)
+        );
+
+        if (!isDueInPeriod && !isPaidInPeriod) {
           return false;
         }
       }
@@ -1814,7 +1832,14 @@ export default function AccountsPayable() {
       if (ac.storeId !== currentStore.id) return false;
       if (ac.dueDate) {
         const parts = ac.dueDate.split('-');
-        if (parts[0] !== selectedYear || parts[1] !== selectedMonth) {
+        const isDueInPeriod = parts[0] === selectedYear && parts[1] === selectedMonth;
+        
+        const isPaidInPeriod = ac.paymentDate && (
+          ac.paymentDate.startsWith(`${selectedYear}-${selectedMonth}`) || 
+          ac.paymentDate.includes(`${selectedYear}-${selectedMonth}`)
+        );
+
+        if (!isDueInPeriod && !isPaidInPeriod) {
           return false;
         }
       }
