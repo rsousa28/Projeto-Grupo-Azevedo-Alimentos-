@@ -421,6 +421,7 @@ export default function AccountsPayable() {
   const [editDescription, setEditDescription] = useState<string>('');
   const [editAttachedFile, setEditAttachedFile] = useState<string | null>(null);
   const [editAttachedNF, setEditAttachedNF] = useState<string | null>(null);
+  const [editCategory, setEditCategory] = useState<string>('');
   
   const editBoletoFileRef = useRef<HTMLInputElement>(null);
   const editNfFileRef = useRef<HTMLInputElement>(null);
@@ -1281,6 +1282,7 @@ export default function AccountsPayable() {
           supplier: editSupplier,
           dueDate: editDueDate,
           description: editDescription,
+          category: editCategory,
           attachedFile: editAttachedFile || undefined,
           taxInvoiceFile: editAttachedNF || undefined
         };
@@ -2264,6 +2266,7 @@ export default function AccountsPayable() {
                               setEditSupplier(ac.supplier);
                               setEditDueDate(ac.dueDate);
                               setEditDescription(ac.description);
+                              setEditCategory(ac.category || '');
                               setEditAttachedFile(ac.attachedFile || null);
                               setEditAttachedNF(ac.taxInvoiceFile || null);
                             }}
@@ -2356,6 +2359,7 @@ export default function AccountsPayable() {
                         setEditSupplier(ac.supplier);
                         setEditDueDate(ac.dueDate);
                         setEditDescription(ac.description);
+                        setEditCategory(ac.category || '');
                         setEditAttachedFile(ac.attachedFile || null);
                         setEditAttachedNF(ac.taxInvoiceFile || null);
                       }}
@@ -2550,6 +2554,22 @@ export default function AccountsPayable() {
                       style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
                       className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
                     />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Categoria</label>
+                    <select
+                      value={editCategory}
+                      onChange={(e) => setEditCategory(e.target.value)}
+                      style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                      className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                    >
+                      {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">
+                          {cat}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -3324,6 +3344,7 @@ export default function AccountsPayable() {
                               setEditSupplier(ac.supplier);
                               setEditDueDate(ac.dueDate);
                               setEditDescription(ac.description);
+                              setEditCategory(ac.category || '');
                               setEditAttachedFile(ac.attachedFile || null);
                               setEditAttachedNF(ac.taxInvoiceFile || null);
                             }}
@@ -3550,6 +3571,7 @@ export default function AccountsPayable() {
                           setEditSupplier(ac.supplier);
                           setEditDueDate(ac.dueDate);
                           setEditDescription(ac.description);
+                          setEditCategory(ac.category || '');
                           setEditAttachedFile(ac.attachedFile || null);
                           setEditAttachedNF(ac.taxInvoiceFile || null);
                         }}
@@ -4275,6 +4297,22 @@ export default function AccountsPayable() {
                     style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
                     className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
                   />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] uppercase font-bold tracking-wider text-slate-400">Categoria</label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value)}
+                    style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+                    className="w-full text-xs font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-800 dark:text-slate-200 focus:ring-1"
+                  >
+                    {CATEGORIES.map(cat => (
+                      <option key={cat} value={cat} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
