@@ -950,7 +950,7 @@ export default function Finance() {
         {/* Action Sidebar */}
         <div className="space-y-6">
            <div className={`p-8 rounded-[2.5rem] border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-              <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-6 italic ${isDarkMode ? 'text-slate-400' : 'text-black'}`}>Eficiência Operacional</h4>
+              <h4 className={`text-[10px] font-black uppercase tracking-[0.2em] mb-6 italic ${isDarkMode ? 'text-slate-400' : 'text-black'}`}>Insights Operacionais</h4>
               <div className="space-y-6">
                  {currentInsights.map((insight, idx) => (
                    <div key={idx} className="flex gap-4">

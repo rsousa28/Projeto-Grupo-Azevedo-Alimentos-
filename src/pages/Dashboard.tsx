@@ -1217,7 +1217,7 @@ export default function Dashboard() {
             <Zap className={`w-6 h-6 animate-pulse ${currentStore.brand === 'BEBELU' ? 'text-black' : 'text-white'}`} />
           </div>
           <div className="flex-1">
-            <h2 className={`text-2xl font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>Eficiência Operacional</h2>
+            <h2 className={`text-2xl font-bold leading-tight ${isDarkMode ? 'text-white' : 'text-black'}`}>Insights Operacionais</h2>
             <div className="h-10 flex items-center">
               <AnimatePresence mode="wait">
                 <motion.p 
