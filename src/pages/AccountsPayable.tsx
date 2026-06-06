@@ -363,6 +363,10 @@ export default function AccountsPayable() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showOverdueModal, setShowOverdueModal] = useState(false);
+  const [showPaidMonthModal, setShowPaidMonthModal] = useState(false);
+  const [paidMonthSearch, setPaidMonthSearch] = useState('');
+  const [paidMonthClassificationFilter, setPaidMonthClassificationFilter] = useState<'all' | 'fully_paid' | 'partially_paid'>('all');
+  const [paidMonthSort, setPaidMonthSort] = useState<'date_desc' | 'value_desc' | 'supplier_asc'>('date_desc');
   const [overdueSearch, setOverdueSearch] = useState('');
   const [overdueClassificationFilter, setOverdueClassificationFilter] = useState<'all' | 'critical' | 'attention' | 'recent'>('all');
   const [overdueSort, setOverdueSort] = useState<'days_desc' | 'value_desc' | 'supplier_asc'>('days_desc');
@@ -1658,16 +1662,18 @@ export default function AccountsPayable() {
         }
       }
       
-      // Pagas no Mês: due in selected month OR paid within selected month
+      // Pagas no Mês: strictly assigned to their actual payment execution month (with fallback to due date if no paymentDate exists)
       const hasDueDateInRange = ac.dueDate?.startsWith(`${selectedYear}-${selectedMonth}`);
       const hasPaymentDateInRange = ac.paymentDate && (
         ac.paymentDate.startsWith(`${selectedYear}-${selectedMonth}`) || 
         ac.paymentDate.includes(`${selectedYear}-${selectedMonth}`)
       );
       
-      if (ac.status === 'Pago' && (hasDueDateInRange || hasPaymentDateInRange)) {
+      const matchesPaymentPeriod = ac.paymentDate ? hasPaymentDateInRange : hasDueDateInRange;
+      
+      if (ac.status === 'Pago' && matchesPaymentPeriod) {
         paid += ac.value;
-      } else if (ac.status === 'Parcialmente Pago' && (hasDueDateInRange || hasPaymentDateInRange) && ac.partialAmountPaid) {
+      } else if (ac.status === 'Parcialmente Pago' && matchesPaymentPeriod && ac.partialAmountPaid) {
         paid += ac.partialAmountPaid;
       }
       
@@ -1770,6 +1776,89 @@ export default function AccountsPayable() {
       recentCount, recentSum
     };
   }, [rawOverdueAccounts, todayStr]);
+
+  const rawPaidMonthAccounts = useMemo(() => {
+    return storeKPIAccounts.filter(ac => {
+      const hasDueDateInRange = ac.dueDate?.startsWith(`${selectedYear}-${selectedMonth}`);
+      const hasPaymentDateInRange = ac.paymentDate && (
+        ac.paymentDate.startsWith(`${selectedYear}-${selectedMonth}`) || 
+        ac.paymentDate.includes(`${selectedYear}-${selectedMonth}`)
+      );
+      const matchesPaymentPeriod = ac.paymentDate ? hasPaymentDateInRange : hasDueDateInRange;
+      
+      const isPaid = ac.status === 'Pago' && matchesPaymentPeriod;
+      const isPartiallyPaid = ac.status === 'Parcialmente Pago' && matchesPaymentPeriod && ac.partialAmountPaid && ac.partialAmountPaid > 0;
+      
+      return isPaid || isPartiallyPaid;
+    });
+  }, [storeKPIAccounts, selectedYear, selectedMonth]);
+
+  const paidMonthAccounts = useMemo(() => {
+    let result = rawPaidMonthAccounts.filter(ac => {
+      // 1. Search Query
+      if (paidMonthSearch.trim() !== '') {
+        const query = paidMonthSearch.toLowerCase();
+        const matchesSupplier = ac.supplier?.toLowerCase().includes(query);
+        const matchesDesc = ac.description?.toLowerCase().includes(query);
+        const matchesCategory = ac.category?.toLowerCase().includes(query);
+        const matchesCc = ac.costCenter?.toLowerCase().includes(query);
+        const matchesBank = ac.bank?.toLowerCase().includes(query);
+        if (!matchesSupplier && !matchesDesc && !matchesCategory && !matchesCc && !matchesBank) {
+          return false;
+        }
+      }
+
+      // 2. Classification Filter
+      if (paidMonthClassificationFilter !== 'all') {
+        if (paidMonthClassificationFilter === 'fully_paid' && ac.status !== 'Pago') return false;
+        if (paidMonthClassificationFilter === 'partially_paid' && ac.status !== 'Parcialmente Pago') return false;
+      }
+
+      return true;
+    });
+
+    // 3. Sorting
+    return result.sort((a, b) => {
+      if (paidMonthSort === 'date_desc') {
+        const dateA = a.paymentDate || a.dueDate || '';
+        const dateB = b.paymentDate || b.dueDate || '';
+        return dateB.localeCompare(dateA);
+      } else if (paidMonthSort === 'value_desc') {
+        const valA = a.status === 'Pago' ? a.value : (a.partialAmountPaid || 0);
+        const valB = b.status === 'Pago' ? b.value : (b.partialAmountPaid || 0);
+        return valB - valA;
+      } else if (paidMonthSort === 'supplier_asc') {
+        return (a.supplier || '').localeCompare(b.supplier || '');
+      }
+      return 0;
+    });
+  }, [rawPaidMonthAccounts, paidMonthSearch, paidMonthClassificationFilter, paidMonthSort]);
+
+  const paidMonthStats = useMemo(() => {
+    let fullyPaidCount = 0;
+    let fullyPaidSum = 0;
+    let partiallyPaidCount = 0;
+    let partiallyPaidSum = 0;
+
+    rawPaidMonthAccounts.forEach(ac => {
+      if (ac.status === 'Pago') {
+        fullyPaidCount++;
+        fullyPaidSum += ac.value;
+      } else if (ac.status === 'Parcialmente Pago' && ac.partialAmountPaid) {
+        partiallyPaidCount++;
+        partiallyPaidSum += ac.partialAmountPaid;
+      }
+    });
+
+    return {
+      fullyPaidCount,
+      fullyPaidSum,
+      partiallyPaidCount,
+      partiallyPaidSum,
+      totalCount: fullyPaidCount + partiallyPaidCount,
+      totalSum: fullyPaidSum + partiallyPaidSum,
+    };
+  }, [rawPaidMonthAccounts]);
 
   // Sorting logic (Optimized & Memoized)
   const sortedAccounts = useMemo(() => {
@@ -2855,20 +2944,26 @@ export default function AccountsPayable() {
         </div>
 
         {/* KPI 3 - Pagos no Mês */}
-        <div className={`p-5 rounded-2xl border transition-all ${
-          isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-md shadow-slate-100/40'
-        }`}>
+        <div 
+          onClick={() => setShowPaidMonthModal(true)}
+          className={`p-5 rounded-2xl border transition-all cursor-pointer hover:shadow-lg hover:scale-[1.01] active:scale-95 duration-200 ${
+            isDarkMode 
+              ? 'bg-[#121212] border-zinc-800 border-l-4 border-l-emerald-500 hover:border-emerald-500/30' 
+              : 'bg-white border-slate-100 border-l-4 border-l-emerald-500 hover:border-emerald-500/30 shadow-md shadow-slate-100/40'
+          }`}
+          title="Clique para ver resumo de boletos pagos no mês"
+        >
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">Pagas no Mês</span>
-            <div className="p-2 rounded-xl bg-emerald-500/10">
+            <div className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 transition-colors">
               <CheckCircle className="w-4 h-4 text-emerald-500" />
             </div>
           </div>
           <div className="text-2xl font-display font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
             {formatValueBrl(bentoPaidMonthVal)}
           </div>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5">
-            Volume liquidado em {months.find(m => m.value === selectedMonth)?.label || 'este mês'}
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5 flex items-center gap-1">
+            Volume em {months.find(m => m.value === selectedMonth)?.label || 'este mês'} <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold">({rawPaidMonthAccounts.length})</span>
           </p>
         </div>
 
@@ -5024,6 +5119,393 @@ export default function AccountsPayable() {
                             </button>
                           </div>
  
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* SIDEBAR DRAWER - BOLETOS PAGOS NO MÊS */}
+      <AnimatePresence>
+        {showPaidMonthModal && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[5px] z-50 flex items-center justify-end">
+            <div className="absolute inset-0 cursor-default" onClick={() => setShowPaidMonthModal(false)} />
+            
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+              className={`w-full max-w-xl h-full shadow-2xl flex flex-col pt-0 p-0 relative z-10 ${
+                isDarkMode 
+                  ? 'bg-[#0E0E11] text-[#E4E4E7] border-l border-[#1F1F23]' 
+                  : 'bg-white text-slate-800 border-l border-slate-200/80'
+              }`}
+            >
+              {/* HEADER SECTION WITH BRAND IDENTITY */}
+              <div className="px-6 pt-7 pb-6 border-b border-slate-100 dark:border-[#1F1F23] bg-linear-to-b from-slate-50/40 to-transparent dark:from-[#131316]/40">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/[0.08] dark:bg-emerald-500/10 text-emerald-500">
+                      <CheckCircle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-display font-semibold tracking-tight text-slate-850 dark:text-white">
+                          Boletos Pagos no Mês
+                        </h3>
+                        <span className="inline-flex items-center text-[9.5px] bg-emerald-500/10 text-emerald-650 dark:text-emerald-400 font-extrabold px-1.5 py-0.5 rounded-md uppercase select-none font-mono">
+                          Quitados
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 dark:text-zinc-500 tracking-wider font-semibold font-mono mt-0.5 uppercase">
+                        {currentStore.name} • {months.find(m => m.value === selectedMonth)?.label || 'este mês'}/{selectedYear}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (rawPaidMonthAccounts.length === 0) {
+                          showToast("Nenhuma conta paga para gerar relatório.", "info");
+                          return;
+                        }
+
+                        let emailBody = `Prezados,\n\n`;
+                        emailBody += `Segue o resumo de boletos e contas pagas da unidade ${currentStore.name.toUpperCase()} referente a ${months.find(m => m.value === selectedMonth)?.label || 'este mês'} de ${selectedYear}:\n\n`;
+                        emailBody += `• Total Pago no Mês: ${formatValueBrl(paidMonthStats.totalSum)} (${rawPaidMonthAccounts.length} boletos)\n`;
+                        emailBody += `• Quitações Integrais: ${paidMonthStats.fullyPaidCount} boletos (${formatValueBrl(paidMonthStats.fullyPaidSum)})\n`;
+                        emailBody += `• Pagamentos Parciais: ${paidMonthStats.partiallyPaidCount} boletos (${formatValueBrl(paidMonthStats.partiallyPaidSum)})\n\n`;
+                        
+                        emailBody += `--------------------------------------------------\n`;
+                        emailBody += `RELAÇÃO DE BOLETOS PAGOS:\n`;
+                        emailBody += `--------------------------------------------------\n`;
+                        
+                        rawPaidMonthAccounts.forEach((ac, idx) => {
+                          const paidVal = ac.status === 'Pago' ? ac.value : (ac.partialAmountPaid || 0);
+                          const dateFormatted = ac.paymentDate 
+                            ? (ac.paymentDate.includes(' às ') ? ac.paymentDate.split(' às ')[0] : ac.paymentDate)
+                            : (ac.dueDate || 'N/D');
+                          
+                          const dateShow = dateFormatted.includes('-') 
+                            ? dateFormatted.split('-').reverse().join('/')
+                            : dateFormatted;
+
+                          emailBody += `${idx + 1}. ${ac.supplier} - ${formatValueBrl(paidVal)} (${ac.status} • Data: ${dateShow})\n`;
+                        });
+                        
+                        emailBody += `--------------------------------------------------\n`;
+                        emailBody += `Gerado eletronicamente em seu Painel Gestor em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.\n`;
+
+                        const recipients = "rennaninacio0003@gmail.com,azevedogas@yahoo.com.br";
+                        const subject = `✅ RELATÓRIO: Boletos Pagos (${months.find(m => m.value === selectedMonth)?.label || ''}/${selectedYear}) - ${currentStore.name.toUpperCase()}`;
+
+                        navigator.clipboard.writeText(emailBody)
+                          .then(() => {
+                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                            window.location.href = mailtoUrl;
+                            showToast("E-mail de relatório iniciado e cópia salva na área de transferência!", "success");
+                          })
+                          .catch(() => {
+                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                            window.location.href = mailtoUrl;
+                            showToast("E-mail de relatório iniciado!", "success");
+                          });
+                      }}
+                      title="Enviar relatório por e-mail para diretores"
+                      className="py-2 px-3.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-605 dark:text-indigo-400 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                    >
+                      <Mail className="w-4 h-4" /> Enviar por E-mail
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowPaidMonthModal(false)}
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E1E22] dark:hover:bg-[#202025] text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* OVERALL DYNAMIC SUM */}
+                <div className="bg-slate-50 dark:bg-[#131316]/50 border border-slate-100 dark:border-[#1F1F23]/80 p-5 rounded-2xl flex items-center justify-between shadow-xs">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Total Consolidado Liquidado</span>
+                    <span className="text-2xl font-display font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400">
+                      {formatValueBrl(paidMonthStats.totalSum)}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider block">Quitados</span>
+                    <span className="text-sm font-bold font-mono text-slate-800 dark:text-zinc-300">
+                      {rawPaidMonthAccounts.length} boletos
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* INTERACTIVE CLASSIFICATION METRICS */}
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-[#1F1F23] bg-linear-to-b from-transparent to-slate-50/20 dark:to-transparent">
+                <div className="grid grid-cols-2 gap-3">
+                  
+                  {/* FULLY PAID BUTTON KEY */}
+                  <button
+                    onClick={() => setPaidMonthClassificationFilter(prev => prev === 'fully_paid' ? 'all' : 'fully_paid')}
+                    className={`p-4 rounded-xl border text-left transition-all duration-200 hover:translate-y-[-1px] select-none cursor-pointer flex flex-col justify-between h-24 ${
+                      paidMonthClassificationFilter === 'fully_paid'
+                        ? 'bg-emerald-500/[0.08] border-emerald-500 shadow-xs ring-1 ring-emerald-500/20'
+                        : isDarkMode 
+                          ? 'bg-[#121215] border-[#1F1F23] hover:bg-zinc-800/10 hover:border-zinc-700/50' 
+                          : 'bg-white border-slate-105 hover:bg-slate-50 hover:border-slate-200 shadow-xs'
+                    }`}
+                  >
+                    <div className="w-full flex items-center justify-between">
+                      <span className="text-[9.5px] font-extrabold tracking-wider uppercase text-emerald-600 dark:text-emerald-400">Integrais</span>
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md font-mono">
+                        {paidMonthStats.fullyPaidCount}
+                      </span>
+                    </div>
+                    <div className="mt-2.5">
+                      <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
+                        100% Baixado
+                      </span>
+                      <span className="text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 block leading-none">
+                        {formatValueBrl(paidMonthStats.fullyPaidSum)}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* PARTIALLY PAID BUTTON KEY */}
+                  <button
+                    onClick={() => setPaidMonthClassificationFilter(prev => prev === 'partially_paid' ? 'all' : 'partially_paid')}
+                    className={`p-4 rounded-xl border text-left transition-all duration-200 hover:translate-y-[-1px] select-none cursor-pointer flex flex-col justify-between h-24 ${
+                      paidMonthClassificationFilter === 'partially_paid'
+                        ? 'bg-amber-500/[0.08] border-amber-500 shadow-xs ring-1 ring-amber-500/20'
+                        : isDarkMode 
+                          ? 'bg-[#121215] border-[#1F1F23] hover:bg-zinc-800/10 hover:border-zinc-700/50' 
+                          : 'bg-white border-slate-105 hover:bg-slate-50 hover:border-slate-200 shadow-xs'
+                    }`}
+                  >
+                    <div className="w-full flex items-center justify-between">
+                      <span className="text-[9.5px] font-extrabold tracking-wider uppercase text-amber-600 dark:text-amber-450">Parciais</span>
+                      <span className="text-[10px] font-bold text-amber-605 dark:text-amber-450 bg-amber-500/10 px-1.5 py-0.5 rounded-md font-mono">
+                        {paidMonthStats.partiallyPaidCount}
+                      </span>
+                    </div>
+                    <div className="mt-2.5">
+                      <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
+                        Abono Parcial
+                      </span>
+                      <span className="text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 block leading-none">
+                        {formatValueBrl(paidMonthStats.partiallyPaidSum)}
+                      </span>
+                    </div>
+                  </button>
+
+                </div>
+              </div>
+
+              {/* SEARCH & FILTERS CONTROLS ROW */}
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-[#1F1F23] bg-slate-50/10 dark:bg-[#111113]/20 flex flex-col gap-3.5">
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-550">
+                    <Search className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    value={paidMonthSearch}
+                    onChange={(e) => setPaidMonthSearch(e.target.value)}
+                    placeholder="Filtrar por fornecedor, categoria, banco, centro..."
+                    className={`w-full pl-10 pr-9 py-2.5 rounded-xl border text-xs outline-none focus:ring-1 transition-all ${
+                      isDarkMode 
+                        ? 'bg-[#131316] border-[#1F1F23] text-white focus:border-emerald-500/55 focus:ring-emerald-500/30' 
+                        : 'bg-white border-slate-200 text-slate-805 focus:border-emerald-500/50 focus:ring-emerald-500/30'
+                    }`}
+                  />
+                  {paidMonthSearch && (
+                    <button 
+                      onClick={() => setPaidMonthSearch('')}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-405 hover:text-slate-605 dark:hover:text-zinc-205 cursor-pointer transitions-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-450 dark:text-zinc-500 font-sans">
+                    Ordenar por:
+                  </span>
+                  
+                  <div className="flex gap-1.5">
+                    {[
+                      { value: 'date_desc', label: 'Data Pagto' },
+                      { value: 'value_desc', label: 'Maior Valor' },
+                      { value: 'supplier_asc', label: 'Fornecedor' }
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setPaidMonthSort(opt.value as any)}
+                        className={`text-[10px] font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                          paidMonthSort === opt.value
+                            ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white shadow-xs'
+                            : isDarkMode 
+                              ? 'bg-[#131316] text-zinc-400 border-[#1F1F23] hover:text-zinc-200 hover:bg-[#1C1C20]' 
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:text-slate-800 hover:bg-slate-100'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* MAIN CONTENT AREA */}
+              <div className="flex-1 flex flex-col overflow-y-auto p-4 md:p-6 bg-slate-50/50 dark:bg-[#111113]/10">
+                {paidMonthAccounts.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                    <div className="w-14 h-14 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 mb-4 ring-8 ring-emerald-500/5">
+                      <CheckCircle className="w-8 h-8 font-extrabold" />
+                    </div>
+                    <h4 className="text-base font-display font-semibold tracking-tight text-slate-850 dark:text-white">
+                      Sem boletos quitados correspondentes
+                    </h4>
+                    <p className="text-slate-505 text-xs font-semibold max-w-xs mt-2 leading-relaxed">
+                      {rawPaidMonthAccounts.length === 0 
+                        ? 'Nenhum boleto pago cadastrado neste período de pesquisa.'
+                        : 'Nenhum boleto correspondente aos filtros de pesquisa aplicados.'}
+                    </p>
+                    {(paidMonthSearch || paidMonthClassificationFilter !== 'all') && (
+                      <button
+                        onClick={() => {
+                          setPaidMonthSearch('');
+                          setPaidMonthClassificationFilter('all');
+                        }}
+                        className="mt-4 px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-[#222] bg-white dark:bg-[#121212] cursor-pointer hover:bg-slate-100 transition-all text-slate-600 dark:text-slate-300"
+                      >
+                        Limpar Filtros
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 pb-8">
+                    {paidMonthAccounts.map((ac) => {
+                      const hasBoleto = !!ac.attachedFile;
+                      const hasNF = !!ac.taxInvoiceFile;
+                      
+                      const dateFormatted = ac.paymentDate 
+                        ? (ac.paymentDate.includes(' às ') ? ac.paymentDate.split(' às ')[0] : ac.paymentDate)
+                        : (ac.dueDate || 'N/D');
+                      
+                      const dateShow = dateFormatted.includes('-') 
+                        ? dateFormatted.split('-').reverse().join('/')
+                        : dateFormatted;
+
+                      const paidValue = ac.status === 'Pago' ? ac.value : (ac.partialAmountPaid || 0);
+
+                      return (
+                        <div 
+                          key={ac.id}
+                          className={`p-5 rounded-2xl border transition-all duration-200 ${
+                            isDarkMode 
+                              ? 'bg-[#111114] border-[#1F1F24] hover:border-zinc-800' 
+                              : 'bg-white border-slate-100 hover:border-slate-200/80 shadow-xs hover:shadow-sm'
+                          } flex flex-col gap-3.5`}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-500/10" />
+                                <span className="font-display font-semibold text-slate-850 dark:text-slate-100 uppercase tracking-tight text-sm">
+                                  {ac.supplier}
+                                </span>
+                                <span className="text-[9px] px-2 py-0.5 rounded-md font-bold tracking-wider uppercase bg-slate-100 dark:bg-[#1C1C20] text-slate-500 dark:text-zinc-400 border border-transparent dark:border-zinc-900">
+                                  {ac.category || 'Geral'}
+                                </span>
+                              </div>
+                              
+                              {ac.description && (
+                                <p className="text-[11px] text-slate-450 dark:text-zinc-400 tracking-tight font-medium leading-relaxed">
+                                  {ac.description}
+                                </p>
+                              )}
+                              
+                              <div className="flex flex-col gap-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-550">
+                                <div>Centro: <span className="text-slate-705 dark:text-zinc-300 font-bold">{ac.costCenter || 'Não Definido'}</span></div>
+                                {ac.bank && <div>Banco: <span className="text-slate-705 dark:text-zinc-300 font-bold">{ac.bank}</span></div>}
+                                {ac.paymentMethod && <div>Método: <span className="text-slate-705 dark:text-zinc-300 font-bold">{ac.paymentMethod}</span></div>}
+                              </div>
+                            </div>
+  
+                            {/* Paid Badge status */}
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className={`text-[10px] px-2 py-0.5 rounded-md uppercase tracking-wide font-mono font-bold ${
+                                ac.status === 'Pago'
+                                  ? 'bg-emerald-500/10 text-emerald-650 dark:text-emerald-400'
+                                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-450'
+                              }`}>
+                                {ac.status}
+                              </span>
+                              <span className="text-[9.5px] text-slate-455 dark:text-zinc-500 font-semibold font-mono">
+                                Pagto: {dateShow}
+                              </span>
+                              {ac.dueDate && (
+                                <span className="text-[9px] text-slate-400 dark:text-zinc-550 font-medium font-mono">
+                                  Vct orig: {ac.dueDate.split('-').reverse().join('/')}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+  
+                          {/* FINANCIAL BENTO INFOS */}
+                          <div className="grid grid-cols-2 gap-4 py-3 border-t border-b border-slate-100 dark:border-[#1F1F23]/60">
+                            <div>
+                              <span className="text-[9.5px] uppercase font-bold tracking-wider text-slate-400 dark:text-zinc-500 block mb-1">Valor do Lançamento</span>
+                              <span className="font-bold text-slate-500 dark:text-zinc-400 font-mono text-[12.5px] tracking-tight line-through">
+                                {formatValueBrl(ac.value)}
+                              </span>
+                            </div>
+                            
+                            <div>
+                              <span className="text-[9.5px] uppercase font-bold tracking-wider text-emerald-500 block mb-1 font-sans">Valor Quitado</span>
+                              <span className="font-extrabold text-emerald-650 dark:text-emerald-400 font-mono text-[14px] leading-tight block">
+                                {formatValueBrl(paidValue)}
+                              </span>
+                            </div>
+                          </div>
+  
+                          {/* ACTION BUTTONS WITH TRANSITIONS */}
+                          <div className="flex items-center gap-2 justify-end pt-1">
+                            {hasBoleto && (
+                              <button
+                                onClick={() => {
+                                  setCurrentBoletoUrl(ac.attachedFile);
+                                }}
+                                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase text-indigo-550 dark:text-indigo-400 border border-indigo-500/10 bg-indigo-505/[0.03] hover:bg-indigo-505/[0.08] hover:border-indigo-505/20 transition-all cursor-pointer h-9"
+                              >
+                                <Eye className="w-4 h-4" /> Boleto/Anexo
+                              </button>
+                            )}
+
+                            {hasNF && (
+                              <button
+                                onClick={() => {
+                                  setCurrentBoletoUrl(ac.taxInvoiceFile);
+                                }}
+                                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase text-emerald-600 dark:text-emerald-400 border border-emerald-500/10 bg-emerald-50/[0.03] hover:bg-emerald-50/[0.08] hover:border-emerald-50/20 transition-all cursor-pointer h-9"
+                              >
+                                <FileText className="w-4 h-4" /> Nota Fiscal
+                              </button>
+                            )}
+                          </div>
+  
                         </div>
                       );
                     })}
