@@ -1,5 +1,57 @@
-<svg viewBox="0 0 400 200" xmlns="http://www.w3.org/2000/svg">
-  <rect width="400" height="200" rx="40" fill="black"/>
-  <text x="40" y="155" fill="white" font-family="Arial, sans-serif" font-weight="900" font-size="180" font-style="italic" letter-spacing="-10">AZ</text>
-  <path d="M100 180 C 200 100 300 60 400 50 L 400 80 C 300 90 200 130 100 200 Z" fill="white"/>
+<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" fill="none">
+  <!-- 
+    Brand: AZEVEDO
+    Design: High-Luxury Serif Brand Emblem
+    Characteristics: Mathematical bezier symmetry, stable vector curves, crisp vector geometry, didot high-contrast stems
+  -->
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;display=swap');
+      .serif-brand-text {
+        font-family: 'Playfair Display', 'Didot', 'Times New Roman', serif;
+        font-size: 38px;
+        font-weight: 400;
+        letter-spacing: 24px;
+        fill: #111111;
+        text-anchor: middle;
+      }
+    </style>
+  </defs>
+
+  <!-- Elegant vector symbol A -->
+  <path d="
+    M 300 130 
+    L 383 385 
+    C 383 397, 395 410, 425 410 
+    L 305 410 
+    C 325 410, 345 397, 345 385 
+    L 329 325 
+    C 305 265, 255 265, 232 325 
+    L 210 385 
+    C 210 397, 218 410, 245 410 
+    L 165 410 
+    C 190 410, 200 397, 200 385 
+    L 300 130 
+    Z 
+    
+    M 288 175 
+    L 247 285 
+    C 260 255, 305 255, 318 285 
+    L 288 175 
+    Z
+  " 
+  fill="#111111" 
+  fill-rule="evenodd" 
+  stroke="#111111" 
+  stroke-width="0.5" 
+  stroke-linejoin="round"
+  />
+
+  <!-- Perfectly balanced spaced-out typography with compensating offset (dx) for trailing letter-spacing -->
+  <text 
+    x="300" 
+    y="492" 
+    dx="12"
+    class="serif-brand-text"
+  >AZEVEDO</text>
 </svg>
