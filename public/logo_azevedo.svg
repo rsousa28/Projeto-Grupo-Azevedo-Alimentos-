@@ -1,8 +1,9 @@
-<svg viewBox="0 0 600 600" xmlns="http://www.w3.org/2000/svg" fill="none">
+<svg viewBox="0 0 600 420" xmlns="http://www.w3.org/2000/svg" fill="none">
   <!-- 
     Brand: AZEVEDO
     Design: High-Luxury Serif Brand Emblem
     Characteristics: Mathematical bezier symmetry, stable vector curves, crisp vector geometry, didot high-contrast stems
+    Aligned and cropped to remove redundant vertical padding, ensuring optimal centering and crispness across all screen sizes.
   -->
   <defs>
     <style>
@@ -20,24 +21,24 @@
 
   <!-- Elegant vector symbol A -->
   <path d="
-    M 300 130 
-    L 383 385 
-    C 383 397, 395 410, 425 410 
-    L 305 410 
-    C 325 410, 345 397, 345 385 
-    L 329 325 
-    C 305 265, 255 265, 232 325 
-    L 210 385 
-    C 210 397, 218 410, 245 410 
-    L 165 410 
-    C 190 410, 200 397, 200 385 
-    L 300 130 
+    M 300 20 
+    L 383 275 
+    C 383 287, 395 300, 425 300 
+    L 305 300 
+    C 325 300, 345 287, 345 275 
+    L 329 215 
+    C 305 155, 255 155, 232 215 
+    L 210 275 
+    C 210 287, 218 300, 245 300 
+    L 165 300 
+    C 190 300, 200 287, 200 275 
+    L 300 20 
     Z 
     
-    M 288 175 
-    L 247 285 
-    C 260 255, 305 255, 318 285 
-    L 288 175 
+    M 288 65 
+    L 247 175 
+    C 260 145, 305 145, 318 175 
+    L 288 65 
     Z
   " 
   fill="#111111" 
@@ -50,7 +51,7 @@
   <!-- Perfectly balanced spaced-out typography with compensating offset (dx) for trailing letter-spacing -->
   <text 
     x="300" 
-    y="492" 
+    y="375" 
     dx="12"
     class="serif-brand-text"
   >AZEVEDO</text>

@@ -16,20 +16,19 @@ export default function Login() {
   const [quoteIndex, setQuoteIndex] = useState(0);
 
   const quotes = [
-    { text: "Sem vendas não há negócio. Foque em gerar valor para o cliente todos os dias.", author: "João Adibe (Cimed)" },
-    { text: "O sucesso não é o fim, o fracasso não é fatal: é a coragem de continuar que conta.", author: "Guilherme Benchimol (XP Inc.)" },
-    { text: "Sonhar grande e sonhar pequeno dá exatamente o mesmo trabalho.", author: "Jorge Paulo Lemann (Ambev)" },
-    { text: "Não se preocupe com o erro. O erro é apenas um aprendizado para a próxima etapa.", author: "João Adibe (Cimed)" },
-    { text: "A persistência é a única ferramenta capaz de transformar uma boa ideia em um império.", author: "Guilherme Benchimol (XP Inc.)" },
-    { text: "Uma marca forte é aquela que cria uma conexão emocional verdadeira com as pessoas.", author: "João Adibe (Cimed)" },
-    { text: "Para vencer no mercado, você precisa ser ágil, obstinado por eficiência e obcecado pelo cliente.", author: "Alexandre Birman (Arezzo&Co)" },
-    { text: "O maior ativo que você pode ter na vida é a sua reputação e a sua credibilidade.", author: "Guilherme Benchimol (XP Inc.)" }
+    "O sucesso é a soma de pequenos esforços repetidos diariamente.",
+    "A persistência é o caminho do êxito.",
+    "Quanto mais eu treino, mais sorte eu tenho.",
+    "Foco, força e fé para mais um dia de trabalho.",
+    "Excelência não é um ato, mas um hábito.",
+    "Onde há foco, a energia flui.",
+    "Pequenos começos levam a grandes destinos."
   ];
 
   useEffect(() => {
     const timer = setInterval(() => {
       setQuoteIndex((prev) => (prev + 1) % quotes.length);
-    }, 6000);
+    }, 5000);
     return () => clearInterval(timer);
   }, [quotes.length]);
 
@@ -85,12 +84,12 @@ export default function Login() {
           </div>
           <div className="absolute bottom-6 left-6 right-6">
             <div className="bg-[#7F300C]/10 backdrop-blur-md rounded-2xl p-4 flex gap-4 items-center">
-               <div className="w-10 h-10 rounded-full bg-[#FFCB05] flex items-center justify-center border-2 border-[#7F300C]/20 shadow-inner shrink-0">
+               <div className="w-10 h-10 rounded-full bg-[#FFCB05] flex items-center justify-center border-2 border-[#7F300C]/20 shadow-inner">
                   <TrendingUp className="w-5 h-5 text-[#7F300C]" />
                </div>
-               <div className="flex-1 min-w-0">
-                  <div className="text-[10px] font-black uppercase text-[#7F300C]/60 tracking-widest mb-1">Frase do Dia</div>
-                  <div className="min-h-[4rem] flex items-center">
+               <div>
+                  <div className="text-[10px] font-black uppercase text-[#7F300C]/60 tracking-widest">Frase do Dia</div>
+                  <div className="h-8 flex items-center">
                     <AnimatePresence mode="wait">
                       <motion.div
                         key={quoteIndex}
@@ -98,14 +97,9 @@ export default function Login() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.5 }}
-                        className="flex flex-col gap-0.5 text-[#7F300C]"
+                        className="text-xs font-bold text-[#7F300C]"
                       >
-                        <p className="text-xs font-bold leading-normal">
-                          "{quotes[quoteIndex].text}"
-                        </p>
-                        <p className="text-[10px] font-extrabold uppercase tracking-wider text-[#7F300C]/75 italic mt-1">
-                          — {quotes[quoteIndex].author}
-                        </p>
+                        "{quotes[quoteIndex]}"
                       </motion.div>
                     </AnimatePresence>
                   </div>
