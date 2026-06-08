@@ -1466,7 +1466,11 @@ export default function AccountsPayable() {
       ac.category,
       ac.dueDate.split('-').reverse().join('/'),
       ac.status,
-      formatValueBrl(ac.value),
+      ac.status === 'Pago' 
+        ? formatValueBrl(ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0)) 
+        : (ac.status === 'Parcialmente Pago' && ac.partialAmountPaid 
+          ? formatValueBrl(ac.partialAmountPaid) 
+          : formatValueBrl(ac.value)),
       ac.paymentMethod,
       ac.paymentDate ? ac.paymentDate.split(' ')[0].split('-').reverse().join('/') : 'Aberto'
     ]);
@@ -1496,7 +1500,7 @@ export default function AccountsPayable() {
 
     const totalPaid = targetStoreAccounts
       .filter(ac => ac.status === 'Pago')
-      .reduce((acc, ac) => acc + ac.value, 0);
+      .reduce((acc, ac) => acc + ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0), 0);
 
     const startYValue = (doc as any).lastAutoTable.finalY + 10;
     
@@ -1672,7 +1676,7 @@ export default function AccountsPayable() {
       const matchesPaymentPeriod = ac.paymentDate ? hasPaymentDateInRange : hasDueDateInRange;
       
       if (ac.status === 'Pago' && matchesPaymentPeriod) {
-        paid += ac.value;
+        paid += ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0);
       } else if (ac.status === 'Parcialmente Pago' && matchesPaymentPeriod && ac.partialAmountPaid) {
         paid += ac.partialAmountPaid;
       }
@@ -1824,8 +1828,8 @@ export default function AccountsPayable() {
         const dateB = b.paymentDate || b.dueDate || '';
         return dateB.localeCompare(dateA);
       } else if (paidMonthSort === 'value_desc') {
-        const valA = a.status === 'Pago' ? a.value : (a.partialAmountPaid || 0);
-        const valB = b.status === 'Pago' ? b.value : (b.partialAmountPaid || 0);
+        const valA = a.status === 'Pago' ? a.value + (a.fine || 0) + (a.interest || 0) - (a.discount || 0) : (a.partialAmountPaid || 0);
+        const valB = b.status === 'Pago' ? b.value + (b.fine || 0) + (b.interest || 0) - (b.discount || 0) : (b.partialAmountPaid || 0);
         return valB - valA;
       } else if (paidMonthSort === 'supplier_asc') {
         return (a.supplier || '').localeCompare(b.supplier || '');
@@ -1843,7 +1847,7 @@ export default function AccountsPayable() {
     rawPaidMonthAccounts.forEach(ac => {
       if (ac.status === 'Pago') {
         fullyPaidCount++;
-        fullyPaidSum += ac.value;
+        fullyPaidSum += ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0);
       } else if (ac.status === 'Parcialmente Pago' && ac.partialAmountPaid) {
         partiallyPaidCount++;
         partiallyPaidSum += ac.partialAmountPaid;
@@ -3378,6 +3382,11 @@ export default function AccountsPayable() {
                               Pago R$ {ac.partialAmountPaid}
                             </span>
                           )}
+                          {ac.status === 'Pago' && (ac.fine || ac.interest) && (
+                            <span className="text-[9.5px] text-emerald-500 font-bold leading-none mt-0.5">
+                              Quit.: {formatValueBrl(ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0))}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-4 text-center">
@@ -3600,6 +3609,11 @@ export default function AccountsPayable() {
                       {isPartial && ac.partialAmountPaid && (
                         <span className="text-[9.5px] text-amber-500 font-bold leading-none mt-0.5">
                           Pago R$ {ac.partialAmountPaid}
+                        </span>
+                      )}
+                      {ac.status === 'Pago' && (ac.fine || ac.interest) && (
+                        <span className="text-[9.5px] text-emerald-500 font-bold leading-none mt-0.5">
+                          Quit.: {formatValueBrl(ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0))}
                         </span>
                       )}
                     </div>
@@ -5188,7 +5202,7 @@ export default function AccountsPayable() {
                         emailBody += `--------------------------------------------------\n`;
                         
                         rawPaidMonthAccounts.forEach((ac, idx) => {
-                          const paidVal = ac.status === 'Pago' ? ac.value : (ac.partialAmountPaid || 0);
+                          const paidVal = ac.status === 'Pago' ? ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0) : (ac.partialAmountPaid || 0);
                           const dateFormatted = ac.paymentDate 
                             ? (ac.paymentDate.includes(' às ') ? ac.paymentDate.split(' às ')[0] : ac.paymentDate)
                             : (ac.dueDate || 'N/D');
@@ -5408,7 +5422,7 @@ export default function AccountsPayable() {
                         ? dateFormatted.split('-').reverse().join('/')
                         : dateFormatted;
 
-                      const paidValue = ac.status === 'Pago' ? ac.value : (ac.partialAmountPaid || 0);
+                      const paidValue = ac.status === 'Pago' ? ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0) : (ac.partialAmountPaid || 0);
 
                       return (
                         <div 
