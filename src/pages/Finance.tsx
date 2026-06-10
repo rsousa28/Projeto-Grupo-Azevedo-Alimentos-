@@ -81,6 +81,9 @@ export default function Finance() {
     deletePeriodData,
     yearlyHistory,
   } = useStore();
+  const isBebelu = currentStore?.brand === 'BEBELU';
+  const themeButtonBg = brandColors?.button;
+  const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
   const { success: toastSuccess, error: toastError } = useToast();
   const { user } = useAuth();
   const isBebeluRioMar =
@@ -1249,7 +1252,12 @@ export default function Finance() {
         <div className="flex gap-3">
           <button
             onClick={() => setShowEntry(!showEntry)}
-            className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
+            style={{
+              backgroundColor: themeButtonBg,
+              color: themeTextContrast,
+              boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
+            }}
+            className="flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer"
           >
             {showEntry ? (
               <>

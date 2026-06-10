@@ -62,6 +62,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
   const location = useLocation();
 
+  const bgTextureClass = currentStore.brand === 'BEBELU' 
+    ? (isDarkMode 
+        ? "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent" 
+        : "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-400/5 via-transparent to-transparent")
+    : "";
+
   React.useEffect(() => {
     const allowedPathnames = ['/team', '/audit-logs', '/security-summary', '/backups', '/diagnostics'];
     if (currentStore.code === 'ROOT' && !allowedPathnames.includes(location.pathname)) {
@@ -146,9 +152,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="flex items-center gap-3 overflow-hidden"
+                className="flex items-center gap-3 overflow-hidden font-display"
               >
-                <div className="bg-white p-1 rounded-lg shrink-0">
+                <div className="bg-white p-1 rounded-xl shadow-md shadow-amber-500/15 border border-amber-500/15 shrink-0 transition-transform hover:scale-105 duration-300">
                   <img src={LOGO_URL} alt="Logo" className="h-8 w-auto object-contain" />
                 </div>
                 <span className={`font-black text-xs italic tracking-tighter whitespace-nowrap ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>GRUPO AZEVEDO</span>
@@ -172,14 +178,17 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               ? 'bg-[#1E1E1E] border-[#333]' 
               : 'bg-slate-50 border-slate-100'
           }`}>
-            <div className="text-[10px] uppercase tracking-wider font-bold text-slate-400 mb-2">Unidade Ativa</div>
+            <div className="text-[9px] uppercase tracking-widest font-black text-amber-500/90 mb-2">Unidade Ativa</div>
             <div className="flex items-center gap-3">
               <div 
-                className="w-10 h-10 rounded-xl flex items-center justify-center transition-colors duration-500"
-                style={{ backgroundColor: brandColors.button }}
+                className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-md transform hover:scale-110"
+                style={{ 
+                  backgroundColor: brandColors.button,
+                  boxShadow: `0 4px 12px ${brandColors.button}33`
+                }}
               >
                 {currentStore.code ? (
-                  <span className={`text-[10px] font-black tracking-tighter ${currentStore.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'}`}>
+                  <span className={`text-[11px] font-extrabold tracking-tighter ${currentStore.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'}`}>
                     {currentStore.code}
                   </span>
                 ) : (
@@ -187,8 +196,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 )}
               </div>
               <div className="flex-1 overflow-hidden">
-                <div className={`font-bold text-sm truncate ${isDarkMode ? 'text-white' : 'text-black'}`}>{currentStore.name}</div>
-                <div className="text-xs text-slate-500">{currentStore.location}</div>
+                <div className={`font-black text-sm truncate tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{currentStore.name}</div>
+                <div className="text-[11px] text-slate-400 font-medium truncate">{currentStore.location}</div>
               </div>
             </div>
             
@@ -339,8 +348,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar">
-          {children || <Outlet />}
+        <div className={`flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar relative ${bgTextureClass}`}>
+          <div className="relative z-10 transition-all duration-300">
+            {children || <Outlet />}
+          </div>
         </div>
       </main>
     </div>

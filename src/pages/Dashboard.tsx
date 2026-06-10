@@ -1154,15 +1154,11 @@ export default function Dashboard() {
             disabled={exportingPDF}
             aria-label="Baixar Relatório em PDF"
             style={{
-              backgroundColor: isDarkMode ? undefined : themeButtonBg,
-              color: isDarkMode ? '#FFFFFF' : themeTextContrast,
-              boxShadow: isDarkMode ? undefined : `0 10px 15px -3px ${themeButtonBg}30`
+              backgroundColor: themeButtonBg,
+              color: themeTextContrast,
+              boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg ${
-              isDarkMode 
-                ? 'bg-zinc-800 hover:bg-zinc-700 text-white shadow-black/20' 
-                : 'hover:brightness-110'
-            } disabled:opacity-50 disabled:pointer-events-none cursor-pointer`}
+            className="flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
           >
             <Download className={`w-4 h-4 ${exportingPDF ? 'animate-spin' : ''}`} />
             {exportingPDF ? 'Gerando Relatório...' : 'Baixar Relatório (PDF)'}
@@ -1173,7 +1169,12 @@ export default function Dashboard() {
 
               <button 
                 onClick={() => setShowEntry(!showEntry)}
-                className="flex items-center gap-2 px-4 py-2 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg shadow-[#FFB800]/20"
+                style={{
+                  backgroundColor: themeButtonBg,
+                  color: themeTextContrast,
+                  boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
+                }}
+                className="flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer"
               >
                 {showEntry ? (
                   <>
@@ -1214,11 +1215,11 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         className={`p-6 rounded-3xl border flex flex-col md:flex-row items-center justify-between gap-6 transition-all duration-500`}
         style={currentStore.brand === 'BEBELU' 
-          ? { backgroundColor: '#FFCB0510', borderColor: '#FFCB0530' }
+          ? { backgroundColor: '#FFCB050c', borderColor: '#FFCB0525' }
           : { backgroundColor: isDarkMode ? '#E6394610' : '#0066FF05', borderColor: isDarkMode ? '#E6394620' : '#0066FF10' }
         }
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-1">
           <div 
             className={`p-4 rounded-2xl shadow-lg transition-colors duration-500`}
             style={{ backgroundColor: brandColors.button, boxShadow: `0 10px 15px -3px ${brandColors.button}30` }}
@@ -1242,7 +1243,12 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        {/* Chat button removed */}
+        {currentStore.brand === 'BEBELU' && (
+          <div className="hidden lg:flex flex-col items-end text-right justify-center border-l dark:border-[#FFCB0520] border-slate-200 pl-6 pointer-events-none shrink-0 font-display">
+            <span className="text-[10px] font-black uppercase tracking-widest text-[#7F300C] dark:text-[#FFCB05]">BEBELU SANDUÍCHES</span>
+            <span className="text-[8px] font-bold text-slate-400 mt-1 uppercase tracking-wider">Fundada em Fortaleza • Desde 1986</span>
+          </div>
+        )}
       </motion.div>
 
       {/* Main KPIs */}

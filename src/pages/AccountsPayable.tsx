@@ -2003,9 +2003,9 @@ export default function AccountsPayable() {
                 style={{
                   backgroundColor: isSaving ? undefined : themeButtonBg,
                   color: isSaving ? '#FFFFFF' : themeTextContrast,
-                  boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}30`,
+                  boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}40`,
                 }}
-                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 w-full sm:w-auto ${
+                className={`flex items-center justify-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer w-full sm:w-auto ${
                   isSaving 
                     ? 'bg-slate-400 cursor-not-allowed' 
                     : ''
@@ -2837,9 +2837,9 @@ export default function AccountsPayable() {
               style={{
                 backgroundColor: isSaving ? undefined : themeButtonBg,
                 color: isSaving ? '#FFFFFF' : themeTextContrast,
-                boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}30`,
+                boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}40`,
               }}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 ${
+              className={`flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer ${
                 isSaving 
                   ? 'bg-slate-400 cursor-not-allowed' 
                   : ''
@@ -2862,10 +2862,14 @@ export default function AccountsPayable() {
               setAttachedFileBase64(null);
               setShowAddModal(true);
             }}
-            style={{ backgroundColor: themeButtonBg, color: themeTextContrast }}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-black transition-all text-sm hover:opacity-90 hover:shadow-lg cursor-pointer shrink-0"
+            style={{ 
+              backgroundColor: themeButtonBg, 
+              color: themeTextContrast,
+              boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
+            }}
+            className="flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer shrink-0"
           >
-            <Plus className="w-5 h-5 stroke-[3]" />
+            <Plus className="w-4 h-4 stroke-[3]" />
             Adicionar Conta
           </button>
         </div>

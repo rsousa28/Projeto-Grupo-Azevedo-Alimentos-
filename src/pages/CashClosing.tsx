@@ -459,9 +459,14 @@ export default function CashClosing() {
             setFormData(initialFormState);
             setShowModal(true);
           }}
-          className="flex items-center gap-2 px-6 py-4 bg-[#FFCB05] hover:bg-black text-black hover:text-white rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-xl shadow-amber-500/20"
+          style={{
+            backgroundColor: themeButtonBg,
+            color: themeTextContrast,
+            boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
+          }}
+          className="flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer animate-fade-in"
         >
-          <Plus className="w-5 h-5" />
+          <Plus className="w-4 h-4" />
           Novo Fechamento
         </button>
       </div>
@@ -496,9 +501,9 @@ export default function CashClosing() {
           style={{
             backgroundColor: isSaving ? undefined : themeButtonBg,
             color: isSaving ? '#FFFFFF' : themeTextContrast,
-            boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}30`,
+            boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}40`,
           }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 ${
+          className={`flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer ${
             isSaving 
               ? 'bg-slate-400 cursor-not-allowed' 
               : ''
