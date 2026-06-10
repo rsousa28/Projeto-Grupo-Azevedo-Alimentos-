@@ -26,7 +26,10 @@ interface ActionPlansProps {
 }
 
 export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }: ActionPlansProps) {
-  const { isDarkMode, currentStore } = useStore();
+  const { isDarkMode, currentStore, brandColors } = useStore();
+  const isBebelu = currentStore?.brand === 'BEBELU';
+  const themeButtonBg = brandColors?.button;
+  const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
   const [filterStatus, setFilterStatus] = useState<'ALL' | 'PENDING' | 'RESOLVED'>('PENDING');
 
   // Confirmation state for deleting a resolved plan
@@ -129,13 +132,18 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
             <button
               key={st}
               onClick={() => setFilterStatus(st as any)}
+              style={filterStatus === st && st === 'ALL' ? {
+                backgroundColor: themeButtonBg,
+                borderColor: themeButtonBg,
+                color: themeTextContrast,
+              } : {}}
               className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider border transition-all ${
                 filterStatus === st
                   ? st === 'PENDING'
                     ? 'bg-rose-500 border-rose-500 text-white shadow-lg shadow-rose-500/10'
                     : st === 'RESOLVED'
                       ? 'bg-emerald-500 border-emerald-500 text-white shadow-lg shadow-emerald-500/10'
-                      : 'bg-indigo-500 border-indigo-500 text-white'
+                      : ''
                   : isDarkMode
                     ? 'bg-zinc-900 border-zinc-850 text-slate-400 hover:border-zinc-700'
                     : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
@@ -257,7 +265,13 @@ export default function ActionPlans({ actionPlans, onResolvePlan, onDeletePlan }
                       title="Clique para Zoom"
                     >
                       <img src={plan.resolutionPhoto} alt="Resolução" className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" referrerPolicy="no-referrer" />
-                      <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-[8px] font-black uppercase text-white bg-indigo-600/60">
+                      <div 
+                        style={{
+                          backgroundColor: themeButtonBg ? `${themeButtonBg}B3` : undefined, // 70% opacity in hex
+                          color: themeTextContrast,
+                        }}
+                        className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity text-[8px] font-black uppercase"
+                      >
                         ZOOM
                       </div>
                     </div>

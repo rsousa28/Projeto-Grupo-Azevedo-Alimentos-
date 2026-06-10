@@ -16,7 +16,10 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { isDarkMode, setTopProducts, setInventoryItems } = useStore();
+  const { isDarkMode, setTopProducts, setInventoryItems, currentStore, brandColors } = useStore();
+  const isBebelu = currentStore?.brand === 'BEBELU';
+  const themeButtonBg = brandColors?.button;
+  const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
 
   const handleImport = async () => {
     if (!csvText.trim()) return;
@@ -701,10 +704,15 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
                 <button
                   onClick={handleImport}
                   disabled={!csvText.trim() || isLoading}
+                  style={(!isSuccess && !(!csvText.trim() || isLoading)) ? {
+                    backgroundColor: themeButtonBg,
+                    color: themeTextContrast,
+                    boxShadow: `0 10px 15px -3px ${themeButtonBg}30`
+                  } : {}}
                   className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
                     isSuccess 
                       ? 'bg-green-500 text-white' 
-                      : 'bg-indigo-600 text-white hover:bg-black shadow-xl shadow-indigo-500/20'
+                      : 'hover:brightness-110'
                   }`}
                 >
                   {isLoading ? (

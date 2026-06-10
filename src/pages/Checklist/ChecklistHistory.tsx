@@ -28,7 +28,10 @@ interface HistoryProps {
 }
 
 export default function ChecklistHistory({ submissions, onDeleteSubmission }: HistoryProps) {
-  const { isDarkMode, currentStore } = useStore();
+  const { isDarkMode, currentStore, brandColors } = useStore();
+  const isBebelu = currentStore?.brand === 'BEBELU';
+  const themeButtonBg = brandColors?.button;
+  const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('TODOS');
   
@@ -162,7 +165,10 @@ export default function ChecklistHistory({ submissions, onDeleteSubmission }: Hi
               {filteredSubmissions.length}
             </h4>
           </div>
-          <div className="p-3 bg-indigo-500/10 text-indigo-500 rounded-2xl shrink-0">
+          <div 
+            style={{ backgroundColor: `${brandColors.primary}1A`, color: brandColors.primary }}
+            className="p-3 rounded-2xl shrink-0"
+          >
             <ClipboardList className="w-5 h-5" />
           </div>
         </div>
@@ -300,7 +306,12 @@ export default function ChecklistHistory({ submissions, onDeleteSubmission }: Hi
                   </button>
                   <button
                     onClick={() => handleExportPDF(sub)}
-                    className="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition-all flex items-center justify-center"
+                    style={{
+                      backgroundColor: themeButtonBg,
+                      color: themeTextContrast,
+                      boxShadow: `0 10px 15px -3px ${themeButtonBg}30`,
+                    }}
+                    className="p-3 rounded-xl transition-all flex items-center justify-center hover:brightness-110 active:scale-95"
                     title="Exportar Relatório PDF"
                   >
                     <Download className="w-4 h-4" />
@@ -346,7 +357,10 @@ export default function ChecklistHistory({ submissions, onDeleteSubmission }: Hi
               <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-zinc-850 shrink-0">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500">
+                    <span 
+                      style={{ backgroundColor: `${brandColors.primary}1A`, color: brandColors.primary }}
+                      className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full"
+                    >
                       {activeInspection.category}
                     </span>
                     <span className="text-xs text-slate-500 font-extrabold uppercase italic">Unidade: {activeInspection.storeName}</span>
@@ -442,7 +456,15 @@ export default function ChecklistHistory({ submissions, onDeleteSubmission }: Hi
                                 referrerPolicy="no-referrer"
                               />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                                <span className="text-[8px] font-black uppercase tracking-wider text-white bg-indigo-600/90 px-2 py-1 rounded-lg shadow-md">ZOOM</span>
+                                <span 
+                                  style={{
+                                    backgroundColor: themeButtonBg,
+                                    color: themeTextContrast,
+                                  }}
+                                  className="text-[8px] font-black uppercase tracking-wider px-2 py-1 rounded-lg shadow-md"
+                                >
+                                  ZOOM
+                                </span>
                               </div>
                             </div>
                           </div>

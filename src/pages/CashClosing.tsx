@@ -64,10 +64,13 @@ const formatCurrencyLocal = (val: number) =>
   }).format(val);
 
 export default function CashClosing() {
-  const { currentStore, isDarkMode, closingsData, setClosingsData } = useStore();
+  const { currentStore, isDarkMode, closingsData, setClosingsData, brandColors } = useStore();
   const { user } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
   const isAdmin = user?.role === 'ADMIN' || user?.username === 'adm';
+  const isBebelu = currentStore.brand === 'BEBELU';
+  const themeButtonBg = brandColors.button;
+  const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
   const currentInitialDate = new Date();
   const initialMonthStr = String(currentInitialDate.getMonth() + 1).padStart(2, '0');
   const initialYearStr = String(currentInitialDate.getFullYear());
@@ -490,10 +493,15 @@ export default function CashClosing() {
         <button 
           onClick={handleSavePeriod}
           disabled={isSaving}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+          style={{
+            backgroundColor: isSaving ? undefined : themeButtonBg,
+            color: isSaving ? '#FFFFFF' : themeTextContrast,
+            boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}30`,
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 ${
             isSaving 
-              ? 'bg-slate-400 text-white cursor-not-allowed' 
-              : 'bg-indigo-600 hover:bg-black text-white'
+              ? 'bg-slate-400 cursor-not-allowed' 
+              : ''
           }`}
         >
           {isSaving ? <Clock className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
@@ -572,15 +580,21 @@ export default function CashClosing() {
                   </td>
                   <td className="px-8 py-6">
                     <div className="flex justify-center">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest italic ${
-                        closing.status === 'Pendente' 
-                          ? 'bg-slate-500/10 text-slate-500'
-                          : Math.abs(closing.diff) < 1 
-                            ? 'bg-indigo-600 text-white shadow-sm' 
-                            : closing.diff > 0 
-                              ? 'bg-green-500/10 text-green-500' 
-                              : 'bg-red-700/10 text-red-700'
-                      }`}>
+                      <span 
+                        style={closing.status !== 'Pendente' && Math.abs(closing.diff) < 1 ? {
+                          backgroundColor: themeButtonBg,
+                          color: themeTextContrast
+                        } : {}}
+                        className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest italic ${
+                          closing.status === 'Pendente' 
+                            ? 'bg-slate-500/10 text-slate-500'
+                            : Math.abs(closing.diff) < 1 
+                              ? 'shadow-sm' 
+                              : closing.diff > 0 
+                                ? 'bg-green-500/10 text-green-500' 
+                                : 'bg-red-700/10 text-red-700'
+                        }`}
+                      >
                         {closing.status === 'Pendente' 
                           ? 'Pendente'
                           : Math.abs(closing.diff) < 1 

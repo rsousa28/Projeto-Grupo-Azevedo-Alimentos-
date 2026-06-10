@@ -59,6 +59,9 @@ interface TemplatesProps {
 
 export default function ChecklistTemplates({ templates, onSaveTemplates, onComplete }: TemplatesProps) {
   const { currentStore, setStore, isDarkMode, brandColors } = useStore();
+  const isBebelu = currentStore?.brand === 'BEBELU';
+  const themeButtonBg = brandColors?.button;
+  const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
   const { user } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
   const [activeTemplateId, setActiveTemplateId] = useState<string | null>(templates[0]?.id || null);
@@ -443,7 +446,12 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
                 </div>
                 <button
                   onClick={() => setShowNewQuestionModal(true)}
-                  className="flex items-center gap-1.5 px-4 py-2.5 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-indigo-700 active:scale-95 transition-all"
+                  style={{
+                    backgroundColor: themeButtonBg,
+                    color: themeTextContrast,
+                    boxShadow: `0 10px 15px -3px ${themeButtonBg}30`,
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all"
                 >
                   <Plus className="w-3.5 h-3.5" /> Adicionar Pergunta
                 </button>
@@ -510,7 +518,8 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
                         <button
                           type="button"
                           onClick={() => handleBeginEditQuestion(q)}
-                          className="p-2 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-600 hover:text-white rounded-xl transition-all"
+                          style={{ color: brandColors.primary, backgroundColor: `${brandColors.primary}1A` }}
+                          className="p-2 rounded-xl transition-all hover:brightness-110 active:scale-95"
                           title="Editar Pergunta"
                         >
                           <Pencil className="w-4 h-4" />
@@ -659,7 +668,12 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
               </button>
               <button 
                 type="submit"
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95"
+                style={{
+                  backgroundColor: themeButtonBg,
+                  color: themeTextContrast,
+                  boxShadow: `0 10px 15px -3px ${themeButtonBg}30`,
+                }}
+                className="px-5 py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 hover:brightness-110"
               >
                 Criar Modelo
               </button>
@@ -884,7 +898,12 @@ export default function ChecklistTemplates({ templates, onSaveTemplates, onCompl
               </button>
               <button 
                 type="submit"
-                className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95"
+                style={{
+                  backgroundColor: themeButtonBg,
+                  color: themeTextContrast,
+                  boxShadow: `0 10px 15px -3px ${themeButtonBg}30`,
+                }}
+                className="px-5 py-2.5 rounded-lg font-bold text-[10px] uppercase tracking-widest transition-all active:scale-95 hover:brightness-110"
               >
                 Cadastrar Pergunta
               </button>

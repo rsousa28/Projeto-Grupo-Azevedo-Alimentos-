@@ -43,7 +43,10 @@ interface ExecutionProps {
 }
 
 export default function ChecklistExecution({ template, onBack, onSubmit }: ExecutionProps) {
-  const { currentStore, isDarkMode } = useStore();
+  const { currentStore, isDarkMode, brandColors } = useStore();
+  const isBebelu = currentStore?.brand === 'BEBELU';
+  const themeButtonBg = brandColors?.button;
+  const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
   const { user } = useAuth();
 
   // Answer values keyed by questionId
@@ -798,7 +801,15 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
                           referrerPolicy="no-referrer"
                         />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                          <span className="text-[8px] font-black uppercase text-white bg-indigo-600/90 px-2 py-0.5 rounded shadow-sm">ZOOM</span>
+                          <span 
+                            style={{
+                              backgroundColor: themeButtonBg,
+                              color: themeTextContrast,
+                            }}
+                            className="text-[8px] font-black uppercase px-2 py-0.5 rounded shadow-sm"
+                          >
+                            ZOOM
+                          </span>
                         </div>
                       </div>
                       <div className="flex flex-col gap-1">
@@ -807,7 +818,8 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
                           <button
                             type="button"
                             onClick={() => setZoomedExecutionPhoto(photos[question.id])}
-                            className="text-[10px] font-black uppercase text-indigo-500 hover:text-indigo-600 dark:text-[#FFCB05] dark:hover:text-amber-400 text-left cursor-pointer transition-colors"
+                            style={{ color: brandColors.primary }}
+                            className="text-[10px] font-black uppercase text-left cursor-pointer transition-colors hover:brightness-110"
                           >
                             Visualizar Zoom
                           </button>

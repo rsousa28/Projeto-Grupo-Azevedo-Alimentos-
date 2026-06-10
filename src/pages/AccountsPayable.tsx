@@ -2000,10 +2000,15 @@ export default function AccountsPayable() {
               <button 
                 onClick={handleSavePeriod}
                 disabled={isSaving}
-                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg w-full sm:w-auto ${
+                style={{
+                  backgroundColor: isSaving ? undefined : themeButtonBg,
+                  color: isSaving ? '#FFFFFF' : themeTextContrast,
+                  boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}30`,
+                }}
+                className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 w-full sm:w-auto ${
                   isSaving 
-                    ? 'bg-slate-400 text-white cursor-not-allowed' 
-                    : 'bg-indigo-600 hover:bg-black text-white'
+                    ? 'bg-slate-400 cursor-not-allowed' 
+                    : ''
                 }`}
               >
                 {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
@@ -2829,10 +2834,15 @@ export default function AccountsPayable() {
             <button 
               onClick={handleSavePeriod}
               disabled={isSaving}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-lg ${
+              style={{
+                backgroundColor: isSaving ? undefined : themeButtonBg,
+                color: isSaving ? '#FFFFFF' : themeTextContrast,
+                boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}30`,
+              }}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:brightness-110 active:scale-95 ${
                 isSaving 
-                  ? 'bg-slate-400 text-white cursor-not-allowed' 
-                  : 'bg-indigo-600 hover:bg-black text-white'
+                  ? 'bg-slate-400 cursor-not-allowed' 
+                  : ''
               }`}
             >
               {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
@@ -4801,7 +4811,11 @@ export default function AccountsPayable() {
                           });
                       }}
                       title="Enviar relatório por e-mail para diretores"
-                      className="py-2 px-3.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-605 dark:text-indigo-400 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                      style={{
+                        backgroundColor: `${themePrimary}1A`,
+                        color: themePrimary,
+                      }}
+                      className="py-2 px-3.5 rounded-xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold hover:brightness-110"
                     >
                       <Mail className="w-4 h-4" /> Enviar por E-mail
                     </button>
@@ -5110,7 +5124,12 @@ export default function AccountsPayable() {
                                 onClick={() => {
                                   setCurrentBoletoUrl(ac.attachedFile);
                                 }}
-                                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase text-indigo-550 dark:text-indigo-400 border border-indigo-500/10 bg-indigo-505/[0.03] hover:bg-indigo-505/[0.08] hover:border-indigo-505/20 transition-all cursor-pointer h-9"
+                                style={{
+                                  backgroundColor: `${themePrimary}1A`,
+                                  borderColor: `${themePrimary}26`,
+                                  color: themePrimary,
+                                }}
+                                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase transition-all cursor-pointer h-9 hover:brightness-110"
                               >
                                 <Eye className="w-4 h-4" /> Ver Anexo
                               </button>
@@ -5233,7 +5252,11 @@ export default function AccountsPayable() {
                           });
                       }}
                       title="Enviar relatório por e-mail para diretores"
-                      className="py-2 px-3.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-605 dark:text-indigo-400 hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold"
+                      style={{
+                        backgroundColor: `${themePrimary}1A`,
+                        color: themePrimary,
+                      }}
+                      className="py-2 px-3.5 rounded-xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold hover:brightness-110"
                     >
                       <Mail className="w-4 h-4" /> Enviar por E-mail
                     </button>
@@ -5502,7 +5525,12 @@ export default function AccountsPayable() {
                                 onClick={() => {
                                   setCurrentBoletoUrl(ac.attachedFile);
                                 }}
-                                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase text-indigo-550 dark:text-indigo-400 border border-indigo-500/10 bg-indigo-505/[0.03] hover:bg-indigo-505/[0.08] hover:border-indigo-505/20 transition-all cursor-pointer h-9"
+                                style={{
+                                  backgroundColor: `${themePrimary}1A`,
+                                  borderColor: `${themePrimary}26`,
+                                  color: themePrimary,
+                                }}
+                                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase transition-all cursor-pointer h-9 hover:brightness-110"
                               >
                                 <Eye className="w-4 h-4" /> Boleto/Anexo
                               </button>

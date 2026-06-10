@@ -67,6 +67,10 @@ export default function Dashboard() {
     clearAllData
   } = useStore();
 
+  const isBebelu = currentStore.brand === 'BEBELU';
+  const themeButtonBg = brandColors.button;
+  const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
+
   const currentInitialDate = new Date();
   const initialMonthStr = String(currentInitialDate.getMonth() + 1).padStart(2, '0');
   const initialYearStr = String(currentInitialDate.getFullYear());
@@ -1149,10 +1153,15 @@ export default function Dashboard() {
             onClick={exportDashboardPDF}
             disabled={exportingPDF}
             aria-label="Baixar Relatório em PDF"
+            style={{
+              backgroundColor: isDarkMode ? undefined : themeButtonBg,
+              color: isDarkMode ? '#FFFFFF' : themeTextContrast,
+              boxShadow: isDarkMode ? undefined : `0 10px 15px -3px ${themeButtonBg}30`
+            }}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 shadow-lg ${
               isDarkMode 
                 ? 'bg-zinc-800 hover:bg-zinc-700 text-white shadow-black/20' 
-                : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-600/20'
+                : 'hover:brightness-110'
             } disabled:opacity-50 disabled:pointer-events-none cursor-pointer`}
           >
             <Download className={`w-4 h-4 ${exportingPDF ? 'animate-spin' : ''}`} />
@@ -1562,9 +1571,10 @@ export default function Dashboard() {
                 <button
                   key={m.id}
                   onClick={() => setChartViewMode(m.id as any)}
+                  style={chartViewMode === m.id ? { backgroundColor: themeButtonBg, color: themeTextContrast } : {}}
                   className={`px-3 py-1 text-[9px] font-black uppercase tracking-wider rounded-lg transition-all ${
                     chartViewMode === m.id
-                      ? 'bg-indigo-600 text-white shadow-sm'
+                      ? 'shadow-sm'
                       : 'text-slate-500 dark:text-slate-400 hover:text-slate-700 hover:bg-slate-50 dark:hover:bg-zinc-800'
                   }`}
                 >
@@ -1701,10 +1711,19 @@ export default function Dashboard() {
           }`}>
             <div>
               <div className="flex items-center justify-between mb-4 border-b border-dashed border-slate-200 dark:border-[#333] pb-3">
-                <span className={`text-[11px] font-black uppercase tracking-wider ${isDarkMode ? 'text-indigo-400' : 'text-indigo-600'}`}>
+                <span 
+                  style={{ color: brandColors.primary }}
+                  className="text-[11px] font-black uppercase tracking-wider"
+                >
                   Análise: {selectedChartMonthData.month}
                 </span>
-                <span className="text-[10px] bg-indigo-500/10 text-indigo-500 px-2 py-0.5 rounded-full font-bold">
+                <span 
+                  style={{
+                    backgroundColor: `${brandColors.primary}1A`,
+                    color: brandColors.primary
+                  }}
+                  className="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                >
                   {selectedYear}
                 </span>
               </div>
@@ -1887,7 +1906,8 @@ export default function Dashboard() {
             <h3 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-black'}`}>Engenharia de Cardápio</h3>
             <button 
               onClick={() => setShowAllProducts(!showAllProducts)}
-              className="text-sm font-bold text-indigo-600 dark:text-[#FFCB05] hover:underline cursor-pointer transition-all"
+              style={{ color: brandColors.primary }}
+              className="text-sm font-bold hover:underline cursor-pointer transition-all"
             >
               {showAllProducts ? 'Ver Resumo' : 'Ver Tabela ABC'}
             </button>

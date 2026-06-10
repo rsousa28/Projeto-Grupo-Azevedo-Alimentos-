@@ -43,7 +43,10 @@ interface AuditLogsProps {
 
 export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
   const navigate = useNavigate();
-  const { isDarkMode, brandColors } = useStore();
+  const { isDarkMode, brandColors, currentStore } = useStore();
+  const isBebelu = currentStore?.brand === 'BEBELU';
+  const themeButtonBg = brandColors?.button;
+  const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
   const { user } = useAuth();
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
   const [logs, setLogs] = useState<AuditLog[]>([]);
@@ -957,7 +960,14 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
                 <button
                   onClick={handleCreateManualBackup}
                   disabled={isCreatingBackup || backupsLoading}
-                  className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-md disabled:bg-slate-800 disabled:text-slate-600 duration-200"
+                  style={!(isCreatingBackup || backupsLoading) ? {
+                    backgroundColor: themeButtonBg,
+                    color: themeTextContrast,
+                    boxShadow: `0 10px 15px -3px ${themeButtonBg}30`,
+                  } : {}}
+                  className={`w-full py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition hover:brightness-110 active:scale-95 disabled:bg-slate-800 disabled:text-slate-600 duration-200 ${
+                    (isCreatingBackup || backupsLoading) ? '' : 'text-white shadow-md'
+                  }`}
                 >
                   {isCreatingBackup ? (
                     <>
