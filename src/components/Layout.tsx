@@ -238,7 +238,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             className={({ isActive }) => `
               flex items-center gap-4 px-4 py-3.5 rounded-xl font-medium transition-all group
               ${!isActive 
-                ? (isDarkMode ? 'text-slate-400 hover:bg-[#1E1E1E] hover:text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-indigo-600')
+                ? (isDarkMode 
+                    ? 'text-slate-400 hover:bg-[#1E1E1E] hover:text-white' 
+                    : `text-slate-600 hover:bg-slate-50 ${currentStore.brand === 'BEBELU' ? 'hover:text-[#7F300C]' : 'hover:text-[#E63946]'}`)
                 : ''}
             `}
           >
@@ -261,7 +263,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   );
 
   return (
-    <div className={`flex min-h-screen font-sans selection:bg-indigo-100 ${isDarkMode ? 'dark' : ''}`}>
+    <div className={`flex min-h-screen font-sans ${currentStore.brand === 'BEBELU' || currentStore.code === 'ROOT' ? 'selection:bg-amber-200 selection:text-[#7F300C]' : 'selection:bg-red-200 selection:text-red-950'} ${isDarkMode ? 'dark' : ''}`}>
       {/* Mobile Backdrop */}
       <AnimatePresence>
         {mobileMenuOpen && (

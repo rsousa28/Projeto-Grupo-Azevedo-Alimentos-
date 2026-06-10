@@ -783,7 +783,7 @@ export default function DataEntrySection({
                   <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>5. Despesas Fixas Operacionais</h4>
                 </div>
                 <div className="space-y-4">
-                  <h5 className="text-[10px] font-black uppercase text-indigo-500 bg-indigo-500/5 px-3 py-1 rounded w-fit">Despesas com Colaboradores e Encargos</h5>
+                  <h5 className="text-[10px] font-black uppercase text-amber-500 bg-amber-500/5 px-3 py-1 rounded w-fit">Despesas com Colaboradores e Encargos</h5>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                     {[
                       { label: 'Salários', key: 'salarios' }, { label: 'Pro Labore', key: 'proLabore' }, { label: 'Avulso', key: 'avulso' }, { label: 'Diárias', key: 'diarias' }, { label: 'Premiação', key: 'premiacao' }, { label: 'Gratificações', key: 'gratificacoes' }, { label: '13o. salário', key: 'decimoTerceiro' }, { label: 'Férias', key: 'ferias' }, { label: 'INSS', key: 'INSS' }, { label: 'FGTS', key: 'FGTS' }, { label: 'Verbas Rescisórias', key: 'rescisorias' }, { label: 'Cortesia', key: 'cortesia' }, { label: 'Vale Transp.', key: 'valeTransp' }, { label: 'Vale Alim.', key: 'valeAlim' }, { label: 'Alimentação', key: 'alimentacao' }, { label: 'POS', key: 'pos' }, { label: 'Atestado/Exame', key: 'atestadoExame' }, { label: 'Uniformes/EPI', key: 'uniformesEPI' }, { label: 'Outros Benefícios', key: 'outrosBeneficios' }
@@ -926,11 +926,11 @@ export default function DataEntrySection({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Faturamento {currentMonthLabel} / 2025</label>
-                    <input type="number" value={receita2025} onPaste={(e) => handleNumericPaste(e, setReceita2025)} onChange={(e) => setReceita2025(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
+                    <input type="number" value={receita2025} onPaste={(e) => handleNumericPaste(e, setReceita2025)} onChange={(e) => setReceita2025(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-amber-600 dark:text-amber-400 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Faturamento {currentMonthLabel} / 2024</label>
-                    <input type="number" value={receita2024} onPaste={(e) => handleNumericPaste(e, setReceita2024)} onChange={(e) => setReceita2024(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
+                    <input type="number" value={receita2024} onPaste={(e) => handleNumericPaste(e, setReceita2024)} onChange={(e) => setReceita2024(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-amber-600 dark:text-amber-400 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
                   </div>
               </div>
             </motion.div>
@@ -941,11 +941,11 @@ export default function DataEntrySection({
                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Faturamento Esperado</label>
-                    <input type="number" value={faturamentoMeta} onPaste={(e) => handleNumericPaste(e, setFaturamentoMeta)} onChange={(e) => setFaturamentoMeta(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
+                    <input type="number" value={faturamentoMeta} onPaste={(e) => handleNumericPaste(e, setFaturamentoMeta)} onChange={(e) => setFaturamentoMeta(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-amber-600 dark:text-amber-400 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
                   </div>
                   <div className="space-y-3">
                     <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">CMV Alvo (%)</label>
-                    <input type="number" value={cmvAlvo} onPaste={(e) => handleNumericPaste(e, setCmvAlvo)} onChange={(e) => setCmvAlvo(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
+                    <input type="number" value={cmvAlvo} onPaste={(e) => handleNumericPaste(e, setCmvAlvo)} onChange={(e) => setCmvAlvo(Number(e.target.value))} className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-amber-600 dark:text-amber-400 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} />
                   </div>
                </div>
             </motion.div>

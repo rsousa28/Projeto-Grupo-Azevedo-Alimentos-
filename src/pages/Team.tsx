@@ -35,8 +35,18 @@ import {
   doc, 
   query, 
   orderBy,
-  serverTimestamp 
+  serverTimestamp,
+  setDoc
 } from 'firebase/firestore';
+
+const DEFAULT_SYSTEM_USERS: { id: string; name: string; username: string; role: User['role']; defaultPassword: string }[] = [
+  { id: 'root-admin', name: 'Admin Geral Grupo AZ', username: 'adm', role: 'ADMIN', defaultPassword: '88028837' },
+  { id: 'victor-diretor', name: 'Victor - Diretor Grupo AZ', username: 'victordiretor', role: 'FINANCIAL', defaultPassword: '1234' },
+  { id: 'patricia-b28', name: 'Patrícia - Bebelu Papicu', username: 'patriciab28', role: 'MANAGER_BEBELU_RIOMAR_PAPICU', defaultPassword: 'b28' },
+  { id: 'andressa-b32', name: 'Andressa - Bebelu Mossoró', username: 'andressab32', role: 'MANAGER_BEBELU_MOSSORO', defaultPassword: 'b32' },
+  { id: 'jef-4e09', name: 'Jefferson - 4 Estylos Mossoró', username: 'jef4e09', role: 'MANAGER_4ESTYLOS_MOSSORO', defaultPassword: 'jqc26' },
+  { id: 'michele-4e09', name: 'Michele - 4 Estylos Mossoró', username: 'michele4e09', role: 'MANAGER_4ESTYLOS_MOSSORO', defaultPassword: '4e09' }
+];
 
 export default function Team() {
   const { isDarkMode } = useStore();
@@ -69,11 +79,45 @@ export default function Team() {
         ...doc.data()
       })) as User[];
       
-      setUsers(fetchedUsers);
+      // Determine if any default system users are missing from Firestore
+      const missingUsers = DEFAULT_SYSTEM_USERS.filter(
+        su => !fetchedUsers.some(fu => fu.username?.toLowerCase() === su.username.toLowerCase())
+      );
+
+      if (missingUsers.length > 0) {
+        console.log(`Seeding ${missingUsers.length} missing default system users to Firestore...`);
+        for (const mu of missingUsers) {
+          const { id, defaultPassword, ...data } = mu;
+          const hashedPassword = await sha256(defaultPassword);
+          await setDoc(doc(db, 'users', id), {
+            ...data,
+            password: hashedPassword
+          });
+        }
+        
+        // Re-fetch since we just seeded the missing ones
+        const reSnapshot = await getDocs(q);
+        const refetchedUsers = reSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as User[];
+        setUsers(refetchedUsers);
+      } else {
+        setUsers(fetchedUsers);
+      }
     } catch (error) {
-      console.error("Error fetching users:", error);
-      // Ensure we display something on error/first run
-      setUsers(prev => prev.length > 0 ? prev : [{ id: 'root-admin', name: 'Admin Geral Grupo AZ', username: 'adm', role: 'ADMIN' }]);
+      console.error("Error fetching or seeding users:", error);
+      // Fallback: merge defaults as best-effort
+      const mergedUsersMap = new Map<string, User>();
+      DEFAULT_SYSTEM_USERS.forEach(su => {
+        mergedUsersMap.set(su.username, {
+          id: su.id,
+          name: su.name,
+          username: su.username,
+          role: su.role
+        });
+      });
+      setUsers(Array.from(mergedUsersMap.values()));
     } finally {
       setLoading(false);
     }
@@ -296,7 +340,7 @@ export default function Team() {
             <h4 className={`font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>ADMIN</h4>
           </div>
           <p className="text-[11px] font-bold text-slate-500 italic leading-relaxed">
-            Poder total sobre o sistema. Gerenciamento de usuários, insights IA, configurações globais e acesso a todas as lojas.
+            Poder total sobre o sistema. Gerenciamento de equipe, auditorias e logs de acesso, backups e varredura de integridade.
           </p>
         </div>
 
@@ -308,7 +352,7 @@ export default function Team() {
             <h4 className={`font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>GERENTE</h4>
           </div>
           <p className="text-[11px] font-bold text-slate-500 italic leading-relaxed">
-            Foco operacional. Acesso ao CMV, Fichas Técnicas e Dashboard. Não pode gerenciar equipe ou ver insights estratégicos de Admin.
+            Foco operacional. Acesso completo aos Checklists de loja, fechamentos de Caixa, Contas a Pagar e Dashboard da respectiva unidade.
           </p>
         </div>
 
@@ -320,7 +364,7 @@ export default function Team() {
             <h4 className={`font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>FINANCEIRO</h4>
           </div>
           <p className="text-[11px] font-bold text-slate-500 italic leading-relaxed">
-            Lançamentos e conciliação. Acesso ao Financeiro (DRE) e Data Entry para faturamento e despesas.
+            Gestão estratégica corporativa. Lançamentos e conciliações no Financeiro DRE, fechamentos de Caixa e Contas a Pagar de todas as unidades.
           </p>
         </div>
       </div>

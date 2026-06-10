@@ -28,7 +28,7 @@
 }
 
 .markdown-body strong {
-  @apply font-black text-indigo-500 italic;
+  @apply font-black text-amber-600 dark:text-amber-400 italic;
 }
 
 .markdown-body ul, .markdown-body ol {

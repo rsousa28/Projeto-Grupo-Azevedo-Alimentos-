@@ -29,7 +29,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const u = username?.trim().toLowerCase();
     const p = password?.trim();
     try {
-      // 1. Check for root administrator fallback
+      // 1. Check Firestore for custom / database-saved users first (so custom edits/passwords take precedence)
+      try {
+        const usersRef = collection(db, 'users');
+        const qUsers = query(usersRef, where('username', '==', u), limit(1));
+        const querySnapshot = await getDocs(qUsers);
+
+        if (!querySnapshot.empty) {
+          const docUser = querySnapshot.docs[0];
+          const userData = docUser.data();
+          
+          // Verify password (stored in Firestore as SHA-256 with plaintext fallback)
+          const hashedEntered = await sha256(p);
+          const isMatched = userData.password === p || userData.password === hashedEntered;
+          
+          if (isMatched) {
+            const newUser: User = {
+              id: docUser.id,
+              name: userData.name,
+              username: userData.username,
+              role: userData.role,
+              email: userData.email
+            };
+            setUser(newUser);
+            localStorage.setItem('auth_user', JSON.stringify(newUser));
+            await AuditService.logAction({
+              userId: newUser.id,
+              userName: newUser.name,
+              userRole: newUser.role,
+              action: 'LOGIN_SUCCESS',
+              description: `Login via Banco de Dados com sucesso.`
+            });
+            return;
+          }
+        }
+      } catch (dbError) {
+        console.error("Database access error during login:", dbError);
+      }
+
+      // 2. Check for root administrator fallback
       if (u === 'adm' && p === '88028837') {
         const adminUser: User = { 
           id: 'root-admin', 
@@ -142,44 +180,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           description: `Login realizado com sucesso como Gerente de 4 Estylos Mossoró.`
         });
         return;
-      }
-
-      // 2. Check Firestore for custom users
-      try {
-        const usersRef = collection(db, 'users');
-        const qUsers = query(usersRef, where('username', '==', u), limit(1));
-        const querySnapshot = await getDocs(qUsers);
-
-        if (!querySnapshot.empty) {
-          const docUser = querySnapshot.docs[0];
-          const userData = docUser.data();
-          
-          // Verify password (stored in Firestore as SHA-256 with plaintext fallback)
-          const hashedEntered = await sha256(p);
-          const isMatched = userData.password === p || userData.password === hashedEntered;
-          
-          if (isMatched) {
-            const newUser: User = {
-              id: docUser.id,
-              name: userData.name,
-              username: userData.username,
-              role: userData.role,
-              email: userData.email
-            };
-            setUser(newUser);
-            localStorage.setItem('auth_user', JSON.stringify(newUser));
-            await AuditService.logAction({
-              userId: newUser.id,
-              userName: newUser.name,
-              userRole: newUser.role,
-              action: 'LOGIN_SUCCESS',
-              description: `Login via Banco de Dados com sucesso.`
-            });
-            return;
-          }
-        }
-      } catch (dbError) {
-        console.error("Database access error during login:", dbError);
       }
 
       // If we fall through, it's failed credentials
