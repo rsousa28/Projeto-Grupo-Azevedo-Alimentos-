@@ -152,12 +152,14 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="flex items-center gap-3 overflow-hidden font-display"
+                className="flex items-center gap-3 overflow-visible font-display animate-fade-in"
               >
                 <div className="bg-white p-1 rounded-xl shadow-md shadow-amber-500/15 border border-amber-500/15 shrink-0 transition-transform hover:scale-105 duration-300">
                   <img src={LOGO_URL} alt="Logo" className="h-8 w-auto object-contain" />
                 </div>
-                <span className={`font-black text-xs italic tracking-tighter whitespace-nowrap ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>GRUPO AZEVEDO</span>
+                <span className={`font-black text-xs italic tracking-tight whitespace-nowrap py-1.5 px-0.5 leading-normal select-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  GRUPO AZEVEDO
+                </span>
               </motion.div>
             )}
           </AnimatePresence>

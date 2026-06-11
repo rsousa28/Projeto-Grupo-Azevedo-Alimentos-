@@ -206,3 +206,57 @@ export async function analyzeMenuEngineering(negativeMarginProducts: any[]) {
     return "Não foi possível gerar a análise no momento.";
   }
 }
+
+export interface DailyQuote {
+  quote: string;
+  author: string;
+  explanation: string;
+}
+
+export async function generateDailyQuote(): Promise<DailyQuote> {
+  const systemInstruction = `
+    Você é um mentor sênior de governança corporativa de elite e pensador de liderança (como Simon Sinek, Jim Collins, Falconi ou Peter Drucker).
+    Sua missão é gerar uma única frase inspiradora, profunda, profissional e corporativa, focada em alto desempenho, excelência operacional, dados e gestão eficiente no ramo de alimentação e negócios de sucesso.
+    A frase deve inspirar franqueados, diretores, investidores e gerentes a buscarem o padrão máximo.
+    Insira também uma explicação super curta (máximo 12 palavras) de como materializar esse conselho hoje.
+    Responda obrigatoriamente em Português do Brasil.
+
+    Você deve retornar estritamente um JSON no seguinte formato:
+    {
+      "quote": "A frase inspiradora corporativa aqui",
+      "author": "Nome do autor renomado ou a sua identidade como Conselheiro do Grupo Azevedo",
+      "explanation": "Ação prática imediata de aplicação."
+    }
+  `;
+
+  try {
+    const result = await callAIApi("Gere uma frase de alto impacto e governança corporativa para hoje.", "gemini-3.5-flash", {
+      systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          quote: { type: Type.STRING },
+          author: { type: Type.STRING },
+          explanation: { type: Type.STRING }
+        },
+        required: ["quote", "author", "explanation"]
+      } as any
+    });
+
+    const parsed = JSON.parse(result.text || "{}");
+    return {
+      quote: parsed.quote || "A consistência impecável na execução de pequenos processos diários constrói o império de amanhã.",
+      author: parsed.author || "Conselho Executivo de Governança",
+      explanation: parsed.explanation || "Rever relatórios operacionais hoje e padronizar procedimentos."
+    };
+  } catch (error) {
+    console.error("Gemini Quote Generation Error:", error);
+    return {
+      quote: "Excelente não é o que fazemos às vezes, mas o que fazemos repetidamente todos os dias até virar padrão.",
+      author: "Aristóteles",
+      explanation: "A disciplina operacional diária é o segredo do sucesso das grandes marcas."
+    };
+  }
+}
+

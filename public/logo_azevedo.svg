@@ -51,7 +51,7 @@
   <!-- Perfectly balanced spaced-out typography with compensating offset (dx) for trailing letter-spacing -->
   <text 
     x="300" 
-    y="375" 
+    y="360" 
     dx="12"
     class="serif-brand-text"
   >AZEVEDO</text>
