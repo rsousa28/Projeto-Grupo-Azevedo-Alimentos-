@@ -170,7 +170,7 @@ export default function Login() {
                     }}
                     autoComplete="username"
                     className="w-full pl-12 pr-4 py-4 rounded-xl border border-[#E2E0D8] outline-none transition-all duration-300 font-bold text-slate-800 bg-[#FAF9F5] focus:bg-white focus:ring-4 focus:ring-[#FFCB05]/20 focus:border-[#FFCB05] text-sm placeholder-slate-400/80"
-                    placeholder="Ex: adm, victordiretor..."
+                    placeholder="Digite seu login corporativo..."
                     id="login_username_field"
                   />
                 </div>

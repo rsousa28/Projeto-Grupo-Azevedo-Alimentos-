@@ -43,25 +43,25 @@ service cloud.firestore {
 
     // 0. Audit logs collection rules - STRICT APPEND-ONLY
     match /audit_logs/{logId} {
-      allow list: if true; 
-      allow get: if isValidId(logId);
-      allow create: if isValidId(logId) && request.resource.data.keys().size() <= 15 && isValidAuditLog(request.resource.data);
+      allow list: if request.auth != null; 
+      allow get: if request.auth != null && isValidId(logId);
+      allow create: if request.auth != null && isValidId(logId) && request.resource.data.keys().size() <= 15 && isValidAuditLog(request.resource.data);
       allow update, delete: if false; // Immutability and security: once written, logs cannot be modified or deleted
     }
 
     // 1. Users collection rules
     match /users/{userId} {
-      allow list: if true; // Required by the lookup on custom login flow
-      allow get: if isValidId(userId);
-      allow create, update: if isValidId(userId) && sizeConstraint(request.resource.data) && isValidUser(request.resource.data);
-      allow delete: if isValidId(userId);
+      allow list: if request.auth != null; // Required by the lookup on custom login flow
+      allow get: if request.auth != null && isValidId(userId);
+      allow create, update: if request.auth != null && isValidId(userId) && sizeConstraint(request.resource.data) && isValidUser(request.resource.data);
+      allow delete: if request.auth != null && isValidId(userId);
     }
 
     // 2. Stores collection rules
     match /stores/{storeId} {
-      allow list: if true;
-      allow get: if isValidId(storeId);
-      allow create, update: if isValidId(storeId) && sizeConstraint(request.resource.data) 
+      allow list: if request.auth != null;
+      allow get: if request.auth != null && isValidId(storeId);
+      allow create, update: if request.auth != null && isValidId(storeId) && sizeConstraint(request.resource.data) 
                             && request.resource.data.name is string && request.resource.data.name.size() <= 150
                             && request.resource.data.brand is string && request.resource.data.brand.size() <= 100;
       allow delete: if false; // Deletion is disabled for system store profiles
@@ -70,11 +70,11 @@ service cloud.firestore {
     // 3. Store child collections and documents 
     match /stores/{storeId}/{collectionName}/{docId} {
       // General list/get access for operational panels
-      allow list: if isValidId(storeId);
-      allow get: if isValidId(storeId) && isValidId(docId);
+      allow list: if request.auth != null && isValidId(storeId);
+      allow get: if request.auth != null && isValidId(storeId) && isValidId(docId);
       
       // Strict payload control and integrity enforcement for each subcollection
-      allow create, update: if isValidId(storeId) && isValidId(docId) 
+      allow create, update: if request.auth != null && isValidId(storeId) && isValidId(docId) 
                             && (
                               // Standard sub-resources containing a single 'data' item (e.g. checklists list, submissions, etc.)
                               (request.resource.data.keys().size() <= 10 && request.resource.data.keys().hasAll(['data']) && (request.resource.data.data is list || request.resource.data.data is map))
@@ -87,14 +87,14 @@ service cloud.firestore {
                             );
       
       // Operations are protected and restricted
-      allow delete: if isValidId(storeId) && isValidId(docId);
+      allow delete: if request.auth != null && isValidId(storeId) && isValidId(docId);
     }
 
     // 4. Backups administrative collection rules
     match /backups/{backupId} {
-      allow list: if true; 
-      allow get: if isValidId(backupId);
-      allow create, update, delete: if isValidId(backupId) && request.resource.data.keys().size() <= 15;
+      allow list: if request.auth != null; 
+      allow get: if request.auth != null && isValidId(backupId);
+      allow create, update, delete: if request.auth != null && isValidId(backupId) && request.resource.data.keys().size() <= 15;
     }
   }
 }

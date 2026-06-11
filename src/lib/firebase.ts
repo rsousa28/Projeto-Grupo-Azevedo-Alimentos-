@@ -1,18 +1,43 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, doc, getDoc, initializeFirestore, memoryLocalCache } from 'firebase/firestore';
+import { getAuth, signInAnonymously } from 'firebase/auth';
+import { 
+  initializeFirestore, 
+  persistentLocalCache, 
+  persistentMultipleTabManager, 
+  memoryLocalCache,
+  doc,
+  getDoc
+} from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 const databaseId = (firebaseConfig as any).firestoreDatabaseId || '(default)';
 console.log('Initializing Firestore with databaseId:', databaseId);
 
-// Using memory cache can help in iframe environments where IndexedDB might be blocked
+let localCacheConfig;
+try {
+  localCacheConfig = persistentLocalCache({
+    tabManager: persistentMultipleTabManager()
+  });
+} catch (error) {
+  console.warn('Persistent cache initialization failed, falling back to memoryLocalCache:', error);
+  localCacheConfig = memoryLocalCache();
+}
+
 export const db = initializeFirestore(app, {
-  localCache: memoryLocalCache()
+  localCache: localCacheConfig
 }, databaseId);
 
 export const auth = getAuth(app);
+
+// Authenticate the client instance anonymously to establish secure session credentials in Firestore rules
+signInAnonymously(auth)
+  .then(() => {
+    console.log("Firebase secure anonymous session established.");
+  })
+  .catch((error) => {
+    console.warn("Silent authentication session fell back to unauthenticated:", error.message || error);
+  });
 
 export enum OperationType {
   CREATE = 'create',
