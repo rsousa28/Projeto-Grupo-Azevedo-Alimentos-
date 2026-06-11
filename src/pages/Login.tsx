@@ -110,8 +110,8 @@ export default function Login() {
             <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 md:p-5 border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.3)]">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 rounded-full bg-[#FFCB05] animate-pulse" />
-                <div className="flex items-center gap-1.5 text-[9px] font-black uppercase text-[#FFCB05] tracking-widest">
-                  <Sparkles className="w-3 h-3" /> Insight de Desempenho & Governança
+                <div className="flex items-center gap-1.5 text-[9.5px] font-black uppercase text-[#FFCB05] tracking-widest">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#FFCB05]" /> Ideia & Padrão de Excelência
                 </div>
               </div>
               

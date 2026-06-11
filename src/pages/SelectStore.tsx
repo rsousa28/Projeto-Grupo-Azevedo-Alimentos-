@@ -151,7 +151,11 @@ export default function SelectStore() {
                 {/* Middle Info Section */}
                 <div className="flex-1 w-full z-10">
                   <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">
-                    {store.brand === 'BEBELU' || store.code === 'ROOT' ? 'Franquia Bebelu Sanduíches' : 'Multimarca Premium'}
+                    {store.code === 'ROOT' 
+                      ? 'Corporativo Grupo Azevedo' 
+                      : store.brand === 'BEBELU' 
+                        ? 'Franquia Bebelu Sanduíches' 
+                        : "Franquia 4 Estylo's Pizzaria - Mossoró"}
                   </span>
                   <h3 className="text-xl font-bold text-slate-950 leading-tight uppercase tracking-tight group-hover:text-[#7F300C] transition-colors mb-2">
                     {store.name}

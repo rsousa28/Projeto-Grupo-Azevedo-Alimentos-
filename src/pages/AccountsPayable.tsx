@@ -323,7 +323,7 @@ function getFutureDateStr(daysAhead: number) {
 export default function AccountsPayable() {
   const { currentStore, isDarkMode, brandColors } = useStore();
   const { user } = useAuth();
-  const hideTotalLancado = user?.username?.toLowerCase().includes('andressa') || user?.username?.toLowerCase().includes('michele');
+  const hideTotalLancado = user?.role !== 'ADMIN' && user?.role !== 'FINANCIAL';
 
   // State
   const [accounts, setAccounts] = useState<AccountPayable[]>([]);

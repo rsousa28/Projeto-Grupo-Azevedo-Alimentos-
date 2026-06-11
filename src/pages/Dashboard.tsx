@@ -8,7 +8,7 @@ import {
   TrendingUp, TrendingDown, DollarSign, PieChart as PieIcon, 
   ShoppingBag, Clock, Users, ArrowUpRight, ArrowDownRight,
   Zap, Info, Target, Calendar, ArrowRight, ArrowLeft, Sparkles, Trash2, Star,
-  AlertTriangle, Download
+  AlertTriangle, Download, RotateCw, ShieldCheck
 } from 'lucide-react';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
@@ -22,7 +22,6 @@ import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { DREData } from '../types';
 import DataEntrySection from '../components/DataEntrySection';
-import { generateDailyQuote, DailyQuote } from '../services/geminiService';
 
 
 const formatCurrency = (val: number) => 
@@ -79,13 +78,7 @@ export default function Dashboard() {
 
   const [showEntry, setShowEntry] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(initialMonthStr);
-  const [selectedYear, setSelectedYear] = useState(initialYearStr);
-  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
-  const [dailyQuote, setDailyQuote] = useState<DailyQuote | null>({
-    quote: "A excelência não é um ato de esforço isolado, mas sim a busca incessante por conformidade, disciplina e padrão.",
-    author: "Conselho Executivo de Governança",
-    explanation: "Consolidar os números operacionais deste mês e manter o rigor nos processos."
-  });
+  const [selectedYear, setSelectedYear] = useState(initialYearStr);  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
   const [loadingQuote, setLoadingQuote] = useState(false);
   const [showAllProducts, setShowAllProducts] = useState(false);
   const [selectedChartMonthCode, setSelectedChartMonthCode] = useState<string>(initialMonthStr);
@@ -96,45 +89,55 @@ export default function Dashboard() {
     setSelectedChartMonthCode(selectedMonth);
   }, [selectedMonth]);
 
-  const businessQuotes = [
-    "O segredo do sucesso no food service é constância e qualidade.",
-    "Gestão é fazer as coisas bem; liderança é fazer as coisas certas.",
-    "O que não é medido não é gerenciado. Olhe seus números hoje.",
-    "A excelência não é um ato, mas um hábito diário na cozinha.",
-    "Um cliente satisfeito é a sua melhor estratégia de marketing.",
-    "Qualidade significa fazer certo quando ninguém está olhando.",
-    "Inovação separa um líder de um seguidor.",
-    "A disciplina é a ponte entre metas e realizações.",
-    "Sucesso é a soma de pequenos esforços repetidos dia após dia.",
-    "Grandes coisas nunca vêm de zonas de conforto."
+  const premiumQuotes = [
+    {
+      quote: "A excelência não é um ato de esforço isolado, mas sim a busca incessante por conformidade, disciplina e padrão.",
+      author: "Conselho Executivo de Governança",
+      explanation: "Consolidar os números operacionais deste mês e manter o rigor nos processos."
+    },
+    {
+      quote: "O que não se pode medir, não se pode gerenciar. A precisão dos seus lançamentos garante a solidez de nossas decisões.",
+      author: "Fórmula de Gestão de Negócios",
+      explanation: "Monitore o caixa diariamente com disciplina rigorosa e consistência."
+    },
+    {
+      quote: "Qualidade significa fazer certo quando ninguém está olhando. O padrão operacional constrói a reputação da marca.",
+      author: "Padrão de Qualidade Industrial",
+      explanation: "Siga as diretrizes de checklist com máxima atenção aos detalhes operacionais."
+    },
+    {
+      quote: "A consistência impecável na execução de pequenos processos diários é o que guiará as nossas redes para o próximo patamar.",
+      author: "Governança Corporativa",
+      explanation: "A prestação de contas diária protege a saúde financeira e o lucro das operações."
+    },
+    {
+      quote: "A disciplina é a ponte necessária entre objetivos estratégicos e resultados operacionais históricos.",
+      author: "Administração de Alta Performance",
+      explanation: "Preencha os lançamentos e os checklists com absoluta fidelidade aos fatos cotidianos."
+    },
+    {
+      quote: "O sucesso operacional repousa sobre a clareza de propósitos, conformidade de processos e execução focada.",
+      author: "Administração Grupo Azevedo",
+      explanation: "Identifique perdas de insumos imediatamente e reajuste a porção padrão de montagem."
+    }
   ];
 
-  const fetchQuote = React.useCallback(async () => {
+  const dailyQuote = premiumQuotes[currentQuoteIndex];
+
+  const handleRefreshQuote = () => {
     setLoadingQuote(true);
-    try {
-      const q = await generateDailyQuote();
-      setDailyQuote(q);
-    } catch (e) {
-      console.error("Error loading custom daily quote:", e);
-    } finally {
+    setTimeout(() => {
+      setCurrentQuoteIndex((prev) => (prev + 1) % premiumQuotes.length);
       setLoadingQuote(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    fetchQuote();
-  }, [fetchQuote]);
-
-  const handleRefreshQuote = async () => {
-    fetchQuote();
+    }, 250);
   };
 
   React.useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentQuoteIndex((prev) => (prev + 1) % businessQuotes.length);
-    }, 10000); // Mudar a cada 10 segundos
+      setCurrentQuoteIndex((prev) => (prev + 1) % premiumQuotes.length);
+    }, 12000); // Mudar a cada 12 segundos localmente
     return () => clearInterval(interval);
-  }, []);
+  }, [premiumQuotes.length]);
 
   const months = [
     { value: '01', label: 'Janeiro' },
@@ -1260,10 +1263,10 @@ export default function Dashboard() {
               <div className="flex-1 space-y-1.5">
                 <div className="flex items-center gap-2">
                   <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                    Insight de Desempenho & Governança
+                    Ideia & Padrão de Excelência
                   </span>
-                  <span className="flex items-center gap-1 text-[9px] font-black bg-amber-500/10 text-amber-600 dark:text-[#FFCB05] px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                    <Sparkles className="w-2.5 h-2.5" /> IA Ativa
+                  <span className="flex items-center gap-1 text-[9px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
+                    <ShieldCheck className="w-2.5 h-2.5" /> Sistema Protegido
                   </span>
                 </div>
 
@@ -1319,14 +1322,14 @@ export default function Dashboard() {
               <button 
                 onClick={handleRefreshQuote}
                 disabled={loadingQuote}
-                title="Buscar novo ensinamento executivo (IA)"
+                title="Alternar ensinamento executivo"
                 className={`p-2 rounded-full transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer ${
                   isDarkMode 
                     ? 'bg-[#1e1e1e] border border-[#2d2d2a] text-slate-400 hover:text-white' 
                     : 'bg-[#F2EFF0]/70 border border-slate-200/60 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900 shadow-sm'
                 }`}
               >
-                <Sparkles className={`w-4 h-4 ${loadingQuote ? 'animate-spin text-amber-500' : ''}`} />
+                <RotateCw className={`w-4 h-4 ${loadingQuote ? 'animate-spin text-amber-500' : ''}`} />
               </button>
               
               {currentStore.brand === 'BEBELU' ? (
