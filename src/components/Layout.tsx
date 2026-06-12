@@ -307,8 +307,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       </motion.aside>
 
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col h-screen overflow-hidden transition-colors duration-500 ${isDarkMode ? 'bg-[#0F0F0F]' : 'bg-[#F8FAFC]'}`}>
-        <header className={`h-20 flex items-center justify-between px-6 lg:px-8 border-b transition-colors duration-500 shrink-0 ${isDarkMode ? 'bg-[#0F0F0F] border-[#1E1E1E]' : 'bg-white border-slate-200'}`}>
+      <main className={`flex-1 flex flex-col h-[100dvh] overflow-hidden transition-colors duration-500 ${isDarkMode ? 'bg-[#0F0F0F]' : 'bg-[#F8FAFC]'}`}>
+        <header className={`h-16 lg:h-20 flex items-center justify-between px-4 lg:px-8 border-b transition-colors duration-500 shrink-0 ${isDarkMode ? 'bg-[#0F0F0F] border-[#1E1E1E]' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setMobileMenuOpen(true)}
@@ -327,12 +327,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 lg:gap-6">
+          <div className="flex items-center gap-3 lg:gap-6">
             {/* Elegant Global Dark/Light Mode Toggle */}
             <button
               onClick={toggleDarkMode}
               title={isDarkMode ? "Alternar para Modo Claro" : "Alternar para Modo Escuro (Foco Noturno)"}
-              className={`p-2.5 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center ${
+              className={`p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center ${
                 isDarkMode 
                   ? 'bg-[#1E1E1E] border-[#2A2A2A] text-amber-400 hover:bg-[#252525] hover:text-amber-300' 
                   : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-850'
@@ -341,18 +341,18 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               {isDarkMode ? <Sun className="w-4 h-4 animate-spin-slow" /> : <Moon className="w-4 h-4" />}
             </button>
 
-            <div className="text-right">
-              <div className={`text-sm font-bold uppercase tracking-tighter italic leading-none mb-1 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            <div className="text-right max-w-[80px] xs:max-w-[120px] sm:max-w-none">
+              <div className={`text-xs sm:text-sm font-bold uppercase tracking-tighter italic leading-none mb-1 truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                 {user?.username || user?.name || 'Visitante'}
               </div>
-              <div className="text-[9px] text-slate-500 font-black uppercase tracking-[0.1em] italic leading-none">
+              <div className="text-[8px] sm:text-[9px] text-slate-500 font-black uppercase tracking-[0.1em] italic leading-none truncate">
                 {user?.role === 'ADMIN' ? 'CEO' : (user?.username === 'victordiretor' || user?.role === 'FINANCIAL') ? 'Diretor' : 'Gerente'}
               </div>
             </div>
           </div>
         </header>
 
-        <div className={`flex-1 overflow-y-auto p-4 lg:p-8 custom-scrollbar relative ${bgTextureClass}`}>
+        <div className={`flex-1 overflow-y-auto p-3 lg:p-8 custom-scrollbar relative ${bgTextureClass}`}>
           <div className="relative z-10 transition-all duration-300">
             {children || <Outlet />}
           </div>

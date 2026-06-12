@@ -44,7 +44,7 @@ export default function SelectStore() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 relative flex flex-col items-center justify-between p-6 md:p-12 font-sans select-none overflow-hidden">
+    <div className="min-h-screen bg-slate-50 relative flex flex-col items-center justify-between p-6 md:p-12 font-sans select-none overflow-y-auto">
       {/* Decorative enterprise ambient highlights in Bebelu Brand Colors */}
       <div className="absolute top-0 inset-x-0 h-[600px] bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-[#FFCB05]/10 via-slate-50 to-transparent pointer-events-none" />
       <div className="absolute -left-1/4 top-1/4 w-[600px] h-[600px] bg-amber-400/3 rounded-full blur-[160px] pointer-events-none" />
