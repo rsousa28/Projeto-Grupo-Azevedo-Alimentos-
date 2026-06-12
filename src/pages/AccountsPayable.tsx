@@ -2537,7 +2537,7 @@ export default function AccountsPayable() {
                 {currentBoletoUrl.startsWith('data:application/pdf') ? (
                   <iframe 
                     src={currentBoletoUrl} 
-                    className="w-[85vw] h-[78vh] rounded-xl shadow-2xl bg-white border border-white/10"
+                    className="w-full h-full rounded-xl shadow-2xl bg-white border border-white/10"
                     title="Visualizador de PDF"
                   />
                 ) : (
@@ -3783,7 +3783,7 @@ export default function AccountsPayable() {
               {currentBoletoUrl.startsWith('data:application/pdf') ? (
                 <iframe 
                   src={currentBoletoUrl} 
-                  className="w-[85vw] h-[78vh] rounded-xl shadow-2xl bg-white border border-white/10"
+                  className="w-full h-full rounded-xl shadow-2xl bg-white border border-white/10"
                   title="Visualizador de PDF"
                 />
               ) : (

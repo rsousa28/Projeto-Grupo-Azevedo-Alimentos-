@@ -622,6 +622,74 @@ export default function Dashboard() {
     return deliveryVsBalcaoAnnualData.find(d => d.monthCode === selectedChartMonthCode) || deliveryVsBalcaoAnnualData[4]; // standard fallback is Maio
   }, [deliveryVsBalcaoAnnualData, selectedChartMonthCode]);
 
+  // Dynamic Month over Month (MoM) calculation for trend percentages
+  const previousMonthLabelAndYear = React.useMemo(() => {
+    const currentIndex = months.findIndex(m => m.value === selectedMonth);
+    let prevLabel = '';
+    let prevYearStr = selectedYear;
+    if (currentIndex > 0) {
+      prevLabel = months[currentIndex - 1].label;
+    } else if (currentIndex === 0) {
+      prevLabel = months[11].label;
+      prevYearStr = (parseInt(selectedYear) - 1).toString();
+    }
+    return { label: prevLabel, year: prevYearStr };
+  }, [selectedMonth, selectedYear, months]);
+
+  const previousMonthData = React.useMemo(() => {
+    return activeDreTimeline.find(d => 
+      d.month === previousMonthLabelAndYear.label && 
+      (d.year === previousMonthLabelAndYear.year || (!d.year && previousMonthLabelAndYear.year === '2026'))
+    );
+  }, [activeDreTimeline, previousMonthLabelAndYear]);
+
+  const faturamentoChange = React.useMemo(() => {
+    const prevFat = previousMonthData ? (previousMonthData.faturamento || 0) : 0;
+    if (prevFat <= 0) return { pct: 0, trend: 'up' as const };
+    const pct = ((faturamento - prevFat) / prevFat) * 100;
+    return {
+      pct: Math.abs(pct),
+      trend: pct >= 0 ? ('up' as const) : ('down' as const)
+    };
+  }, [faturamento, previousMonthData]);
+
+  const netProfitChange = React.useMemo(() => {
+    const prevProfit = previousMonthData ? (previousMonthData.netProfit || 0) : 0;
+    if (prevProfit === 0) return { pct: 0, trend: 'up' as const };
+    const pct = ((netProfit - prevProfit) / Math.abs(prevProfit)) * 15.2; // scaling factor to reflect reasonable delta patterns
+    const boundedPct = ((netProfit - prevProfit) / Math.abs(prevProfit)) * 100;
+    return {
+      pct: Math.abs(boundedPct),
+      trend: boundedPct >= 0 ? ('up' as const) : ('down' as const)
+    };
+  }, [netProfit, previousMonthData]);
+
+  const cmvChange = React.useMemo(() => {
+    const prevFat = previousMonthData ? (previousMonthData.faturamento || 0) : 0;
+    const prevCmv = previousMonthData ? (previousMonthData.cmv || 0) : 0;
+    const prevCmvRate = prevFat > 0 ? (prevCmv / prevFat) * 100 : 0;
+    if (prevCmvRate <= 0) {
+      return { pct: 0, trend: 'down' as const };
+    }
+    const diff = cmvRate - prevCmvRate; // Absolute difference in percentage points
+    return {
+      pct: Math.abs(diff),
+      trend: diff <= 0 ? ('down' as const) : ('up' as const) // CMV dropping is "down", which is healthy
+    };
+  }, [cmvRate, previousMonthData]);
+
+  const margemChange = React.useMemo(() => {
+    const prevFat = previousMonthData ? (previousMonthData.faturamento || 0) : 0;
+    const prevEbitda = previousMonthData ? (previousMonthData.ebitda || 0) : 0;
+    const prevMargem = prevFat > 0 ? (prevEbitda / prevFat) * 100 : 0;
+    if (prevMargem === 0) return { pct: 0, trend: 'up' as const };
+    const diff = margemOperacional - prevMargem; // Absolute difference in percentage points
+    return {
+      pct: Math.abs(diff),
+      trend: diff >= 0 ? ('up' as const) : ('down' as const)
+    };
+  }, [margemOperacional, previousMonthData]);
+
   const isPatriciab = 
     user?.role === 'MANAGER' ||
     user?.role?.startsWith('MANAGER_') ||
@@ -630,10 +698,10 @@ export default function Dashboard() {
     user?.username?.toLowerCase().includes('michele');
 
   const displayMetrics = [
-    { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: 'up', change: '0' },
-    ...(!isPatriciab ? [{ label: 'Lucro Líquido', valor: netProfit, format: 'currency', trend: netProfit < 0 ? 'down' : 'up', change: '0' }] : []),
-    { label: 'CMV Médio', valor: cmvRate, format: 'percent', trend: 'down', change: '0' },
-    ...(!isPatriciab ? [{ label: 'Margem Operac.', valor: margemOperacional, format: 'percent', trend: margemOperacional < 0 ? 'down' : 'up', change: '0' }] : []),
+    { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: faturamentoChange.trend, change: faturamentoChange.pct.toFixed(1) },
+    ...(!isPatriciab ? [{ label: 'Lucro Líquido', valor: netProfit, format: 'currency', trend: netProfitChange.trend, change: netProfitChange.pct.toFixed(1) }] : []),
+    { label: 'CMV Médio', valor: cmvRate, format: 'percent', trend: cmvChange.trend, change: cmvChange.pct.toFixed(1) },
+    ...(!isPatriciab ? [{ label: 'Margem Operac.', valor: margemOperacional, format: 'percent', trend: margemChange.trend, change: margemChange.pct.toFixed(1) }] : []),
   ];
 
   const exportDashboardPDF = async () => {
@@ -1240,123 +1308,12 @@ export default function Dashboard() {
         </motion.div>
       ) : (
         <>
-          {/* Daily Inspiration Widget */}
-          <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`p-6 rounded-3xl border transition-all duration-500 relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6 ${
-              isDarkMode 
-                ? 'bg-[#151515] border-[#2d2d2a]' 
-                : 'bg-[#FCFCFA] border-[#ECECE6] shadow-sm shadow-slate-100/50'
-            }`}
-            id="dashboard_daily_inspiration"
-          >
-            {/* Background decorative faint brand seal or quote mark */}
-            <div className={`absolute right-4 bottom-[-16px] text-[100px] font-black pointer-events-none select-none leading-none opacity-[0.03] lg:opacity-[0.04] ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-              “
-            </div>
-
-            <div className="flex items-start gap-4 flex-1 w-full">
-              {/* Accent vertical high-contrast line */}
-              <div className="w-1 self-stretch rounded-full bg-[#FFCB05]" />
-              
-              <div className="flex-1 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <span className={`text-[10px] font-black uppercase tracking-[0.18em] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                    Ideia & Padrão de Excelência
-                  </span>
-                  <span className="flex items-center gap-1 text-[9px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                    <ShieldCheck className="w-2.5 h-2.5" /> Sistema Protegido
-                  </span>
-                </div>
-
-                <div className="min-h-[50px] flex items-center pr-3">
-                  <AnimatePresence mode="wait">
-                    {loadingQuote ? (
-                      <motion.div
-                        key="shimmer"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="space-y-2 w-full animate-pulse"
-                      >
-                        <div className={`h-4 w-3/4 rounded-md ${isDarkMode ? 'bg-zinc-800' : 'bg-slate-200'}`} />
-                        <div className={`h-3 w-1/2 rounded-md ${isDarkMode ? 'bg-zinc-800' : 'bg-slate-200'}`} />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key={dailyQuote?.quote}
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 10 }}
-                        transition={{ duration: 0.35, ease: 'easeOut' }}
-                        className="space-y-1"
-                      >
-                        <p className={`text-base md:text-[17px] font-black tracking-tight leading-relaxed italic ${
-                          isDarkMode ? 'text-slate-100' : 'text-slate-800'
-                        }`}>
-                          "{dailyQuote?.quote}"
-                        </p>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1.5">
-                          <p className={`text-[10.5px] font-black tracking-widest uppercase italic text-[#7F300C] dark:text-[#FFCB05]`}>
-                            — {dailyQuote?.author}
-                          </p>
-                          {dailyQuote?.explanation && (
-                            <>
-                              <span className="hidden sm:inline text-slate-300 dark:text-slate-700">•</span>
-                              <p className={`text-[10.5px] font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                                {dailyQuote?.explanation}
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
-              </div>
-            </div>
-
-            {/* Brand visual tags or quick actions */}
-            <div className="flex items-center gap-3 self-stretch md:self-auto shrink-0 w-full md:w-auto justify-end md:justify-center border-t md:border-t-0 md:border-l border-slate-100 dark:border-zinc-800/85 pt-3 md:pt-0 md:pl-5">
-              <button 
-                onClick={handleRefreshQuote}
-                disabled={loadingQuote}
-                title="Alternar ensinamento executivo"
-                className={`p-2 rounded-full transition-all duration-300 hover:scale-105 active:scale-95 disabled:opacity-50 cursor-pointer ${
-                  isDarkMode 
-                    ? 'bg-[#1e1e1e] border border-[#2d2d2a] text-slate-400 hover:text-white' 
-                    : 'bg-[#F2EFF0]/70 border border-slate-200/60 text-slate-600 hover:bg-slate-200/80 hover:text-slate-900 shadow-sm'
-                }`}
-              >
-                <RotateCw className={`w-4 h-4 ${loadingQuote ? 'animate-spin text-amber-500' : ''}`} />
-              </button>
-              
-              {currentStore.brand === 'BEBELU' ? (
-                <div className="hidden lg:flex flex-col items-end text-right justify-center pointer-events-none select-none shrink-0 font-display pl-2 leading-tight">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#7F300C] dark:text-[#FFCB05]">BEBELU SANDUÍCHES</span>
-                  <span className="text-[7.5px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">Fortaleza • Desde 1986</span>
-                </div>
-              ) : currentStore.brand === '4ESTYLOS' ? (
-                <div className="hidden lg:flex flex-col items-end text-right justify-center pointer-events-none select-none shrink-0 font-display pl-2 leading-tight">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-[#E63946] dark:text-[#E63946]">4 ESTYLOS PIZZA</span>
-                  <span className="text-[7.5px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider">Mossoró • Alta Gastronomia</span>
-                </div>
-              ) : (
-                <div className="hidden lg:flex flex-col items-end text-right justify-center pointer-events-none select-none shrink-0 font-display pl-2 leading-tight">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-800 dark:text-slate-200">GRUPO AZEVEDO</span>
-                  <span className="text-[7.5px] font-bold text-slate-400 mt-0.5 uppercase tracking-wider font-mono">Holding Alimentos</span>
-                </div>
-              )}
-            </div>
-          </motion.div>
-
       {/* Main KPIs */}
       <div className={`grid grid-cols-1 sm:grid-cols-2 ${isPatriciab ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-4`}>
         {displayMetrics.map((metric, i) => {
           const isCmv = metric.label === 'CMV Médio';
           const isHealthy = isCmv 
-            ? (metric.valor as number) <= 36 
+            ? metric.trend === 'down' 
             : metric.trend === 'up';
           const statusColor = isHealthy ? 'text-green-500 bg-green-500/10' : 'text-red-700 bg-red-700/10';
           
@@ -1391,10 +1348,11 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-2">
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>{metric.label}</span>
                 <div className={`flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor}`}>
-                  {isCmv 
-                    ? ((metric.valor as number) > 36 ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />)
-                    : (metric.trend === 'up' ? <ArrowUpRight className="w-2.5 h-2.5" /> : <ArrowDownRight className="w-2.5 h-2.5" />)
-                  }
+                  {metric.trend === 'up' ? (
+                    <ArrowUpRight className="w-2.5 h-2.5" />
+                  ) : (
+                    <ArrowDownRight className="w-2.5 h-2.5" />
+                  )}
                   {metric.change}%
                 </div>
               </div>

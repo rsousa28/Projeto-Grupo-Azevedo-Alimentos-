@@ -11,6 +11,7 @@ import {
   Menu,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   Store as StoreIcon,
   Zap,
   Banknote,
@@ -56,6 +57,7 @@ const LOGO_URL = "/logo_azevedo.svg";
 export default function Layout({ children }: { children?: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [headerDropdownOpen, setHeaderDropdownOpen] = useState(false);
   const { currentStore, setStore, isDarkMode, toggleDarkMode, brandColors } = useStore();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
