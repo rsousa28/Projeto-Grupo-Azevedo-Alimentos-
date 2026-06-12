@@ -364,6 +364,10 @@ export default function AccountsPayable() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showOverdueModal, setShowOverdueModal] = useState(false);
   const [showPaidMonthModal, setShowPaidMonthModal] = useState(false);
+  const [showUpcomingModal, setShowUpcomingModal] = useState(false);
+  const [upcomingSearch, setUpcomingSearch] = useState('');
+  const [upcomingClassificationFilter, setUpcomingClassificationFilter] = useState<'all' | 'near' | 'medium' | 'far'>('all');
+  const [upcomingSort, setUpcomingSort] = useState<'date_asc' | 'value_desc' | 'supplier_asc'>('date_asc');
   const [paidMonthSearch, setPaidMonthSearch] = useState('');
   const [paidMonthClassificationFilter, setPaidMonthClassificationFilter] = useState<'all' | 'fully_paid' | 'partially_paid'>('all');
   const [paidMonthSort, setPaidMonthSort] = useState<'date_desc' | 'value_desc' | 'supplier_asc'>('date_desc');
@@ -1781,6 +1785,95 @@ export default function AccountsPayable() {
     };
   }, [rawOverdueAccounts, todayStr]);
 
+  const getDaysUntilDue = (dueDateStr: string) => {
+    try {
+      const d1 = new Date(todayStr + 'T12:00:00');
+      const d2 = new Date(dueDateStr + 'T12:00:00');
+      const diffMs = d2.getTime() - d1.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 24 * 60 * 60));
+      return diffDays > 0 ? diffDays : 0;
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  const rawUpcomingAccounts = useMemo(() => {
+    return storeKPIAccounts.filter(ac => {
+      const isAcUpcoming = ac.dueDate > todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado';
+      const remainingVal = ac.value - (ac.partialAmountPaid || 0);
+      return isAcUpcoming && remainingVal > 0;
+    });
+  }, [storeKPIAccounts, todayStr]);
+
+  const upcomingAccounts = useMemo(() => {
+    let result = rawUpcomingAccounts.filter(ac => {
+      // 1. Search Query
+      if (upcomingSearch.trim() !== '') {
+        const query = upcomingSearch.toLowerCase();
+        const matchesSupplier = ac.supplier?.toLowerCase().includes(query);
+        const matchesDesc = ac.description?.toLowerCase().includes(query);
+        const matchesCategory = ac.category?.toLowerCase().includes(query);
+        const matchesCc = ac.costCenter?.toLowerCase().includes(query);
+        const matchesBank = ac.bank?.toLowerCase().includes(query);
+        if (!matchesSupplier && !matchesDesc && !matchesCategory && !matchesCc && !matchesBank) {
+          return false;
+        }
+      }
+
+      // 2. Classification Filter
+      if (upcomingClassificationFilter !== 'all') {
+        const days = getDaysUntilDue(ac.dueDate);
+        if (upcomingClassificationFilter === 'near' && days > 7) return false;
+        if (upcomingClassificationFilter === 'medium' && (days <= 7 || days > 15)) return false;
+        if (upcomingClassificationFilter === 'far' && days <= 15) return false;
+      }
+
+      return true;
+    });
+
+    // 3. Sorting
+    return result.sort((a, b) => {
+      if (upcomingSort === 'date_asc') {
+        return a.dueDate.localeCompare(b.dueDate);
+      } else if (upcomingSort === 'value_desc') {
+        const valA = a.value - (a.partialAmountPaid || 0);
+        const valB = b.value - (b.partialAmountPaid || 0);
+        return valB - valA;
+      } else if (upcomingSort === 'supplier_asc') {
+        return (a.supplier || '').localeCompare(b.supplier || '');
+      }
+      return 0;
+    });
+  }, [rawUpcomingAccounts, upcomingSearch, upcomingClassificationFilter, upcomingSort, todayStr]);
+
+  const upcomingStats = useMemo(() => {
+    let nearCount = 0, nearSum = 0;
+    let mediumCount = 0, mediumSum = 0;
+    let farCount = 0, farSum = 0;
+
+    rawUpcomingAccounts.forEach(ac => {
+      const days = getDaysUntilDue(ac.dueDate);
+      const val = ac.value - (ac.partialAmountPaid || 0);
+
+      if (days <= 7) {
+        nearCount++;
+        nearSum += val;
+      } else if (days <= 15) {
+        mediumCount++;
+        mediumSum += val;
+      } else {
+        farCount++;
+        farSum += val;
+      }
+    });
+
+    return {
+      nearCount, nearSum,
+      mediumCount, mediumSum,
+      farCount, farSum
+    };
+  }, [rawUpcomingAccounts, todayStr]);
+
   const rawPaidMonthAccounts = useMemo(() => {
     return storeKPIAccounts.filter(ac => {
       const hasDueDateInRange = ac.dueDate?.startsWith(`${selectedYear}-${selectedMonth}`);
@@ -2986,20 +3079,27 @@ export default function AccountsPayable() {
         </div>
 
         {/* KPI 4 - Próximos Vencimentos */}
-        <div className={`p-5 rounded-2xl border transition-all ${
-          isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-md shadow-slate-100/40'
-        }`}>
+        <div 
+          onClick={() => setShowUpcomingModal(true)}
+          className={`p-5 rounded-2xl border transition-all cursor-pointer hover:shadow-lg hover:scale-[1.01] active:scale-95 duration-200 ${
+            isDarkMode 
+              ? 'bg-[#121212] border-zinc-800 hover:border-slate-700/50' 
+              : 'bg-white border-slate-100 hover:border-slate-200/80 shadow-md shadow-slate-100/40'
+          }`}
+          style={{ borderLeft: `4px solid ${themePrimary}` }}
+          title="Clique para ver compromissos futuros"
+        >
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">Compromissos Futuros</span>
-            <div className="p-2 rounded-xl" style={{ backgroundColor: `${themePrimary}12` }}>
+            <div className="p-2 rounded-xl transition-colors" style={{ backgroundColor: `${themePrimary}12` }}>
               <DollarSign className="w-4 h-4" style={{ color: themePrimary }} />
             </div>
           </div>
-          <div className="text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
+          <div className="text-2xl font-display font-extrabold tracking-tight leading-none" style={{ color: themePrimary }}>
             {formatValueBrl(bentoUpcomingVal)}
           </div>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5">
-            Destaques de Provisão
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5 flex items-center gap-1">
+            Destaques de Provisão <span className="font-mono font-bold" style={{ color: themePrimary }}>({rawUpcomingAccounts.length})</span>
           </p>
         </div>
 
@@ -5155,7 +5255,7 @@ export default function AccountsPayable() {
                               <CheckCircle className="w-4 h-4" /> Dar Baixa
                             </button>
                           </div>
- 
+   
                         </div>
                       );
                     })}
@@ -5308,7 +5408,7 @@ export default function AccountsPayable() {
                   >
                     <div className="w-full flex items-center justify-between">
                       <span className="text-[9.5px] font-extrabold tracking-wider uppercase text-emerald-600 dark:text-emerald-400">Integrais</span>
-                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md font-mono">
+                      <span className="text-[10px] font-bold text-emerald-605 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-md font-mono">
                         {paidMonthStats.fullyPaidCount}
                       </span>
                     </div>
@@ -5348,7 +5448,6 @@ export default function AccountsPayable() {
                       </span>
                     </div>
                   </button>
-
                 </div>
               </div>
 
@@ -5473,7 +5572,7 @@ export default function AccountsPayable() {
                               </div>
                               
                               {ac.description && (
-                                <p className="text-[11px] text-slate-450 dark:text-zinc-400 tracking-tight font-medium leading-relaxed">
+                                <p className="text-[11px] text-slate-455 dark:text-zinc-400 tracking-tight font-medium leading-relaxed">
                                   {ac.description}
                                 </p>
                               )}
@@ -5490,7 +5589,7 @@ export default function AccountsPayable() {
                               <span className={`text-[10px] px-2 py-0.5 rounded-md uppercase tracking-wide font-mono font-bold ${
                                 ac.status === 'Pago'
                                   ? 'bg-emerald-500/10 text-emerald-650 dark:text-emerald-400'
-                                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-450'
+                                  : 'bg-amber-500/10 text-amber-700 dark:text-amber-455'
                               }`}>
                                 {ac.status}
                               </span>
@@ -5515,7 +5614,7 @@ export default function AccountsPayable() {
                             </div>
                             
                             <div>
-                              <span className="text-[9.5px] uppercase font-bold tracking-wider text-emerald-500 block mb-1 font-sans">Valor Quitado</span>
+                              <span className="text-[9.5px] uppercase font-bold tracking-wider text-emerald-505 block mb-1 font-sans">Valor Quitado</span>
                               <span className="font-extrabold text-emerald-650 dark:text-emerald-400 font-mono text-[14px] leading-tight block">
                                 {formatValueBrl(paidValue)}
                               </span>
@@ -5546,6 +5645,418 @@ export default function AccountsPayable() {
                                   setCurrentBoletoUrl(ac.taxInvoiceFile);
                                 }}
                                 className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase text-emerald-600 dark:text-emerald-400 border border-emerald-500/10 bg-emerald-50/[0.03] hover:bg-emerald-50/[0.08] hover:border-emerald-50/20 transition-all cursor-pointer h-9"
+                              >
+                                <FileText className="w-4 h-4" /> Nota Fiscal
+                              </button>
+                            )}
+                          </div>
+  
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* SIDEBAR DRAWER - COMPROMISSOS FUTUROS (PREVISÕES) */}
+      <AnimatePresence>
+        {showUpcomingModal && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-[5px] z-50 flex items-center justify-end">
+            <div className="absolute inset-0 cursor-default" onClick={() => setShowUpcomingModal(false)} />
+            
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 26, stiffness: 220 }}
+              className={`w-full max-w-xl h-full shadow-2xl flex flex-col pt-0 p-0 relative z-10 ${
+                isDarkMode 
+                  ? 'bg-[#0E0E11] text-[#E4E4E7] border-l border-[#1F1F23]' 
+                  : 'bg-white text-slate-800 border-l border-slate-200/80'
+              }`}
+            >
+              {/* HEADER SECTION WITH BRAND IDENTITY */}
+              <div className="px-6 pt-7 pb-6 border-b border-slate-100 dark:border-[#1F1F23] bg-linear-to-b from-slate-50/40 to-transparent dark:from-[#131316]/40">
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-3.5">
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl" style={{ backgroundColor: `${themePrimary}12`, color: themePrimary }}>
+                      <DollarSign className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-display font-semibold tracking-tight text-slate-850 dark:text-white">
+                          Compromissos Futuros
+                        </h3>
+                        <span className="inline-flex items-center text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md uppercase select-none font-mono" style={{ backgroundColor: `${themePrimary}12`, color: themePrimary }}>
+                          Provisões
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-slate-400 dark:text-zinc-500 tracking-wider font-semibold font-mono mt-0.5 uppercase">
+                        {currentStore.name}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        if (rawUpcomingAccounts.length === 0) {
+                          showToast("Nenhum compromisso futuro para gerar relatório.", "info");
+                          return;
+                        }
+
+                        const { nearCount, nearSum, mediumCount, mediumSum, farCount, farSum } = upcomingStats;
+
+                        let emailBody = `Prezados,\n\n`;
+                        emailBody += `Segue o resumo de compromissos futuros e previsões da unidade ${currentStore.name.toUpperCase()}:\n\n`;
+                        emailBody += `• Total em Aberto Futuro: ${formatValueBrl(bentoUpcomingVal)} (${rawUpcomingAccounts.length} boletos)\n`;
+                        emailBody += `• Curto Prazo (Até 7 dias): ${nearCount} boletos (${formatValueBrl(nearSum)})\n`;
+                        emailBody += `• Médio Prazo (8-15 dias): ${mediumCount} boletos (${formatValueBrl(mediumSum)})\n`;
+                        emailBody += `• Longo Prazo (> 15 dias): ${farCount} boletos (${formatValueBrl(farSum)})\n\n`;
+                        
+                        emailBody += `--------------------------------------------------\n`;
+                        emailBody += `RELAÇÃO DE COMPROMISSOS FUTUROS:\n`;
+                        emailBody += `--------------------------------------------------\n`;
+                        
+                        rawUpcomingAccounts.forEach((ac, idx) => {
+                          const days = getDaysUntilDue(ac.dueDate);
+                          const remaining = ac.value - (ac.partialAmountPaid || 0);
+                          const dateFormatted = ac.dueDate.split('-').reverse().join('/');
+                          emailBody += `${idx + 1}. ${ac.supplier} - ${formatValueBrl(remaining)} (Vence em: ${days} dias • Data: ${dateFormatted})\n`;
+                        });
+                        
+                        emailBody += `--------------------------------------------------\n`;
+                        emailBody += `Gerado eletronicamente em seu Painel Gestor em ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}.\n`;
+
+                        const recipients = "rennaninacio0003@gmail.com,azevedogas@yahoo.com.br";
+                        const subject = `🔮 RELATÓRIO: Compromissos Futuros - ${currentStore.name.toUpperCase()}`;
+
+                        // Copy to clipboard as a high-reliability fallback
+                        navigator.clipboard.writeText(emailBody)
+                          .then(() => {
+                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                            window.location.href = mailtoUrl;
+                            showToast("E-mail iniciado e relatório copiado para área de transferência! Caso seu app de e-mail oculte o texto, é só colar (Ctrl+V).", "success");
+                          })
+                          .catch(() => {
+                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                            window.location.href = mailtoUrl;
+                            showToast("E-mail iniciado com sucesso!", "success");
+                          });
+                      }}
+                      title="Enviar relatório por e-mail para diretores"
+                      style={{
+                        backgroundColor: `${themePrimary}1A`,
+                        color: themePrimary,
+                      }}
+                      className="py-2 px-3.5 rounded-xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold hover:brightness-110"
+                    >
+                      <Mail className="w-4 h-4" /> Enviar por E-mail
+                    </button>
+                    
+                    <button
+                      onClick={() => setShowUpcomingModal(false)}
+                      className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-[#1E1E22] dark:hover:bg-[#202025] text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-slate-200 transition-all cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* OVERALL DYNAMIC SUM (Premium Typography Style) */}
+                <div className="bg-slate-50 dark:bg-[#131316]/50 border border-slate-100 dark:border-[#1F1F23]/80 p-5 rounded-2xl flex items-center justify-between shadow-xs">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Total Consolidado Futuro</span>
+                    <span className="text-2xl font-display font-extrabold tracking-tight" style={{ color: themePrimary }}>
+                      {formatValueBrl(bentoUpcomingVal)}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider block">Compromissos</span>
+                    <span className="text-sm font-bold font-mono text-slate-800 dark:text-zinc-300">
+                      {rawUpcomingAccounts.length} boletos
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* INTERACTIVE AGING BENTO METRICS */}
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-[#1F1F23] bg-linear-to-b from-transparent to-slate-50/20 dark:to-transparent">
+                <div className="grid grid-cols-3 gap-3">
+                  
+                  {/* NEAR BUTTON KEY */}
+                  <button
+                    onClick={() => setUpcomingClassificationFilter(prev => prev === 'near' ? 'all' : 'near')}
+                    className={`p-4 rounded-xl border text-left transition-all duration-200 hover:translate-y-[-1px] select-none cursor-pointer flex flex-col justify-between h-24 ${
+                      upcomingClassificationFilter === 'near'
+                        ? 'bg-amber-500/[0.08] border-amber-500 shadow-xs ring-1 ring-amber-500/20'
+                        : isDarkMode 
+                          ? 'bg-[#121215] border-[#1F1F23] hover:bg-zinc-800/10 hover:border-zinc-700/50' 
+                          : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200 shadow-xs'
+                    }`}
+                  >
+                    <div className="w-full flex items-center justify-between">
+                      <span className="text-[9.5px] font-extrabold tracking-wider uppercase text-amber-600 dark:text-amber-500 font-sans font-bold">Até 7 dias</span>
+                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-500 bg-amber-500/10 px-1.5 py-0.5 rounded-md font-mono">
+                        {upcomingStats.nearCount}
+                      </span>
+                    </div>
+                    <div className="mt-2.5">
+                      <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
+                        Curto Prazo
+                      </span>
+                      <span className="text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 block leading-none">
+                        {formatValueBrl(upcomingStats.nearSum)}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* MEDIUM BUTTON KEY */}
+                  <button
+                    onClick={() => setUpcomingClassificationFilter(prev => prev === 'medium' ? 'all' : 'medium')}
+                    className={`p-4 rounded-xl border text-left transition-all duration-200 hover:translate-y-[-1px] select-none cursor-pointer flex flex-col justify-between h-24 ${
+                      upcomingClassificationFilter === 'medium'
+                        ? 'bg-[#3b82f6]/10 border-[#3b82f6] shadow-xs ring-1 ring-[#3b82f6]/20'
+                        : isDarkMode 
+                          ? 'bg-[#121215] border-[#1F1F23] hover:bg-zinc-800/10 hover:border-zinc-700/50' 
+                          : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200 shadow-xs'
+                    }`}
+                  >
+                    <div className="w-full flex items-center justify-between">
+                      <span className="text-[9.5px] font-extrabold tracking-wider uppercase text-blue-600 dark:text-blue-450 font-sans font-bold">8-15 dias</span>
+                      <span className="text-[10px] font-bold text-blue-605 dark:text-blue-450 bg-blue-500/10 px-1.5 py-0.5 rounded-md font-mono">
+                        {upcomingStats.mediumCount}
+                      </span>
+                    </div>
+                    <div className="mt-2.5">
+                      <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
+                        Médio Prazo
+                      </span>
+                      <span className="text-sm font-mono font-bold text-slate-900 dark:text-zinc-100 block leading-none">
+                        {formatValueBrl(upcomingStats.mediumSum)}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* FAR BUTTON KEY */}
+                  <button
+                    onClick={() => setUpcomingClassificationFilter(prev => prev === 'far' ? 'all' : 'far')}
+                    className={`p-4 rounded-xl border text-left transition-all duration-200 hover:translate-y-[-1px] select-none cursor-pointer flex flex-col justify-between h-24 ${
+                      upcomingClassificationFilter === 'far'
+                        ? 'bg-purple-500/[0.08] border-purple-500/80 shadow-xs ring-1 ring-purple-500/20'
+                        : isDarkMode 
+                          ? 'bg-[#121215] border-[#1F1F23] hover:bg-zinc-800/10 hover:border-zinc-700/50' 
+                          : 'bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200 shadow-xs'
+                    }`}
+                  >
+                    <div className="w-full flex items-center justify-between">
+                      <span className="text-[9.5px] font-extrabold tracking-wider uppercase text-purple-600 dark:text-purple-450 font-sans font-bold">Mais de 15d</span>
+                      <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded-md font-mono">
+                        {upcomingStats.farCount}
+                      </span>
+                    </div>
+                    <div className="mt-2.5">
+                      <span className="text-[9.5px] text-slate-400 dark:text-zinc-500 block leading-none font-medium mb-1">
+                        Longo Prazo
+                      </span>
+                      <span className="text-sm font-mono font-bold text-slate-950 dark:text-zinc-100 block leading-none">
+                        {formatValueBrl(upcomingStats.farSum)}
+                      </span>
+                    </div>
+                  </button>
+
+                </div>
+              </div>
+
+              {/* SEARCH & FILTERS CONTROLS ROW */}
+              <div className="px-6 py-4 border-b border-slate-100 dark:border-[#1F1F23] bg-slate-50/10 dark:bg-[#111113]/20 flex flex-col gap-3.5">
+                <div className="relative">
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-505">
+                    <Search className="w-4 h-4" />
+                  </span>
+                  <input
+                    type="text"
+                    value={upcomingSearch}
+                    onChange={(e) => setUpcomingSearch(e.target.value)}
+                    placeholder="Filtrar por fornecedor, categoria, banco, centro..."
+                    className={`w-full pl-10 pr-9 py-2.5 rounded-xl border text-xs outline-none focus:ring-1 transition-all ${
+                      isDarkMode 
+                        ? 'bg-[#131316] border-[#1F1F23] text-white focus:border-indigo-500/55 focus:ring-indigo-500/30' 
+                        : 'bg-white border-slate-200 text-slate-805 focus:border-indigo-500/50 focus:ring-indigo-500/30'
+                    }`}
+                  />
+                  {upcomingSearch && (
+                    <button 
+                      onClick={() => setUpcomingSearch('')}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-405 hover:text-slate-605 dark:hover:text-zinc-205 cursor-pointer transitions-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-slate-455 dark:text-zinc-500 font-sans">
+                    Ordenar por:
+                  </span>
+                  
+                  <div className="flex gap-1.5">
+                    {[
+                      { value: 'date_asc', label: 'Vencimento (Próximos)' },
+                      { value: 'value_desc', label: 'Maior Valor' },
+                      { value: 'supplier_asc', label: 'Fornecedor' }
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setUpcomingSort(opt.value as any)}
+                        className={`text-[10px] font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                          upcomingSort === opt.value
+                            ? 'bg-slate-900 text-white border-slate-900 dark:bg-white dark:text-slate-950 dark:border-white shadow-xs'
+                            : isDarkMode 
+                              ? 'bg-[#131316] text-zinc-400 border-[#1F1F23] hover:text-zinc-200 hover:bg-[#1C1C20]' 
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:text-slate-800 hover:bg-slate-100'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* MAIN CONTENT AREA */}
+              <div className="flex-1 flex flex-col overflow-y-auto p-4 md:p-6 bg-slate-50/50 dark:bg-[#111113]/10">
+                {upcomingAccounts.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
+                    <div className="w-14 h-14 rounded-full bg-slate-100 dark:bg-[#1C1C20] flex items-center justify-center text-slate-500 mb-4 ring-8 ring-slate-100/30 dark:ring-zinc-800/30 animate-pulse">
+                      <DollarSign className="w-8 h-8 font-extrabold" />
+                    </div>
+                    <h4 className="text-base font-display font-semibold tracking-tight text-slate-850 dark:text-white">
+                      Sem compromissos correspondentes
+                    </h4>
+                    <p className="text-slate-500 text-xs font-semibold max-w-xs mt-2 leading-relaxed">
+                      {rawUpcomingAccounts.length === 0 
+                        ? 'Nenhum lançamento futuro aberto no sistema.'
+                        : 'Nenhum boleto correspondente aos filtros de pesquisa aplicados.'}
+                    </p>
+                    {(upcomingSearch || upcomingClassificationFilter !== 'all') && (
+                      <button
+                        onClick={() => {
+                          setUpcomingSearch('');
+                          setUpcomingClassificationFilter('all');
+                        }}
+                        className="mt-4 px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 dark:border-[#222] bg-white dark:bg-[#121212] cursor-pointer hover:bg-slate-100 transition-all text-slate-600 dark:text-slate-300"
+                      >
+                        Limpar Filtros
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 pb-8">
+                    {upcomingAccounts.map((ac) => {
+                      const hasBoleto = !!ac.attachedFile;
+                      const hasNF = !!ac.taxInvoiceFile;
+                      
+                      const dateFormatted = ac.dueDate 
+                        ? ac.dueDate.split('-').reverse().join('/')
+                        : 'N/D';
+
+                      const daysRemaining = getDaysUntilDue(ac.dueDate);
+                      const remainingVal = ac.value - (ac.partialAmountPaid || 0);
+
+                      return (
+                        <div 
+                          key={ac.id}
+                          className={`p-5 rounded-2xl border transition-all duration-200 ${
+                            isDarkMode 
+                              ? 'bg-[#111114] border-[#1F1F24] hover:border-zinc-800' 
+                              : 'bg-white border-slate-100 hover:border-slate-200/80 shadow-xs hover:shadow-sm'
+                          } flex flex-col gap-3.5`}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="w-2 h-2 rounded-full ring-4 animate-pulse" style={{ backgroundColor: themePrimary, '--tw-ring-color': `${themePrimary}1A` } as any} />
+                                <span className="font-display font-semibold text-slate-850 dark:text-slate-100 uppercase tracking-tight text-sm">
+                                  {ac.supplier}
+                                </span>
+                                <span className="text-[9px] px-2 py-0.5 rounded-md font-bold tracking-wider uppercase bg-slate-100 dark:bg-[#1C1C20] text-slate-500 dark:text-zinc-400 border border-transparent dark:border-zinc-900">
+                                  {ac.category || 'Geral'}
+                                </span>
+                              </div>
+                              
+                              {ac.description && (
+                                <p className="text-[11px] text-slate-455 dark:text-zinc-400 tracking-tight font-medium leading-relaxed">
+                                  {ac.description}
+                                </p>
+                              )}
+                              
+                              <div className="flex flex-col gap-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-555 mt-1.5">
+                                <div>Centro: <span className="text-slate-705 dark:text-zinc-300 font-bold">{ac.costCenter || 'Não Definido'}</span></div>
+                                {ac.bank && <div>Banco: <span className="text-slate-705 dark:text-zinc-300 font-bold">{ac.bank}</span></div>}
+                                {ac.paymentMethod && <div>Método: <span className="text-slate-705 dark:text-zinc-300 font-bold">{ac.paymentMethod}</span></div>}
+                              </div>
+                            </div>
+  
+                            {/* Urgent/Date Badge status */}
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className="text-[9.5px] px-2 py-0.5 rounded-md uppercase tracking-wide font-mono font-bold bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200">
+                                {ac.status}
+                              </span>
+                              <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-450 bg-indigo-500/10 px-1.5 py-0.5 rounded-md font-mono">
+                                Vence em {daysRemaining} {daysRemaining === 1 ? 'dia' : 'dias'}
+                              </span>
+                              <span className="text-[9px] text-slate-400 dark:text-zinc-550 font-medium font-mono">
+                                Vct: {dateFormatted}
+                              </span>
+                            </div>
+                          </div>
+  
+                          {/* FINANCIAL BENTO INFOS */}
+                          <div className="grid grid-cols-2 gap-4 py-3 border-t border-b border-slate-100 dark:border-[#1F1F23]/60">
+                            <div>
+                              <span className="text-[9.5px] uppercase font-bold tracking-wider text-slate-400 dark:text-zinc-500 block mb-1">Valor Original</span>
+                              <span className="font-bold text-slate-500 dark:text-zinc-400 font-mono text-[12.5px] tracking-tight">
+                                {formatValueBrl(ac.value)}
+                              </span>
+                            </div>
+                            
+                            <div>
+                              <span className="text-[9.5px] uppercase font-bold tracking-wider block mb-1 font-sans" style={{ color: themePrimary }}>A Pagar</span>
+                              <span className="font-extrabold font-mono text-[14.5px] leading-tight block" style={{ color: themePrimary }}>
+                                {formatValueBrl(remainingVal)}
+                              </span>
+                            </div>
+                          </div>
+  
+                          {/* ACTION BUTTONS WITH TRANSITIONS */}
+                          <div className="flex items-center gap-2 justify-end pt-1">
+                            {hasBoleto && (
+                              <button
+                                onClick={() => {
+                                  setCurrentBoletoUrl(ac.attachedFile);
+                                }}
+                                style={{
+                                  backgroundColor: `${themePrimary}1A`,
+                                  borderColor: `${themePrimary}26`,
+                                  color: themePrimary,
+                                }}
+                                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase transition-all cursor-pointer h-9 hover:brightness-110"
+                              >
+                                <Eye className="w-4 h-4" /> Boleto/Anexo
+                              </button>
+                            )}
+
+                            {hasNF && (
+                              <button
+                                onClick={() => {
+                                  setCurrentBoletoUrl(ac.taxInvoiceFile);
+                                }}
+                                className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase text-emerald-605 dark:text-emerald-450 border border-emerald-500/10 bg-emerald-50/[0.03] hover:bg-emerald-50/[0.08] hover:border-emerald-50/20 transition-all cursor-pointer h-9"
                               >
                                 <FileText className="w-4 h-4" /> Nota Fiscal
                               </button>
