@@ -27,6 +27,15 @@ import {
 import { motion } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
 import { DREData } from '../types';
+import { 
+  ResponsiveContainer, 
+  LineChart, 
+  Line, 
+  CartesianGrid, 
+  XAxis, 
+  YAxis, 
+  Tooltip 
+} from 'recharts';
 
 export default function DataEntrySection({ 
   isEmbedded = false, 
@@ -78,6 +87,76 @@ export default function DataEntrySection({
       style: 'currency',
       currency: 'BRL',
     }).format(val);
+  };
+
+  const MONTH_ORDER: Record<string, number> = {
+    'Janeiro': 1,
+    'Fevereiro': 2,
+    'Março': 3,
+    'Abril': 4,
+    'Maio': 5,
+    'Junho': 6,
+    'Julho': 7,
+    'Agosto': 8,
+    'Setembro': 9,
+    'Outubro': 10,
+    'Novembro': 11,
+    'Dezembro': 12
+  };
+
+  const marketingChartData = (dreTimeline || [])
+    .filter(entry => entry.details?.marketingCampaigns && (
+      (entry.details.marketingCampaigns.vendasValor || 0) > 0 || 
+      (entry.details.marketingCampaigns.investidoLoja || 0) > 0
+    ))
+    .map(entry => {
+      const mkt = entry.details?.marketingCampaigns;
+      const investido = mkt?.investidoLoja || 0;
+      const vendas = mkt?.vendasValor || 0;
+      const roas = investido > 0 ? Number((vendas / investido).toFixed(2)) : 0;
+      const monthTrimmed = entry.month.trim();
+      const yearStr = entry.year || '2026';
+      
+      return {
+        month: entry.month,
+        year: yearStr,
+        vendas,
+        investido,
+        roas,
+        monthLabel: `${monthTrimmed.substring(0, 3)}/${String(yearStr).substring(2, 4)}`,
+        sortKey: (Number(yearStr) * 100) + (MONTH_ORDER[monthTrimmed] || 0)
+      };
+    })
+    .sort((a, b) => a.sortKey - b.sortKey);
+
+  const CustomTooltip = ({ active, payload }: any) => {
+    if (active && payload && payload.length) {
+      const data = payload[0].payload;
+      return (
+        <div className={`p-4 rounded-2xl border shadow-xl ${
+          isDarkMode ? 'bg-[#1A1A1A] border-[#2D2D2D] text-white' : 'bg-white border-slate-100 text-slate-800'
+        }`}>
+          <p className="text-xs font-black uppercase tracking-wider mb-2 text-slate-400">
+            {data.month} de {data.year}
+          </p>
+          <div className="space-y-1">
+            <div className="flex justify-between gap-8">
+              <span className="text-xs text-slate-400 font-medium">Investido pela Loja:</span>
+              <span className="text-xs font-bold">{formatCurrency(data.investido)}</span>
+            </div>
+            <div className="flex justify-between gap-8">
+              <span className="text-xs text-slate-400 font-medium">Vendas Geradas:</span>
+              <span className="text-xs font-bold">{formatCurrency(data.vendas)}</span>
+            </div>
+            <div className="flex justify-between gap-8 pt-1.5 border-t border-slate-100 dark:border-slate-800/60 mt-1">
+              <span className="text-xs text-emerald-500 font-bold">ROAS / ROI obtido:</span>
+              <span className="text-xs font-black text-emerald-500">{data.roas.toFixed(2).replace('.', ',')}x</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
   };
 
   const handleNumericPaste = (e: React.ClipboardEvent<HTMLInputElement>, setter: (val: number) => void) => {
@@ -1111,7 +1190,7 @@ export default function DataEntrySection({
                 <div className="flex items-center gap-2 mb-6">
                   <div className="w-1.5 h-6 rounded-full bg-rose-500" />
                   <span className={`font-sans font-black text-xs uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                    Resumo do Investimento (iFood & Tráfego)
+                    Resumo do Investimento (Tráfego)
                   </span>
                 </div>
                 
@@ -1154,6 +1233,96 @@ export default function DataEntrySection({
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* ROI/ROAS Timeline Chart Card */}
+              <div 
+                id="marketing-roi-evolution"
+                className={`p-6 md:p-8 rounded-[2rem] border transition-all ${
+                  isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'
+                }`}
+              >
+                <div className="flex items-center justify-between flex-wrap gap-4 mb-6">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1.5 h-6 rounded-full bg-indigo-500" />
+                    <span id="label-roi-chart" className={`font-sans font-black text-xs uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                      Evolução do Fator de Retorno (ROAS / ROI)
+                    </span>
+                  </div>
+                  {marketingChartData.length > 0 && (
+                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+                      <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
+                      <span className="text-[10px] font-black uppercase text-indigo-500 tracking-wider">
+                        {marketingChartData.length} {marketingChartData.length === 1 ? 'Mês Registrado' : 'Meses Analisados'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {marketingChartData.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
+                    <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 mb-3">
+                      <TrendingUp className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <p className={`text-sm font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Gráfico de Evolução</p>
+                    <p className="text-xs text-slate-400 max-w-xs mt-1 leading-relaxed italic">Certifique-se de salvar os lançamentos com valores maiores que R$ 0,00 para plotar a evolução da performance de marketing.</p>
+                  </div>
+                ) : (
+                  <div className="h-[280px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={marketingChartData}
+                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                      >
+                        <CartesianGrid 
+                          vertical={false} 
+                          strokeDasharray="3 3" 
+                          stroke={isDarkMode ? '#2D2D2D' : '#E2E8F0'} 
+                        />
+                        <XAxis 
+                          dataKey="monthLabel" 
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ 
+                            fill: isDarkMode ? '#8E8E93' : '#64748B', 
+                            fontSize: 10, 
+                            fontWeight: 700,
+                            letterSpacing: '0.05em' 
+                          }}
+                        />
+                        <YAxis 
+                          axisLine={false}
+                          tickLine={false}
+                          tickFormatter={(val) => `${val}x`}
+                          tick={{ 
+                            fill: isDarkMode ? '#8E8E93' : '#64748B', 
+                            fontSize: 10, 
+                            fontWeight: 700 
+                          }}
+                        />
+                        <Tooltip content={<CustomTooltip />} cursor={{ stroke: isDarkMode ? '#333' : '#F1F5F9', strokeWidth: 1 }} />
+                        <Line
+                          type="monotone"
+                          dataKey="roas"
+                          stroke={isDarkMode ? '#6366F1' : '#4F46E5'}
+                          strokeWidth={3.5}
+                          activeDot={{ 
+                            r: 6, 
+                            fill: isDarkMode ? '#6366F1' : '#4F46E5', 
+                            strokeWidth: 2, 
+                            stroke: isDarkMode ? '#1E1E1E' : '#FFFFFF' 
+                          }}
+                          dot={{ 
+                            r: 4, 
+                            fill: isDarkMode ? '#6366F1' : '#4F46E5', 
+                            strokeWidth: 2, 
+                            stroke: isDarkMode ? '#1E1E1E' : '#FFFFFF' 
+                          }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
               </div>
 
               {/* Form Input fields */}

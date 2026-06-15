@@ -1351,7 +1351,7 @@ export default function DataEntry() {
                 <div className="flex items-center gap-2 mb-6">
                   <span className="flex items-center justify-center w-5 h-5 rounded-full bg-rose-500 text-white font-bold text-[10px]">iF</span>
                   <span className={`font-display font-black text-xs uppercase tracking-wider ${isDarkMode ? 'text-slate-350' : 'text-slate-700'}`}>
-                    Resumo do investimento (iFood & Tráfego)
+                    Resumo do investimento (Tráfego)
                   </span>
                 </div>
                 
