@@ -1115,25 +1115,9 @@ export default function DataEntrySection({
                   </span>
                 </div>
                 
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 xl:divide-x divide-slate-100 dark:divide-slate-800">
-                  {/* Pedidos com promoção */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Pedidos com promoção</span>
-                    <div className="flex items-baseline gap-1.5 pt-1">
-                      <span className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{mktPedidosPromocao}</span>
-                      <span className={`flex items-center gap-0.5 text-[10px] font-bold ${trendPedidos.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {trendPedidos.isNeutral ? null : trendPedidos.isUp ? '▲' : '▼'} {trendPedidos.pct}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-slate-500 font-medium block">
-                      {mktPedidosPromocao > 0 
-                        ? `${mktPedidosMaisDeUmaPromo} com mais de uma (${((mktPedidosMaisDeUmaPromo / mktPedidosPromocao) * 100).toFixed(0)}%)` 
-                        : '0 com mais de uma promoção'}
-                    </span>
-                  </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:divide-x divide-slate-100 dark:divide-slate-800">
                   {/* Valor total das vendas */}
-                  <div className="space-y-1 xl:pl-6">
+                  <div className="space-y-1">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Valor total das vendas</span>
                     <div className="flex items-baseline gap-1.5 pt-1">
                       <span className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(mktVendasValor)}</span>
@@ -1144,7 +1128,7 @@ export default function DataEntrySection({
                   </div>
 
                   {/* Total investido pela loja */}
-                  <div className="space-y-1 xl:pl-6">
+                  <div className="space-y-1 md:pl-6">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Investido pela loja</span>
                     <div className="flex items-baseline gap-1.5 pt-1">
                       <span className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(mktInvestidoLoja)}</span>
@@ -1152,13 +1136,10 @@ export default function DataEntrySection({
                         {trendInvestidoLoja.isNeutral ? null : trendInvestidoLoja.isUp ? '▲' : '▼'} {trendInvestidoLoja.pct}
                       </span>
                     </div>
-                    <span className="text-[10px] text-slate-500 font-medium block border-t border-slate-50 dark:border-slate-800/10 pt-1 mt-1">
-                      +{formatCurrency(mktInvestidoPlataforma)} iFood
-                    </span>
                   </div>
 
                   {/* Retorno a cada real investido */}
-                  <div className="space-y-1 xl:pl-6">
+                  <div className="space-y-1 md:pl-6">
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Retorno p/ Real (ROAS)</span>
                     <div className="flex items-center gap-2 pt-1 flex-wrap">
                       <span className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
@@ -1183,30 +1164,6 @@ export default function DataEntrySection({
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[#7D7D7D] dark:text-slate-400">Pedidos com Promoção / Tráfego</label>
-                    <input 
-                      type="number"
-                      value={mktPedidosPromocao || ''}
-                      onPaste={(e) => handleNumericPaste(e, setMktPedidosPromocao)}
-                      onChange={(e) => setMktPedidosPromocao(e.target.value === '' ? 0 : Number(e.target.value))}
-                      onBlur={handleSave}
-                      className={`w-full px-4 py-3 rounded-xl border outline-none font-bold focus:ring-2 focus:ring-[#E63946] transition-all ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-[#E63946]' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-[#E63946]'}`}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[#7D7D7D] dark:text-slate-400">Pedidos com mais de uma Promoção</label>
-                    <input 
-                      type="number"
-                      value={mktPedidosMaisDeUmaPromo || ''}
-                      onPaste={(e) => handleNumericPaste(e, setMktPedidosMaisDeUmaPromo)}
-                      onChange={(e) => setMktPedidosMaisDeUmaPromo(e.target.value === '' ? 0 : Number(e.target.value))}
-                      onBlur={handleSave}
-                      className={`w-full px-4 py-3 rounded-xl border outline-none font-bold focus:ring-2 focus:ring-[#E63946] transition-all ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-[#E63946]' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-[#E63946]'}`}
-                    />
-                  </div>
-
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[#7D7D7D] dark:text-slate-400">Valor Total de Vendas das campanhas</label>
                     <div className="relative">
@@ -1236,21 +1193,6 @@ export default function DataEntrySection({
                       />
                     </div>
                   </div>
-
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[#7D7D7D] dark:text-slate-400">Total Investido pelo iFood (Subsídios/Plataforma)</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
-                      <input 
-                        type="number"
-                        value={mktInvestidoPlataforma || ''}
-                        onPaste={(e) => handleNumericPaste(e, setMktInvestidoPlataforma)}
-                        onChange={(e) => setMktInvestidoPlataforma(e.target.value === '' ? 0 : Number(e.target.value))}
-                        onBlur={handleSave}
-                        className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold focus:ring-2 focus:ring-[#E63946] transition-all ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-[#E63946]' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-[#E63946]'}`}
-                      />
-                    </div>
-                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1272,73 +1214,6 @@ export default function DataEntrySection({
         <div className="space-y-6">
           {activeTab === 'marketing' ? (
             <>
-              {/* Portrait iFood card */}
-              <div className={`p-6 rounded-3xl border transition-all ${
-                isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'
-              }`}>
-                <div className="flex items-center gap-2 mb-6">
-                  <div className="w-1.5 h-6 rounded-full bg-rose-500" />
-                  <span className={`font-sans font-black text-xs uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                    Detalhamento do Investimento
-                  </span>
-                </div>
-
-                <div className="space-y-6">
-                  {/* Total investido */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Total investido</span>
-                    <div className="flex items-baseline gap-2">
-                      <span className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                        {formatCurrency(mktTotalInvestido)}
-                      </span>
-                      <span className={`flex items-center gap-0.5 text-xs font-bold ${trendTotalInvestido.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {trendTotalInvestido.isNeutral ? null : trendTotalInvestido.isUp ? '▲' : '▼'} {trendTotalInvestido.pct}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-slate-100 dark:border-slate-800/60 pt-4 space-y-4">
-                    {/* Minha loja */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#EC4899]" />
-                        <div className="space-y-0.5">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Minha loja</span>
-                          <span className={`text-sm font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                            {formatCurrency(mktInvestidoLoja)}
-                            <span className="text-[10px] text-slate-400 ml-1.5 font-sans font-bold">
-                              ({mktTotalInvestido > 0 ? ((mktInvestidoLoja / mktTotalInvestido) * 100).toFixed(0) : '0'}%)
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`flex items-center gap-0.5 text-[10px] font-bold ${trendInvestidoLoja.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {trendInvestidoLoja.isNeutral ? null : trendInvestidoLoja.isUp ? '▲' : '▼'} {trendInvestidoLoja.pct}
-                      </span>
-                    </div>
-
-                    {/* iFood / Plataforma */}
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#EA1D2C]" />
-                        <div className="space-y-0.5">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Plataforma (Subsídio)</span>
-                          <span className={`text-sm font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                            {formatCurrency(mktInvestidoPlataforma)}
-                            <span className="text-[10px] text-slate-400 ml-1.5 font-sans font-bold">
-                              ({mktTotalInvestido > 0 ? ((mktInvestidoPlataforma / mktTotalInvestido) * 100).toFixed(0) : '0'}%)
-                            </span>
-                          </span>
-                        </div>
-                      </div>
-                      <span className={`flex items-center gap-0.5 text-[10px] font-bold ${trendInvestidoPlataforma.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
-                        {trendInvestidoPlataforma.isNeutral ? null : trendInvestidoPlataforma.isUp ? '▲' : '▼'} {trendInvestidoPlataforma.pct}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Marketing Specific tips */}
               <div className={`p-8 rounded-[2rem] border transition-all ${
                 isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'
@@ -1346,8 +1221,7 @@ export default function DataEntrySection({
                 <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 italic">Métricas de Otimização</h4>
                 <div className="space-y-6">
                   {[
-                    { icon: Sparkles, text: 'ROAS ideal para campanhas iFood deve ser acima de 5,0x.', color: 'text-rose-500' },
-                    { icon: Percent, text: 'O percentual de pedidos com mais de uma promoção indica sinergia de cupons.', color: 'text-indigo-505' },
+                    { icon: Sparkles, text: 'ROAS ideal para campanhas de marketing deve ser acima de 5,0x (Retorno excelente).', color: 'text-rose-500' },
                     { icon: AlertCircle, text: 'Monitore o investimento total em relação ao faturamento para evitar estouro de verba.', color: 'text-amber-500' },
                   ].map((tip, i) => (
                     <div key={i} className="flex gap-4">
