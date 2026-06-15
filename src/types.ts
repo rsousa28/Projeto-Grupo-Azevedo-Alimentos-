@@ -67,6 +67,13 @@ export interface DREData {
     resultadoFinanceiro?: Record<string, number>;
     griFinal?: number;
     salesByHour?: Record<string, number>;
+    marketingCampaigns?: {
+      pedidosPromocao: number;
+      pedidosMaisDeUmaPromo?: number;
+      vendasValor: number;
+      investidoLoja: number;
+      investidoPlataforma?: number;
+    };
   };
 }
 

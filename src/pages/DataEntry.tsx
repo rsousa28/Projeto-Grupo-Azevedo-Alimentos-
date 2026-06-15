@@ -16,7 +16,14 @@ import {
   BookOpen,
   Zap,
   Copy,
-  Star
+  Star,
+  Megaphone,
+  Coins,
+  Sparkles,
+  ArrowUp,
+  ArrowDown,
+  TrendingDown,
+  Percent
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
@@ -135,7 +142,7 @@ export default function DataEntry() {
   const initialMonthStr = String(currentInitialDate.getMonth() + 1).padStart(2, '0');
   const initialYearStr = String(currentInitialDate.getFullYear());
 
-  const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels' | 'hourly' | 'operational'>('financial');
+  const [activeTab, setActiveTab ] = useState<'financial' | 'history' | 'goals' | 'channels' | 'hourly' | 'operational' | 'marketing'>('financial');
   const [saved, setSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(initialMonthStr); // Current dynamic month
@@ -264,6 +271,13 @@ export default function DataEntry() {
 
   const [griFinal, setGriFinal] = useState(0);
 
+  // Marketing states
+  const [mktPedidosPromocao, setMktPedidosPromocao] = useState(0);
+  const [mktPedidosMaisDeUmaPromo, setMktPedidosMaisDeUmaPromo] = useState(0);
+  const [mktVendasValor, setMktVendasValor] = useState(0);
+  const [mktInvestidoLoja, setMktInvestidoLoja] = useState(0);
+  const [mktInvestidoPlataforma, setMktInvestidoPlataforma] = useState(0);
+
   // Channels states
   const [receitaBalcao, setReceitaBalcao] = useState(0);
   const [receitaIfood, setReceitaIfood] = useState(0);
@@ -288,6 +302,72 @@ export default function DataEntry() {
     return String(prevMonthDate.getFullYear());
   });
   const [isCopying, setIsCopying] = useState(false);
+
+  // Helper to get previous month data for dynamic marketing trends
+  const getPreviousMonthMarketingData = () => {
+    const currentMonthNum = parseInt(selectedMonth, 10);
+    let prevMonthNum = currentMonthNum - 1;
+    let prevYearNum = parseInt(selectedYear, 10);
+    if (prevMonthNum === 0) {
+      prevMonthNum = 12;
+      prevYearNum -= 1;
+    }
+    const prevMonthStr = String(prevMonthNum).padStart(2, '0');
+    const prevYearStr = String(prevYearNum);
+    
+    const months = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    const prevMonthLabel = months[prevMonthNum - 1];
+    
+    const prevDRE = dreTimeline.find(d => 
+      d.month === prevMonthLabel && 
+      (d.year === prevYearStr || (!d.year && prevYearStr === '2026'))
+    );
+    return prevDRE?.details?.marketingCampaigns;
+  };
+
+  const prevMkt = getPreviousMonthMarketingData();
+
+  const calculateTrend = (current: number, previous: number | undefined) => {
+    if (previous === undefined || previous === 0) return { pct: '0%', isUp: true, isNeutral: true };
+    const diff = current - previous;
+    const pctVal = (diff / previous) * 100;
+    return {
+      pct: `${pctVal >= 0 ? '+' : ''}${pctVal.toFixed(0)}%`,
+      isUp: pctVal >= 0,
+      isNeutral: Math.abs(pctVal) < 1
+    };
+  };
+
+  // Live calculations
+  const trendPedidos = calculateTrend(mktPedidosPromocao, prevMkt?.pedidosPromocao);
+  const trendVendas = calculateTrend(mktVendasValor, prevMkt?.vendasValor);
+  const trendInvestidoLoja = calculateTrend(mktInvestidoLoja, prevMkt?.investidoLoja);
+  const trendInvestidoPlataforma = calculateTrend(mktInvestidoPlataforma, prevMkt?.investidoPlataforma);
+
+  const mktTotalInvestido = mktInvestidoLoja + mktInvestidoPlataforma;
+  const prevTotalInvestido = (prevMkt?.investidoLoja || 0) + (prevMkt?.investidoPlataforma || 0);
+  const trendTotalInvestido = calculateTrend(mktTotalInvestido, prevTotalInvestido);
+
+  const mktRoas = mktInvestidoLoja > 0 ? mktVendasValor / mktInvestidoLoja : 0;
+  const prevRoas = (prevMkt?.investidoLoja || 0) > 0 ? (prevMkt?.vendasValor || 0) / (prevMkt?.investidoLoja || 0) : 0;
+  const trendRoas = calculateTrend(mktRoas, prevRoas);
+
+  // ROAS classification
+  let roasStatus = 'Regular';
+  let roasColor = 'text-yellow-600 border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20 dark:text-yellow-400';
+  if (mktRoas >= 10) {
+    roasStatus = 'Excelente';
+    roasColor = 'text-emerald-700 bg-emerald-50 border-emerald-200 dark:bg-emerald-950/20 dark:text-emerald-400';
+  } else if (mktRoas >= 5) {
+    roasStatus = 'Bom';
+    roasColor = 'text-green-600 bg-green-50 border-green-200 dark:bg-green-950/20 dark:text-green-400';
+  } else if (mktRoas > 0 && mktRoas < 2) {
+    roasStatus = 'Baixo';
+    roasColor = 'text-red-700 bg-red-50 border-red-200 dark:bg-red-950/20 dark:text-red-400';
+  }
 
   const handleCopyFromPeriod = async (srcMonth: string, srcYear: string) => {
     setIsCopying(true);
@@ -319,6 +399,20 @@ export default function DataEntry() {
           if (monthData.details.resultadoFinanceiro) setResultadoFinanceiro(monthData.details.resultadoFinanceiro);
           if (monthData.details.griFinal !== undefined) setGriFinal(monthData.details.griFinal);
           if (monthData.details.salesByHour) setSalesByHourData(monthData.details.salesByHour);
+          if (monthData.details.marketingCampaigns) {
+            const mkt = monthData.details.marketingCampaigns;
+            setMktPedidosPromocao(mkt.pedidosPromocao || 0);
+            setMktPedidosMaisDeUmaPromo(mkt.pedidosMaisDeUmaPromo || 0);
+            setMktVendasValor(mkt.vendasValor || 0);
+            setMktInvestidoLoja(mkt.investidoLoja || 0);
+            setMktInvestidoPlataforma(mkt.investidoPlataforma || 0);
+          } else {
+            setMktPedidosPromocao(0);
+            setMktPedidosMaisDeUmaPromo(0);
+            setMktVendasValor(0);
+            setMktInvestidoLoja(0);
+            setMktInvestidoPlataforma(0);
+          }
         } else {
           setDespesasVariaveis(prev => ({ ...prev, royalties: monthData.royalties }));
           setColaboradores(prev => ({ ...prev, salarios: monthData.payroll }));
@@ -432,11 +526,30 @@ export default function DataEntry() {
         if (monthData.details.resultadoFinanceiro) setResultadoFinanceiro(monthData.details.resultadoFinanceiro);
         if (monthData.details.griFinal !== undefined) setGriFinal(monthData.details.griFinal);
         if (monthData.details.salesByHour) setSalesByHourData(monthData.details.salesByHour);
+        if (monthData.details.marketingCampaigns) {
+          const mkt = monthData.details.marketingCampaigns;
+          setMktPedidosPromocao(mkt.pedidosPromocao || 0);
+          setMktPedidosMaisDeUmaPromo(mkt.pedidosMaisDeUmaPromo || 0);
+          setMktVendasValor(mkt.vendasValor || 0);
+          setMktInvestidoLoja(mkt.investidoLoja || 0);
+          setMktInvestidoPlataforma(mkt.investidoPlataforma || 0);
+        } else {
+          setMktPedidosPromocao(0);
+          setMktPedidosMaisDeUmaPromo(0);
+          setMktVendasValor(0);
+          setMktInvestidoLoja(0);
+          setMktInvestidoPlataforma(0);
+        }
       } else {
         // Fallback for mock data without details
         setDespesasVariaveis(prev => ({ ...prev, royalties: monthData.royalties }));
         setColaboradores(prev => ({ ...prev, salarios: monthData.payroll }));
         setFuncionamento(prev => ({ ...prev, aluguel: monthData.rent }));
+        setMktPedidosPromocao(0);
+        setMktPedidosMaisDeUmaPromo(0);
+        setMktVendasValor(0);
+        setMktInvestidoLoja(0);
+        setMktInvestidoPlataforma(0);
       }
     } else {
       // Reset form for fresh entry
@@ -466,6 +579,11 @@ export default function DataEntry() {
       });
       setResultadoFinanceiro({ taxasIfood: 0, tarifasBancarias: 0, taxasBancarias: 0, jurosRecebidos: 0 });
       setGriFinal(0);
+      setMktPedidosPromocao(0);
+      setMktPedidosMaisDeUmaPromo(0);
+      setMktVendasValor(0);
+      setMktInvestidoLoja(0);
+      setMktInvestidoPlataforma(0);
       
       // Reset goals to defaults too
       setFaturamentoMeta(currentStore.brand === 'BEBELU' ? 140000 : 150000);
@@ -572,7 +690,14 @@ export default function DataEntry() {
         administrativas,
         resultadoFinanceiro,
         griFinal,
-        salesByHour: salesByHourLocal
+        salesByHour: salesByHourLocal,
+        marketingCampaigns: {
+          pedidosPromocao: mktPedidosPromocao || 0,
+          pedidosMaisDeUmaPromo: mktPedidosMaisDeUmaPromo || 0,
+          vendasValor: mktVendasValor || 0,
+          investidoLoja: mktInvestidoLoja || 0,
+          investidoPlataforma: mktInvestidoPlataforma || 0
+        }
       }
     };
 
@@ -687,6 +812,7 @@ export default function DataEntry() {
             { id: 'financial', label: 'Financeiro & DRE', icon: DollarSign },
             { id: 'channels', label: 'Canais de Venda', icon: PieChart },
             { id: 'operational', label: 'Indicadores Operacionais', icon: Zap },
+            { id: 'marketing', label: 'Marketing', icon: Megaphone },
             { id: 'history', label: 'Histórico YoY', icon: TrendingUp },
             { id: 'goals', label: 'Metas & Performance', icon: Target },
           ].map(tab => (
@@ -1214,6 +1340,161 @@ export default function DataEntry() {
             </motion.div>
           )}
 
+          {activeTab === 'marketing' && (
+            <motion.div 
+              initial={{ opacity: 0, x: -20 }} 
+              animate={{ opacity: 1, x: 0 }}
+              className="space-y-6"
+            >
+              {/* landscape iFood card */}
+              <div className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1A1A1A] border-[#2E2E2E]' : 'bg-white border-slate-100 shadow-sm shadow-slate-250/50'}`}>
+                <div className="flex items-center gap-2 mb-6">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-rose-500 text-white font-bold text-[10px]">iF</span>
+                  <span className={`font-display font-black text-xs uppercase tracking-wider ${isDarkMode ? 'text-slate-350' : 'text-slate-700'}`}>
+                    Resumo do investimento (iFood & Tráfego)
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-800">
+                  {/* Pedidos com promoção */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pedidos com promoção</span>
+                    <div className="flex items-baseline gap-1.5 pt-1">
+                      <span className={`text-2xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{mktPedidosPromocao}</span>
+                      <span className={`flex items-center gap-0.5 text-[10px] font-bold ${trendPedidos.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {trendPedidos.isNeutral ? null : trendPedidos.isUp ? '▲' : '▼'} {trendPedidos.pct}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium block">
+                      {mktPedidosPromocao > 0 
+                        ? `${mktPedidosMaisDeUmaPromo} com mais de uma (${((mktPedidosMaisDeUmaPromo / mktPedidosPromocao) * 100).toFixed(0)}%)` 
+                        : '0 com mais de uma promoção'}
+                    </span>
+                  </div>
+
+                  {/* Valor total das vendas */}
+                  <div className="space-y-1 md:pl-6">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Valor total das vendas</span>
+                    <div className="flex items-baseline gap-1.5 pt-1">
+                      <span className={`text-2xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(mktVendasValor)}</span>
+                      <span className={`flex items-center gap-0.5 text-[10px] font-bold ${trendVendas.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {trendVendas.isNeutral ? null : trendVendas.isUp ? '▲' : '▼'} {trendVendas.pct}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Total investido pela loja */}
+                  <div className="space-y-1 md:pl-6">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Investido pela loja</span>
+                    <div className="flex items-baseline gap-1.5 pt-1">
+                      <span className={`text-2xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(mktInvestidoLoja)}</span>
+                      <span className={`flex items-center gap-0.5 text-[10px] font-bold ${trendInvestidoLoja.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {trendInvestidoLoja.isNeutral ? null : trendInvestidoLoja.isUp ? '▲' : '▼'} {trendInvestidoLoja.pct}
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-medium block">
+                      +{formatCurrency(mktInvestidoPlataforma)} iFood
+                    </span>
+                  </div>
+
+                  {/* Retorno a cada real investido */}
+                  <div className="space-y-1 md:pl-6">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Retorno p/ Real (ROAS)</span>
+                    <div className="flex items-center gap-2 pt-1 flex-wrap">
+                      <span className={`text-2xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        R${mktRoas.toFixed(2).replace('.', ',')}
+                      </span>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-black tracking-widest uppercase border ${roasColor}`}>
+                        {roasStatus}
+                      </span>
+                      <span className={`flex items-center gap-0.5 text-[10px] font-bold ${trendRoas.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {trendRoas.isNeutral ? null : trendRoas.isUp ? '▲' : '▼'} {trendRoas.pct}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Input fields */}
+              <div className={`p-8 rounded-[2rem] border ${isDarkMode ? 'bg-black/20 border-white/5' : 'bg-slate-50 border-slate-200/50'}`}>
+                <div className="flex items-center gap-2.5 mb-6">
+                  <Megaphone className="w-5 h-5 text-rose-500" />
+                  <h4 className={`text-sm font-black uppercase tracking-wider italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Parâmetros da Campanha de Marketing</h4>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">Pedidos com Promoção / Tráfego</div>
+                    <input 
+                      type="number"
+                      value={mktPedidosPromocao || ''}
+                      onPaste={(e) => handleNumericPaste(e, setMktPedidosPromocao)}
+                      onChange={(e) => setMktPedidosPromocao(e.target.value === '' ? 0 : Number(e.target.value))}
+                      onBlur={handleSave}
+                      className={`w-full px-4 py-3 rounded-xl border outline-none font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-red-500' : 'bg-white border-slate-200 text-slate-800 focus:border-red-500'}`}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">Pedidos com mais de uma Promoção</div>
+                    <input 
+                      type="number"
+                      value={mktPedidosMaisDeUmaPromo || ''}
+                      onPaste={(e) => handleNumericPaste(e, setMktPedidosMaisDeUmaPromo)}
+                      onChange={(e) => setMktPedidosMaisDeUmaPromo(e.target.value === '' ? 0 : Number(e.target.value))}
+                      onBlur={handleSave}
+                      className={`w-full px-4 py-3 rounded-xl border outline-none font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-red-500' : 'bg-white border-slate-200 text-slate-800 focus:border-red-500'}`}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">Valor Total de Vendas das campanhas</div>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
+                      <input 
+                        type="number"
+                        value={mktVendasValor || ''}
+                        onPaste={(e) => handleNumericPaste(e, setMktVendasValor)}
+                        onChange={(e) => setMktVendasValor(e.target.value === '' ? 0 : Number(e.target.value))}
+                        onBlur={handleSave}
+                        className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-red-500' : 'bg-white border-slate-200 text-slate-800 focus:border-red-500'}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">Total Investido pela Loja (Ads)</div>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
+                      <input 
+                        type="number"
+                        value={mktInvestidoLoja || ''}
+                        onPaste={(e) => handleNumericPaste(e, setMktInvestidoLoja)}
+                        onChange={(e) => setMktInvestidoLoja(e.target.value === '' ? 0 : Number(e.target.value))}
+                        onBlur={handleSave}
+                        className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-red-500' : 'bg-white border-slate-200 text-slate-800 focus:border-red-500'}`}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <div className="flex justify-between text-[11px] font-bold text-slate-500 uppercase tracking-widest">Total Investido pelo iFood (Subsídios/Plataforma)</div>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">R$</span>
+                      <input 
+                        type="number"
+                        value={mktInvestidoPlataforma || ''}
+                        onPaste={(e) => handleNumericPaste(e, setMktInvestidoPlataforma)}
+                        onChange={(e) => setMktInvestidoPlataforma(e.target.value === '' ? 0 : Number(e.target.value))}
+                        onBlur={handleSave}
+                        className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-red-500' : 'bg-white border-slate-200 text-slate-800 focus:border-red-500'}`}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
           {activeTab === 'operational' && (
             <motion.div 
                initial={{ opacity: 0, x: -20 }} 
@@ -1271,32 +1552,124 @@ export default function DataEntry() {
 
         {/* Info Column */}
         <div className="space-y-6">
-          <div className={`p-8 rounded-[2rem] border transition-all ${
-            isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm shadow-slate-200/50'
-          }`}>
-             <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 italic">Atenção no Preenchimento</h4>
-             <div className="space-y-6">
-                {[
-                  { icon: AlertCircle, text: 'Valores de DRE são liquidados automaticamente após salvar.', color: 'text-amber-500' },
-                  { icon: TrendingUp, text: 'O sistema utiliza esses dados para gerar os Insights de IA.', color: 'text-indigo-500' },
-                  { icon: FileText, text: 'Mantenha as metas atualizadas para medir o ROI operacional.', color: 'text-slate-400' },
-                ].map((tip, i) => (
-                  <div key={i} className="flex gap-4">
-                    <tip.icon className={`w-5 h-5 shrink-0 ${tip.color}`} />
-                    <p className="text-xs text-slate-500 leading-relaxed font-medium italic">{tip.text}</p>
+          {activeTab === 'marketing' ? (
+            <>
+              {/* Portrait iFood card */}
+              <div className={`p-6 rounded-3xl border transition-all ${
+                isDarkMode ? 'bg-[#1A1A1A] border-[#2E2E2E]' : 'bg-white border-slate-100 shadow-sm'
+              }`}>
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="p-1 rounded bg-rose-500/10 text-rose-500">
+                    <Coins className="w-4 h-4" />
                   </div>
-                ))}
-             </div>
+                  <span className={`font-display font-extrabold text-xs uppercase tracking-wider ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                    Detalhamento do Investimento
+                  </span>
+                </div>
 
-             <div className={`mt-8 p-6 rounded-2xl border transition-all ${
-               isDarkMode ? 'bg-black/20 border-white/5' : 'bg-slate-50 border-slate-100'
-             }`}>
-                <div className="text-[10px] font-black uppercase tracking-widest text-[#E63946] mb-2 italic">Aviso Auditoria</div>
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  Todas as alterações neste módulo são registradas no log de auditoria com data, hora e IP do operador.
-                </p>
-             </div>
-          </div>
+                <div className="space-y-6">
+                  {/* Total investido */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Total investido</span>
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-2xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        {formatCurrency(mktTotalInvestido)}
+                      </span>
+                      <span className={`flex items-center gap-0.5 text-xs font-bold ${trendTotalInvestido.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {trendTotalInvestido.isNeutral ? null : trendTotalInvestido.isUp ? '▲' : '▼'} {trendTotalInvestido.pct}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 dark:border-slate-800/60 pt-4 space-y-4">
+                    {/* Minha loja */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#EC4899]" />
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Minha loja</span>
+                          <span className={`text-sm font-extrabold font-mono ${isDarkMode ? 'text-white' : 'text-slate-850'}`}>
+                            {formatCurrency(mktInvestidoLoja)}
+                            <span className="text-[10px] text-slate-400 ml-1.5 font-sans font-bold">
+                              ({mktTotalInvestido > 0 ? ((mktInvestidoLoja / mktTotalInvestido) * 100).toFixed(0) : '0'}%)
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`flex items-center gap-0.5 text-[10px] font-bold ${trendInvestidoLoja.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {trendInvestidoLoja.isNeutral ? null : trendInvestidoLoja.isUp ? '▲' : '▼'} {trendInvestidoLoja.pct}
+                      </span>
+                    </div>
+
+                    {/* iFood / Plataforma */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <span className="w-2.5 h-2.5 rounded-full bg-[#EA1D2C]" />
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Plataforma (Subsídio)</span>
+                          <span className={`text-sm font-extrabold font-mono ${isDarkMode ? 'text-white' : 'text-slate-850'}`}>
+                            {formatCurrency(mktInvestidoPlataforma)}
+                            <span className="text-[10px] text-slate-400 ml-1.5 font-sans font-bold">
+                              ({mktTotalInvestido > 0 ? ((mktInvestidoPlataforma / mktTotalInvestido) * 100).toFixed(0) : '0'}%)
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                      <span className={`flex items-center gap-0.5 text-[10px] font-bold ${trendInvestidoPlataforma.isUp ? 'text-emerald-500' : 'text-rose-500'}`}>
+                        {trendInvestidoPlataforma.isNeutral ? null : trendInvestidoPlataforma.isUp ? '▲' : '▼'} {trendInvestidoPlataforma.pct}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Marketing Specific tips */}
+              <div className={`p-8 rounded-[2rem] border transition-all ${
+                isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'
+              }`}>
+                <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 italic">Métricas de Otimização</h4>
+                <div className="space-y-6">
+                  {[
+                    { icon: Sparkles, text: 'ROAS ideal para campanhas iFood deve ser acima de 5,0x.', color: 'text-rose-500' },
+                    { icon: Percent, text: 'O percentual de pedidos com mais de uma promoção indica sinergia de cupons.', color: 'text-indigo-505' },
+                    { icon: AlertCircle, text: 'Monitore o investimento total em relação ao faturamento para evitar estouro de verba.', color: 'text-amber-500' },
+                  ].map((tip, i) => (
+                    <div key={i} className="flex gap-4">
+                      <tip.icon className={`w-5 h-5 shrink-0 ${tip.color}`} />
+                      <p className="text-xs text-slate-500 leading-relaxed font-medium italic">{tip.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className={`p-8 rounded-[2rem] border transition-all ${
+              isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm shadow-slate-200/50'
+            }`}>
+               <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 italic">Atenção no Preenchimento</h4>
+               <div className="space-y-6">
+                  {[
+                    { icon: AlertCircle, text: 'Valores de DRE são liquidados automaticamente após salvar.', color: 'text-amber-500' },
+                    { icon: TrendingUp, text: 'O sistema utiliza esses dados para gerar os Insights de IA.', color: 'text-indigo-500' },
+                    { icon: FileText, text: 'Mantenha as metas atualizadas para medir o ROI operacional.', color: 'text-slate-400' },
+                  ].map((tip, i) => (
+                    <div key={i} className="flex gap-4">
+                      <tip.icon className={`w-5 h-5 shrink-0 ${tip.color}`} />
+                      <p className="text-xs text-slate-500 leading-relaxed font-medium italic">{tip.text}</p>
+                    </div>
+                  ))}
+               </div>
+
+               <div className={`mt-8 p-6 rounded-2xl border transition-all ${
+                 isDarkMode ? 'bg-black/20 border-white/5' : 'bg-slate-50 border-slate-100'
+               }`}>
+                  <div className="text-[10px] font-black uppercase tracking-widest text-[#E63946] mb-2 italic">Aviso Auditoria</div>
+                  <p className="text-[10px] text-slate-400 leading-relaxed">
+                    Todas as alterações neste módulo são registradas no log de auditoria com data, hora e IP do operador.
+                  </p>
+               </div>
+            </div>
+          )}
         </div>
       </div>
       )}

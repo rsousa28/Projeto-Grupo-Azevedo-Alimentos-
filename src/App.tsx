@@ -26,6 +26,7 @@ import CashClosing from "./pages/CashClosing";
 import Checklist from "./pages/Checklist";
 import AccountsPayable from "./pages/AccountsPayable";
 import AuditLogs from "./pages/AuditLogs";
+import Marketing from "./pages/Marketing";
 
 import { useEffect, useRef } from "react";
 import { useAuth } from "./contexts/AuthContext";
@@ -117,6 +118,17 @@ function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function MarketingAccessRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const hasAccess = user && user.username === "adm";
+  if (!hasAccess) {
+    return (
+      <UnauthorizedRedirect routeName="Módulo de Marketing" />
+    );
+  }
+  return <>{children}</>;
+}
+
 function AuditNavigationTracker() {
   const { user } = useAuth();
   const location = useLocation();
@@ -143,6 +155,9 @@ function AuditNavigationTracker() {
         break;
       case "/finance":
         routeDescription = "Visualizou o Demonstrativo DRE / Fluxo Financeiro.";
+        break;
+      case "/marketing":
+        routeDescription = "Acessou o Módulo de Marketing.";
         break;
       case "/accounts-payable":
         routeDescription = "Abriu a Gestão de Contas a Pagar.";
@@ -225,6 +240,14 @@ function AppRoutes() {
               <FinanceAccessRoute>
                 <Finance />
               </FinanceAccessRoute>
+            }
+          />
+          <Route
+            path="/marketing"
+            element={
+              <MarketingAccessRoute>
+                <Marketing />
+              </MarketingAccessRoute>
             }
           />
           <Route

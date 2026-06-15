@@ -3086,20 +3086,20 @@ export default function AccountsPayable() {
               ? 'bg-[#121212] border-zinc-800 hover:border-slate-700/50' 
               : 'bg-white border-slate-100 hover:border-slate-200/80 shadow-md shadow-slate-100/40'
           }`}
-          style={{ borderLeft: `4px solid ${themePrimary}` }}
+          style={{ borderLeft: `4px solid ${themeButtonBg}` }}
           title="Clique para ver compromissos futuros"
         >
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold tracking-wider text-slate-400 dark:text-slate-500 uppercase">Compromissos Futuros</span>
-            <div className="p-2 rounded-xl transition-colors" style={{ backgroundColor: `${themePrimary}12` }}>
-              <DollarSign className="w-4 h-4" style={{ color: themePrimary }} />
+            <div className="p-2 rounded-xl transition-colors" style={{ backgroundColor: `${themeButtonBg}15` }}>
+              <DollarSign className="w-4 h-4" style={{ color: themeButtonBg }} />
             </div>
           </div>
-          <div className="text-2xl font-display font-extrabold tracking-tight leading-none" style={{ color: themePrimary }}>
+          <div className="text-2xl font-display font-extrabold tracking-tight leading-none" style={{ color: themeButtonBg }}>
             {formatValueBrl(bentoUpcomingVal)}
           </div>
           <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5 flex items-center gap-1">
-            Destaques de Provisão <span className="font-mono font-bold" style={{ color: themePrimary }}>({rawUpcomingAccounts.length})</span>
+            Destaques de Provisão <span className="font-mono font-bold" style={{ color: themeButtonBg }}>({rawUpcomingAccounts.length})</span>
           </p>
         </div>
 
@@ -5683,7 +5683,7 @@ export default function AccountsPayable() {
               <div className="px-6 pt-7 pb-6 border-b border-slate-100 dark:border-[#1F1F23] bg-linear-to-b from-slate-50/40 to-transparent dark:from-[#131316]/40">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3.5">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-xl" style={{ backgroundColor: `${themePrimary}12`, color: themePrimary }}>
+                    <div className="flex items-center justify-center w-10 h-10 rounded-xl" style={{ backgroundColor: `${themeButtonBg}12`, color: themeButtonBg }}>
                       <DollarSign className="w-5 h-5" />
                     </div>
                     <div>
@@ -5691,7 +5691,7 @@ export default function AccountsPayable() {
                         <h3 className="text-base font-display font-semibold tracking-tight text-slate-850 dark:text-white">
                           Compromissos Futuros
                         </h3>
-                        <span className="inline-flex items-center text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md uppercase select-none font-mono" style={{ backgroundColor: `${themePrimary}12`, color: themePrimary }}>
+                        <span className="inline-flex items-center text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-md uppercase select-none font-mono" style={{ backgroundColor: `${themeButtonBg}12`, color: themeButtonBg }}>
                           Provisões
                         </span>
                       </div>
@@ -5750,8 +5750,8 @@ export default function AccountsPayable() {
                       }}
                       title="Enviar relatório por e-mail para diretores"
                       style={{
-                        backgroundColor: `${themePrimary}1A`,
-                        color: themePrimary,
+                        backgroundColor: `${themeButtonBg}1A`,
+                        color: themeButtonBg,
                       }}
                       className="py-2 px-3.5 rounded-xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold hover:brightness-110"
                     >
@@ -5771,7 +5771,7 @@ export default function AccountsPayable() {
                 <div className="bg-slate-50 dark:bg-[#131316]/50 border border-slate-100 dark:border-[#1F1F23]/80 p-5 rounded-2xl flex items-center justify-between shadow-xs">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider">Total Consolidado Futuro</span>
-                    <span className="text-2xl font-display font-extrabold tracking-tight" style={{ color: themePrimary }}>
+                    <span className="text-2xl font-display font-extrabold tracking-tight" style={{ color: themeButtonBg }}>
                       {formatValueBrl(bentoUpcomingVal)}
                     </span>
                   </div>
@@ -5980,7 +5980,7 @@ export default function AccountsPayable() {
                           <div className="flex items-start justify-between gap-4">
                             <div className="space-y-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="w-2 h-2 rounded-full ring-4 animate-pulse" style={{ backgroundColor: themePrimary, '--tw-ring-color': `${themePrimary}1A` } as any} />
+                                <span className="w-2 h-2 rounded-full ring-4 animate-pulse" style={{ backgroundColor: themeButtonBg, '--tw-ring-color': `${themeButtonBg}1A` } as any} />
                                 <span className="font-display font-semibold text-slate-850 dark:text-slate-100 uppercase tracking-tight text-sm">
                                   {ac.supplier}
                                 </span>
@@ -6004,15 +6004,15 @@ export default function AccountsPayable() {
   
                             {/* Urgent/Date Badge status */}
                             <div className="flex flex-col items-end gap-1 shrink-0">
-                              <span className="text-[9.5px] px-2 py-0.5 rounded-md uppercase tracking-wide font-mono font-bold bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200">
-                                {ac.status}
-                              </span>
-                              <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-450 bg-indigo-500/10 px-1.5 py-0.5 rounded-md font-mono">
-                                Vence em {daysRemaining} {daysRemaining === 1 ? 'dia' : 'dias'}
-                              </span>
-                              <span className="text-[9px] text-slate-400 dark:text-zinc-550 font-medium font-mono">
-                                Vct: {dateFormatted}
-                              </span>
+                                <span className="text-[9.5px] px-2 py-0.5 rounded-md uppercase tracking-wide font-mono font-bold bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200">
+                                  {ac.status}
+                                </span>
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md font-mono" style={{ color: themeButtonBg, backgroundColor: `${themeButtonBg}15` }}>
+                                  Vence em {daysRemaining} {daysRemaining === 1 ? 'dia' : 'dias'}
+                                </span>
+                                <span className="text-[9px] text-slate-400 dark:text-zinc-550 font-medium font-mono">
+                                  Vct: {dateFormatted}
+                                </span>
                             </div>
                           </div>
   
@@ -6026,8 +6026,8 @@ export default function AccountsPayable() {
                             </div>
                             
                             <div>
-                              <span className="text-[9.5px] uppercase font-bold tracking-wider block mb-1 font-sans" style={{ color: themePrimary }}>A Pagar</span>
-                              <span className="font-extrabold font-mono text-[14.5px] leading-tight block" style={{ color: themePrimary }}>
+                              <span className="text-[9.5px] uppercase font-bold tracking-wider block mb-1 font-sans" style={{ color: themeButtonBg }}>A Pagar</span>
+                              <span className="font-extrabold font-mono text-[14.5px] leading-tight block" style={{ color: themeButtonBg }}>
                                 {formatValueBrl(remainingVal)}
                               </span>
                             </div>
@@ -6041,9 +6041,9 @@ export default function AccountsPayable() {
                                   setCurrentBoletoUrl(ac.attachedFile);
                                 }}
                                 style={{
-                                  backgroundColor: `${themePrimary}1A`,
-                                  borderColor: `${themePrimary}26`,
-                                  color: themePrimary,
+                                  backgroundColor: `${themeButtonBg}1A`,
+                                  borderColor: `${themeButtonBg}26`,
+                                  color: themeButtonBg,
                                 }}
                                 className="flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-[10.5px] font-bold uppercase transition-all cursor-pointer h-9 hover:brightness-110"
                               >

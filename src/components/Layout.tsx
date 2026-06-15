@@ -22,7 +22,8 @@ import {
   Database,
   Activity,
   Sun,
-  Moon
+  Moon,
+  Megaphone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -44,6 +45,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: ClipboardCheck, label: 'Checklists', path: '/checklist' },
   { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
+  { icon: Megaphone, label: 'Marketing', path: '/marketing', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
   { icon: Receipt, label: 'Contas a Pagar', path: '/accounts-payable', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
   { icon: Shield, label: 'Logs de Acesso', path: '/audit-logs', allowedRoles: ['ADMIN'] },
@@ -92,6 +94,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     }
     if (item.path === '/finance') {
       return user?.username === 'adm' || user?.username === 'victordiretor';
+    }
+    if (item.path === '/marketing') {
+      return user?.username === 'adm';
     }
     if (item.path === '/accounts-payable') {
       return (
