@@ -23,6 +23,7 @@ import {
   ChevronDown, 
   RefreshCw,
   HelpCircle,
+  CloudOff,
   Clock,
   ExternalLink,
   Info,
@@ -676,14 +677,67 @@ export default function AccountsPayable() {
     setOverdueCount(pastDue);
   }, [accounts, currentStore.id]);
 
-  const saveAccountsToStorage = async (fullList: AccountPayable[]) => {
-    const storageKey = `g_azevedo_ap_items_clean_${currentStore.id}`;
+  const safeSetItemToLocalStorage = (storeId: string, list: AccountPayable[]): boolean => {
+    const key = `g_azevedo_ap_items_clean_${storeId}`;
     try {
-      localStorage.setItem(storageKey, JSON.stringify(fullList));
+      localStorage.setItem(key, JSON.stringify(list));
+      return true;
     } catch (err) {
-      console.error("Erro ao salvar no localStorage", err);
-      showToast("Aviso: Limite de armazenamento local atingido por conta do tamanho dos anexos. O comprovante foi salvo nesta sessão, mas pode não persistir ao recarregar a página.", "warning");
+      console.warn(`Tentativa de salvar no localStorage para a loja ${storeId} falhou (limite de cota). Iniciando processo de otimização em cascata...`);
+      // 1. Try to clean up local storage keys for OTHER stores
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('g_azevedo_ap_items_clean_') && k !== key) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        console.log(`Espaço liberado em localStorage: removido cache de ${keysToRemove.length} outras unidades.`);
+        
+        localStorage.setItem(key, JSON.stringify(list));
+        return true;
+      } catch (err2) {
+        console.warn(`Remover outros caches de loja não resolveu. Tentando remover anexo de contas com status Pago ou Cancelado no cache local...`);
+        // 2. Clear base64 attachments of Pago/Cancelado items
+        try {
+          const optimized = list.map(ac => {
+            if (ac.status === 'Pago' || ac.status === 'Cancelado') {
+              return {
+                ...ac,
+                attachedFile: ac.attachedFile ? "[offline_hidden]" : undefined,
+                taxInvoiceFile: ac.taxInvoiceFile ? "[offline_hidden]" : undefined,
+                receiptFile: ac.receiptFile ? "[offline_hidden]" : undefined
+              };
+            }
+            return ac;
+          });
+          localStorage.setItem(key, JSON.stringify(optimized));
+          return true;
+        } catch (err3) {
+          console.warn(`Ainda excedeu. Removendo todos os anexos base64 do cache offline da loja ${storeId} (salvos apenas no Firestore)...`);
+          // 3. Clear base64 attachments of ALL items in localStorage
+          try {
+            const ultraOptimized = list.map(ac => ({
+              ...ac,
+              attachedFile: ac.attachedFile ? "[offline_hidden]" : undefined,
+              taxInvoiceFile: ac.taxInvoiceFile ? "[offline_hidden]" : undefined,
+              receiptFile: ac.receiptFile ? "[offline_hidden]" : undefined
+            }));
+            localStorage.setItem(key, JSON.stringify(ultraOptimized));
+            return true;
+          } catch (err4) {
+            console.error("Falha física total ao salvar qualquer informação offline no localStorage do navegador:", err4);
+            return false;
+          }
+        }
+      }
     }
+  };
+
+  const saveAccountsToStorage = async (fullList: AccountPayable[]) => {
+    safeSetItemToLocalStorage(currentStore.id, fullList);
 
     try {
       // Clean undefined fields recursively so Firestore doesn't reject the write operation
@@ -706,11 +760,7 @@ export default function AccountsPayable() {
 
         // Sync individual unit local storages so switching between units has no visual lags or stale caches
         Object.entries(grouped).forEach(([storeId, storeAccounts]) => {
-          try {
-            localStorage.setItem(`g_azevedo_ap_items_clean_${storeId}`, JSON.stringify(storeAccounts));
-          } catch (err) {
-            console.warn(`Erro ao salvar localStorage individual para loja ${storeId}:`, err);
-          }
+          safeSetItemToLocalStorage(storeId, storeAccounts);
         });
         
         const savePromises = Object.entries(grouped).map(async ([storeId, storeAccounts]) => {
@@ -755,11 +805,7 @@ export default function AccountsPayable() {
 
         // Sync individual unit local storages so switching between units has no visual lags or stale caches
         Object.entries(grouped).forEach(([storeId, storeAccounts]) => {
-          try {
-            localStorage.setItem(`g_azevedo_ap_items_clean_${storeId}`, JSON.stringify(storeAccounts));
-          } catch (err) {
-            console.warn(`Erro ao salvar localStorage individual em handleSavePeriod para loja ${storeId}:`, err);
-          }
+          safeSetItemToLocalStorage(storeId, storeAccounts);
         });
         
         const savePromises = Object.entries(grouped).map(async ([storeId, storeAccounts]) => {
@@ -1303,7 +1349,7 @@ export default function AccountsPayable() {
     showToast('Boleto atualizado com sucesso!', 'success');
   };
 
-  const resizeImageBase64 = (base64: string, maxWidth = 1000, maxHeight = 1000): Promise<string> => {
+  const resizeImageBase64 = (base64: string, maxWidth = 600, maxHeight = 600): Promise<string> => {
     return new Promise((resolve) => {
       if (!base64.startsWith('data:image/')) {
         resolve(base64);
@@ -1327,11 +1373,10 @@ export default function AccountsPayable() {
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          // Enable sub-pixel / high quality rendering configuration on the canvas
           ctx.imageSmoothingEnabled = true;
-          ctx.imageSmoothingQuality = 'high';
+          ctx.imageSmoothingQuality = 'medium';
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL('image/jpeg', 0.65)); // Extremely optimized quality for highly reduced storage (fits free tier perfectly)
+          resolve(canvas.toDataURL('image/jpeg', 0.40)); // Super optimized JPEG formatting (highly reduced size, perfect read/write)
         } else {
           resolve(base64);
         }
@@ -2627,7 +2672,13 @@ export default function AccountsPayable() {
                 </button>
               </div>
               <div className="w-full max-w-5xl h-[80vh] flex items-center justify-center p-2 relative">
-                {currentBoletoUrl.startsWith('data:application/pdf') ? (
+                {currentBoletoUrl.startsWith('[offline_hidden]') ? (
+                  <div className="flex flex-col items-center justify-center text-center p-8 bg-[#1A1A1A] border border-white/10 rounded-2xl max-w-md shadow-2xl">
+                    <CloudOff className="w-12 h-12 text-[#E63946] mb-4 animate-bounce" />
+                    <h4 className="text-white text-base font-black uppercase tracking-[0.15em] italic mb-2">Anexo na Nuvem</h4>
+                    <p className="text-slate-400 text-xs leading-relaxed font-medium">Este comprovante/documento está armazenado com segurança em nossa nuvem. Ele será exibido automaticamente assim que a sincronização automática for completada ou sob conexão ativa com a internet.</p>
+                  </div>
+                ) : currentBoletoUrl.startsWith('data:application/pdf') ? (
                   <iframe 
                     src={currentBoletoUrl} 
                     className="w-full h-full rounded-xl shadow-2xl bg-white border border-white/10"
@@ -3880,7 +3931,13 @@ export default function AccountsPayable() {
               </button>
             </div>
             <div className="w-full max-w-5xl h-[80vh] flex items-center justify-center p-2 relative">
-              {currentBoletoUrl.startsWith('data:application/pdf') ? (
+              {currentBoletoUrl.startsWith('[offline_hidden]') ? (
+                <div className="flex flex-col items-center justify-center text-center p-8 bg-[#1A1A1A] border border-white/10 rounded-2xl max-w-md shadow-2xl">
+                  <CloudOff className="w-12 h-12 text-[#E63946] mb-4 animate-bounce" />
+                  <h4 className="text-white text-base font-black uppercase tracking-[0.15em] italic mb-2">Anexo na Nuvem</h4>
+                  <p className="text-slate-400 text-xs leading-relaxed font-medium">Este comprovante/documento está armazenado com segurança em nossa nuvem. Ele será exibido automaticamente assim que a sincronização automática for completada ou sob conexão ativa com a internet.</p>
+                </div>
+              ) : currentBoletoUrl.startsWith('data:application/pdf') ? (
                 <iframe 
                   src={currentBoletoUrl} 
                   className="w-full h-full rounded-xl shadow-2xl bg-white border border-white/10"
