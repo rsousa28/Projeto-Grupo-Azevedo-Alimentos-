@@ -188,6 +188,7 @@ export default function Finance() {
         let totalDetailedAdministrativasObj: Record<string, number> = {};
         let totalDetailedDeducoesObj: Record<string, number> = {};
         let totalDetailedDespesasVariaveisObj: Record<string, number> = {};
+        let totalYearlyHistoryObj: Record<string, number> = {};
 
         storeIds.forEach(sId => {
           const list = allStoresDreData[sId] || [];
@@ -209,6 +210,12 @@ export default function Finance() {
             totalReceitaWedo += match.receitaWedo || 0;
             totalReceitaBalcao += match.receitaBalcao || 0;
             totalMetaFaturamento += match.metaFaturamento || (sId === '1' ? 140000 : sId === '2' ? 140000 : 150000);
+
+            if (match.yearlyHistory) {
+              Object.entries(match.yearlyHistory).forEach(([k, v]) => {
+                totalYearlyHistoryObj[k] = (totalYearlyHistoryObj[k] || 0) + (Number(v) || 0);
+              });
+            }
 
             if (match.details) {
               const det = match.details;
@@ -270,6 +277,7 @@ export default function Finance() {
             receitaWedo: totalReceitaWedo,
             receitaBalcao: totalReceitaBalcao,
             metaFaturamento: totalMetaFaturamento,
+            yearlyHistory: totalYearlyHistoryObj,
             details: {
               funcionamento: totalDetailedFuncionamentoObj,
               colaboradores: totalDetailedColaboradoresObj,
@@ -1360,14 +1368,16 @@ export default function Finance() {
         String(p.year || "2026").trim() === String(y).trim(),
     );
 
-    // Logic: if it's the selected year, use current data.
-    // Otherwise, try timeline data, then fallback to yearlyHistory (manual entries).
+    // Prioritize manual yearlyHistory from currentMonthData over database timeline
+    const manualFaturamento = currentMonthData?.yearlyHistory?.[y];
     const faturamento =
       y === selectedYear
         ? currentMonthData.faturamento
-        : timelineData
-          ? timelineData.faturamento
-          : yearlyHistory[y] || 0;
+        : (manualFaturamento !== undefined 
+          ? manualFaturamento 
+          : (timelineData 
+            ? timelineData.faturamento 
+            : (yearlyHistory[y] || 0)));
 
     const colors = [isDarkMode ? "#475569" : "#CBD5E1", "#8B5CF6", "#0EA5E9"];
 

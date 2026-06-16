@@ -822,7 +822,6 @@ export default function DataEntry() {
             { id: 'financial', label: 'Financeiro & DRE', icon: DollarSign },
             { id: 'channels', label: 'Canais de Venda', icon: PieChart },
             { id: 'operational', label: 'Indicadores Operacionais', icon: Zap },
-            { id: 'marketing', label: 'Marketing', icon: Megaphone },
             { id: 'history', label: 'Histórico YoY', icon: TrendingUp },
             { id: 'goals', label: 'Metas & Performance', icon: Target },
           ].map(tab => (

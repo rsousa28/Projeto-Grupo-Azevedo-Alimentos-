@@ -235,7 +235,7 @@ export default function DataEntrySection({
   ];
 
   const visibleTabs = allTabs.filter(tab => {
-    if (mode === 'dashboard') return tab.id !== 'financial';
+    if (mode === 'dashboard') return tab.id !== 'financial' && tab.id !== 'marketing';
     if (mode === 'finance') return tab.id === 'financial';
     if (mode === 'marketing') return tab.id === 'marketing';
     return true;
