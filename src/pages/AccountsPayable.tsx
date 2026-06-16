@@ -558,7 +558,7 @@ export default function AccountsPayable() {
 
     if (!stored) {
       itemsList = [];
-      localStorage.setItem(storageKey, JSON.stringify(itemsList));
+      safeSetItemToLocalStorage(currentStore.id, itemsList);
     } else {
       try {
         itemsList = JSON.parse(stored);
@@ -625,7 +625,7 @@ export default function AccountsPayable() {
           if (isMounted) {
             const processed = processItems(mergedCloudData);
             setAccounts(processed);
-            localStorage.setItem(storageKey, JSON.stringify(processed));
+            safeSetItemToLocalStorage(currentStore.id, processed);
           }
         } else {
           // Single store scenario (e.g. Manager like Patricia, Andressa, Jef)
@@ -635,7 +635,7 @@ export default function AccountsPayable() {
             const cloudData = docSnap.data().data || [];
             const processed = processItems(cloudData);
             setAccounts(processed);
-            localStorage.setItem(storageKey, JSON.stringify(processed));
+            safeSetItemToLocalStorage(currentStore.id, processed);
           } else if (isMounted) {
             // Document doesn't exist on Firestore yet (the store is completely clean/new)
             const locallyStored = localStorage.getItem(storageKey);
@@ -677,7 +677,7 @@ export default function AccountsPayable() {
     setOverdueCount(pastDue);
   }, [accounts, currentStore.id]);
 
-  const safeSetItemToLocalStorage = (storeId: string, list: AccountPayable[]): boolean => {
+  function safeSetItemToLocalStorage(storeId: string, list: AccountPayable[]): boolean {
     const key = `g_azevedo_ap_items_clean_${storeId}`;
     try {
       localStorage.setItem(key, JSON.stringify(list));
@@ -734,7 +734,7 @@ export default function AccountsPayable() {
         }
       }
     }
-  };
+  }
 
   const saveAccountsToStorage = async (fullList: AccountPayable[]) => {
     safeSetItemToLocalStorage(currentStore.id, fullList);
