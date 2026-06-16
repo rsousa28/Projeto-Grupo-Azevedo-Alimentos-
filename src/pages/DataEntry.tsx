@@ -507,6 +507,14 @@ export default function DataEntry() {
       setQuantidadePedidos(monthData.quantidadePedidos || 0);
       setCmvTotal(monthData.cmv);
       setDeducoes({ darfSimples: monthData.taxes });
+
+      if (monthData.yearlyHistory) {
+        setReceita2024(monthData.yearlyHistory['2024'] || 0);
+        setReceita2025(monthData.yearlyHistory['2025'] || 0);
+      } else {
+        setReceita2024(0);
+        setReceita2025(0);
+      }
       
       // Load goals from monthData
       setFaturamentoMeta(monthData.metaFaturamento !== undefined ? monthData.metaFaturamento : (currentStore.brand === 'BEBELU' ? 140000 : 150000));
@@ -584,6 +592,8 @@ export default function DataEntry() {
       setMktVendasValor(0);
       setMktInvestidoLoja(0);
       setMktInvestidoPlataforma(0);
+      setReceita2024(0);
+      setReceita2025(0);
       
       // Reset goals to defaults too
       setFaturamentoMeta(currentStore.brand === 'BEBELU' ? 140000 : 150000);

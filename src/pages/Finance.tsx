@@ -48,6 +48,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { AuditService } from "../services/AuditService";
 import DataEntrySection from "../components/DataEntrySection";
 import { chatWithConsultant } from "../services/geminiService";
+import { DREData } from "../types";
 
 const monthsGlobal = [
   { value: "01", label: "Janeiro" },
@@ -97,6 +98,197 @@ export default function Finance() {
 
   const [selectedMonth, setSelectedMonth] = useState(initialMonthStr); // Current dynamic month
   const [selectedYear, setSelectedYear] = useState(initialYearStr);
+
+  const isRoot = currentStore?.id === "admin-global";
+  const [allStoresDreData, setAllStoresDreData] = useState<{ [storeId: string]: DREData[] }>({});
+  const [loadingConsolidation, setLoadingConsolidation] = useState(false);
+
+  useEffect(() => {
+    if (isRoot) {
+      const fetchAllStoresData = async () => {
+        setLoadingConsolidation(true);
+        const storeIds = ['1', '2', '3'];
+        const monthsList = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+        const yearsToLoad = [selectedYear, (parseInt(selectedYear) - 1).toString(), (parseInt(selectedYear) - 2).toString()];
+        
+        const tempDreData: { [storeId: string]: DREData[] } = { '1': [], '2': [], '3': [] };
+
+        try {
+          const { getDoc, doc } = await import("firebase/firestore");
+          const { db } = await import("../lib/firebase");
+
+          const promises = storeIds.flatMap(storeId => {
+            return yearsToLoad.flatMap(y => {
+              return monthsList.map(async (m) => {
+                const periodId = `${y}-${m}`;
+                try {
+                  const dreRef = doc(db, 'stores', storeId, 'dre_periods', periodId);
+                  const snap = await getDoc(dreRef);
+                  if (snap.exists()) {
+                    const data = { ...snap.data(), year: y } as DREData;
+                    tempDreData[storeId].push(data);
+                  }
+                } catch (e) {
+                  // Ignore single period load failures quietly
+                }
+              });
+            });
+          });
+
+          await Promise.all(promises);
+          setAllStoresDreData(tempDreData);
+        } catch (err) {
+          console.error("Error loading consolidation:", err);
+        } finally {
+          setLoadingConsolidation(false);
+        }
+      };
+
+      fetchAllStoresData();
+    }
+  }, [selectedYear, isRoot]);
+
+  const consolidatedTimeline = React.useMemo(() => {
+    if (!isRoot) return [];
+    
+    const timelineList: DREData[] = [];
+    const monthsMapToLabel: Record<string, string> = {
+      '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril', '05': 'Maio', '06': 'Junho',
+      '07': 'Julho', '08': 'Agosto', '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
+    };
+    
+    const yearsToCompile = [selectedYear, (parseInt(selectedYear) - 1).toString(), (parseInt(selectedYear) - 2).toString()];
+    const storeIds = ['1', '2', '3'];
+
+    yearsToCompile.forEach(y => {
+      Object.keys(monthsMapToLabel).forEach(mCode => {
+        const mLabel = monthsMapToLabel[mCode];
+        
+        let totalFat = 0;
+        let totalCmv = 0;
+        let totalPayroll = 0;
+        let totalRent = 0;
+        let totalMarketing = 0;
+        let totalOperational = 0;
+        let totalTaxes = 0;
+        let totalRoyalties = 0;
+        let totalEbitda = 0;
+        let totalNetProfit = 0;
+        let totalPedidos = 0;
+        let totalReceitaIfood = 0;
+        let totalReceitaWedo = 0;
+        let totalReceitaBalcao = 0;
+        let totalMetaFaturamento = 0;
+        let exists = false;
+
+        let totalDetailedFuncionamentoObj: Record<string, number> = {};
+        let totalDetailedColaboradoresObj: Record<string, number> = {};
+        let totalDetailedManutencaoObj: Record<string, number> = {};
+        let totalDetailedComerciaisObj: Record<string, number> = {};
+        let totalDetailedAdministrativasObj: Record<string, number> = {};
+        let totalDetailedDeducoesObj: Record<string, number> = {};
+        let totalDetailedDespesasVariaveisObj: Record<string, number> = {};
+
+        storeIds.forEach(sId => {
+          const list = allStoresDreData[sId] || [];
+          const match = list.find(d => d.month === mLabel && d.year === y);
+          if (match) {
+            exists = true;
+            totalFat += match.faturamento || 0;
+            totalCmv += match.cmv || 0;
+            totalPayroll += match.payroll || 0;
+            totalRent += match.rent || 0;
+            totalMarketing += match.marketing || 0;
+            totalOperational += match.operational || 0;
+            totalTaxes += match.taxes || 0;
+            totalRoyalties += match.royalties || 0;
+            totalEbitda += match.ebitda || 0;
+            totalNetProfit += match.netProfit || 0;
+            totalPedidos += match.quantidadePedidos || 0;
+            totalReceitaIfood += match.receitaIfood || 0;
+            totalReceitaWedo += match.receitaWedo || 0;
+            totalReceitaBalcao += match.receitaBalcao || 0;
+            totalMetaFaturamento += match.metaFaturamento || (sId === '1' ? 140000 : sId === '2' ? 140000 : 150000);
+
+            if (match.details) {
+              const det = match.details;
+              if (det.funcionamento) {
+                Object.entries(det.funcionamento).forEach(([k, v]) => {
+                  totalDetailedFuncionamentoObj[k] = (totalDetailedFuncionamentoObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.colaboradores) {
+                Object.entries(det.colaboradores).forEach(([k, v]) => {
+                  totalDetailedColaboradoresObj[k] = (totalDetailedColaboradoresObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.manutencao) {
+                Object.entries(det.manutencao).forEach(([k, v]) => {
+                  totalDetailedManutencaoObj[k] = (totalDetailedManutencaoObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.comerciais) {
+                Object.entries(det.comerciais).forEach(([k, v]) => {
+                  totalDetailedComerciaisObj[k] = (totalDetailedComerciaisObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.administrativas) {
+                Object.entries(det.administrativas).forEach(([k, v]) => {
+                  totalDetailedAdministrativasObj[k] = (totalDetailedAdministrativasObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.deducoes) {
+                Object.entries(det.deducoes).forEach(([k, v]) => {
+                  totalDetailedDeducoesObj[k] = (totalDetailedDeducoesObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+              if (det.despesasVariaveis) {
+                Object.entries(det.despesasVariaveis).forEach(([k, v]) => {
+                  totalDetailedDespesasVariaveisObj[k] = (totalDetailedDespesasVariaveisObj[k] || 0) + (Number(v) || 0);
+                });
+              }
+            }
+          }
+        });
+
+        if (exists) {
+          timelineList.push({
+            month: mLabel,
+            year: y,
+            faturamento: totalFat,
+            cmv: totalCmv,
+            payroll: totalPayroll,
+            rent: totalRent,
+            marketing: totalMarketing,
+            operational: totalOperational,
+            taxes: totalTaxes,
+            royalties: totalRoyalties,
+            ebitda: totalEbitda,
+            netProfit: totalNetProfit,
+            quantidadePedidos: totalPedidos,
+            receitaIfood: totalReceitaIfood,
+            receitaWedo: totalReceitaWedo,
+            receitaBalcao: totalReceitaBalcao,
+            metaFaturamento: totalMetaFaturamento,
+            details: {
+              funcionamento: totalDetailedFuncionamentoObj,
+              colaboradores: totalDetailedColaboradoresObj,
+              manutencao: totalDetailedManutencaoObj,
+              comerciais: totalDetailedComerciaisObj,
+              administrativas: totalDetailedAdministrativasObj,
+              deducoes: totalDetailedDeducoesObj,
+              despesasVariaveis: totalDetailedDespesasVariaveisObj
+            }
+          });
+        }
+      });
+    });
+
+    return timelineList;
+  }, [allStoresDreData, isRoot, selectedYear]);
+
+  const activeDreTimeline = isRoot ? consolidatedTimeline : dreTimeline;
+
   const [showEntry, setShowEntry] = useState(false);
   const [showChat, setShowChat] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -196,7 +388,7 @@ export default function Finance() {
     (m) => m.value === selectedMonth,
   )?.label;
 
-  const currentMonthData = dreTimeline.find(
+  const currentMonthData = activeDreTimeline.find(
     (d) =>
       d.month === currentMonthLabel &&
       (d.year === selectedYear || (!d.year && selectedYear === "2026")),
@@ -229,7 +421,7 @@ export default function Finance() {
     prevMonthVal < 1 ? (parseInt(selectedYear) - 1).toString() : selectedYear;
   const prevMonthLabel = months.find((m) => m.value === prevMonthStr)?.label;
 
-  const prevMonthData = dreTimeline.find(
+  const prevMonthData = activeDreTimeline.find(
     (d) =>
       d.month === prevMonthLabel &&
       (d.year === prevYearStr || (!d.year && prevYearStr === "2026")),
@@ -1161,7 +1353,7 @@ export default function Finance() {
 
   const yearlyComparisonData = yearsToCompare.map((y, idx) => {
     // Attempt to find data for this specific year and month in the timeline
-    const timelineData = dreTimeline.find(
+    const timelineData = activeDreTimeline.find(
       (p) =>
         String(p.month).trim().toLowerCase() ===
           String(currentMonthLabel).trim().toLowerCase() &&
