@@ -825,7 +825,7 @@ export default function DataEntry() {
           </button>
           
           <button 
-            onClick={handleSave}
+            onClick={() => handleSave(false)}
             className={`flex items-center gap-2 px-8 py-3 rounded-2xl font-bold font-black uppercase tracking-widest text-sm transition-all shadow-lg active:scale-95 ${
               currentStore.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'
             }`}

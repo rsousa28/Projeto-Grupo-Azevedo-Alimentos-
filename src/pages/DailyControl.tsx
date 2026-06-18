@@ -193,7 +193,7 @@ export default function DailyControl() {
     setFormDescription('');
     setFormValue('');
     setFormCategory(EXPENSE_CATEGORIES[0]);
-    setFormPaymentMethod(PAYMENT_METHODS[0]);
+    setFormPaymentMethod(activeTab === 'expenses' ? PAYMENT_METHODS[0] : 'Lanche');
     setFormRecipient('');
     setFormStatus(activeTab === 'expenses' ? 'Pago' : 'Pendente');
     setFormEmployeeName('');
@@ -208,7 +208,7 @@ export default function DailyControl() {
     setFormDescription(item.description || '');
     setFormValue(String(item.value));
     setFormCategory(item.category || EXPENSE_CATEGORIES[0]);
-    setFormPaymentMethod(item.paymentMethod || PAYMENT_METHODS[0]);
+    setFormPaymentMethod(item.paymentMethod || (activeTab === 'vouchers' ? 'Lanche' : PAYMENT_METHODS[0]));
     setFormRecipient(item.recipient || '');
     setFormStatus(item.status);
     setFormEmployeeName(item.employeeName || '');
@@ -279,8 +279,8 @@ export default function DailyControl() {
           date: formDate,
           employeeName: formEmployeeName,
           value: valueNum,
-          description: formDescription || 'Adiantamento / Vale',
-          paymentMethod: formPaymentMethod,
+          description: formDescription || 'Lanche',
+          paymentMethod: formPaymentMethod || 'Lanche',
           status: formStatus as 'Pendente' | 'Descontado',
           notes: formNotes,
           createdAt: editingItem ? editingItem.createdAt : new Date().toISOString()
@@ -542,7 +542,7 @@ export default function DailyControl() {
       </div>
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* KPI 1 */}
         <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm`}>
           <div className="flex items-center justify-between mb-2">
@@ -591,21 +591,7 @@ export default function DailyControl() {
           </p>
         </div>
 
-        {/* KPI 4 */}
-        <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm`}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Valor Pendente</span>
-            <div className="p-2 rounded-lg bg-orange-500/10 text-orange-500">
-              <AlertTriangle className="w-4 h-4" />
-            </div>
-          </div>
-          <h3 className="text-xl font-extrabold font-display text-orange-500">
-            R$ {stats.pendingGrandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </h3>
-          <p className="text-[10px] text-slate-400 mt-1 font-medium">
-            Necessitam conciliação / desconto
-          </p>
-        </div>
+
       </div>
 
       {/* Tabs list */}
@@ -839,9 +825,9 @@ export default function DailyControl() {
                       {isRoot && <th className="px-4 py-3.5">Unidade</th>}
                       <th className="px-4 py-3.5">Data</th>
                       <th className="px-4 py-3.5">Funcionário</th>
-                      <th className="px-4 py-3.5">Assunto/Motivo</th>
+                      <th className="px-4 py-3.5">Lanche Escolhido</th>
                       <th className="px-4 py-3.5">Valor</th>
-                      <th className="px-4 py-3.5">Meio de Repasse</th>
+                      <th className="px-4 py-3.5">Meio de Liberação</th>
                       <th className="px-4 py-3.5 text-center">Status</th>
                       <th className="px-4 py-3.5 text-right">Ações</th>
                     </tr>
@@ -1102,50 +1088,22 @@ export default function DailyControl() {
                             isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white' : 'bg-white border-slate-200'
                           } outline-none focus:border-amber-500`}
                         >
-                          {PAYMENT_METHODS.map(m => (
-                            <option key={m} value={m}>{m}</option>
-                          ))}
+                          <option value="Lanche">Lanche</option>
                         </select>
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Finalidade / Motivo</label>
+                      <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Qual Lanche escolhido</label>
                       <input
                         type="text"
-                        placeholder="Ex: Adiantamento semanal, adiantamento de feriado..."
+                        placeholder="Ex: Bebelu Burger + Refri, Combo Duplo, etc..."
                         value={formDescription}
                         onChange={(e) => setFormDescription(e.target.value)}
                         className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
                           isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white' : 'bg-white border-slate-200'
                         } outline-none focus:border-amber-500`}
                       />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Situação do Vale</label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 text-xs font-bold select-none cursor-pointer">
-                          <input
-                            type="radio"
-                            name="formStatus"
-                            checked={formStatus === 'Pendente'}
-                            onChange={() => setFormStatus('Pendente')}
-                            className="accent-amber-500 scale-110"
-                          />
-                          Ativo (Pendente de Desconto)
-                        </label>
-                        <label className="flex items-center gap-2 text-xs font-bold select-none cursor-pointer">
-                          <input
-                            type="radio"
-                            name="formStatus"
-                            checked={formStatus === 'Descontado'}
-                            onChange={() => setFormStatus('Descontado')}
-                            className="accent-amber-500 scale-110"
-                          />
-                          Descontado na Folha de Pagamento
-                        </label>
-                      </div>
                     </div>
                   </>
                 )}
