@@ -27,6 +27,7 @@ import Checklist from "./pages/Checklist";
 import AccountsPayable from "./pages/AccountsPayable";
 import AuditLogs from "./pages/AuditLogs";
 import Marketing from "./pages/Marketing";
+import DailyControl from "./pages/DailyControl";
 
 import { useEffect, useRef } from "react";
 import { useAuth } from "./contexts/AuthContext";
@@ -109,7 +110,16 @@ function RootAdminOnlyRoute({ children }: { children: React.ReactNode }) {
 function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const hasAccess =
-    user && (user.username === "adm" || user.username === "victordiretor");
+    user && (
+      user.username === "adm" || 
+      user.username === "victordiretor" ||
+      user.role === "FINANCIAL" ||
+      user.role === "ADMIN" ||
+      user.role === "MANAGER" ||
+      user.role === "MANAGER_BEBELU_MOSSORO" ||
+      user.role === "MANAGER_BEBELU_RIOMAR_PAPICU" ||
+      user.role === "MANAGER_4ESTYLOS_MOSSORO"
+    );
   if (!hasAccess) {
     return (
       <UnauthorizedRedirect routeName="Demonstrativo DRE / Fluxo Financeiro" />
@@ -161,6 +171,9 @@ function AuditNavigationTracker() {
         break;
       case "/accounts-payable":
         routeDescription = "Abriu a Gestão de Contas a Pagar.";
+        break;
+      case "/daily-control":
+        routeDescription = "Acessou o controle de Despesas Diárias e Vales de Funcionários.";
         break;
       case "/checklist":
         routeDescription =
@@ -234,6 +247,7 @@ function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/cash-closing" element={<CashClosing />} />
           <Route path="/data-entry" element={<DataEntry />} />
+          <Route path="/daily-control" element={<DailyControl />} />
           <Route
             path="/finance"
             element={

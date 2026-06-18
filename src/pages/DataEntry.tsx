@@ -621,23 +621,54 @@ export default function DataEntry() {
 
   const years = ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'];
 
-  const handleSave = () => {
+  const handleSave = (isAutoSave = false) => {
+    if (isLoading) {
+      console.warn("Save aborted: Month transition is in progress.");
+      return;
+    }
     // 0. Recalculate total revenue from channels
     const totalDelivery = receitaIfood + receitaWedo;
     const totalRevenue = receitaBalcao + totalDelivery;
+
+    if (isAutoSave) {
+      const existingData = dreTimeline.find(d => d.month === currentMonthLabel && (d.year === selectedYear || (!d.year && selectedYear === '2026')));
+      if (existingData && existingData.faturamento > 0 && totalRevenue === 0) {
+        console.warn("Auto-save aborted: prevented zeroing out active faturamento data during potential transition lag.");
+        return;
+      }
+    }
     setReceitaDelivery(totalDelivery);
     setRevenue(totalRevenue);
 
     // Derived totals for calculations
     const totalTaxes = (deducoes.darfSimples || 0);
-    const totalVariaveis = (Object.values(despesasVariaveis) as number[]).reduce((a, b) => a + b, 0);
+    // Do not include griSecretaria in totalVariaveis as it is deducted as part of Group 10 (Impostos/GRI) to prevent double counting
+    const totalVariaveis = 
+      (Number(despesasVariaveis.taxaCartao) || 0) +
+      (Number(despesasVariaveis.taxaMotoqueiro) || 0) +
+      (Number(despesasVariaveis.taxaIfood) || 0) +
+      (Number(despesasVariaveis.freteCompras) || 0) +
+      (Number(despesasVariaveis.fundoMarketing) || 0) +
+      (Number(despesasVariaveis.royalties) || 0) +
+      (Number(despesasVariaveis.taxaBancariaJuros) || 0) +
+      (Number(despesasVariaveis.taxaPix) || 0) +
+      (Number(despesasVariaveis.bonificacoes) || 0) +
+      (Number(despesasVariaveis.descontos) || 0) +
+      (Number(despesasVariaveis.despesasIfood) || 0);
+
     const totalPayroll = (Object.values(colaboradores) as number[]).reduce((a, b) => a + b, 0);
     const totalFunc = (Object.values(funcionamento) as number[]).reduce((a, b) => a + b, 0);
     const totalManut = (Object.values(manutencao) as number[]).reduce((a, b) => a + b, 0);
     const totalComer = (Object.values(comerciais) as number[]).reduce((a, b) => a + b, 0);
     const totalAdmin = (Object.values(administrativas) as number[]).reduce((a, b) => a + b, 0);
     const totalOperacionalFixa = totalPayroll + totalFunc + totalManut + totalComer + totalAdmin;
-    const totalFinanc = (Object.values(resultadoFinanceiro) as number[]).reduce((a, b) => a + b, 0);
+    
+    // Subtract jurosRecebidos because it is revenue; sum the other financial expenses.
+    const totalFinanc = 
+      (Number(resultadoFinanceiro.taxasIfood) || 0) +
+      (Number(resultadoFinanceiro.tarifasBancarias) || 0) +
+      (Number(resultadoFinanceiro.taxasBancarias) || 0) -
+      (Number(resultadoFinanceiro.jurosRecebidos) || 0);
 
     // 1. Update Metas & Performance
     const updatedMeta = [
@@ -662,8 +693,9 @@ export default function DataEntry() {
     // 4. Update Financial (DRE Timeline)
     const margemContribuicao = totalRevenue - totalTaxes - cmvTotal - totalVariaveis;
     const ebitda = margemContribuicao - totalOperacionalFixa;
+    const finalGRI = Number(despesasVariaveis.griSecretaria) || 0;
     const resultadoAntesGRI = ebitda - totalFinanc;
-    const netProfit = resultadoAntesGRI - griFinal;
+    const netProfit = resultadoAntesGRI - finalGRI;
     
     const newDRE: DREData = {
       month: currentMonthLabel || '',
@@ -699,7 +731,7 @@ export default function DataEntry() {
         comerciais,
         administrativas,
         resultadoFinanceiro,
-        griFinal,
+        griFinal: finalGRI,
         salesByHour: salesByHourLocal,
         marketingCampaigns: {
           pedidosPromocao: mktPedidosPromocao || 0,
@@ -1439,7 +1471,7 @@ export default function DataEntry() {
                       value={mktPedidosPromocao || ''}
                       onPaste={(e) => handleNumericPaste(e, setMktPedidosPromocao)}
                       onChange={(e) => setMktPedidosPromocao(e.target.value === '' ? 0 : Number(e.target.value))}
-                      onBlur={handleSave}
+                      onBlur={() => handleSave(true)}
                       className={`w-full px-4 py-3 rounded-xl border outline-none font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-red-500' : 'bg-white border-slate-200 text-slate-800 focus:border-red-500'}`}
                     />
                   </div>
@@ -1451,7 +1483,7 @@ export default function DataEntry() {
                       value={mktPedidosMaisDeUmaPromo || ''}
                       onPaste={(e) => handleNumericPaste(e, setMktPedidosMaisDeUmaPromo)}
                       onChange={(e) => setMktPedidosMaisDeUmaPromo(e.target.value === '' ? 0 : Number(e.target.value))}
-                      onBlur={handleSave}
+                      onBlur={() => handleSave(true)}
                       className={`w-full px-4 py-3 rounded-xl border outline-none font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-red-500' : 'bg-white border-slate-200 text-slate-800 focus:border-red-500'}`}
                     />
                   </div>
@@ -1465,7 +1497,7 @@ export default function DataEntry() {
                         value={mktVendasValor || ''}
                         onPaste={(e) => handleNumericPaste(e, setMktVendasValor)}
                         onChange={(e) => setMktVendasValor(e.target.value === '' ? 0 : Number(e.target.value))}
-                        onBlur={handleSave}
+                        onBlur={() => handleSave(true)}
                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-red-500' : 'bg-white border-slate-200 text-slate-800 focus:border-red-500'}`}
                       />
                     </div>
@@ -1480,7 +1512,7 @@ export default function DataEntry() {
                         value={mktInvestidoLoja || ''}
                         onPaste={(e) => handleNumericPaste(e, setMktInvestidoLoja)}
                         onChange={(e) => setMktInvestidoLoja(e.target.value === '' ? 0 : Number(e.target.value))}
-                        onBlur={handleSave}
+                        onBlur={() => handleSave(true)}
                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-red-500' : 'bg-white border-slate-200 text-slate-800 focus:border-red-500'}`}
                       />
                     </div>
@@ -1495,7 +1527,7 @@ export default function DataEntry() {
                         value={mktInvestidoPlataforma || ''}
                         onPaste={(e) => handleNumericPaste(e, setMktInvestidoPlataforma)}
                         onChange={(e) => setMktInvestidoPlataforma(e.target.value === '' ? 0 : Number(e.target.value))}
-                        onBlur={handleSave}
+                        onBlur={() => handleSave(true)}
                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-red-500' : 'bg-white border-slate-200 text-slate-800 focus:border-red-500'}`}
                       />
                     </div>
@@ -1528,7 +1560,7 @@ export default function DataEntry() {
                             value={tempoMedio}
                             onPaste={(e) => handleNumericPaste(e, setTempoMedio)}
                             onChange={(e) => setTempoMedio(Number(e.target.value))}
-                            onBlur={handleSave}
+                            onBlur={() => handleSave(true)}
                             className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-[#121212] border-[#333]' : 'bg-white border-slate-200'}`} 
                           />
                         </div>
@@ -1546,7 +1578,7 @@ export default function DataEntry() {
                             value={avaliacaoIfood}
                             onPaste={(e) => handleNumericPaste(e, setAvaliacaoIfood)}
                             onChange={(e) => setAvaliacaoIfood(Number(e.target.value))}
-                            onBlur={handleSave}
+                            onBlur={() => handleSave(true)}
                             className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-[#121212] border-[#333]' : 'bg-white border-slate-200'}`} 
                           />
                         </div>

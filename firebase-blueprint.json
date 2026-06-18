@@ -76,6 +76,15 @@
       },
       "required": ["data"]
     },
+    "DailyControl": {
+      "title": "Daily Control Data",
+      "description": "Object containing arrays of daily expenses and vouchers",
+      "type": "object",
+      "properties": {
+        "data": { "type": "object" }
+      },
+      "required": ["data"]
+    },
     "Closings": {
       "title": "Store Closings",
       "description": "Faturamento and closings map for a store",
@@ -141,6 +150,10 @@
     "/stores/{storeId}/accounts_payable/all": {
       "schema": "AccountsPayable",
       "description": "All accounts payable items"
+    },
+    "/stores/{storeId}/daily_control/all": {
+      "schema": "DailyControl",
+      "description": "All daily expenses and employee advances"
     },
     "/stores/{storeId}/closings/all": {
       "schema": "Closings",

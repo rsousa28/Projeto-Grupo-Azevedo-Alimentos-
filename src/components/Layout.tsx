@@ -23,7 +23,8 @@ import {
   Activity,
   Sun,
   Moon,
-  Megaphone
+  Megaphone,
+  DollarSign
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -46,6 +47,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
   { icon: Megaphone, label: 'Marketing', path: '/marketing', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
+  { icon: DollarSign, label: 'Despesas e Vales', path: '/daily-control', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: Receipt, label: 'Contas a Pagar', path: '/accounts-payable', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
   { icon: Shield, label: 'Logs de Acesso', path: '/audit-logs', allowedRoles: ['ADMIN'] },
@@ -93,7 +95,16 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       return false; // strictly restricted to consolidated ROOT view only
     }
     if (item.path === '/finance') {
-      return user?.username === 'adm' || user?.username === 'victordiretor';
+      return (
+        user?.username === 'adm' || 
+        user?.username === 'victordiretor' ||
+        user?.role === 'FINANCIAL' ||
+        user?.role === 'ADMIN' ||
+        user?.role === 'MANAGER' ||
+        user?.role === 'MANAGER_BEBELU_MOSSORO' ||
+        user?.role === 'MANAGER_BEBELU_RIOMAR_PAPICU' ||
+        user?.role === 'MANAGER_4ESTYLOS_MOSSORO'
+      );
     }
     if (item.path === '/marketing') {
       return user?.username === 'adm';

@@ -78,6 +78,8 @@ export default function DataEntrySection({
     setPeakHour,
     saveCMVPeriod,
     saveDREPeriod,
+    loadDREPeriod,
+    loadCMVPeriod,
   } = useStore();
 
   const isBebeluRioMar = currentStore?.id === '2' || currentStore?.code === 'B28';
@@ -247,6 +249,7 @@ export default function DataEntrySection({
   const [saved, setSaved] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [selectedYear, setSelectedYear] = useState(initialYear);
+  const [isChangingPeriod, setIsChangingPeriod] = useState(false);
 
   // Sync with props
   useEffect(() => {
@@ -488,6 +491,21 @@ export default function DataEntrySection({
 
   const currentMonthLabel = months.find(m => m.value === selectedMonth)?.label;
 
+  // EFFECT: Fetch period data from Firestore whenever selectedMonth or selectedYear changes
+  useEffect(() => {
+    if (selectedMonth && selectedYear && currentStore.id) {
+      setIsChangingPeriod(true);
+      Promise.all([
+        loadDREPeriod(selectedMonth, selectedYear),
+        loadCMVPeriod(selectedMonth, selectedYear)
+      ]).finally(() => {
+        setTimeout(() => {
+          setIsChangingPeriod(false);
+        }, 300);
+      });
+    }
+  }, [selectedMonth, selectedYear, currentStore.id]);
+
   // EFFECT: Sync Delivery Revenue with Ifood + Wedo
   useEffect(() => {
     setReceitaDelivery(receitaIfood + receitaWedo);
@@ -620,23 +638,55 @@ export default function DataEntrySection({
 
   const years = ['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'];
 
-  const handleSave = async () => {
+  const handleSave = async (isAutoSave = false) => {
+    if (isChangingPeriod) {
+      console.warn("Save aborted: Month transition is in progress.");
+      return;
+    }
     const totalDelivery = receitaIfood + receitaWedo;
     const totalRevenue = receitaBalcao + totalDelivery;
+
+    if (isAutoSave) {
+      const existingData = dreTimeline.find(d => d.month === currentMonthLabel && (d.year === selectedYear || (!d.year && selectedYear === '2026')));
+      if (existingData && existingData.faturamento > 0 && totalRevenue === 0) {
+        console.warn("Auto-save aborted: prevented zeroing out active faturamento data during potential transition lag.");
+        return;
+      }
+    }
+
     const currentCmvTotal = cmvBalcao + cmvDelivery;
     setReceitaDelivery(totalDelivery);
     setRevenue(totalRevenue);
     setCmvTotal(currentCmvTotal);
 
     const totalTaxes = (deducoes.darfSimples || 0);
-    const totalVariaveis = (Object.values(despesasVariaveis) as number[]).reduce((a, b) => a + b, 0);
+    // Do not include griSecretaria in totalVariaveis as it is deducted as part of Group 10 (Impostos/GRI) to prevent double counting
+    const totalVariaveis = 
+      (Number(despesasVariaveis.taxaCartao) || 0) +
+      (Number(despesasVariaveis.taxaMotoqueiro) || 0) +
+      (Number(despesasVariaveis.taxaIfood) || 0) +
+      (Number(despesasVariaveis.freteCompras) || 0) +
+      (Number(despesasVariaveis.fundoMarketing) || 0) +
+      (Number(despesasVariaveis.royalties) || 0) +
+      (Number(despesasVariaveis.taxaBancariaJuros) || 0) +
+      (Number(despesasVariaveis.taxaPix) || 0) +
+      (Number(despesasVariaveis.bonificacoes) || 0) +
+      (Number(despesasVariaveis.descontos) || 0) +
+      (Number(despesasVariaveis.despesasIfood) || 0);
+
     const totalPayroll = (Object.values(colaboradores) as number[]).reduce((a, b) => a + b, 0);
     const totalFunc = (Object.values(funcionamento) as number[]).reduce((a, b) => a + b, 0);
     const totalManut = (Object.values(manutencao) as number[]).reduce((a, b) => a + b, 0);
     const totalComer = (Object.values(comerciais) as number[]).reduce((a, b) => a + b, 0);
     const totalAdmin = (Object.values(administrativas) as number[]).reduce((a, b) => a + b, 0);
     const totalOperacionalFixa = totalPayroll + totalFunc + totalManut + totalComer + totalAdmin;
-    const totalFinanc = (Object.values(resultadoFinanceiro) as number[]).reduce((a, b) => a + b, 0);
+    
+    // Subtract jurosRecebidos because it is revenue; sum the other financial expenses.
+    const totalFinanc = 
+      (Number(resultadoFinanceiro.taxasIfood) || 0) +
+      (Number(resultadoFinanceiro.tarifasBancarias) || 0) +
+      (Number(resultadoFinanceiro.taxasBancarias) || 0) -
+      (Number(resultadoFinanceiro.jurosRecebidos) || 0);
 
     const updatedMeta = [
       { name: 'Meta', valor: faturamentoMeta, color: '#8884d8' },
@@ -657,8 +707,9 @@ export default function DataEntrySection({
     
     const margemContribuicao = totalRevenue - totalTaxes - currentCmvTotal - totalVariaveis;
     const ebitda = margemContribuicao - totalOperacionalFixa;
+    const finalGRI = Number(despesasVariaveis.griSecretaria) || 0;
     const resultadoAntesGRI = ebitda - totalFinanc;
-    const netProfit = resultadoAntesGRI - griFinal;
+    const netProfit = resultadoAntesGRI - finalGRI;
     
     const newDRE: DREData = {
       month: currentMonthLabel || '',
@@ -704,7 +755,7 @@ export default function DataEntrySection({
         comerciais,
         administrativas,
         resultadoFinanceiro,
-        griFinal,
+        griFinal: finalGRI,
         salesByHour: localSalesByHour,
         marketingCampaigns: {
           pedidosPromocao: mktPedidosPromocao || 0,
@@ -1169,7 +1220,7 @@ export default function DataEntrySection({
                       value={tempoMedio} 
                       onPaste={(e) => handleNumericPaste(e, setTempoMedio)} 
                       onChange={(e) => setTempoMedio(Number(e.target.value))} 
-                      onBlur={handleSave}
+                      onBlur={() => handleSave(true)}
                       className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                     />
                   </div>
@@ -1181,7 +1232,7 @@ export default function DataEntrySection({
                       value={avaliacaoIfood} 
                       onPaste={(e) => handleNumericPaste(e, setAvaliacaoIfood)} 
                       onChange={(e) => setAvaliacaoIfood(Number(e.target.value))} 
-                      onBlur={handleSave}
+                      onBlur={() => handleSave(true)}
                       className={`w-full px-4 py-3 rounded-xl border outline-none font-bold text-indigo-600 ${isDarkMode ? 'bg-black/40 border-[#333]' : 'bg-white border-slate-200'}`} 
                     />
                   </div>
@@ -1352,7 +1403,7 @@ export default function DataEntrySection({
                         value={mktVendasValor || ''}
                         onPaste={(e) => handleNumericPaste(e, setMktVendasValor)}
                         onChange={(e) => setMktVendasValor(e.target.value === '' ? 0 : Number(e.target.value))}
-                        onBlur={handleSave}
+                        onBlur={() => handleSave(true)}
                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold focus:ring-2 focus:ring-[#E63946] transition-all ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-[#E63946]' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-[#E63946]'}`}
                       />
                     </div>
@@ -1367,7 +1418,7 @@ export default function DataEntrySection({
                         value={mktInvestidoLoja || ''}
                         onPaste={(e) => handleNumericPaste(e, setMktInvestidoLoja)}
                         onChange={(e) => setMktInvestidoLoja(e.target.value === '' ? 0 : Number(e.target.value))}
-                        onBlur={handleSave}
+                        onBlur={() => handleSave(true)}
                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold focus:ring-2 focus:ring-[#E63946] transition-all ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-[#E63946]' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-[#E63946]'}`}
                       />
                     </div>
