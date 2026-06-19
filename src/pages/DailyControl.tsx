@@ -75,7 +75,7 @@ export default function DailyControl() {
   const { user } = useAuth();
   const { success: toastSuccess, error: toastError, warning: toastWarning } = useToast();
 
-  const isRoot = currentStore.id === 'admin-global';
+  const isRoot = user?.role === 'ADMIN' || currentStore.id === 'admin-global';
 
   // State
   const [activeTab, setActiveTab] = useState<'expenses' | 'vouchers'>('expenses');
@@ -85,7 +85,7 @@ export default function DailyControl() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedStoreId, setSelectedStoreId] = useState<string>(
-    isRoot ? 'all' : currentStore.id
+    currentStore.id === 'admin-global' ? 'all' : currentStore.id
   );
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -119,20 +119,196 @@ export default function DailyControl() {
   const [formNotes, setFormNotes] = useState('');
   const [formStoreId, setFormStoreId] = useState('');
 
+  // One-time automatic migration of June 2026 from B32 to B28 if any exists
+  const runMigrationB32toB28 = async () => {
+    // Check if we have already run the migration in this session
+    if (localStorage.getItem('g_azevedo_migration_b32_b28_v4_done') === 'true') {
+      return false;
+    }
+
+    try {
+      const store1Id = '1'; // Bebelu Mossoró (B32)
+      const store2Id = '2'; // Bebelu Riomar Papicu (B28)
+      const targetPeriodId = 'period_2026_06';
+      const datePrefix = '2026-06';
+      let migratedAny = false;
+
+      // Load period_2026_06 check
+      const docRef1 = doc(db, 'stores', store1Id, 'daily_control', targetPeriodId);
+      const docSnap1 = await getDoc(docRef1);
+
+      if (docSnap1.exists() && docSnap1.data().data) {
+        const s1Data = docSnap1.data().data;
+        const s1Expenses = s1Data.expenses || [];
+        const s1Vouchers = s1Data.vouchers || [];
+
+        const expensesToMove = s1Expenses.filter((e: any) => e.date && e.date.startsWith(datePrefix));
+        const vouchersToMove = s1Vouchers.filter((v: any) => v.date && v.date.startsWith(datePrefix));
+
+        if (expensesToMove.length > 0 || vouchersToMove.length > 0) {
+          // Fetch Store 2 target period doc
+          const docRef2 = doc(db, 'stores', store2Id, 'daily_control', targetPeriodId);
+          const docSnap2 = await getDoc(docRef2);
+          const s2Data = docSnap2.exists() ? docSnap2.data().data : { expenses: [], vouchers: [] };
+
+          const store2Expenses = s2Data?.expenses || [];
+          const store2Vouchers = s2Data?.vouchers || [];
+
+          // Format items to move with destination properties
+          const updatedExpensesToMove = expensesToMove.map((e: any) => ({
+            ...e,
+            storeId: store2Id,
+            storeName: 'Bebelu Riomar Papicu'
+          }));
+          const updatedVouchersToMove = vouchersToMove.map((v: any) => ({
+            ...v,
+            storeId: store2Id,
+            storeName: 'Bebelu Riomar Papicu'
+          }));
+
+          // Merge without duplicates
+          const mergedExpenses = [...store2Expenses];
+          for (const item of updatedExpensesToMove) {
+            const isDup = mergedExpenses.some((x: any) => x.date === item.date && x.description === item.description && x.value === item.value);
+            if (!isDup) {
+              mergedExpenses.push(item);
+            }
+          }
+
+          const mergedVouchers = [...store2Vouchers];
+          for (const item of updatedVouchersToMove) {
+            const isDup = mergedVouchers.some((x: any) => x.date === item.date && x.employeeName === item.employeeName && x.value === item.value);
+            if (!isDup) {
+              mergedVouchers.push(item);
+            }
+          }
+
+          // Save Store 2 period doc
+          await setDoc(docRef2, {
+            data: {
+              expenses: mergedExpenses,
+              vouchers: mergedVouchers
+            },
+            updatedAt: new Date().toISOString()
+          });
+
+          // Save Store 1 period doc minus moved items
+          const remainingExpenses = s1Expenses.filter((e: any) => !(e.date && e.date.startsWith(datePrefix)));
+          const remainingVouchers = s1Vouchers.filter((v: any) => !(v.date && v.date.startsWith(datePrefix)));
+
+          await setDoc(docRef1, {
+            data: {
+              expenses: remainingExpenses,
+              vouchers: remainingVouchers
+            },
+            updatedAt: new Date().toISOString()
+          });
+          
+          migratedAny = true;
+          console.log('Migration b32_b28 inside period_2026_06 completed successfully.');
+        }
+      }
+
+      // Check fallback 'all' doc as well
+      const allDocRef1 = doc(db, 'stores', store1Id, 'daily_control', 'all');
+      const allDocSnap1 = await getDoc(allDocRef1);
+
+      if (allDocSnap1.exists() && allDocSnap1.data().data) {
+        const s1Data = allDocSnap1.data().data;
+        const s1Expenses = s1Data.expenses || [];
+        const s1Vouchers = s1Data.vouchers || [];
+
+        const expensesToMove = s1Expenses.filter((e: any) => e.date && e.date.startsWith(datePrefix));
+        const vouchersToMove = s1Vouchers.filter((v: any) => v.date && v.date.startsWith(datePrefix));
+
+        if (expensesToMove.length > 0 || vouchersToMove.length > 0) {
+          const allDocRef2 = doc(db, 'stores', store2Id, 'daily_control', 'all');
+          const allDocSnap2 = await getDoc(allDocRef2);
+          const s2Data = allDocSnap2.exists() ? allDocSnap2.data().data : { expenses: [], vouchers: [] };
+
+          const store2Expenses = s2Data?.expenses || [];
+          const store2Vouchers = s2Data?.vouchers || [];
+
+          const updatedExpensesToMove = expensesToMove.map((e: any) => ({
+            ...e,
+            storeId: store2Id,
+            storeName: 'Bebelu Riomar Papicu'
+          }));
+          const updatedVouchersToMove = vouchersToMove.map((v: any) => ({
+            ...v,
+            storeId: store2Id,
+            storeName: 'Bebelu Riomar Papicu'
+          }));
+
+          const mergedExpenses = [...store2Expenses];
+          for (const item of updatedExpensesToMove) {
+            const isDup = mergedExpenses.some((x: any) => x.date === item.date && x.description === item.description && x.value === item.value);
+            if (!isDup) {
+              mergedExpenses.push(item);
+            }
+          }
+
+          const mergedVouchers = [...store2Vouchers];
+          for (const item of updatedVouchersToMove) {
+            const isDup = mergedVouchers.some((x: any) => x.date === item.date && x.employeeName === item.employeeName && x.value === item.value);
+            if (!isDup) {
+              mergedVouchers.push(item);
+            }
+          }
+
+          await setDoc(allDocRef2, {
+            data: {
+              expenses: mergedExpenses,
+              vouchers: mergedVouchers
+            },
+            updatedAt: new Date().toISOString()
+          });
+
+          const remainingExpenses = s1Expenses.filter((e: any) => !(e.date && e.date.startsWith(datePrefix)));
+          const remainingVouchers = s1Vouchers.filter((v: any) => !(v.date && v.date.startsWith(datePrefix)));
+
+          await setDoc(allDocRef1, {
+            data: {
+              expenses: remainingExpenses,
+              vouchers: remainingVouchers
+            },
+            updatedAt: new Date().toISOString()
+          });
+          
+          migratedAny = true;
+          console.log('Migration b32_b28 inside "all" completed successfully.');
+        }
+      }
+
+      // Mark as done to prevent checking again this session
+      localStorage.setItem('g_azevedo_migration_b32_b28_v4_done', 'true');
+      return migratedAny;
+    } catch (err) {
+      console.error('Error during automatic data migration from B32 to B28:', err);
+      return false;
+    }
+  };
+
   // Synchronize store selections
   useEffect(() => {
-    if (!isRoot) {
+    if (currentStore.id !== 'admin-global') {
       setSelectedStoreId(currentStore.id);
     } else {
       setSelectedStoreId('all');
     }
-  }, [currentStore, isRoot]);
+  }, [currentStore]);
 
   // Load Data
   const loadDailyData = async () => {
     setLoading(true);
     const docId = `period_${selectedYear}_${selectedMonth}`;
     try {
+      // Auto migrate June 2026 data from B32 to B28 if present
+      const migrated = await runMigrationB32toB28();
+      if (migrated) {
+        toastSuccess("Ajuste concluído! Lançamentos de Junho/2026 da unidade B32 foram movidos com sucesso para a unidade B28.");
+      }
+
       if (isRoot) {
         // Root reads all stores
         const allExpenses: DailyExpense[] = [];
