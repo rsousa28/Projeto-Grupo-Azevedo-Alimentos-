@@ -512,6 +512,16 @@ export default function DataEntrySection({
     }
   }, [selectedMonth, selectedYear, currentStore.id]);
 
+  // EFFECT: Fetch all months of the selectedYear to ensure timeline charts (like Marketing and YoY) are fully populated on load
+  useEffect(() => {
+    if (selectedYear && currentStore.id && currentStore.id !== 'admin-global') {
+      const allMonths = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
+      allMonths.forEach(m => {
+        loadDREPeriod(m, selectedYear);
+      });
+    }
+  }, [selectedYear, currentStore.id]);
+
   // EFFECT: Sync Delivery Revenue with Ifood + Wedo
   useEffect(() => {
     setReceitaDelivery(receitaIfood + receitaWedo);
