@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Save, 
   Plus, 
@@ -147,6 +147,7 @@ export default function DataEntry() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(initialMonthStr); // Current dynamic month
   const [selectedYear, setSelectedYear] = useState(initialYearStr);
+  const loadedPeriodRef = useRef<{ month: string; year: string; storeId: string } | null>(null);
 
   const [salesByHourLocal, setSalesByHourData] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
@@ -480,6 +481,11 @@ export default function DataEntry() {
         }
       }
       if (isMounted) {
+        loadedPeriodRef.current = {
+          month: selectedMonth,
+          year: selectedYear,
+          storeId: currentStore.id
+        };
         setIsLoading(false);
       }
     };
@@ -626,6 +632,17 @@ export default function DataEntry() {
       console.warn("Save aborted: Month transition is in progress.");
       return;
     }
+
+    if (
+      !loadedPeriodRef.current ||
+      loadedPeriodRef.current.month !== selectedMonth ||
+      loadedPeriodRef.current.year !== selectedYear ||
+      loadedPeriodRef.current.storeId !== currentStore.id
+    ) {
+      console.warn("Save blocked: Input values do not match the loaded period (prevented race condition overwrite of stale inputs).");
+      return;
+    }
+
     // 0. Recalculate total revenue from channels
     const totalDelivery = receitaIfood + receitaWedo;
     const totalRevenue = receitaBalcao + totalDelivery;

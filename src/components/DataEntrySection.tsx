@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Save, 
   Plus, 
@@ -250,6 +250,7 @@ export default function DataEntrySection({
   const [selectedMonth, setSelectedMonth] = useState(initialMonth);
   const [selectedYear, setSelectedYear] = useState(initialYear);
   const [isChangingPeriod, setIsChangingPeriod] = useState(false);
+  const loadedPeriodRef = useRef<{ month: string; year: string; storeId: string } | null>(null);
 
   // Sync with props
   useEffect(() => {
@@ -499,6 +500,11 @@ export default function DataEntrySection({
         loadDREPeriod(selectedMonth, selectedYear),
         loadCMVPeriod(selectedMonth, selectedYear)
       ]).finally(() => {
+        loadedPeriodRef.current = {
+          month: selectedMonth,
+          year: selectedYear,
+          storeId: currentStore.id
+        };
         setTimeout(() => {
           setIsChangingPeriod(false);
         }, 300);
@@ -643,6 +649,17 @@ export default function DataEntrySection({
       console.warn("Save aborted: Month transition is in progress.");
       return;
     }
+
+    if (
+      !loadedPeriodRef.current ||
+      loadedPeriodRef.current.month !== selectedMonth ||
+      loadedPeriodRef.current.year !== selectedYear ||
+      loadedPeriodRef.current.storeId !== currentStore.id
+    ) {
+      console.warn("Save blocked: Input values do not match the loaded period (prevented race condition overwrite of stale inputs).");
+      return;
+    }
+
     const totalDelivery = receitaIfood + receitaWedo;
     const totalRevenue = receitaBalcao + totalDelivery;
 
