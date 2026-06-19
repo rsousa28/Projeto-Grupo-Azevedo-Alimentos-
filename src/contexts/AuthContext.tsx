@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '../types';
 import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, doc, deleteDoc } from 'firebase/firestore';
 import { AuditService } from '../services/AuditService';
 import { sha256 } from '../utils/crypto';
 
@@ -18,9 +18,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Clear user on mount to force login every time
+  // Clear user on mount to force login every time and clean up deleted users from DB
   useEffect(() => {
     localStorage.removeItem('auth_user');
+
+    // Clean up Victor and Paloma from firestore on startup to ensure removal is permanent
+    const cleanupBadUsers = async () => {
+      try {
+        const usersRef = collection(db, 'users');
+        const qUsers = await getDocs(usersRef);
+        qUsers.forEach(async (docSnap) => {
+          const uData = docSnap.data();
+          const usernameLower = (uData.username || '').toLowerCase();
+          const nameLower = (uData.name || '').toLowerCase();
+          if (
+            usernameLower === 'victordiretor' || 
+            usernameLower === 'paloma' ||
+            nameLower.includes('paloma') ||
+            nameLower.includes('victor')
+          ) {
+            console.log(`Auto-deleting restricted user: ${uData.name} (@${uData.username})`);
+            await deleteDoc(doc(db, 'users', docSnap.id));
+          }
+        });
+      } catch (err) {
+        console.error("Error auto-cleaning up restricted users:", err);
+      }
+    };
+    cleanupBadUsers();
+
     setIsLoading(false);
   }, []);
 
@@ -83,25 +109,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userRole: adminUser.role,
           action: 'LOGIN_SUCCESS',
           description: `Login realizado com sucesso como Admin Geral.`
-        });
-        return;
-      }
-
-      if (u === 'victordiretor' && p === '1234') {
-        const victorUser: User = { 
-          id: 'victor-diretor', 
-          name: 'Victor - Diretor Grupo AZ', 
-          username: 'victordiretor', 
-          role: 'FINANCIAL' 
-        };
-        setUser(victorUser);
-        localStorage.setItem('auth_user', JSON.stringify(victorUser));
-        await AuditService.logAction({
-          userId: victorUser.id,
-          userName: victorUser.name,
-          userRole: victorUser.role,
-          action: 'LOGIN_SUCCESS',
-          description: `Login realizado com sucesso como Diretor.`
         });
         return;
       }

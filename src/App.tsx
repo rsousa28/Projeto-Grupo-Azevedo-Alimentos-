@@ -78,16 +78,7 @@ function UnauthorizedRedirect({ routeName }: { routeName: string }) {
 function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const hasAccess =
-    user &&
-    (user.username === "adm" ||
-      user.username === "victordiretor" ||
-      user.username === "patriciab28" ||
-      user.username?.toLowerCase().includes("andressa") ||
-      user.username?.toLowerCase().includes("jef") ||
-      user.username?.toLowerCase().includes("michele") ||
-      user.role === "ADMIN" ||
-      user.role === "MANAGER" ||
-      user.role?.startsWith("MANAGER_"));
+    user && (user.role === "ADMIN" || user.username === "adm");
   if (!hasAccess) {
     return (
       <UnauthorizedRedirect routeName="Contas a Pagar (Accounts Payable)" />
@@ -110,16 +101,7 @@ function RootAdminOnlyRoute({ children }: { children: React.ReactNode }) {
 function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const hasAccess =
-    user && (
-      user.username === "adm" || 
-      user.username === "victordiretor" ||
-      user.role === "FINANCIAL" ||
-      user.role === "ADMIN" ||
-      user.role === "MANAGER" ||
-      user.role === "MANAGER_BEBELU_MOSSORO" ||
-      user.role === "MANAGER_BEBELU_RIOMAR_PAPICU" ||
-      user.role === "MANAGER_4ESTYLOS_MOSSORO"
-    );
+    user && (user.role === "ADMIN" || user.username === "adm");
   if (!hasAccess) {
     return (
       <UnauthorizedRedirect routeName="Demonstrativo DRE / Fluxo Financeiro" />

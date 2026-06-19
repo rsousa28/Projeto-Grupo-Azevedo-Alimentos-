@@ -41,7 +41,6 @@ import {
 
 const DEFAULT_SYSTEM_USERS: { id: string; name: string; username: string; role: User['role']; defaultPassword: string }[] = [
   { id: 'root-admin', name: 'Admin Geral Grupo AZ', username: 'adm', role: 'ADMIN', defaultPassword: '88028837' },
-  { id: 'victor-diretor', name: 'Victor - Diretor Grupo AZ', username: 'victordiretor', role: 'FINANCIAL', defaultPassword: '1234' },
   { id: 'patricia-b28', name: 'Patrícia - Bebelu Papicu', username: 'patriciab28', role: 'MANAGER_BEBELU_RIOMAR_PAPICU', defaultPassword: 'b28' },
   { id: 'andressa-b32', name: 'Andressa - Bebelu Mossoró', username: 'andressab32', role: 'MANAGER_BEBELU_MOSSORO', defaultPassword: 'b32' },
   { id: 'jef-4e09', name: 'Jefferson - 4 Estylos Mossoró', username: 'jef4e09', role: 'MANAGER_4ESTYLOS_MOSSORO', defaultPassword: 'jqc26' },

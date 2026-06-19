@@ -45,10 +45,10 @@ const NAV_ITEMS: NavItem[] = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
   { icon: ClipboardCheck, label: 'Checklists', path: '/checklist' },
   { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
-  { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
-  { icon: Megaphone, label: 'Marketing', path: '/marketing', allowedRoles: [...EXECUTIVE_MANAGERS, 'FINANCIAL'] },
+  { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: ['ADMIN'] },
+  { icon: Megaphone, label: 'Marketing', path: '/marketing', allowedRoles: ['ADMIN'] },
   { icon: DollarSign, label: 'Despesas e Vales', path: '/daily-control', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
-  { icon: Receipt, label: 'Contas a Pagar', path: '/accounts-payable', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
+  { icon: Receipt, label: 'Contas a Pagar', path: '/accounts-payable', allowedRoles: ['ADMIN'] },
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
   { icon: Shield, label: 'Logs de Acesso', path: '/audit-logs', allowedRoles: ['ADMIN'] },
   { icon: Lock, label: 'Resumo de Segurança', path: '/security-summary', allowedRoles: ['ADMIN'] },
@@ -95,32 +95,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       return false; // strictly restricted to consolidated ROOT view only
     }
     if (item.path === '/finance') {
-      return (
-        user?.username === 'adm' || 
-        user?.username === 'victordiretor' ||
-        user?.role === 'FINANCIAL' ||
-        user?.role === 'ADMIN' ||
-        user?.role === 'MANAGER' ||
-        user?.role === 'MANAGER_BEBELU_MOSSORO' ||
-        user?.role === 'MANAGER_BEBELU_RIOMAR_PAPICU' ||
-        user?.role === 'MANAGER_4ESTYLOS_MOSSORO'
-      );
+      return user?.role === 'ADMIN' || user?.username === 'adm';
     }
     if (item.path === '/marketing') {
-      return user?.username === 'adm';
+      return user?.username === 'adm' || user?.role === 'ADMIN';
     }
     if (item.path === '/accounts-payable') {
-      return (
-        user?.username === 'adm' || 
-        user?.username === 'victordiretor' || 
-        user?.username === 'patriciab28' || 
-        user?.username?.toLowerCase().includes('andressa') ||
-        user?.username?.toLowerCase().includes('jef') ||
-        user?.username?.toLowerCase().includes('michele') ||
-        user?.role === 'ADMIN' ||
-        user?.role === 'MANAGER' ||
-        user?.role?.startsWith('MANAGER_')
-      );
+      return user?.role === 'ADMIN' || user?.username === 'adm';
     }
     if (item.path === '/cmv') {
       const isAndressaOrMichele = 
