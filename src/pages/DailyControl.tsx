@@ -81,12 +81,21 @@ export default function DailyControl() {
   const [activeTab, setActiveTab] = useState<'expenses' | 'vouchers'>('expenses');
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [dateFilter, setDateFilter] = useState<'today' | '7days' | 'month' | 'all'>('month');
+  const [dateFilter, setDateFilter] = useState<'today' | '7days' | 'month' | 'all'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [selectedStoreId, setSelectedStoreId] = useState<string>(
     isRoot ? 'all' : currentStore.id
   );
+
+  const [selectedMonth, setSelectedMonth] = useState(() => {
+    const d = new Date();
+    return String(d.getMonth() + 1).padStart(2, '0');
+  });
+  const [selectedYear, setSelectedYear] = useState(() => {
+    const d = new Date();
+    return String(d.getFullYear());
+  });
 
   // Raw lists stored in Firestore
   // Keyed by store ID to allow fast state caching/switching
@@ -96,12 +105,13 @@ export default function DailyControl() {
   // Modal control
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<any | null>(null);
 
   // Form State
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [formDescription, setFormDescription] = useState('');
   const [formValue, setFormValue] = useState('');
-  const [formCategory, setFormCategory] = useState(EXPENSE_CATEGORIES[0]);
+  const [formCategory, setFormCategory] = useState('');
   const [formPaymentMethod, setFormPaymentMethod] = useState(PAYMENT_METHODS[0]);
   const [formRecipient, setFormRecipient] = useState('');
   const [formStatus, setFormStatus] = useState<'Pago' | 'Pendente' | 'Descontado'>('Pago');
@@ -121,6 +131,7 @@ export default function DailyControl() {
   // Load Data
   const loadDailyData = async () => {
     setLoading(true);
+    const docId = `period_${selectedYear}_${selectedMonth}`;
     try {
       if (isRoot) {
         // Root reads all stores
@@ -132,12 +143,32 @@ export default function DailyControl() {
         for (const storeId of functionalStoreIds) {
           const storeDoc = STORES.find(s => s.id === storeId);
           const storeName = storeDoc ? storeDoc.name : `Unidade ${storeId}`;
-          const path = `/stores/${storeId}/daily_control/all`;
-          const docRef = doc(db, 'stores', storeId, 'daily_control', 'all');
+          const path = `/stores/${storeId}/daily_control/${docId}`;
+          const docRef = doc(db, 'stores', storeId, 'daily_control', docId);
           const docSnap = await getDoc(docRef);
           
+          let rawData: any = null;
+          
           if (docSnap.exists() && docSnap.data().data) {
-            const rawData = docSnap.data().data;
+            rawData = docSnap.data().data;
+          } else {
+            // BACKWARD COMPATIBILITY / FALLBACK to 'all' filtered by year-month
+            const oldDocRef = doc(db, 'stores', storeId, 'daily_control', 'all');
+            const oldDocSnap = await getDoc(oldDocRef);
+            if (oldDocSnap.exists() && oldDocSnap.data().data) {
+              const oldData = oldDocSnap.data().data;
+              const yearMonthString = `${selectedYear}-${selectedMonth}`;
+              const legacyExpenses = (oldData.expenses || []).filter((e: any) => e.date && e.date.startsWith(yearMonthString));
+              const legacyVouchers = (oldData.vouchers || []).filter((v: any) => v.date && v.date.startsWith(yearMonthString));
+              
+              rawData = {
+                expenses: legacyExpenses,
+                vouchers: legacyVouchers
+              };
+            }
+          }
+
+          if (rawData) {
             const expList = (rawData.expenses || []).map((e: any) => ({
               ...e,
               storeId,
@@ -161,8 +192,8 @@ export default function DailyControl() {
         setVouchers(allVouchers);
       } else {
         // Individual store read
-        const path = `/stores/${currentStore.id}/daily_control/all`;
-        const docRef = doc(db, 'stores', currentStore.id, 'daily_control', 'all');
+        const path = `/stores/${currentStore.id}/daily_control/${docId}`;
+        const docRef = doc(db, 'stores', currentStore.id, 'daily_control', docId);
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists() && docSnap.data().data) {
@@ -170,8 +201,21 @@ export default function DailyControl() {
           setExpenses(rawData.expenses || []);
           setVouchers(rawData.vouchers || []);
         } else {
-          setExpenses([]);
-          setVouchers([]);
+          // BACKWARD COMPATIBILITY / FALLBACK to 'all' filtered by year-month
+          const oldDocRef = doc(db, 'stores', currentStore.id, 'daily_control', 'all');
+          const oldDocSnap = await getDoc(oldDocRef);
+          if (oldDocSnap.exists() && oldDocSnap.data().data) {
+            const oldData = oldDocSnap.data().data;
+            const yearMonthString = `${selectedYear}-${selectedMonth}`;
+            const legacyExpenses = (oldData.expenses || []).filter((e: any) => e.date && e.date.startsWith(yearMonthString));
+            const legacyVouchers = (oldData.vouchers || []).filter((v: any) => v.date && v.date.startsWith(yearMonthString));
+            
+            setExpenses(legacyExpenses);
+            setVouchers(legacyVouchers);
+          } else {
+            setExpenses([]);
+            setVouchers([]);
+          }
         }
       }
     } catch (e) {
@@ -184,15 +228,25 @@ export default function DailyControl() {
 
   useEffect(() => {
     loadDailyData();
-  }, [currentStore, isRoot]);
+  }, [currentStore, isRoot, selectedMonth, selectedYear]);
 
   // Open Modal Helpers
   const openAddModal = () => {
     setEditingItem(null);
-    setFormDate(new Date().toISOString().split('T')[0]);
+    
+    // Default to the first day of selectedYear and selectedMonth, or today if today matches selectedYear and selectedMonth
+    const d = new Date();
+    const currentY = String(d.getFullYear());
+    const currentM = String(d.getMonth() + 1).padStart(2, '0');
+    if (selectedYear === currentY && selectedMonth === currentM) {
+      setFormDate(d.toISOString().split('T')[0]);
+    } else {
+      setFormDate(`${selectedYear}-${selectedMonth}-01`);
+    }
+
     setFormDescription('');
     setFormValue('');
-    setFormCategory(EXPENSE_CATEGORIES[0]);
+    setFormCategory('');
     setFormPaymentMethod(activeTab === 'expenses' ? PAYMENT_METHODS[0] : 'Lanche');
     setFormRecipient('');
     setFormStatus(activeTab === 'expenses' ? 'Pago' : 'Pendente');
@@ -207,7 +261,7 @@ export default function DailyControl() {
     setFormDate(item.date);
     setFormDescription(item.description || '');
     setFormValue(String(item.value));
-    setFormCategory(item.category || EXPENSE_CATEGORIES[0]);
+    setFormCategory(item.category || '');
     setFormPaymentMethod(item.paymentMethod || (activeTab === 'vouchers' ? 'Lanche' : PAYMENT_METHODS[0]));
     setFormRecipient(item.recipient || '');
     setFormStatus(item.status);
@@ -238,16 +292,38 @@ export default function DailyControl() {
     const targetStoreName = STORES.find(s => s.id === targetStoreId)?.name || currentStore.name;
 
     try {
-      // 1. Fetch current list for this specific store
-      const docRef = doc(db, 'stores', targetStoreId, 'daily_control', 'all');
-      const docSnap = await getDoc(docRef);
-      
-      let currentExpenses: DailyExpense[] = [];
-      let currentVouchers: DailyVoucher[] = [];
+      // Helper to generate docId based on the item date
+      const getDocIdFromDate = (dateString: string) => {
+        const parts = dateString.split('-');
+        if (parts.length >= 2) {
+          return `period_${parts[0]}_${parts[1]}`;
+        }
+        return `period_${selectedYear}_${selectedMonth}`;
+      };
 
-      if (docSnap.exists() && docSnap.data().data) {
-        currentExpenses = docSnap.data().data.expenses || [];
-        currentVouchers = docSnap.data().data.vouchers || [];
+      const newDocId = getDocIdFromDate(formDate);
+      const isPeriodChanged = editingItem && getDocIdFromDate(editingItem.date) !== newDocId;
+
+      // 1. Fetch current list for this specific store & new period
+      const targetDocRef = doc(db, 'stores', targetStoreId, 'daily_control', newDocId);
+      const targetDocSnap = await getDoc(targetDocRef);
+      
+      let targetExpenses: DailyExpense[] = [];
+      let targetVouchers: DailyVoucher[] = [];
+
+      if (targetDocSnap.exists() && targetDocSnap.data().data) {
+        targetExpenses = targetDocSnap.data().data.expenses || [];
+        targetVouchers = targetDocSnap.data().data.vouchers || [];
+      } else {
+        // Look for older data in 'all' filtered by year-month as fallback
+        const oldDocRef = doc(db, 'stores', targetStoreId, 'daily_control', 'all');
+        const oldDocSnap = await getDoc(oldDocRef);
+        if (oldDocSnap.exists() && oldDocSnap.data().data) {
+          const oldData = oldDocSnap.data().data;
+          const targetYearMonth = newDocId.replace('period_', '').replace('_', '-');
+          targetExpenses = (oldData.expenses || []).filter((e: any) => e.date && e.date.startsWith(targetYearMonth));
+          targetVouchers = (oldData.vouchers || []).filter((v: any) => v.date && v.date.startsWith(targetYearMonth));
+        }
       }
 
       if (activeTab === 'expenses') {
@@ -266,10 +342,12 @@ export default function DailyControl() {
           createdAt: editingItem ? editingItem.createdAt : new Date().toISOString()
         };
 
-        if (editingItem) {
-          currentExpenses = currentExpenses.map(item => item.id === editingItem.id ? payload : item);
+        if (editingItem && !isPeriodChanged) {
+          targetExpenses = targetExpenses.map(item => item.id === editingItem.id ? payload : item);
         } else {
-          currentExpenses.push(payload);
+          // Add or replace
+          targetExpenses = targetExpenses.filter(item => item.id !== payload.id);
+          targetExpenses.push(payload);
         }
       } else {
         const payload: DailyVoucher = {
@@ -286,15 +364,125 @@ export default function DailyControl() {
           createdAt: editingItem ? editingItem.createdAt : new Date().toISOString()
         };
 
-        if (editingItem) {
-          currentVouchers = currentVouchers.map(item => item.id === editingItem.id ? payload : item);
+        if (editingItem && !isPeriodChanged) {
+          targetVouchers = targetVouchers.map(item => item.id === editingItem.id ? payload : item);
         } else {
-          currentVouchers.push(payload);
+          // Add or replace
+          targetVouchers = targetVouchers.filter(item => item.id !== payload.id);
+          targetVouchers.push(payload);
         }
       }
 
-      // Save to firebase
-      const pathForWrite = `/stores/${targetStoreId}/daily_control/all`;
+      // Save to target period document
+      const pathForWrite = `/stores/${targetStoreId}/daily_control/${newDocId}`;
+      try {
+        await setDoc(targetDocRef, {
+          data: {
+            expenses: targetExpenses,
+            vouchers: targetVouchers
+          },
+          updatedAt: new Date().toISOString()
+        });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, pathForWrite);
+      }
+
+      // If the period of the item was modified, we also need to remove it from the old doc
+      if (isPeriodChanged) {
+        const oldDocId = getDocIdFromDate(editingItem.date);
+        const oldDocRef = doc(db, 'stores', targetStoreId, 'daily_control', oldDocId);
+        const oldDocSnap = await getDoc(oldDocRef);
+
+        let oldExpenses: DailyExpense[] = [];
+        let oldVouchers: DailyVoucher[] = [];
+
+        if (oldDocSnap.exists() && oldDocSnap.data().data) {
+          oldExpenses = oldDocSnap.data().data.expenses || [];
+          oldVouchers = oldDocSnap.data().data.vouchers || [];
+        } else {
+          // Try fetching from legacy 'all' filtered
+          const oldDocRefAll = doc(db, 'stores', targetStoreId, 'daily_control', 'all');
+          const oldDocSnapAll = await getDoc(oldDocRefAll);
+          if (oldDocSnapAll.exists() && oldDocSnapAll.data().data) {
+            const oldData = oldDocSnapAll.data().data;
+            const oldYearMonth = oldDocId.replace('period_', '').replace('_', '-');
+            oldExpenses = (oldData.expenses || []).filter((e: any) => e.date && e.date.startsWith(oldYearMonth));
+            oldVouchers = (oldData.vouchers || []).filter((v: any) => v.date && v.date.startsWith(oldYearMonth));
+          }
+        }
+
+        oldExpenses = oldExpenses.filter(e => e.id !== editingItem.id);
+        oldVouchers = oldVouchers.filter(v => v.id !== editingItem.id);
+
+        const pathForOldWrite = `/stores/${targetStoreId}/daily_control/${oldDocId}`;
+        try {
+          await setDoc(oldDocRef, {
+            data: {
+              expenses: oldExpenses,
+              vouchers: oldVouchers
+            },
+            updatedAt: new Date().toISOString()
+          });
+        } catch (err) {
+          handleFirestoreError(err, OperationType.WRITE, pathForOldWrite);
+        }
+      }
+
+      toastSuccess(editingItem ? 'Lançamento atualizado com sucesso!' : 'Novo lançamento cadastrado com sucesso!');
+      setIsModalOpen(false);
+      loadDailyData();
+    } catch (err) {
+      console.error(err);
+      toastError('Ocorreu um erro ao salvar o lançamento no banco de dados.');
+    }
+  };
+
+  // Delete Action
+  const handleDeleteItem = (item: any) => {
+    setItemToDelete(item);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
+    try {
+      const targetStoreId = itemToDelete.storeId;
+      const getDocIdFromDate = (dateString: string) => {
+        const parts = dateString.split('-');
+        if (parts.length >= 2) {
+          return `period_${parts[0]}_${parts[1]}`;
+        }
+        return `period_${selectedYear}_${selectedMonth}`;
+      };
+
+      const docId = getDocIdFromDate(itemToDelete.date);
+      const docRef = doc(db, 'stores', targetStoreId, 'daily_control', docId);
+      const docSnap = await getDoc(docRef);
+
+      let currentExpenses: DailyExpense[] = [];
+      let currentVouchers: DailyVoucher[] = [];
+
+      if (docSnap.exists() && docSnap.data().data) {
+        currentExpenses = docSnap.data().data.expenses || [];
+        currentVouchers = docSnap.data().data.vouchers || [];
+      } else {
+        // Fallback to legacy 'all'
+        const oldDocRef = doc(db, 'stores', targetStoreId, 'daily_control', 'all');
+        const oldDocSnap = await getDoc(oldDocRef);
+        if (oldDocSnap.exists() && oldDocSnap.data().data) {
+          const oldData = oldDocSnap.data().data;
+          const targetYearMonth = docId.replace('period_', '').replace('_', '-');
+          currentExpenses = (oldData.expenses || []).filter((e: any) => e.date && e.date.startsWith(targetYearMonth));
+          currentVouchers = (oldData.vouchers || []).filter((v: any) => v.date && v.date.startsWith(targetYearMonth));
+        }
+      }
+
+      if (activeTab === 'expenses') {
+        currentExpenses = currentExpenses.filter(e => e.id !== itemToDelete.id);
+      } else {
+        currentVouchers = currentVouchers.filter(v => v.id !== itemToDelete.id);
+      }
+
+      const pathForWrite = `/stores/${targetStoreId}/daily_control/${docId}`;
       try {
         await setDoc(docRef, {
           data: {
@@ -307,55 +495,13 @@ export default function DailyControl() {
         handleFirestoreError(err, OperationType.WRITE, pathForWrite);
       }
 
-      toastSuccess(editingItem ? 'Lançamento atualizado com sucesso!' : 'Novo lançamento cadastrado com sucesso!');
-      setIsModalOpen(false);
-      // Refresh
+      toastSuccess('Lançamento excluído com sucesso!');
       loadDailyData();
     } catch (err) {
       console.error(err);
-      toastError('Ocorreu um erro ao salvar o lançamento no banco de dados.');
-    }
-  };
-
-  // Delete Action
-  const handleDeleteItem = async (item: any) => {
-    const isDeleteConfirmed = window.confirm(`Deseja realmente excluir este lançamento de R$ ${item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}?`);
-    if (!isDeleteConfirmed) return;
-
-    try {
-      const targetStoreId = item.storeId;
-      const docRef = doc(db, 'stores', targetStoreId, 'daily_control', 'all');
-      const docSnap = await getDoc(docRef);
-
-      if (docSnap.exists() && docSnap.data().data) {
-        let currentExpenses: DailyExpense[] = docSnap.data().data.expenses || [];
-        let currentVouchers: DailyVoucher[] = docSnap.data().data.vouchers || [];
-
-        if (activeTab === 'expenses') {
-          currentExpenses = currentExpenses.filter(e => e.id !== item.id);
-        } else {
-          currentVouchers = currentVouchers.filter(v => v.id !== item.id);
-        }
-
-        const pathForWrite = `/stores/${targetStoreId}/daily_control/all`;
-        try {
-          await setDoc(docRef, {
-            data: {
-              expenses: currentExpenses,
-              vouchers: currentVouchers
-            },
-            updatedAt: new Date().toISOString()
-          });
-        } catch (err) {
-          handleFirestoreError(err, OperationType.WRITE, pathForWrite);
-        }
-
-        toastSuccess('Lançamento excluído com sucesso!');
-        loadDailyData();
-      }
-    } catch (err) {
-      console.error(err);
       toastError('Erro ao excluir o lançamento do banco de dados.');
+    } finally {
+      setItemToDelete(null);
     }
   };
 
@@ -390,17 +536,11 @@ export default function DailyControl() {
     const todayStr = new Date().toISOString().split('T')[0];
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const firstDayOfMonth = new Date();
-    firstDayOfMonth.setDate(1);
     
     if (dateFilter === 'today') {
       result = result.filter(item => item.date === todayStr);
     } else if (dateFilter === '7days') {
       result = result.filter(item => new Date(item.date) >= sevenDaysAgo);
-    } else if (dateFilter === 'month') {
-      // Match active month / current year or simply general current month
-      const currentYearMonth = todayStr.substring(0, 7); // "2026-06"
-      result = result.filter(item => item.date.startsWith(currentYearMonth));
     }
 
     if (selectedStatus !== 'all') {
@@ -434,16 +574,11 @@ export default function DailyControl() {
     const todayStr = new Date().toISOString().split('T')[0];
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const firstDayOfMonth = new Date();
-    firstDayOfMonth.setDate(1);
     
     if (dateFilter === 'today') {
       result = result.filter(item => item.date === todayStr);
     } else if (dateFilter === '7days') {
       result = result.filter(item => new Date(item.date) >= sevenDaysAgo);
-    } else if (dateFilter === 'month') {
-      const currentYearMonth = todayStr.substring(0, 7);
-      result = result.filter(item => item.date.startsWith(currentYearMonth));
     }
 
     if (selectedStatus !== 'all') {
@@ -470,34 +605,269 @@ export default function DailyControl() {
     };
   }, [filteredExpensesList, filteredVouchersList]);
 
-  // Export to CSV Helper
-  const handleExportCSV = () => {
+  // Export to PDF Helper (Aesthetic browser-direct PDF print style)
+  const handleExportPDF = () => {
     try {
-      let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+      const isExpenses = activeTab === 'expenses';
+      const listToPrint = isExpenses ? filteredExpensesList : filteredVouchersList;
       
-      if (activeTab === 'expenses') {
-        csvContent += "ID,Loja,Data,Categoria,Descricao,Beneficiario,Valor,Pagamento,Status,Notas,CriadoEm\n";
-        filteredExpensesList.forEach(item => {
-          csvContent += `"${item.id}","${item.storeName}","${item.date}","${item.category}","${item.description.replace(/"/g, '""')}","${(item.recipient || '').replace(/"/g, '""')}",${item.value},"${item.paymentMethod}","${item.status}","${(item.notes || '').replace(/"/g, '""')}","${item.createdAt}"\n`;
-        });
-      } else {
-        csvContent += "ID,Loja,Data,Funcionario,Descricao,Valor,Pagamento,Status,Notas,CriadoEm\n";
-        filteredVouchersList.forEach(item => {
-          csvContent += `"${item.id}","${item.storeName}","${item.date}","${item.employeeName.replace(/"/g, '""')}","${item.description.replace(/"/g, '""')}",${item.value},"${item.paymentMethod}","${item.status}","${(item.notes || '').replace(/"/g, '""')}","${item.createdAt}"\n`;
-        });
+      const storeLabel = selectedStoreId === 'all' 
+        ? 'Todas as Lojas' 
+        : (STORES.find(s => s.id === selectedStoreId)?.name || currentStore.name);
+        
+      const monthNames: Record<string, string> = {
+        '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
+        '05': 'Maio', '06': 'Junho', '07': 'Julho', '08': 'Agosto',
+        '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
+      };
+      
+      const periodLabel = `${monthNames[selectedMonth] || selectedMonth}/${selectedYear}`;
+
+      const totalItems = listToPrint.length;
+      const totalValue = listToPrint.reduce((sum, item) => sum + item.value, 0);
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        toastError('Popups bloqueados! Permita popups para poder gerar o PDF.');
+        return;
       }
 
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", `controle_diario_${activeTab === 'expenses' ? 'despesas' : 'vales'}_${new Date().toISOString().substring(0,10)}.csv`);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      toastSuccess('Arquivo CSV baixado com sucesso!');
+      const formattedDate = new Date().toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      const title = isExpenses 
+        ? 'Relatório de Despesas Diárias' 
+        : 'Relatório de Vales (Lanches)';
+
+      let tableHeaders = '';
+      if (isExpenses) {
+        tableHeaders = `
+          <tr>
+            <th style="text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Data</th>
+            <th style="text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Loja</th>
+            <th style="text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Categoria</th>
+            <th style="text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Descrição</th>
+            <th style="text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Meio Pagto.</th>
+            <th style="text-align: right; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Valor</th>
+          </tr>
+        `;
+      } else {
+        tableHeaders = `
+          <tr>
+            <th style="text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Data</th>
+            <th style="text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Loja</th>
+            <th style="text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Funcionário</th>
+            <th style="text-align: left; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Descrição</th>
+            <th style="text-align: right; padding: 10px; border-bottom: 2px solid #e2e8f0; font-size: 11px; text-transform: uppercase; color: #475569;">Valor</th>
+          </tr>
+        `;
+      }
+
+      let tableRows = '';
+      listToPrint.forEach(item => {
+        const itemDate = item.date ? item.date.split('-').reverse().join('/') : '-';
+        if (isExpenses) {
+          tableRows += `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 10px; font-size: 11px; color: #334155;">${itemDate}</td>
+              <td style="padding: 10px; font-size: 11px; color: #334155;">${item.storeName || '-'}</td>
+              <td style="padding: 10px; font-size: 11px; color: #334155; font-weight: bold;">${item.category || '-'}</td>
+              <td style="padding: 10px; font-size: 11px; color: #334155;">${item.description || '-'}</td>
+              <td style="padding: 10px; font-size: 11px; color: #334155;">${item.paymentMethod || '-'}</td>
+              <td style="padding: 10px; font-size: 11px; color: #0f172a; font-weight: bold; text-align: right;">R$ ${item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+            </tr>
+          `;
+        } else {
+          tableRows += `
+            <tr style="border-bottom: 1px solid #f1f5f9;">
+              <td style="padding: 10px; font-size: 11px; color: #334155;">${itemDate}</td>
+              <td style="padding: 10px; font-size: 11px; color: #334155;">${item.storeName || '-'}</td>
+              <td style="padding: 10px; font-size: 11px; color: #334155; font-weight: bold;">${item.employeeName || '-'}</td>
+              <td style="padding: 10px; font-size: 11px; color: #334155;">${item.description || '-'}</td>
+              <td style="padding: 10px; font-size: 11px; color: #0f172a; font-weight: bold; text-align: right;">R$ ${item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+            </tr>
+          `;
+        }
+      });
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${title}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+            body {
+              font-family: 'Inter', -apple-system, sans-serif;
+              color: #1e293b;
+              margin: 40px;
+              background: #fff;
+            }
+            .header-info {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 2px solid #f1f5f9;
+              padding-bottom: 20px;
+              margin-bottom: 25px;
+            }
+            .title-brand {
+              font-size: 12px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              color: #ea580c;
+              margin-bottom: 4px;
+            }
+            .title-main {
+              font-size: 20px;
+              font-weight: 700;
+              color: #0f172a;
+              margin: 0;
+            }
+            .meta-info {
+              font-size: 11px;
+              color: #64748b;
+              text-align: right;
+              line-height: 1.6;
+            }
+            .filter-chips {
+              display: flex;
+              gap: 15px;
+              margin-bottom: 25px;
+              background: #f8fafc;
+              padding: 12px 16px;
+              border-radius: 12px;
+              border: 1px solid #e2e8f0;
+            }
+            .chip {
+              font-size: 11px;
+              color: #475569;
+            }
+            .chip strong {
+              color: #0f172a;
+            }
+            .kpis {
+              display: grid;
+              grid-template-cols: repeat(2, 1fr);
+              gap: 15px;
+              margin-bottom: 30px;
+            }
+            .kpi-card {
+              border: 1px solid #e2e8f0;
+              padding: 16px;
+              border-radius: 12px;
+              background: #fff;
+            }
+            .kpi-label {
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              color: #64748b;
+              letter-spacing: 0.05em;
+              margin-bottom: 4px;
+            }
+            .kpi-value {
+              font-size: 22px;
+              font-weight: 700;
+              color: #0f172a;
+              margin: 0;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 40px;
+            }
+            th {
+              font-weight: 600;
+            }
+            .total-row td {
+              border-top: 2px solid #0f172a;
+              font-weight: bold;
+              font-size: 12px;
+              color: #0f172a;
+              padding: 15px 10px;
+            }
+            @media print {
+              body {
+                margin: 20px;
+              }
+              .no-print {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-info">
+            <div>
+              <div class="title-brand">${currentStore.brand || 'ORGANIZAÇÃO'}</div>
+              <h1 class="title-main">${title}</h1>
+            </div>
+            <div class="meta-info">
+              <div>Gerado em: <strong>${formattedDate}</strong></div>
+              <div>Por: <strong>Painel de Controle</strong></div>
+            </div>
+          </div>
+
+          <div class="filter-chips">
+            <div class="chip">Unidade Selecionada: <strong>${storeLabel}</strong></div>
+            <div style="width: 1px; background: #cbd5e1; height: 14px; align-self: center;"></div>
+            <div class="chip">Período: <strong>${periodLabel}</strong></div>
+          </div>
+
+          <div class="kpis">
+            <div class="kpi-card">
+              <div class="kpi-label">Volume Total de Transações</div>
+              <div class="kpi-value">${totalItems} lançamentos</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">Soma Total Informada</div>
+              <div class="kpi-value" style="color: #ea580c;">R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              ${tableHeaders}
+            </thead>
+            <tbody>
+              ${tableRows}
+              <tr class="total-row">
+                <td colspan="${isExpenses ? 5 : 4}" style="text-align: right;">Total Geral</td>
+                <td style="text-align: right; font-size: 13px;">R$ ${totalValue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div style="font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 20px;">
+            Este documento é de uso restrito interno do gestor de controle financeiro. Para salvar como PDF, selecione a opção apropriada nas configurações de destinação da sua impressora.
+          </div>
+
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 300);
+            };
+          </script>
+        </body>
+        </html>
+      `;
+
+      printWindow.document.open();
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+      toastSuccess('Relatório PDF aberto para impressão!');
     } catch (err) {
       console.error(err);
-      toastError('Erro ao exportar dados.');
+      toastError('Erro ao gerar relatório em PDF.');
     }
   };
 
@@ -518,15 +888,15 @@ export default function DailyControl() {
         <div className="flex items-center gap-2">
           {/* Export and Add buttons */}
           <button
-            onClick={handleExportCSV}
+            onClick={handleExportPDF}
             className={`flex items-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl border transition-colors ${
               isDarkMode 
                 ? 'bg-[#1E1E1E] border-[#333] hover:bg-[#252525]' 
                 : 'bg-white border-slate-200 hover:bg-slate-50'
             }`}
           >
-            <Download className="w-3.5 h-3.5" />
-            Exportar CSV
+            <FileText className="w-3.5 h-3.5 text-amber-500" />
+            Exportar PDF
           </button>
           
           <button
@@ -538,6 +908,63 @@ export default function DailyControl() {
             <Plus className="w-4 h-4" />
             {activeTab === 'expenses' ? 'Lançar Despesa' : 'Lançar Vale'}
           </button>
+        </div>
+      </div>
+
+      {/* Período de Trabalho (Active Period Selection) */}
+      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-amber-500/5 border-amber-500/20'} flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm`}>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500">
+            <Calendar className="w-5 h-5 text-amber-500" />
+          </div>
+          <div>
+            <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+              Período Ativo do Controle Diário
+            </h3>
+            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+              Defina o período para visualizar, cadastrar e exportar lançamentos do respectivo mês.
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <select
+            value={selectedMonth}
+            onChange={(e) => {
+              setSelectedMonth(e.target.value);
+            }}
+            className={`text-xs font-bold px-3 py-2.5 rounded-xl border ${
+              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+            } outline-none cursor-pointer`}
+          >
+            <option value="01">Janeiro</option>
+            <option value="02">Fevereiro</option>
+            <option value="03">Março</option>
+            <option value="04">Abril</option>
+            <option value="05">Maio</option>
+            <option value="06">Junho</option>
+            <option value="07">Julho</option>
+            <option value="08">Agosto</option>
+            <option value="09">Setembro</option>
+            <option value="10">Outubro</option>
+            <option value="11">Novembro</option>
+            <option value="12">Dezembro</option>
+          </select>
+
+          <select
+            value={selectedYear}
+            onChange={(e) => {
+              setSelectedYear(e.target.value);
+            }}
+            className={`text-xs font-bold px-3 py-2.5 rounded-xl border ${
+              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+            } outline-none cursor-pointer`}
+          >
+            <option value="2024">2024</option>
+            <option value="2025">2025</option>
+            <option value="2026">2026</option>
+            <option value="2027">2027</option>
+          </select>
         </div>
       </div>
 
@@ -623,7 +1050,7 @@ export default function DailyControl() {
       {/* Search and Filters Strip */}
       <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1A1A1A] border-[#2E2E2E]' : 'bg-slate-50 border-slate-100'} grid grid-cols-1 md:grid-cols-12 gap-3 items-center shadow-sm`}>
         {/* Search */}
-        <div className="md:col-span-4 relative">
+        <div className={`${isRoot ? 'md:col-span-9' : 'md:col-span-12'} relative`}>
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -638,75 +1065,9 @@ export default function DailyControl() {
           />
         </div>
 
-        {/* Date Filter */}
-        <div className="md:col-span-2">
-          <select
-            value={dateFilter}
-            onChange={(e: any) => setDateFilter(e.target.value)}
-            className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
-              isDarkMode ? 'bg-[#252525] border-[#3F3F3F] text-white' : 'bg-white border-slate-200'
-            } outline-none`}
-          >
-            <option value="month">Este Mês (Atual)</option>
-            <option value="today">Hoje</option>
-            <option value="7days">Últimos 7 Dias</option>
-            <option value="all">Sempre (Histórico Completo)</option>
-          </select>
-        </div>
-
-        {/* Category Filter (Disabled for Vouchers) */}
-        {activeTab === 'expenses' ? (
-          <div className="md:col-span-2">
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
-                isDarkMode ? 'bg-[#252525] border-[#3F3F3F] text-white' : 'bg-white border-slate-200'
-              } outline-none`}
-            >
-              <option value="all">Todas Categorias</option>
-              {EXPENSE_CATEGORIES.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-        ) : (
-          <div className="md:col-span-2 opacity-30 pointer-events-none">
-            <select className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
-              isDarkMode ? 'bg-[#252525] border-[#3F3F3F]' : 'bg-white'
-            }`} disabled>
-              <option>Categorias (N/A)</option>
-            </select>
-          </div>
-        )}
-
-        {/* Status Filter */}
-        <div className="md:col-span-2">
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
-              isDarkMode ? 'bg-[#252525] border-[#3F3F3F] text-white' : 'bg-white border-slate-200'
-            } outline-none`}
-          >
-            <option value="all">Todos Status</option>
-            {activeTab === 'expenses' ? (
-              <>
-                <option value="Pago">Pago</option>
-                <option value="Pendente">Pendente</option>
-              </>
-            ) : (
-              <>
-                <option value="Pendente">Ativo / Pendente</option>
-                <option value="Descontado">Descontado (Saldado)</option>
-              </>
-            )}
-          </select>
-        </div>
-
         {/* Store ID (Show only if ROOT) */}
-        {isRoot ? (
-          <div className="md:col-span-2">
+        {isRoot && (
+          <div className="md:col-span-3">
             <select
               value={selectedStoreId}
               onChange={(e) => setSelectedStoreId(e.target.value)}
@@ -719,10 +1080,6 @@ export default function DailyControl() {
                 <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
-          </div>
-        ) : (
-          <div className="md:col-span-2 text-center text-slate-400 font-bold text-xs select-none">
-            {currentStore.code} ativo
           </div>
         )}
       </div>
@@ -979,17 +1336,16 @@ export default function DailyControl() {
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Categoria</label>
-                        <select
+                        <input
+                          type="text"
                           value={formCategory}
                           onChange={(e) => setFormCategory(e.target.value)}
+                          placeholder="Digite a categoria..."
                           className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
                             isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white' : 'bg-white border-slate-200'
                           } outline-none focus:border-amber-500`}
-                        >
-                          {EXPENSE_CATEGORIES.map(cat => (
-                            <option key={cat} value={cat}>{cat}</option>
-                          ))}
-                        </select>
+                          required
+                        />
                       </div>
 
                       <div>
@@ -1020,45 +1376,6 @@ export default function DailyControl() {
                         } outline-none focus:border-amber-500`}
                         required
                       />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Beneficiário/Fornecedor (Opcional)</label>
-                      <input
-                        type="text"
-                        placeholder="Ex: Padaria do Sol S.A"
-                        value={formRecipient}
-                        onChange={(e) => setFormRecipient(e.target.value)}
-                        className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
-                          isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white' : 'bg-white border-slate-200'
-                        } outline-none focus:border-amber-500`}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Status de Lançamento</label>
-                      <div className="flex gap-4">
-                        <label className="flex items-center gap-2 text-xs font-bold select-none cursor-pointer">
-                          <input
-                            type="radio"
-                            name="formStatus"
-                            checked={formStatus === 'Pago'}
-                            onChange={() => setFormStatus('Pago')}
-                            className="accent-amber-500 scale-110"
-                          />
-                          Confirmado / Pago
-                        </label>
-                        <label className="flex items-center gap-2 text-xs font-bold select-none cursor-pointer">
-                          <input
-                            type="radio"
-                            name="formStatus"
-                            checked={formStatus === 'Pendente'}
-                            onChange={() => setFormStatus('Pendente')}
-                            className="accent-amber-500 scale-110"
-                          />
-                          Pendente de Conferência / Caixa
-                        </label>
-                      </div>
                     </div>
                   </>
                 ) : (
@@ -1143,6 +1460,75 @@ export default function DailyControl() {
                 </div>
 
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {itemToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            
+            {/* Backdrop visual */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setItemToDelete(null)}
+              className="absolute inset-0 bg-black/60"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              className={`relative w-full max-w-sm p-6 rounded-2xl shadow-xl border overflow-hidden ${
+                isDarkMode 
+                  ? 'bg-[#181818] border-[#2C2C2C] text-white' 
+                  : 'bg-white border-slate-100 text-slate-900'
+              }`}
+            >
+              <button 
+                onClick={() => setItemToDelete(null)}
+                className="absolute right-4 top-4 p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#2C2C2C] transition-colors"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+
+              <h2 className="text-base font-black uppercase italic tracking-wider mb-3 text-red-500 flex items-center gap-2">
+                <Trash2 className="w-4 h-4 text-red-500" /> Excluir Lançamento
+              </h2>
+
+              <p className="text-xs text-slate-500 dark:text-slate-400 mb-6 leading-relaxed">
+                Tem certeza que deseja excluir permanentemente o lançamento de{' '}
+                <strong className={`font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  R$ {itemToDelete.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </strong>{' '}
+                {itemToDelete.description && itemToDelete.description !== 'Lanche' 
+                  ? `(${itemToDelete.description})` 
+                  : itemToDelete.employeeName 
+                    ? `(${itemToDelete.employeeName})` 
+                    : ''
+                }? Esta ação não poderá ser desfeita.
+              </p>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setItemToDelete(null)}
+                  className={`text-xs font-bold px-4 py-2.5 rounded-xl border ${
+                    isDarkMode ? 'border-[#333] hover:bg-[#252525]' : 'border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="text-xs font-black text-white bg-red-600 px-5 py-2.5 rounded-xl transition-all hover:bg-red-700 shadow-md active:scale-95"
+                >
+                  Confirmar Exclusão
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
