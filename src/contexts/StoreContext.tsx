@@ -342,6 +342,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  // EFFECT: Enforce store permissions role constraint on user/auth changes or mount
+  useEffect(() => {
+    if (user) {
+      // Get list of permitted stores for user's role
+      let allowed: Store[] = [];
+      if (user.role === 'ADMIN') {
+        allowed = STORES;
+      } else if (user.role === 'FINANCIAL') {
+        allowed = STORES.filter(s => s.code !== 'ROOT');
+      } else if (user.role === 'MANAGER_BEBELU_MOSSORO') {
+        allowed = STORES.filter(s => s.code === 'B32');
+      } else if (user.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
+        allowed = STORES.filter(s => s.code === 'B28');
+      } else if (user.role === 'MANAGER_4ESTYLOS_MOSSORO') {
+        if (user.username?.toLowerCase().includes('jef')) {
+          allowed = STORES.filter(s => s.code === '4E09' || s.code === 'B32');
+        } else {
+          allowed = STORES.filter(s => s.code === '4E09');
+        }
+      } else {
+        allowed = STORES.filter(s => s.code !== 'ROOT');
+      }
+
+      if (allowed.length > 0) {
+        const isAllowed = allowed.some(s => s.id === currentStore.id);
+        if (!isAllowed) {
+          console.log(`[StoreContext] Current store (${currentStore.name}) is not allowed for user ${user.username}. Resetting to ${allowed[0].name}.`);
+          setStore(allowed[0]);
+        }
+      }
+    }
+  }, [user, currentStore.id]);
+
   // 4E09 and ROOT remain exactly the same as they were with dark layouts, while Bebelu (B32 & B28) uses a clean white background.
   const [localDarkTheme, setLocalDarkTheme] = useState<boolean | null>(() => {
     const saved = localStorage.getItem('theme_preference_dark');

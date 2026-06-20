@@ -119,173 +119,160 @@ export default function DailyControl() {
   const [formNotes, setFormNotes] = useState('');
   const [formStoreId, setFormStoreId] = useState('');
 
-  // One-time automatic migration of June 2026 from B32 to B28 if any exists
+  // One-time automatic migration of June 2026 from B32 to B28 is now disabled to prevent duplicate data mapping
   const runMigrationB32toB28 = async () => {
-    // Check if we have already run the migration in this session
-    if (localStorage.getItem('g_azevedo_migration_b32_b28_v4_done') === 'true') {
-      return false;
-    }
+    return false;
+  };
 
+  // Database Repair Tool States for June/2026 Admin Correction
+  const [isRepairPanelOpen, setIsRepairPanelOpen] = useState(false);
+  const [repairingDocs, setRepairingDocs] = useState<boolean>(false);
+  const [b28VouchersToReview, setB28VouchersToReview] = useState<DailyVoucher[]>([]);
+  const [b28ExpensesToReview, setB28ExpensesToReview] = useState<DailyExpense[]>([]);
+  const [selections, setSelections] = useState<Record<string, '1' | '2'>>({});
+
+  const handleOpenRepairPanel = async () => {
+    setRepairingDocs(true);
     try {
-      const store1Id = '1'; // Bebelu Mossoró (B32)
-      const store2Id = '2'; // Bebelu Riomar Papicu (B28)
-      const targetPeriodId = 'period_2026_06';
-      const datePrefix = '2026-06';
-      let migratedAny = false;
+      const docRefId = 'period_2026_06';
+      const docRefB28 = doc(db, 'stores', '2', 'daily_control', docRefId);
+      const snapB28 = await getDoc(docRefB28);
 
-      // Load period_2026_06 check
-      const docRef1 = doc(db, 'stores', store1Id, 'daily_control', targetPeriodId);
-      const docSnap1 = await getDoc(docRef1);
+      if (snapB28.exists() && snapB28.data().data) {
+        const d = snapB28.data().data;
+        const vchList = d.vouchers || [];
+        const expList = d.expenses || [];
+        setB28VouchersToReview(vchList);
+        setB28ExpensesToReview(expList);
 
-      if (docSnap1.exists() && docSnap1.data().data) {
-        const s1Data = docSnap1.data().data;
-        const s1Expenses = s1Data.expenses || [];
-        const s1Vouchers = s1Data.vouchers || [];
-
-        const expensesToMove = s1Expenses.filter((e: any) => e.date && e.date.startsWith(datePrefix));
-        const vouchersToMove = s1Vouchers.filter((v: any) => v.date && v.date.startsWith(datePrefix));
-
-        if (expensesToMove.length > 0 || vouchersToMove.length > 0) {
-          // Fetch Store 2 target period doc
-          const docRef2 = doc(db, 'stores', store2Id, 'daily_control', targetPeriodId);
-          const docSnap2 = await getDoc(docRef2);
-          const s2Data = docSnap2.exists() ? docSnap2.data().data : { expenses: [], vouchers: [] };
-
-          const store2Expenses = s2Data?.expenses || [];
-          const store2Vouchers = s2Data?.vouchers || [];
-
-          // Format items to move with destination properties
-          const updatedExpensesToMove = expensesToMove.map((e: any) => ({
-            ...e,
-            storeId: store2Id,
-            storeName: 'Bebelu Riomar Papicu'
-          }));
-          const updatedVouchersToMove = vouchersToMove.map((v: any) => ({
-            ...v,
-            storeId: store2Id,
-            storeName: 'Bebelu Riomar Papicu'
-          }));
-
-          // Merge without duplicates
-          const mergedExpenses = [...store2Expenses];
-          for (const item of updatedExpensesToMove) {
-            const isDup = mergedExpenses.some((x: any) => x.date === item.date && x.description === item.description && x.value === item.value);
-            if (!isDup) {
-              mergedExpenses.push(item);
-            }
+        const initialSelections: Record<string, '1' | '2'> = {};
+        vchList.forEach((v: DailyVoucher) => {
+          const name = v.employeeName?.toLowerCase() || '';
+          if (name.includes('yan') || name.includes('marques') || name.includes('francineide') || name.includes('fran')) {
+            initialSelections[v.id] = '1'; // B32
+          } else {
+            initialSelections[v.id] = '2'; // B28
           }
+        });
 
-          const mergedVouchers = [...store2Vouchers];
-          for (const item of updatedVouchersToMove) {
-            const isDup = mergedVouchers.some((x: any) => x.date === item.date && x.employeeName === item.employeeName && x.value === item.value);
-            if (!isDup) {
-              mergedVouchers.push(item);
-            }
+        expList.forEach((e: DailyExpense) => {
+          const desc = e.description?.toLowerCase() || '';
+          const rec = e.recipient?.toLowerCase() || '';
+          const notes = e.notes?.toLowerCase() || '';
+          if (desc.includes('mossoró') || desc.includes('mossoro') || rec.includes('mossoro') || notes.includes('mossoro')) {
+            initialSelections[e.id] = '1'; // B32
+          } else {
+            initialSelections[e.id] = '2'; // B28
           }
+        });
 
-          // Save Store 2 period doc
-          await setDoc(docRef2, {
-            data: {
-              expenses: mergedExpenses,
-              vouchers: mergedVouchers
-            },
-            updatedAt: new Date().toISOString()
-          });
-
-          // Save Store 1 period doc minus moved items
-          const remainingExpenses = s1Expenses.filter((e: any) => !(e.date && e.date.startsWith(datePrefix)));
-          const remainingVouchers = s1Vouchers.filter((v: any) => !(v.date && v.date.startsWith(datePrefix)));
-
-          await setDoc(docRef1, {
-            data: {
-              expenses: remainingExpenses,
-              vouchers: remainingVouchers
-            },
-            updatedAt: new Date().toISOString()
-          });
-          
-          migratedAny = true;
-          console.log('Migration b32_b28 inside period_2026_06 completed successfully.');
-        }
+        setSelections(initialSelections);
+        setIsRepairPanelOpen(true);
+      } else {
+        toastWarning('Nenhum dado encontrado para Bebelu Riomar Papicu (B28) no período de Junho/2026.');
       }
-
-      // Check fallback 'all' doc as well
-      const allDocRef1 = doc(db, 'stores', store1Id, 'daily_control', 'all');
-      const allDocSnap1 = await getDoc(allDocRef1);
-
-      if (allDocSnap1.exists() && allDocSnap1.data().data) {
-        const s1Data = allDocSnap1.data().data;
-        const s1Expenses = s1Data.expenses || [];
-        const s1Vouchers = s1Data.vouchers || [];
-
-        const expensesToMove = s1Expenses.filter((e: any) => e.date && e.date.startsWith(datePrefix));
-        const vouchersToMove = s1Vouchers.filter((v: any) => v.date && v.date.startsWith(datePrefix));
-
-        if (expensesToMove.length > 0 || vouchersToMove.length > 0) {
-          const allDocRef2 = doc(db, 'stores', store2Id, 'daily_control', 'all');
-          const allDocSnap2 = await getDoc(allDocRef2);
-          const s2Data = allDocSnap2.exists() ? allDocSnap2.data().data : { expenses: [], vouchers: [] };
-
-          const store2Expenses = s2Data?.expenses || [];
-          const store2Vouchers = s2Data?.vouchers || [];
-
-          const updatedExpensesToMove = expensesToMove.map((e: any) => ({
-            ...e,
-            storeId: store2Id,
-            storeName: 'Bebelu Riomar Papicu'
-          }));
-          const updatedVouchersToMove = vouchersToMove.map((v: any) => ({
-            ...v,
-            storeId: store2Id,
-            storeName: 'Bebelu Riomar Papicu'
-          }));
-
-          const mergedExpenses = [...store2Expenses];
-          for (const item of updatedExpensesToMove) {
-            const isDup = mergedExpenses.some((x: any) => x.date === item.date && x.description === item.description && x.value === item.value);
-            if (!isDup) {
-              mergedExpenses.push(item);
-            }
-          }
-
-          const mergedVouchers = [...store2Vouchers];
-          for (const item of updatedVouchersToMove) {
-            const isDup = mergedVouchers.some((x: any) => x.date === item.date && x.employeeName === item.employeeName && x.value === item.value);
-            if (!isDup) {
-              mergedVouchers.push(item);
-            }
-          }
-
-          await setDoc(allDocRef2, {
-            data: {
-              expenses: mergedExpenses,
-              vouchers: mergedVouchers
-            },
-            updatedAt: new Date().toISOString()
-          });
-
-          const remainingExpenses = s1Expenses.filter((e: any) => !(e.date && e.date.startsWith(datePrefix)));
-          const remainingVouchers = s1Vouchers.filter((v: any) => !(v.date && v.date.startsWith(datePrefix)));
-
-          await setDoc(allDocRef1, {
-            data: {
-              expenses: remainingExpenses,
-              vouchers: remainingVouchers
-            },
-            updatedAt: new Date().toISOString()
-          });
-          
-          migratedAny = true;
-          console.log('Migration b32_b28 inside "all" completed successfully.');
-        }
-      }
-
-      // Mark as done to prevent checking again this session
-      localStorage.setItem('g_azevedo_migration_b32_b28_v4_done', 'true');
-      return migratedAny;
     } catch (err) {
-      console.error('Error during automatic data migration from B32 to B28:', err);
-      return false;
+      console.error(err);
+      toastError('Erro ao carregar dados para verificação.');
+    } finally {
+      setRepairingDocs(false);
+    }
+  };
+
+  const handleSaveRepair = async () => {
+    setRepairingDocs(true);
+    try {
+      const docRefId = 'period_2026_06';
+
+      const docRefB28 = doc(db, 'stores', '2', 'daily_control', docRefId);
+      const docRefB32 = doc(db, 'stores', '1', 'daily_control', docRefId);
+
+      const [snapB28, snapB32] = await Promise.all([
+        getDoc(docRefB28),
+        getDoc(docRefB32)
+      ]);
+
+      const currentB28Exp = snapB28.exists() ? (snapB28.data().data?.expenses || []) : [];
+      const currentB28Vch = snapB28.exists() ? (snapB28.data().data?.vouchers || []) : [];
+      const currentB32Exp = snapB32.exists() ? (snapB32.data().data?.expenses || []) : [];
+      const currentB32Vch = snapB32.exists() ? (snapB32.data().data?.vouchers || []) : [];
+
+      const newB28Exp: DailyExpense[] = [];
+      const newB28Vch: DailyVoucher[] = [];
+      const newB32Exp: DailyExpense[] = [...currentB32Exp];
+      const newB32Vch: DailyVoucher[] = [...currentB32Vch];
+
+      currentB28Vch.forEach((v: DailyVoucher) => {
+        const destStoreId = selections[v.id] || '2';
+        if (destStoreId === '1') {
+          // Move to B32:
+          const existsInB32 = newB32Vch.some((x: DailyVoucher) => x.id === v.id);
+          if (!existsInB32) {
+            newB32Vch.push({
+              ...v,
+              storeId: '1',
+              storeName: 'Bebelu Mossoró'
+            });
+          }
+        } else {
+          // Remains in B28:
+          newB28Vch.push({
+            ...v,
+            storeId: '2',
+            storeName: 'Bebelu Riomar Papicu'
+          });
+        }
+      });
+
+      currentB28Exp.forEach((e: DailyExpense) => {
+        const destStoreId = selections[e.id] || '2';
+        if (destStoreId === '1') {
+          // Move to B32:
+          const existsInB32 = newB32Exp.some((x: DailyExpense) => x.id === e.id);
+          if (!existsInB32) {
+            newB32Exp.push({
+              ...e,
+              storeId: '1',
+              storeName: 'Bebelu Mossoró'
+            });
+          }
+        } else {
+          // Remains in B28:
+          newB28Exp.push({
+            ...e,
+            storeId: '2',
+            storeName: 'Bebelu Riomar Papicu'
+          });
+        }
+      });
+
+      // Also clean up any potential references in B32 if they got restored
+      // (B32 should now have its proper, non-duplicated items)
+      await Promise.all([
+        setDoc(docRefB28, {
+          data: {
+            expenses: newB28Exp,
+            vouchers: newB28Vch
+          },
+          updatedAt: new Date().toISOString()
+        }),
+        setDoc(docRefB32, {
+          data: {
+            expenses: newB32Exp,
+            vouchers: newB32Vch
+          },
+          updatedAt: new Date().toISOString()
+        })
+      ]);
+
+      toastSuccess('Ajuste de lançamentos concluído com sucesso! Os vales e despesas foram redirecionados aos seus respectivos caixas de filiais.');
+      setIsRepairPanelOpen(false);
+      loadDailyData();
+    } catch (err) {
+      console.error(err);
+      toastError('Erro ao salvar reajuste do banco de dados.');
+    } finally {
+      setRepairingDocs(false);
     }
   };
 
@@ -303,11 +290,8 @@ export default function DailyControl() {
     setLoading(true);
     const docId = `period_${selectedYear}_${selectedMonth}`;
     try {
-      // Auto migrate June 2026 data from B32 to B28 if present
-      const migrated = await runMigrationB32toB28();
-      if (migrated) {
-        toastSuccess("Ajuste concluído! Lançamentos de Junho/2026 da unidade B32 foram movidos com sucesso para a unidade B28.");
-      }
+      // Auto migration from B32 to B28 is now disabled to protect data segregation
+      // June 2026 data correction is handled via the interactive Repair Panel for ADMIN users.
 
       if (isRoot) {
         // Root reads all stores
@@ -1050,6 +1034,27 @@ export default function DailyControl() {
   return (
     <div className={`space-y-6 ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>
       
+      {isRoot && selectedMonth === '06' && selectedYear === '2026' && (
+        <div className="p-5 rounded-2xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-pulse">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">🛠️</span>
+            <div>
+              <h4 className="text-xs font-black uppercase text-amber-500 tracking-wider">Ajuste de Filiais (B32 & B28 - Junho/2026)</h4>
+              <p className="text-xs text-slate-400 mt-1 max-w-xl">
+                Foram identificados vales e despesas de <strong>Bebelu Mossoró (B32)</strong> misturados com a <strong>Bebelu Riomar Papicu (B28)</strong> devido a uma migração anterior. Use o painel de correção para separá-los e carregar o caixa de cada filial de forma isolada.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={handleOpenRepairPanel}
+            disabled={repairingDocs}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-black rounded-xl transition-all shadow-md shrink-0 flex items-center gap-2"
+          >
+            {repairingDocs ? 'Carregando...' : 'Revisar e Corrigir Lançamentos'}
+          </button>
+        </div>
+      )}
+
       {/* Header Container */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-4 border-slate-100 dark:border-[#333]">
         <div>
@@ -1417,6 +1422,170 @@ export default function DailyControl() {
             )
           )}
         </>
+      )}
+
+      {/* DETAILED DATABASE REPAIR MODAL */}
+      {isRepairPanelOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-xs" onClick={() => setIsRepairPanelOpen(false)} />
+          <div className={`relative w-full max-w-4xl max-h-[85vh] p-6 rounded-2xl shadow-2xl border overflow-hidden flex flex-col ${
+            isDarkMode ? 'bg-[#181818] border-[#2C2C2C] text-white' : 'bg-white border-slate-100 text-slate-900'
+          }`}>
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-[#2C2C2C] mb-4">
+              <div>
+                <h3 className="font-black text-xs uppercase tracking-wider text-amber-500">Módulo de Reparação Local</h3>
+                <h2 className="text-lg font-bold font-display">Painel de Direcionamento de Lançamentos — Junho/2026</h2>
+              </div>
+              <button 
+                onClick={() => setIsRepairPanelOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-neutral-800 text-slate-400"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-6 pr-1 text-xs">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px]">
+                <p className="font-semibold text-amber-500">💡 Como funciona o ajuste de filiais:</p>
+                <p className="text-slate-400 mt-1 leading-relaxed">
+                  Todos os lançamentos listados abaixo estão atualmente salvos sob a unidade <strong>Bebelu Riomar Papicu (B28)</strong> no banco de dados. Os nomes destacados já foram associados automaticamente à <strong>Bebelu Mossoró (B32)</strong> como sugestão. Revise a lista e atribua cada lançamento à filial correta. Ao salvar, o sistema atualizará as duas unidades no Firestore.
+                </p>
+              </div>
+
+              {/* Vales Section */}
+              <div>
+                <h3 className="font-bold text-xs tracking-wide text-amber-500 mb-2 uppercase">Vales de Funcionários</h3>
+                {b28VouchersToReview.length === 0 ? (
+                  <p className="text-slate-400 italic">Nenhum vale encontrado para revisão.</p>
+                ) : (
+                  <div className="border border-slate-200 dark:border-[#2C2C2C] rounded-xl overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-neutral-900 text-[10px] font-black uppercase text-slate-400 border-b border-slate-200 dark:border-[#2c2c2c]">
+                          <th className="px-4 py-3">Data</th>
+                          <th className="px-4 py-3">Funcionário</th>
+                          <th className="px-4 py-3">Descrição / Lanche</th>
+                          <th className="px-4 py-3">Valor</th>
+                          <th className="px-4 py-3 text-right">Destinação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-[#2c2c2c]">
+                        {b28VouchersToReview.map(v => {
+                          const dest = selections[v.id] || '2';
+                          const isSuggestedMossoro = ['yan', 'marques', 'francineide', 'fran'].some(namePart => v.employeeName?.toLowerCase().includes(namePart));
+                          return (
+                            <tr key={v.id} className={`hover:bg-slate-50 dark:hover:bg-neutral-800/50 ${isSuggestedMossoro ? 'bg-amber-500/5' : ''}`}>
+                              <td className="px-4 py-3 font-mono">{v.date}</td>
+                              <td className="px-4 py-3 font-bold">
+                                {v.employeeName}
+                                {isSuggestedMossoro && (
+                                  <span className="ml-2 text-[9px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-black">MOSSORÓ</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-slate-400">{v.description || 'Vale / Adiantamento'}</td>
+                              <td className="px-4 py-3 font-bold">R$ {v.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="px-4 py-3 text-right">
+                                <select
+                                  value={dest}
+                                  onChange={(e) => setSelections(prev => ({ ...prev, [v.id]: e.target.value as '1' | '2' }))}
+                                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border outline-none cursor-pointer ${
+                                    dest === '1'
+                                      ? 'bg-blue-500/20 border-blue-500/40 text-blue-400'
+                                      : 'bg-green-500/20 border-green-500/40 text-green-400'
+                                  }`}
+                                >
+                                  <option value="2" className="text-slate-900 bg-white">Riomar (B28)</option>
+                                  <option value="1" className="text-slate-900 bg-white">Mossoró (B32)</option>
+                                </select>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Expenses Section */}
+              <div>
+                <h3 className="font-bold text-xs tracking-wide text-amber-500 mb-2 uppercase">Despesas Diárias</h3>
+                {b28ExpensesToReview.length === 0 ? (
+                  <p className="text-slate-400 italic">Nenhuma despesa encontrada para revisão.</p>
+                ) : (
+                  <div className="border border-slate-200 dark:border-[#2C2C2C] rounded-xl overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-neutral-900 text-[10px] font-black uppercase text-slate-400 border-b border-slate-200 dark:border-[#2c2c2c]">
+                          <th className="px-4 py-3">Data</th>
+                          <th className="px-4 py-3">Descrição / Fornecedor</th>
+                          <th className="px-4 py-3">Categoria</th>
+                          <th className="px-4 py-3">Valor</th>
+                          <th className="px-4 py-3 text-right">Destinação</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-[#2c2c2c]">
+                        {b28ExpensesToReview.map(e => {
+                          const dest = selections[e.id] || '2';
+                          const isSuggestedMossoro = ['mossoró', 'mossoro'].some(kw => 
+                            e.description?.toLowerCase().includes(kw) || 
+                            e.recipient?.toLowerCase().includes(kw) || 
+                            e.notes?.toLowerCase().includes(kw)
+                          );
+                          return (
+                            <tr key={e.id} className={`hover:bg-slate-50 dark:hover:bg-neutral-800/50 ${isSuggestedMossoro ? 'bg-amber-500/5' : ''}`}>
+                              <td className="px-4 py-3 font-mono">{e.date}</td>
+                              <td className="px-4 py-3 font-bold">
+                                {e.description}
+                                {isSuggestedMossoro && (
+                                  <span className="ml-2 text-[9px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-black">MOSSORÓ</span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3 text-slate-400">{e.category}</td>
+                              <td className="px-4 py-3 font-bold text-red-500">R$ {e.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="px-4 py-3 text-right">
+                                <select
+                                  value={dest}
+                                  onChange={(evt) => setSelections(prev => ({ ...prev, [e.id]: evt.target.value as '1' | '2' }))}
+                                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border outline-none cursor-pointer ${
+                                    dest === '1'
+                                      ? 'bg-blue-500/20 border-blue-500/40 text-blue-400'
+                                      : 'bg-green-500/20 border-green-500/40 text-green-400'
+                                  }`}
+                                >
+                                  <option value="2" className="text-slate-900 bg-white">Riomar (B28)</option>
+                                  <option value="1" className="text-slate-900 bg-white">Mossoró (B32)</option>
+                                </select>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 border-t pt-4 border-slate-200 dark:border-[#2C2C2C] mt-4">
+              <button
+                onClick={() => setIsRepairPanelOpen(false)}
+                className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors ${
+                  isDarkMode ? 'hover:bg-neutral-800 text-slate-300' : 'hover:bg-slate-100 text-slate-600'
+                }`}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveRepair}
+                disabled={repairingDocs}
+                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-black rounded-xl transition-all shadow-md shrink-0 focus:outline-none"
+              >
+                {repairingDocs ? 'Processando e Gravando...' : 'Confirmar e Ajustar Banco de Dados'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* FORM DIALOG (MODAL) */}
