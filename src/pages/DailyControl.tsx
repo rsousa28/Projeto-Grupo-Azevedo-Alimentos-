@@ -466,7 +466,11 @@ export default function DailyControl() {
       };
 
       const newDocId = getDocIdFromDate(formDate);
-      const isPeriodChanged = editingItem && getDocIdFromDate(editingItem.date) !== newDocId;
+      const originalStoreId = editingItem ? (editingItem.storeId || currentStore.id) : null;
+      const originalDocId = editingItem ? getDocIdFromDate(editingItem.date) : null;
+      const isStoreChanged = editingItem && originalStoreId !== targetStoreId;
+      const isPeriodChanged = editingItem && originalDocId !== newDocId;
+      const isMoving = isStoreChanged || isPeriodChanged;
 
       // 1. Fetch current list for this specific store & new period
       const targetDocRef = doc(db, 'stores', targetStoreId, 'daily_control', newDocId);
@@ -506,7 +510,7 @@ export default function DailyControl() {
           createdAt: editingItem ? editingItem.createdAt : new Date().toISOString()
         };
 
-        if (editingItem && !isPeriodChanged) {
+        if (editingItem && !isMoving) {
           targetExpenses = targetExpenses.map(item => item.id === editingItem.id ? payload : item);
         } else {
           // Add or replace
@@ -528,7 +532,7 @@ export default function DailyControl() {
           createdAt: editingItem ? editingItem.createdAt : new Date().toISOString()
         };
 
-        if (editingItem && !isPeriodChanged) {
+        if (editingItem && !isMoving) {
           targetVouchers = targetVouchers.map(item => item.id === editingItem.id ? payload : item);
         } else {
           // Add or replace
@@ -551,10 +555,9 @@ export default function DailyControl() {
         handleFirestoreError(err, OperationType.WRITE, pathForWrite);
       }
 
-      // If the period of the item was modified, we also need to remove it from the old doc
-      if (isPeriodChanged) {
-        const oldDocId = getDocIdFromDate(editingItem.date);
-        const oldDocRef = doc(db, 'stores', targetStoreId, 'daily_control', oldDocId);
+      // If the item was moved to a different store or different period, remove it from the original document
+      if (editingItem && isMoving && originalStoreId && originalDocId) {
+        const oldDocRef = doc(db, 'stores', originalStoreId, 'daily_control', originalDocId);
         const oldDocSnap = await getDoc(oldDocRef);
 
         let oldExpenses: DailyExpense[] = [];
@@ -565,11 +568,11 @@ export default function DailyControl() {
           oldVouchers = oldDocSnap.data().data.vouchers || [];
         } else {
           // Try fetching from legacy 'all' filtered
-          const oldDocRefAll = doc(db, 'stores', targetStoreId, 'daily_control', 'all');
+          const oldDocRefAll = doc(db, 'stores', originalStoreId, 'daily_control', 'all');
           const oldDocSnapAll = await getDoc(oldDocRefAll);
           if (oldDocSnapAll.exists() && oldDocSnapAll.data().data) {
             const oldData = oldDocSnapAll.data().data;
-            const oldYearMonth = oldDocId.replace('period_', '').replace('_', '-');
+            const oldYearMonth = originalDocId.replace('period_', '').replace('_', '-');
             oldExpenses = (oldData.expenses || []).filter((e: any) => e.date && e.date.startsWith(oldYearMonth));
             oldVouchers = (oldData.vouchers || []).filter((v: any) => v.date && v.date.startsWith(oldYearMonth));
           }
@@ -578,7 +581,7 @@ export default function DailyControl() {
         oldExpenses = oldExpenses.filter(e => e.id !== editingItem.id);
         oldVouchers = oldVouchers.filter(v => v.id !== editingItem.id);
 
-        const pathForOldWrite = `/stores/${targetStoreId}/daily_control/${oldDocId}`;
+        const pathForOldWrite = `/stores/${originalStoreId}/daily_control/${originalDocId}`;
         try {
           await setDoc(oldDocRef, {
             data: {
@@ -1038,27 +1041,6 @@ export default function DailyControl() {
   return (
     <div className={`space-y-6 ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>
       
-      {isRoot && selectedMonth === '06' && selectedYear === '2026' && (
-        <div className="p-5 rounded-2xl border border-amber-500/20 bg-amber-500/5 backdrop-blur-sm flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-pulse">
-          <div className="flex items-start gap-3">
-            <span className="text-xl">🛠️</span>
-            <div>
-              <h4 className="text-xs font-black uppercase text-amber-500 tracking-wider">Ajuste de Filiais (B32 & B28 - Junho/2026)</h4>
-              <p className="text-xs text-slate-400 mt-1 max-w-xl">
-                Foram identificados vales e despesas de <strong>Bebelu Mossoró (B32)</strong> misturados com a <strong>Bebelu Riomar Papicu (B28)</strong> devido a uma migração anterior. Use o painel de correção para separá-los e carregar o caixa de cada filial de forma isolada.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={handleOpenRepairPanel}
-            disabled={repairingDocs}
-            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-black rounded-xl transition-all shadow-md shrink-0 flex items-center gap-2"
-          >
-            {repairingDocs ? 'Carregando...' : 'Revisar e Corrigir Lançamentos'}
-          </button>
-        </div>
-      )}
-
       {/* Header Container */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-4 border-slate-100 dark:border-[#333]">
         <div>
