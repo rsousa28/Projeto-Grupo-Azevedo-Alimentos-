@@ -412,7 +412,10 @@ export default function DailyControl() {
     setFormStatus(activeTab === 'expenses' ? 'Pago' : 'Pendente');
     setFormEmployeeName('');
     setFormNotes('');
-    setFormStoreId(isRoot ? STORES.filter(s => s.id !== 'admin-global')[0].id : currentStore.id);
+    const initialStoreId = currentStore.id !== 'admin-global' 
+      ? currentStore.id 
+      : (STORES.filter(s => s.id !== 'admin-global')[0]?.id || '');
+    setFormStoreId(initialStoreId);
     setIsModalOpen(true);
   };
 
@@ -427,7 +430,8 @@ export default function DailyControl() {
     setFormStatus(item.status);
     setFormEmployeeName(item.employeeName || '');
     setFormNotes(item.notes || '');
-    setFormStoreId(item.storeId || currentStore.id);
+    const editStoreId = item.storeId || (currentStore.id !== 'admin-global' ? currentStore.id : (STORES.filter(s => s.id !== 'admin-global')[0]?.id || ''));
+    setFormStoreId(editStoreId);
     setIsModalOpen(true);
   };
 
