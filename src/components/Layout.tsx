@@ -117,6 +117,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const filteredStores = React.useMemo(() => {
     if (!user) return [];
     
+    const isRennan = (user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan');
+    if (isRennan) {
+      return STORES;
+    }
+
     // Admin sees everything
     if (user.role === 'ADMIN') {
       return STORES;

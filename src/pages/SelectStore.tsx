@@ -14,6 +14,11 @@ export default function SelectStore() {
   const filteredStores = React.useMemo(() => {
     if (!user) return [];
     
+    const isRennan = (user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan');
+    if (isRennan) {
+      return STORES;
+    }
+
     // Admin sees only Consolidated (ROOT)
     if (user.role === 'ADMIN') {
       return STORES.filter(s => s.code === 'ROOT');

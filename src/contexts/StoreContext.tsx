@@ -297,7 +297,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       try {
         const u = JSON.parse(savedUserStr);
         if (u && u.role) {
-          if (u.role === 'MANAGER_BEBELU_MOSSORO') {
+          const isRennan = (u.username || '').toLowerCase().includes('rennan') || (u.email || '').toLowerCase().includes('rennan');
+          if (u.role === 'ADMIN' || isRennan) {
+            return STORES.find(s => s.code === 'ROOT') || STORES[3];
+          } else if (u.role === 'MANAGER_BEBELU_MOSSORO') {
             return STORES.find(s => s.code === 'B32') || STORES[3];
           } else if (u.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
             return STORES.find(s => s.code === 'B28') || STORES[3];
@@ -347,7 +350,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       // Get list of permitted stores for user's role
       let allowed: Store[] = [];
-      if (user.role === 'ADMIN') {
+      const isRennan = (user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan');
+
+      if (user.role === 'ADMIN' || isRennan) {
         allowed = STORES;
       } else if (user.role === 'FINANCIAL') {
         allowed = STORES.filter(s => s.code !== 'ROOT');
