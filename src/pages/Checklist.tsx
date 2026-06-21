@@ -613,7 +613,7 @@ export default function Checklist() {
         // Standard Tab Panel Dashboard
         <div className="space-y-6">
           {/* Custom Tabs Navigation Menu */}
-          <div className="flex flex-wrap sm:flex-nowrap border-b border-slate-100 dark:border-zinc-850 gap-1.5 sm:gap-2 overflow-x-auto pb-1 max-w-full">
+          <div className="flex flex-row flex-nowrap border-b border-slate-100 dark:border-zinc-850 gap-1.5 sm:gap-2 overflow-x-auto pb-1 max-w-full scrollbar-none snap-x">
             {[
               { id: 'fill', label: 'Executar Checklist', icon: ClipboardCheck },
               { id: 'history', label: 'Histórico & PDF', icon: History },
@@ -626,7 +626,7 @@ export default function Checklist() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-3 sm:px-5 py-3 sm:py-4 font-black uppercase italic text-[11px] sm:text-xs tracking-wider border-b-2 whitespace-nowrap transition-all flex-1 sm:flex-initial justify-center sm:justify-start ${
+                  className={`flex items-center gap-2 px-3 sm:px-5 py-3 sm:py-4 font-black uppercase italic text-[11px] sm:text-xs tracking-wider border-b-2 whitespace-nowrap transition-all shrink-0 snap-center ${
                     active
                       ? (isDarkMode ? 'border-[#FFCB05] text-[#FFCB05]' : 'border-amber-500 text-amber-600')
                       : 'border-transparent text-slate-500 hover:text-slate-300'

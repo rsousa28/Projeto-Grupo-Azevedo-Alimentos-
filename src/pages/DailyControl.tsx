@@ -1190,10 +1190,10 @@ export default function DailyControl() {
       </div>
 
       {/* Tabs list */}
-      <div className="flex flex-wrap sm:flex-nowrap border-b border-slate-200 dark:border-[#333] gap-1 sm:gap-2">
+      <div className="flex flex-row flex-nowrap border-b border-slate-200 dark:border-[#333] gap-1 sm:gap-2 overflow-x-auto scrollbar-none snap-x w-full">
         <button
           onClick={() => { setActiveTab('expenses'); setSelectedStatus('all'); }}
-          className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition-all text-center justify-center ${
+          className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition-all text-center justify-center whitespace-nowrap shrink-0 snap-center ${
             activeTab === 'expenses' 
               ? 'border-yellow-500 text-yellow-500' 
               : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -1204,7 +1204,7 @@ export default function DailyControl() {
         </button>
         <button
           onClick={() => { setActiveTab('vouchers'); setSelectedStatus('all'); }}
-          className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition-all text-center justify-center ${
+          className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition-all text-center justify-center whitespace-nowrap shrink-0 snap-center ${
             activeTab === 'vouchers' 
               ? 'border-yellow-500 text-yellow-500' 
               : 'border-transparent text-slate-400 hover:text-slate-200'

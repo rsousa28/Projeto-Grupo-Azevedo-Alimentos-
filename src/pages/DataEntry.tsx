@@ -869,7 +869,7 @@ export default function DataEntry() {
 
       {/* Tabs & Period Selector */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-        <div className="flex gap-4 p-1.5 bg-slate-100 dark:bg-black/20 rounded-2xl w-fit">
+        <div className="flex flex-row flex-nowrap gap-4 p-1.5 bg-slate-100 dark:bg-black/20 rounded-2xl w-full lg:w-auto overflow-x-auto scrollbar-none snap-x pb-2 lg:pb-1.5">
           {[
             { id: 'financial', label: 'Financeiro & DRE', icon: DollarSign },
             { id: 'channels', label: 'Canais de Venda', icon: PieChart },
@@ -880,14 +880,14 @@ export default function DataEntry() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all whitespace-nowrap shrink-0 snap-center ${
                 activeTab === tab.id 
                   ? (currentStore.brand === 'BEBELU' ? 'text-[#7F300C] shadow-lg' : (isDarkMode ? 'bg-[#E63946] text-white shadow-lg' : 'bg-white text-slate-900 shadow-md'))
                   : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
               style={activeTab === tab.id && currentStore.brand === 'BEBELU' ? { backgroundColor: brandColors.button } : {}}
             >
-              <tab.icon className="w-4 h-4" /> {tab.label}
+              <tab.icon className="w-4 h-4 shrink-0" /> {tab.label}
             </button>
           ))}
         </div>
