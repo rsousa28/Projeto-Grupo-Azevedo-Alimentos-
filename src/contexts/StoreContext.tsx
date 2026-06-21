@@ -4,6 +4,7 @@ import { useToast } from './ToastContext';
 import { mockMetrics, dreTimeline as mockDreTimeline, metaVsRealizado as mockMetaVsRealizado, topProducts as mockTopProducts, deliveryChannels as mockDeliveryChannels, salesByHour as mockSalesByHour, salesByDay as mockSalesByDay } from '../lib/mockData';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { getDocCached, setDocCached, clearQueryCache } from '../lib/firestoreQueryCache';
 import { useAuth } from './AuthContext';
 import { AuditService } from '../services/AuditService';
 
@@ -321,6 +322,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setCurrentStore(store);
     localStorage.setItem('active_store_id', store.id);
     
+    // Clear query cache to ensure no stale/cross-store query residues remain in memory!
+    clearQueryCache();
+    
     // Reset data immediately and synchronously during the event handler to ensure isolation and prevent race conditions!
     setMetrics(mockMetrics.map(m => ({ ...m, valor: 0, trend: 'neutral', change: '0%' })));
     setDreTimeline([]);
@@ -428,10 +432,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const storeId = currentStore.id;
       if (!storeId || storeId === 'admin-global') return;
       try {
-        const aprilDRE = await getDoc(doc(db, 'stores', storeId, 'dre_periods', '2026-04'));
+        const aprilDRE = await getDocCached(doc(db, 'stores', storeId, 'dre_periods', '2026-04'), currentStore.id, user);
         if (aprilDRE.exists()) {
           const aprilData = aprilDRE.data();
-          const janDRE = await getDoc(doc(db, 'stores', storeId, 'dre_periods', '2026-01'));
+          const janDRE = await getDocCached(doc(db, 'stores', storeId, 'dre_periods', '2026-01'), currentStore.id, user);
           
           if (!janDRE.exists() || !janDRE.data().faturamento) {
             console.log(`Auto-migrating April 2026 DRE to January 2026 for ${storeId}`);
@@ -442,7 +446,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               yearValue: '2026',
               updatedAt: serverTimestamp()
             };
-            await setDoc(doc(db, 'stores', storeId, 'dre_periods', '2026-01'), updatedJanData);
+            await setDocCached(doc(db, 'stores', storeId, 'dre_periods', '2026-01'), updatedJanData, currentStore.id, user);
             
             // Also add to dreTimeline since the timeline is currently active
             setDreTimeline(prev => {
@@ -452,19 +456,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        const aprilCMV = await getDoc(doc(db, 'stores', storeId, 'cmv_periods', '2026-04'));
+        const aprilCMV = await getDocCached(doc(db, 'stores', storeId, 'cmv_periods', '2026-04'), currentStore.id, user);
         if (aprilCMV.exists()) {
           const aprilCMVData = aprilCMV.data();
-          const janCMV = await getDoc(doc(db, 'stores', storeId, 'cmv_periods', '2026-01'));
+          const janCMV = await getDocCached(doc(db, 'stores', storeId, 'cmv_periods', '2026-01'), currentStore.id, user);
           
           if (!janCMV.exists()) {
             console.log(`Auto-migrating April 2026 CMV to January 2026 for ${storeId}`);
-            await setDoc(doc(db, 'stores', storeId, 'cmv_periods', '2026-01'), {
+            await setDocCached(doc(db, 'stores', storeId, 'cmv_periods', '2026-01'), {
               ...aprilCMVData,
               month: '01',
               year: '2026',
               updatedAt: serverTimestamp()
-            });
+            }, currentStore.id, user);
           }
         }
       } catch (err) {
@@ -536,14 +540,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const path = `stores/${currentStore.id}/cmv_periods/${periodId}`;
     try {
       const docRef = doc(db, 'stores', currentStore.id, 'cmv_periods', periodId);
-      await setDoc(docRef, {
+      await setDocCached(docRef, {
         month,
         year,
         inventoryItems: inventory,
         topProducts: products,
         updatedAt: serverTimestamp()
-      });
-      console.log('Período salvo com sucesso:', periodId);
+      }, currentStore.id, user);
+      console.log('Período CMV salvo com sucesso:', periodId);
 
       if (user) {
         const monthNames = [
@@ -571,7 +575,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const path = `stores/${currentStore.id}/cmv_periods/${periodId}`;
     try {
       const docRef = doc(db, 'stores', currentStore.id, 'cmv_periods', periodId);
-      const docSnap = await getDoc(docRef);
+      const docSnap = await getDocCached(docRef, currentStore.id, user);
       
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -611,12 +615,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
       // 3. Attempt to save to remote Firestore
       const docRef = doc(db, 'stores', currentStore.id, 'dre_periods', periodId);
-      await setDoc(docRef, {
+      await setDocCached(docRef, {
         ...dreData,
         monthValue: month,
         yearValue: year,
         updatedAt: serverTimestamp()
-      });
+      }, currentStore.id, user);
       console.log('DRE sincronizada com Firestore com sucesso:', periodId);
 
       if (user) {
@@ -682,7 +686,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const docRef = doc(db, 'stores', currentStore.id, 'dre_periods', periodId);
-      const docSnap = await getDoc(docRef);
+      const docSnap = await getDocCached(docRef, currentStore.id, user);
       
       if (docSnap.exists()) {
         const data = { ...docSnap.data(), year } as DREData;
@@ -784,6 +788,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       await Promise.all(collections.map(coll => 
         deleteDoc(doc(db, 'stores', storeId, coll, periodId)).catch(e => console.warn(`Erro ao deletar em ${coll}:`, e))
       ));
+      
+      // Clear local memory query cache for this storeId to prevent stale reads
+      clearQueryCache(storeId);
       
       // Obter o label do mês exato
       const monthIndex = parseInt(month, 10) - 1;

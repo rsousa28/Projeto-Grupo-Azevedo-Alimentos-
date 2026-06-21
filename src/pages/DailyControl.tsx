@@ -24,6 +24,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getDocCached, setDocCached } from '../lib/firestoreQueryCache';
 
 export interface DailyExpense {
   id: string;
@@ -305,7 +306,7 @@ export default function DailyControl() {
           const storeName = storeDoc ? storeDoc.name : `Unidade ${storeId}`;
           const path = `/stores/${storeId}/daily_control/${docId}`;
           const docRef = doc(db, 'stores', storeId, 'daily_control', docId);
-          const docSnap = await getDoc(docRef);
+          const docSnap = await getDocCached(docRef, currentStore.id, user);
           
           let rawData: any = null;
           
@@ -314,7 +315,7 @@ export default function DailyControl() {
           } else {
             // BACKWARD COMPATIBILITY / FALLBACK to 'all' filtered by year-month
             const oldDocRef = doc(db, 'stores', storeId, 'daily_control', 'all');
-            const oldDocSnap = await getDoc(oldDocRef);
+            const oldDocSnap = await getDocCached(oldDocRef, currentStore.id, user);
             if (oldDocSnap.exists() && oldDocSnap.data().data) {
               const oldData = oldDocSnap.data().data;
               const yearMonthString = `${selectedYear}-${selectedMonth}`;
@@ -354,7 +355,7 @@ export default function DailyControl() {
         // Individual store read
         const path = `/stores/${currentStore.id}/daily_control/${docId}`;
         const docRef = doc(db, 'stores', currentStore.id, 'daily_control', docId);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await getDocCached(docRef, currentStore.id, user);
 
         if (docSnap.exists() && docSnap.data().data) {
           const rawData = docSnap.data().data;
@@ -363,7 +364,7 @@ export default function DailyControl() {
         } else {
           // BACKWARD COMPATIBILITY / FALLBACK to 'all' filtered by year-month
           const oldDocRef = doc(db, 'stores', currentStore.id, 'daily_control', 'all');
-          const oldDocSnap = await getDoc(oldDocRef);
+          const oldDocSnap = await getDocCached(oldDocRef, currentStore.id, user);
           if (oldDocSnap.exists() && oldDocSnap.data().data) {
             const oldData = oldDocSnap.data().data;
             const yearMonthString = `${selectedYear}-${selectedMonth}`;
@@ -474,7 +475,7 @@ export default function DailyControl() {
 
       // 1. Fetch current list for this specific store & new period
       const targetDocRef = doc(db, 'stores', targetStoreId, 'daily_control', newDocId);
-      const targetDocSnap = await getDoc(targetDocRef);
+      const targetDocSnap = await getDocCached(targetDocRef, currentStore.id, user);
       
       let targetExpenses: DailyExpense[] = [];
       let targetVouchers: DailyVoucher[] = [];
@@ -485,7 +486,7 @@ export default function DailyControl() {
       } else {
         // Look for older data in 'all' filtered by year-month as fallback
         const oldDocRef = doc(db, 'stores', targetStoreId, 'daily_control', 'all');
-        const oldDocSnap = await getDoc(oldDocRef);
+        const oldDocSnap = await getDocCached(oldDocRef, currentStore.id, user);
         if (oldDocSnap.exists() && oldDocSnap.data().data) {
           const oldData = oldDocSnap.data().data;
           const targetYearMonth = newDocId.replace('period_', '').replace('_', '-');
@@ -544,13 +545,13 @@ export default function DailyControl() {
       // Save to target period document
       const pathForWrite = `/stores/${targetStoreId}/daily_control/${newDocId}`;
       try {
-        await setDoc(targetDocRef, {
+        await setDocCached(targetDocRef, {
           data: {
             expenses: targetExpenses,
             vouchers: targetVouchers
           },
           updatedAt: new Date().toISOString()
-        });
+        }, currentStore.id, user);
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, pathForWrite);
       }
@@ -558,7 +559,7 @@ export default function DailyControl() {
       // If the item was moved to a different store or different period, remove it from the original document
       if (editingItem && isMoving && originalStoreId && originalDocId) {
         const oldDocRef = doc(db, 'stores', originalStoreId, 'daily_control', originalDocId);
-        const oldDocSnap = await getDoc(oldDocRef);
+        const oldDocSnap = await getDocCached(oldDocRef, currentStore.id, user);
 
         let oldExpenses: DailyExpense[] = [];
         let oldVouchers: DailyVoucher[] = [];
@@ -569,7 +570,7 @@ export default function DailyControl() {
         } else {
           // Try fetching from legacy 'all' filtered
           const oldDocRefAll = doc(db, 'stores', originalStoreId, 'daily_control', 'all');
-          const oldDocSnapAll = await getDoc(oldDocRefAll);
+          const oldDocSnapAll = await getDocCached(oldDocRefAll, currentStore.id, user);
           if (oldDocSnapAll.exists() && oldDocSnapAll.data().data) {
             const oldData = oldDocSnapAll.data().data;
             const oldYearMonth = originalDocId.replace('period_', '').replace('_', '-');
@@ -583,13 +584,13 @@ export default function DailyControl() {
 
         const pathForOldWrite = `/stores/${originalStoreId}/daily_control/${originalDocId}`;
         try {
-          await setDoc(oldDocRef, {
+          await setDocCached(oldDocRef, {
             data: {
               expenses: oldExpenses,
               vouchers: oldVouchers
             },
             updatedAt: new Date().toISOString()
-          });
+          }, currentStore.id, user);
         } catch (err) {
           handleFirestoreError(err, OperationType.WRITE, pathForOldWrite);
         }
@@ -623,7 +624,7 @@ export default function DailyControl() {
 
       const docId = getDocIdFromDate(itemToDelete.date);
       const docRef = doc(db, 'stores', targetStoreId, 'daily_control', docId);
-      const docSnap = await getDoc(docRef);
+      const docSnap = await getDocCached(docRef, currentStore.id, user);
 
       let currentExpenses: DailyExpense[] = [];
       let currentVouchers: DailyVoucher[] = [];
@@ -634,7 +635,7 @@ export default function DailyControl() {
       } else {
         // Fallback to legacy 'all'
         const oldDocRef = doc(db, 'stores', targetStoreId, 'daily_control', 'all');
-        const oldDocSnap = await getDoc(oldDocRef);
+        const oldDocSnap = await getDocCached(oldDocRef, currentStore.id, user);
         if (oldDocSnap.exists() && oldDocSnap.data().data) {
           const oldData = oldDocSnap.data().data;
           const targetYearMonth = docId.replace('period_', '').replace('_', '-');
@@ -651,13 +652,13 @@ export default function DailyControl() {
 
       const pathForWrite = `/stores/${targetStoreId}/daily_control/${docId}`;
       try {
-        await setDoc(docRef, {
+        await setDocCached(docRef, {
           data: {
             expenses: currentExpenses,
             vouchers: currentVouchers
           },
           updatedAt: new Date().toISOString()
-        });
+        }, currentStore.id, user);
       } catch (err) {
         handleFirestoreError(err, OperationType.WRITE, pathForWrite);
       }
