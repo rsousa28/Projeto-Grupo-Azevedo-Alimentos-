@@ -130,41 +130,47 @@ function generateIcon(size: number, isPrecomposed: boolean) {
 const publicDir = path.join(process.cwd(), 'public');
 
 // Create multiple sizes to make sure Safari has perfect files
-const sizes = [180, 192, 512];
+const standardSizes = [57, 72, 76, 114, 120, 144, 152, 180, 192, 512];
 
-for (const size of sizes) {
+const distDir = path.join(process.cwd(), 'dist');
+const hasDist = fs.existsSync(distDir);
+
+for (const size of standardSizes) {
   const pngInstance = generateIcon(size, false);
   const buffer = PNG.sync.write(pngInstance);
   
+  // Save to public/
+  if (size === 192) {
+    fs.writeFileSync(path.join(publicDir, 'logo_azevedo.png'), buffer);
+    if (hasDist) fs.writeFileSync(path.join(distDir, 'logo_azevedo.png'), buffer);
+    console.log(`Generated logo_azevedo.png (192x192)`);
+  } else if (size === 512) {
+    fs.writeFileSync(path.join(publicDir, 'logo_azevedo_512.png'), buffer);
+    if (hasDist) fs.writeFileSync(path.join(distDir, 'logo_azevedo_512.png'), buffer);
+    console.log(`Generated logo_azevedo_512.png (512x512)`);
+  } else {
+    // Generate specific size apple touch icons
+    const namePng = `apple-touch-icon-${size}x${size}.png`;
+    const namePre = `apple-touch-icon-${size}x${size}-precomposed.png`;
+    
+    fs.writeFileSync(path.join(publicDir, namePng), buffer);
+    fs.writeFileSync(path.join(publicDir, namePre), buffer);
+    
+    if (hasDist) {
+      fs.writeFileSync(path.join(distDir, namePng), buffer);
+      fs.writeFileSync(path.join(distDir, namePre), buffer);
+    }
+    console.log(`Generated ${size}x${size} files`);
+  }
+
+  // If this is the main iOS standard desktop size (180), duplication as base apple-touch-icon
   if (size === 180) {
     fs.writeFileSync(path.join(publicDir, 'apple-touch-icon.png'), buffer);
     fs.writeFileSync(path.join(publicDir, 'apple-touch-icon-precomposed.png'), buffer);
-    // Also save in dist/ if dist already exists to update dynamically without full build
-    const distApple = path.join(process.cwd(), 'dist', 'apple-touch-icon.png');
-    if (fs.existsSync(path.dirname(distApple))) {
-      fs.writeFileSync(distApple, buffer);
-      fs.writeFileSync(path.join(process.cwd(), 'dist', 'apple-touch-icon-precomposed.png'), buffer);
+    if (hasDist) {
+      fs.writeFileSync(path.join(distDir, 'apple-touch-icon.png'), buffer);
+      fs.writeFileSync(path.join(distDir, 'apple-touch-icon-precomposed.png'), buffer);
     }
-    console.log(`Generated 180x180 index icons...`);
-  }
-  
-  if (size === 192) {
-    fs.writeFileSync(path.join(publicDir, 'logo_azevedo.png'), buffer);
-    // Also write directly to dist/
-    const distLogo = path.join(process.cwd(), 'dist', 'logo_azevedo.png');
-    if (fs.existsSync(path.dirname(distLogo))) {
-      fs.writeFileSync(distLogo, buffer);
-    }
-    console.log(`Generated 192x192 primary icon...`);
-  }
-  
-  if (size === 512) {
-    fs.writeFileSync(path.join(publicDir, 'logo_azevedo_512.png'), buffer);
-    const distLogo512 = path.join(process.cwd(), 'dist', 'logo_azevedo_512.png');
-    if (fs.existsSync(path.dirname(distLogo512))) {
-      fs.writeFileSync(distLogo512, buffer);
-    }
-    console.log(`Generated 512x512 fallback icon...`);
   }
 }
 

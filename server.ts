@@ -107,8 +107,12 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-    // Support SPA routing in production
+    // Support SPA routing in production while avoiding serving HTML for missing files with extensions
     app.get("*", (req, res) => {
+      if (path.extname(req.path)) {
+        res.status(404).send("Not Found");
+        return;
+      }
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
