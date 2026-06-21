@@ -28,6 +28,7 @@ import AccountsPayable from "./pages/AccountsPayable";
 import AuditLogs from "./pages/AuditLogs";
 import Marketing from "./pages/Marketing";
 import DailyControl from "./pages/DailyControl";
+import InstallPrompt from "./components/InstallPrompt";
 
 import { useEffect, useRef } from "react";
 import { useAuth } from "./contexts/AuthContext";
@@ -322,6 +323,7 @@ export default function App() {
       <AuthProvider>
         <StoreProvider>
           <AppRoutes />
+          <InstallPrompt />
         </StoreProvider>
       </AuthProvider>
     </ToastProvider>
