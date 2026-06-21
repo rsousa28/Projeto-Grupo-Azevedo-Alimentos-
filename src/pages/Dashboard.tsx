@@ -1222,85 +1222,99 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="space-y-8 pb-10">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <div className="space-y-6 pb-10">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4 border-slate-100 dark:border-[#333]">
         <div>
-          <h2 className={`text-2xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>
+          <h2 className={`text-2xl sm:text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>
             {currentStore.code === 'ROOT' ? 'Visão Consolidada - Root' : (showEntry ? 'Lançamentos Dashboard' : 'Performance de Vendas')}
           </h2>
-          <p className={`text-sm font-medium italic ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>
+          <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-500' : 'text-slate-400 mt-1'}`}>
             {currentStore.code === 'ROOT' 
               ? 'Métricas agregadas do Grupo Azevedo'
               : (showEntry ? 'Preencha os dados da unidade' : 'Dados consolidados da unidade selecionada')}
           </p>
         </div>
         
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3 w-full lg:w-auto">
-          <div className="flex items-center justify-between sm:justify-start gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 w-full sm:w-auto">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-slate-400 ml-1.5 shrink-0" />
-              <select 
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(e.target.value)}
-                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-              >
-                {months.map(m => (
-                  <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
-                ))}
-              </select>
-            </div>
-            <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
-            <select 
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-            >
-              {['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'].map(year => (
-                <option key={year} value={year} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{year}</option>
-              ))}
-            </select>
-          </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button
+            onClick={exportDashboardPDF}
+            disabled={exportingPDF}
+            className={`flex-1 md:flex-initial btn-save-secondary ${
+              isDarkMode 
+                ? 'bg-[#1E1E1E] border-[#333] hover:bg-[#252525] text-white' 
+                : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
+            }`}
+          >
+            <Download className={`w-4 h-4 shrink-0 ${exportingPDF ? 'animate-spin' : ''}`} />
+            {exportingPDF ? 'Gerando...' : 'Baixar PDF'}
+          </button>
 
-          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-            <button
-              onClick={exportDashboardPDF}
-              disabled={exportingPDF}
-              aria-label="Baixar Relatório em PDF"
+          {currentStore.code !== 'ROOT' && (
+            <button 
+              onClick={() => setShowEntry(!showEntry)}
               style={{
                 backgroundColor: themeButtonBg,
                 color: themeTextContrast,
                 boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
               }}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none cursor-pointer text-center whitespace-nowrap min-h-[44px]"
+              className="flex-1 md:flex-initial btn-save-primary"
             >
-              <Download className={`w-4 h-4 shrink-0 ${exportingPDF ? 'animate-spin' : ''}`} />
-              {exportingPDF ? 'Gerando Relatório...' : 'Baixar Relatório (PDF)'}
+              {showEntry ? (
+                <>
+                  <ArrowLeft className="w-4 h-4 shrink-0" />
+                  Dashboard
+                </>
+              ) : (
+                <>
+                  Lançamentos
+                  <ArrowRight className="w-4 h-4 shrink-0" />
+                </>
+              )}
             </button>
+          )}
+        </div>
+      </div>
 
-            {currentStore.code !== 'ROOT' && (
-              <button 
-                onClick={() => setShowEntry(!showEntry)}
-                style={{
-                  backgroundColor: themeButtonBg,
-                  color: themeTextContrast,
-                  boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
-                }}
-                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer text-center whitespace-nowrap min-h-[44px]"
-              >
-                {showEntry ? (
-                  <>
-                    <ArrowLeft className="w-4 h-4 shrink-0" />
-                    Voltar ao Dashboard
-                  </>
-                ) : (
-                  <>
-                    Lançamentos Dashboard
-                    <ArrowRight className="w-4 h-4 shrink-0" />
-                  </>
-                )}
-              </button>
-            )}
+      {/* Período de Trabalho (Active Period Selection) */}
+      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-amber-500/5 border-amber-500/20'} flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm`}>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 shrink-0">
+            <Calendar className="w-5 h-5 text-amber-500" />
           </div>
+          <div>
+            <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+              Período Ativo do Dashboard
+            </h3>
+            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+              Defina o período para visualizar, cadastrar e exportar lançamentos do respectivo mês.
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
+              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+            } outline-none cursor-pointer`}
+          >
+            {months.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
+              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+            } outline-none cursor-pointer`}
+          >
+            {['2023', '2024', '2025', '2026', '2027', '2028', '2029', '2030'].map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
         </div>
       </div>
 

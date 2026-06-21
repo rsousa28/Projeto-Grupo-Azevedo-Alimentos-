@@ -46,3 +46,13 @@
 .markdown-body h1 { @apply text-lg; }
 .markdown-body h2 { @apply text-base; }
 .markdown-body h3 { @apply text-sm; }
+
+/* Shared Button Utilities matching Controle Diário style */
+.btn-save-primary {
+  @apply flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider px-5 py-2.5 rounded-xl transition-all shadow-md active:scale-95 duration-150 cursor-pointer text-center whitespace-nowrap;
+}
+
+.btn-save-secondary {
+  @apply flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider px-4 py-2.5 rounded-xl border transition-all active:scale-95 duration-150 cursor-pointer text-center whitespace-nowrap;
+}
+

@@ -855,27 +855,85 @@ export default function DataEntrySection({
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {!isEmbedded && (
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h2 className={`text-2xl sm:text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>
-              {mode === 'marketing' ? 'Marketing' : 'Lançamentos'} - {currentMonthLabel}/{selectedYear}
-            </h2>
-            <p className="text-slate-500 font-medium text-xs sm:text-sm mt-1 max-w-2xl">
-              {mode === 'marketing' ? 'Monitore e registre a performance das campanhas de marketing e tráfego' : 'Alimente o sistema com dados reais para atualizar os dashboards'}
-            </p>
+        <>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4 border-slate-100 dark:border-[#333]">
+            <div>
+              <h2 className={`text-2xl sm:text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                {mode === 'marketing' ? 'Marketing' : 'Lançamentos'}
+              </h2>
+              <p className="text-xs text-slate-400 font-medium tracking-wide">
+                {mode === 'marketing' 
+                  ? 'Monitore e registre a performance das campanhas de marketing e tráfego.' 
+                  : 'Alimente o sistema com dados reais para atualizar os dashboards.'}
+              </p>
+            </div>
+            <button 
+              onClick={() => handleSave(false)}
+              className="flex-1 md:flex-initial btn-save-primary"
+              style={{
+                backgroundColor: brandColors.button,
+                color: currentStore.brand === 'BEBELU' ? '#7F300C' : '#FFFFFF',
+                boxShadow: `0 10px 15px -3px ${brandColors.button}40`,
+              }}
+            >
+              <Save className="w-4 h-4 shrink-0" />
+              Salvar Alterações
+            </button>
           </div>
-          <button 
-            onClick={() => handleSave(false)}
-            className={`flex items-center justify-center gap-2 px-6 sm:px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs sm:text-sm transition-all shadow-lg active:scale-95 w-full md:w-auto ${
-              currentStore.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'
-            }`}
-            style={{ backgroundColor: brandColors.button, boxShadow: `0 10px 15px -3px ${brandColors.button}30` }}
-          >
-            <Save className="w-4 h-4 shrink-0" /> Salvar Alterações
-          </button>
-        </div>
+
+          {/* Período de Trabalho (Active Period Selection) */}
+          <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-amber-500/5 border-amber-500/20'} flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm`}>
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 shrink-0">
+                <Calendar className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                  Período Ativo do {mode === 'marketing' ? 'Marketing' : 'Lançamentos'}
+                </h3>
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                  Defina o período para visualizar, cadastrar e salvar as métricas correspondentes.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedMonth(val);
+                  onMonthChange?.(val);
+                }}
+                className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
+                  isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+                } outline-none cursor-pointer`}
+              >
+                {months.map(m => (
+                  <option key={m.value} value={m.value}>{m.label}</option>
+                ))}
+              </select>
+
+              <select
+                value={selectedYear}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setSelectedYear(val);
+                  onYearChange?.(val);
+                }}
+                className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
+                  isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+                } outline-none cursor-pointer`}
+              >
+                {years.map(y => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
       )}
 
       {saved && (
@@ -907,43 +965,6 @@ export default function DataEntrySection({
             ))}
           </div>
         ) : <div />}
-
-        <div className="flex items-center gap-3 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl w-full lg:w-auto">
-          <div className="flex items-center gap-2 px-3">
-            <Calendar className="w-4 h-4 text-slate-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Período:</span>
-          </div>
-          <select 
-            value={selectedMonth}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedMonth(val);
-              onMonthChange?.(val);
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold outline-none transition-all cursor-pointer ${
-              isDarkMode ? 'bg-[#1E1E1E] text-white' : 'bg-white text-slate-900'
-            }`}
-          >
-            {months.map(m => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
-          </select>
-          <select 
-            value={selectedYear}
-            onChange={(e) => {
-              const val = e.target.value;
-              setSelectedYear(val);
-              onYearChange?.(val);
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-bold outline-none transition-all cursor-pointer ${
-              isDarkMode ? 'bg-[#1E1E1E] text-white' : 'bg-white text-slate-900'
-            }`}
-          >
-            {years.map(y => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
-        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

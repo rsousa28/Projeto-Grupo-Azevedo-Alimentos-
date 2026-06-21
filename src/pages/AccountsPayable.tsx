@@ -2139,18 +2139,13 @@ export default function AccountsPayable() {
               <button 
                 onClick={handleSavePeriod}
                 disabled={isSaving}
-                style={{
-                  backgroundColor: isSaving ? undefined : themeButtonBg,
-                  color: isSaving ? '#FFFFFF' : themeTextContrast,
-                  boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}40`,
-                }}
-                className={`flex items-center justify-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer w-full sm:w-auto ${
-                  isSaving 
-                    ? 'bg-slate-400 cursor-not-allowed' 
-                    : ''
+                className={`flex-1 sm:flex-initial btn-save-secondary ${
+                  isDarkMode 
+                    ? 'bg-[#1E1E1E] border-[#333] hover:bg-[#252525] text-white' 
+                    : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
                 }`}
               >
-                {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-500 shrink-0" /> : <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
                 {isSaving ? 'Salvando...' : 'Salvar Período'}
               </button>
             </div>
@@ -2956,7 +2951,7 @@ export default function AccountsPayable() {
           <button 
             onClick={handleSavePeriod}
             disabled={isSaving}
-            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl border transition-colors ${
+            className={`flex-1 md:flex-initial btn-save-secondary ${
               isDarkMode 
                 ? 'bg-[#1E1E1E] border-[#333] hover:bg-[#252525] text-white' 
                 : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
@@ -2983,7 +2978,7 @@ export default function AccountsPayable() {
               color: themeTextContrast,
               boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
             }}
-            className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-md transform hover:scale-[1.02] cursor-pointer text-center whitespace-nowrap"
+            className="flex-1 md:flex-initial btn-save-primary"
           >
             <Plus className="w-4 h-4 shrink-0 stroke-[3]" />
             Adicionar Conta
@@ -2992,10 +2987,10 @@ export default function AccountsPayable() {
       </div>
 
       {/* Período de Trabalho (Active Period Selection) */}
-      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-indigo-500/5 border-indigo-500/20'} flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shadow-sm`}>
+      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-amber-500/5 border-amber-500/20'} flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shadow-sm`}>
         <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-500 shrink-0">
-            <Calendar className="w-5 h-5 text-indigo-500" />
+          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 shrink-0">
+            <Calendar className="w-5 h-5 text-amber-500" />
           </div>
           <div>
             <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
@@ -3012,7 +3007,7 @@ export default function AccountsPayable() {
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
             className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
-              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-indigo-500' : 'bg-white border-slate-200 focus:border-indigo-500'
+              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
             } outline-none cursor-pointer`}
           >
             {months.map(m => (
@@ -3024,7 +3019,7 @@ export default function AccountsPayable() {
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
             className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
-              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-indigo-500' : 'bg-white border-slate-200 focus:border-indigo-500'
+              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
             } outline-none cursor-pointer`}
           >
             {years.map(y => (

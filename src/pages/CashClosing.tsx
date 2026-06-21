@@ -466,7 +466,7 @@ export default function CashClosing() {
           <button 
             onClick={handleSavePeriod}
             disabled={isSaving}
-            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl border transition-colors ${
+            className={`flex-1 md:flex-initial btn-save-secondary ${
               isDarkMode 
                 ? 'bg-[#1E1E1E] border-[#333] hover:bg-[#252525] text-white' 
                 : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
@@ -487,7 +487,7 @@ export default function CashClosing() {
               color: themeTextContrast,
               boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
             }}
-            className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-md transform hover:scale-[1.02] cursor-pointer"
+            className="flex-1 md:flex-initial btn-save-primary"
           >
             <Plus className="w-4 h-4 shrink-0" />
             Novo Fechamento

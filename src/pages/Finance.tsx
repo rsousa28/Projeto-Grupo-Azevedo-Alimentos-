@@ -1390,77 +1390,43 @@ export default function Finance() {
   });
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-6 pb-10">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-start lg:items-center justify-between gap-4 border-b border-slate-100 dark:border-zinc-800/50 pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4 border-slate-100 dark:border-[#333]">
         <div>
-          <h2
-            className={`text-2xl sm:text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? "text-white" : "text-black"}`}
-          >
+          <h2 className={`text-2xl sm:text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>
             {showEntry ? "Lançamentos DRE" : `DRE Inteligente`}
           </h2>
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-1.5">
-            <p className="text-slate-500 font-medium text-xs sm:text-sm">
-              {showEntry
-                ? "Preencha os dados financeiros da unidade"
-                : "Demonstrativo de Resultados do Exercício Detalhado"}
-            </p>
-            {!showEntry && (
-              <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 w-fit">
-                <Calendar className="w-4 h-4 text-slate-400 ml-1.5 shrink-0" />
-                <select
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-                >
-                  {months.map((m) => (
-                    <option
-                      key={m.value}
-                      value={m.value}
-                      className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white"
-                    >
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
-                <select
-                  value={selectedYear}
-                  onChange={(e) => setSelectedYear(e.target.value)}
-                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-                >
-                  {[
-                    "2023",
-                    "2024",
-                    "2025",
-                    "2026",
-                    "2027",
-                    "2028",
-                    "2029",
-                    "2030",
-                  ].map((year) => (
-                    <option
-                      key={year}
-                      value={year}
-                      className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white"
-                    >
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </div>
+          <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-500' : 'text-slate-400 mt-1'}`}>
+            {showEntry
+              ? "Preencha os dados financeiros da unidade"
+              : "Demonstrativo de Resultados do Exercício Detalhado"}
+          </p>
         </div>
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <button
+        
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          {!showEntry && (
+            <button
+              onClick={handleExportPDF}
+              className={`flex-1 md:flex-initial btn-save-secondary ${
+                isDarkMode 
+                  ? 'bg-[#1E1E1E] border-[#333] hover:bg-[#252525] text-white' 
+                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
+              }`}
+            >
+              <Download className="w-4 h-4 shrink-0" />
+              Baixar PDF
+            </button>
+          )}
+
+          <button 
             onClick={() => setShowEntry(!showEntry)}
             style={{
               backgroundColor: themeButtonBg,
               color: themeTextContrast,
               boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
             }}
-            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 h-[44px] rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer text-center whitespace-nowrap"
+            className="flex-1 md:flex-initial btn-save-primary"
           >
             {showEntry ? (
               <>
@@ -1474,22 +1440,49 @@ export default function Finance() {
               </>
             )}
           </button>
-          {!showEntry && (
-            <button
-              onClick={handleExportPDF}
-              style={{
-                borderColor: isDarkMode ? "#444" : "#E2E8F0",
-              }}
-              className={`flex items-center justify-center w-[44px] h-[44px] rounded-full border transition-all active:scale-95 shrink-0 cursor-pointer ${
-                isDarkMode 
-                  ? "bg-[#1E1E1E] text-white hover:bg-[#2A2A2A]" 
-                  : "bg-white text-slate-700 hover:bg-slate-50 shadow-sm"
-              }`}
-              title="Exportar PDF"
-            >
-              <Download className="w-4 h-4" />
-            </button>
-          )}
+        </div>
+      </div>
+
+      {/* Período de Trabalho (Active Period Selection) */}
+      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-amber-500/5 border-amber-500/20'} flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm`}>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 shrink-0">
+            <Calendar className="w-5 h-5 text-amber-500" />
+          </div>
+          <div>
+            <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+              Período Ativo do Financeiro (DRE)
+            </h3>
+            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+              Defina o período para visualizar, cadastrar e analisar os demonstrativos de resultados.
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
+              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+            } outline-none cursor-pointer`}
+          >
+            {months.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
+              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+            } outline-none cursor-pointer`}
+          >
+            {["2023", "2024", "2025", "2026", "2027", "2028", "2029", "2030"].map(year => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
         </div>
       </div>
 
