@@ -2927,7 +2927,7 @@ export default function AccountsPayable() {
     <div className={`p-4 md:p-8 min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0A0A] text-slate-100' : 'bg-slate-50/50 text-slate-800'}`}>
       
       {/* HEADER SECTION WITH SaaS LOOK */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 border-b pb-4 border-slate-100 dark:border-[#333]">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span 
@@ -2946,58 +2946,25 @@ export default function AccountsPayable() {
               </span>
             )}
           </h1>
-          <p className="text-slate-500 text-sm mt-1.5 font-medium">
+          <p className="text-slate-500 text-xs mt-1.5 font-medium">
             Gerencie faturas, agendamentos, parcelamentos e leitura digital automatizada de boletos.
           </p>
         </div>
 
         {/* Action Button Row */}
-        <div className="flex flex-col lg:flex-row lg:items-center gap-3 w-full lg:w-auto">
-          {/* Greyish Period Selector capsule matching other pages exactly */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-2 sm:p-1.5 rounded-2xl bg-slate-100 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 w-full sm:w-auto">
-            <div className="flex items-center justify-between sm:justify-start gap-2 px-2 py-1">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                <select 
-                  value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-                >
-                  {months.map(m => (
-                    <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
-              <select 
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(e.target.value)}
-                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-              >
-                {years.map(y => (
-                  <option key={y} value={y} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{y}</option>
-                ))}
-              </select>
-            </div>
-            <div className="h-px sm:h-6 w-full sm:w-px bg-slate-200 dark:bg-slate-800" />
-            <button 
-              onClick={handleSavePeriod}
-              disabled={isSaving}
-              style={{
-                backgroundColor: isSaving ? undefined : themeButtonBg,
-                color: isSaving ? '#FFFFFF' : themeTextContrast,
-                boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}40`,
-              }}
-              className={`flex items-center justify-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer w-full sm:w-auto ${
-                isSaving 
-                  ? 'bg-slate-400 cursor-not-allowed' 
-                  : ''
-              }`}
-            >
-              {isSaving ? <RefreshCw className="w-4 h-4 animate-spin text-white" /> : <Check className="w-4 h-4 text-white" />}
-              {isSaving ? 'Salvando...' : 'Salvar Período'}
-            </button>
-          </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <button 
+            onClick={handleSavePeriod}
+            disabled={isSaving}
+            className={`flex-1 md:flex-initial flex items-center justify-center gap-2 text-xs font-bold px-4 py-2.5 rounded-xl border transition-colors ${
+              isDarkMode 
+                ? 'bg-[#1E1E1E] border-[#333] hover:bg-[#252525] text-white' 
+                : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
+            }`}
+          >
+            {isSaving ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-amber-500 shrink-0" /> : <Check className="w-3.5 h-3.5 text-amber-500 shrink-0" />}
+            {isSaving ? 'Salvando...' : 'Salvar Período'}
+          </button>
 
           <button
             onClick={() => {
@@ -3016,11 +2983,54 @@ export default function AccountsPayable() {
               color: themeTextContrast,
               boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
             }}
-            className="flex items-center justify-center gap-2 px-5 py-3 h-[44px] rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer w-full lg:w-auto shrink-0"
+            className="flex-1 md:flex-initial flex items-center justify-center gap-2 text-xs font-bold px-5 py-2.5 rounded-xl transition-all shadow-md transform hover:scale-[1.02] cursor-pointer text-center whitespace-nowrap"
           >
-            <Plus className="w-4 h-4 stroke-[3]" />
+            <Plus className="w-4 h-4 shrink-0 stroke-[3]" />
             Adicionar Conta
           </button>
+        </div>
+      </div>
+
+      {/* Período de Trabalho (Active Period Selection) */}
+      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-indigo-500/5 border-indigo-500/20'} flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 shadow-sm`}>
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-500 shrink-0">
+            <Calendar className="w-5 h-5 text-indigo-500" />
+          </div>
+          <div>
+            <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+              Período Ativo de Contas a Pagar
+            </h3>
+            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+              Defina o período para visualizar, cadastrar e auditar as faturas da unidade.
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+            className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
+              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-indigo-500' : 'bg-white border-slate-200 focus:border-indigo-500'
+            } outline-none cursor-pointer`}
+          >
+            {months.map(m => (
+              <option key={m.value} value={m.value}>{m.label}</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+            className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
+              isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-indigo-500' : 'bg-white border-slate-200 focus:border-indigo-500'
+            } outline-none cursor-pointer`}
+          >
+            {years.map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
         </div>
       </div>
 
