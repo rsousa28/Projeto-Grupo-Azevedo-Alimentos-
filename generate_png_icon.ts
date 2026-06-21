@@ -127,6 +127,127 @@ function generateIcon(size: number, isPrecomposed: boolean) {
   return png;
 }
 
+function generateSplashScreen(width: number, height: number) {
+  const png = new PNG({
+    width,
+    height,
+    colorType: 6, // RGBA
+  });
+
+  const bgR = 17;
+  const bgG = 24;
+  const bgB = 39;
+
+  const fgR = 255;
+  const fgG = 255;
+  const fgB = 255;
+
+  const lines: Line[] = [
+    { x1: 90, y1: 45, x2: 55, y2: 135, thickness: 4 },
+    { x1: 90, y1: 45, x2: 125, y2: 135, thickness: 10 },
+    { x1: 72, y1: 108, x2: 108, y2: 108, thickness: 3 },
+    { x1: 78, y1: 45, x2: 102, y2: 45, thickness: 3.5 },
+    { x1: 40, y1: 135, x2: 70, y2: 135, thickness: 3.5 },
+    { x1: 110, y1: 135, x2: 140, y2: 135, thickness: 3.5 },
+  ];
+
+  // The centered logo size in the splash screen (proportional)
+  const logoSize = Math.floor(Math.min(width, height) * 0.22);
+  const logoLeft = Math.floor((width - logoSize) / 2);
+  const logoTop = Math.floor((height - logoSize) / 2);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let maxAlpha = 0;
+
+      if (x >= logoLeft && x < logoLeft + logoSize && y >= logoTop && y < logoTop + logoSize) {
+        // Pixel is inside the centered logo boundary box
+        const modelX = ((x - logoLeft) / logoSize) * 180;
+        const modelY = ((y - logoTop) / logoSize) * 180;
+
+        // Pixel size in model coordinates
+        const modelPixelSize = 180 / logoSize;
+
+        for (const line of lines) {
+          const dist = distanceToSegment(modelX, modelY, line.x1, line.y1, line.x2, line.y2);
+          
+          const halfThick = line.thickness / 2;
+          const distInScreenPixels = dist / modelPixelSize;
+          const halfThickInScreenPixels = halfThick / modelPixelSize;
+
+          let intensity = 0;
+          if (distInScreenPixels <= halfThickInScreenPixels - 0.5) {
+            intensity = 1.0;
+          } else if (distInScreenPixels >= halfThickInScreenPixels + 0.5) {
+            intensity = 0.0;
+          } else {
+            intensity = halfThickInScreenPixels + 0.5 - distInScreenPixels;
+          }
+
+          if (intensity > maxAlpha) {
+            maxAlpha = intensity;
+          }
+        }
+      }
+
+      const r = Math.round(bgR + (fgR - bgR) * maxAlpha);
+      const g = Math.round(bgG + (fgG - bgG) * maxAlpha);
+      const b = Math.round(bgB + (fgB - bgB) * maxAlpha);
+      
+      const idx = (width * y + x) << 2;
+      png.data[idx] = r;
+      png.data[idx + 1] = g;
+      png.data[idx + 2] = b;
+      png.data[idx + 3] = 255;
+    }
+  }
+
+  return png;
+}
+
+interface SplashConfig {
+  width: number;
+  height: number;
+  deviceWidth: number;
+  deviceHeight: number;
+  ratio: number;
+}
+
+const splashScreens: SplashConfig[] = [
+  // iPhone 16 Pro Max
+  { width: 1320, height: 2868, deviceWidth: 440, deviceHeight: 956, ratio: 3 },
+  // iPhone 16 Pro
+  { width: 1206, height: 2622, deviceWidth: 402, deviceHeight: 874, ratio: 3 },
+  // iPhone 16 Plus, 15 Pro Max, 15 Plus, 14 Pro Max
+  { width: 1290, height: 2796, deviceWidth: 430, deviceHeight: 932, ratio: 3 },
+  // iPhone 16, 15 Pro, 15, 14 Pro
+  { width: 1179, height: 2556, deviceWidth: 393, deviceHeight: 852, ratio: 3 },
+  // iPhone 14 Plus, 13 Pro Max, 12 Pro Max
+  { width: 1284, height: 2778, deviceWidth: 428, deviceHeight: 926, ratio: 3 },
+  // iPhone 14, 13 Pro, 13, 12 Pro, 12
+  { width: 1170, height: 2532, deviceWidth: 390, deviceHeight: 844, ratio: 3 },
+  // iPhone XS Max, 11 Pro Max
+  { width: 1242, height: 2688, deviceWidth: 414, deviceHeight: 896, ratio: 3 },
+  // iPhone XR, 11
+  { width: 828, height: 1792, deviceWidth: 414, deviceHeight: 896, ratio: 2 },
+  // iPhone X, XS, 11 Pro
+  { width: 1125, height: 2436, deviceWidth: 375, deviceHeight: 812, ratio: 3 },
+  // iPhone 8 Plus, 7 Plus, 6s Plus
+  { width: 1242, height: 2208, deviceWidth: 414, deviceHeight: 736, ratio: 3 },
+  // iPhone 8, 7, 6s, 6, SE 2/3
+  { width: 750, height: 1334, deviceWidth: 375, deviceHeight: 667, ratio: 2 },
+  // iPad Pro 12.9"
+  { width: 2048, height: 2732, deviceWidth: 1024, deviceHeight: 1366, ratio: 2 },
+  // iPad Pro 11" / Air 10.9"
+  { width: 1668, height: 2388, deviceWidth: 834, deviceHeight: 1194, ratio: 2 },
+  // iPad Pro 10.5"
+  { width: 1668, height: 2224, deviceWidth: 834, deviceHeight: 1112, ratio: 2 },
+  // iPad 10.2"
+  { width: 1620, height: 2160, deviceWidth: 810, deviceHeight: 1080, ratio: 2 },
+  // iPad 9.7" / Mini
+  { width: 1536, height: 2048, deviceWidth: 768, deviceHeight: 1024, ratio: 2 },
+];
+
 const publicDir = path.join(process.cwd(), 'public');
 
 // Create multiple sizes to make sure Safari has perfect files
@@ -174,4 +295,17 @@ for (const size of standardSizes) {
   }
 }
 
-console.log('All luxury iOS-compatible brand icons generated successfully!');
+console.log('Generating iOS Splash Screens (apple-touch-startup-image)...');
+for (const config of splashScreens) {
+  const pngInstance = generateSplashScreen(config.width, config.height);
+  const buffer = PNG.sync.write(pngInstance);
+  
+  const name = `apple-splash-${config.width}x${config.height}.png`;
+  fs.writeFileSync(path.join(publicDir, name), buffer);
+  if (hasDist) {
+    fs.writeFileSync(path.join(distDir, name), buffer);
+  }
+  console.log(`Generated splash screen: ${name} (${config.width}x${config.height})`);
+}
+
+console.log('All luxury iOS-compatible brand icons and splash screens generated successfully!');
