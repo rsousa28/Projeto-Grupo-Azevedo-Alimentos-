@@ -1190,10 +1190,10 @@ export default function DailyControl() {
       </div>
 
       {/* Tabs list */}
-      <div className="flex border-b border-slate-200 dark:border-[#333]">
+      <div className="flex flex-wrap sm:flex-nowrap border-b border-slate-200 dark:border-[#333] gap-1 sm:gap-2">
         <button
           onClick={() => { setActiveTab('expenses'); setSelectedStatus('all'); }}
-          className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${
+          className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition-all text-center justify-center ${
             activeTab === 'expenses' 
               ? 'border-yellow-500 text-yellow-500' 
               : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -1204,7 +1204,7 @@ export default function DailyControl() {
         </button>
         <button
           onClick={() => { setActiveTab('vouchers'); setSelectedStatus('all'); }}
-          className={`px-6 py-3 text-sm font-bold border-b-2 transition-all ${
+          className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition-all text-center justify-center ${
             activeTab === 'vouchers' 
               ? 'border-yellow-500 text-yellow-500' 
               : 'border-transparent text-slate-400 hover:text-slate-200'

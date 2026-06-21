@@ -668,10 +668,10 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
 
       {/* Tab Selector Navigation Switcher */}
       {!forcedTab && (
-        <div className="flex border-b border-[#222] gap-4 pb-1 overflow-x-auto">
+        <div className="flex flex-wrap sm:flex-nowrap border-b border-[#222] gap-1.5 sm:gap-4 pb-1 overflow-x-auto">
           <button
             onClick={() => setActiveTab('logs')}
-            className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all ${
+            className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-3 font-black uppercase italic text-[11px] sm:text-xs tracking-wider border-b-2 transition-all flex-1 sm:flex-initial whitespace-nowrap ${
               activeTab === 'logs'
                 ? 'border-indigo-500 text-indigo-400'
                 : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -682,7 +682,7 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
           </button>
           <button
             onClick={() => setActiveTab('security')}
-            className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all relative ${
+            className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-3 font-black uppercase italic text-[11px] sm:text-xs tracking-wider border-b-2 transition-all relative flex-1 sm:flex-initial whitespace-nowrap ${
               activeTab === 'security'
                 ? 'border-rose-500 text-rose-400 font-black'
                 : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -702,7 +702,7 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
           </button>
           <button
             onClick={() => setActiveTab('backups')}
-            className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all ${
+            className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-3 font-black uppercase italic text-[11px] sm:text-xs tracking-wider border-b-2 transition-all flex-1 sm:flex-initial whitespace-nowrap ${
               activeTab === 'backups'
                 ? 'border-emerald-500 text-emerald-400'
                 : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -716,7 +716,7 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
               setActiveTab('diagnostics');
               if (scanResult.length === 0) runDeepScan();
             }}
-            className={`flex items-center gap-2 px-4 py-3 font-black uppercase italic text-xs tracking-wider border-b-2 transition-all ${
+            className={`flex items-center justify-center sm:justify-start gap-2 px-3 sm:px-4 py-3 font-black uppercase italic text-[11px] sm:text-xs tracking-wider border-b-2 transition-all flex-1 sm:flex-initial whitespace-nowrap ${
               activeTab === 'diagnostics'
                 ? 'border-amber-500 text-amber-400'
                 : 'border-transparent text-slate-500 hover:text-slate-300'

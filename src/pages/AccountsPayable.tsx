@@ -3873,9 +3873,9 @@ export default function AccountsPayable() {
 
         {/* COMPREHENSIVE PAGINATION CONTROL */}
         {totalPages > 1 && (
-          <div className="px-6 py-4 border-t border-slate-150 dark:border-[#222] bg-slate-50 dark:bg-[#181818] flex items-center justify-between text-xs text-slate-400 font-bold uppercase tracking-wider select-none">
-            <span>Mostrando {paginatedAccounts.length} de {sortedAccounts.length} contas</span>
-            <div className="flex items-center gap-1.5">
+          <div className="px-6 py-4 border-t border-slate-150 dark:border-[#222] bg-slate-50 dark:bg-[#181818] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-400 font-bold uppercase tracking-wider select-none">
+            <span className="text-center sm:text-left">Mostrando {paginatedAccounts.length} de {sortedAccounts.length} contas</span>
+            <div className="flex flex-wrap items-center justify-center gap-1.5 w-full sm:w-auto">
               <button
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
@@ -3883,26 +3883,68 @@ export default function AccountsPayable() {
                   '--hover-border': themePrimary,
                   '--hover-text': isBebelu ? '#7F300C' : themePrimary
                 } as React.CSSProperties}
-                className="px-3 py-1.5 rounded-lg bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#333] hover:border-[var(--hover-border)] text-slate-600 dark:text-slate-400 hover:text-[var(--hover-text)] dark:hover:text-[var(--hover-text)] disabled:opacity-50 transition-all cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#333] hover:border-[var(--hover-border)] text-slate-600 dark:text-slate-400 hover:text-[var(--hover-text)] dark:hover:text-[var(--hover-text)] disabled:opacity-50 transition-all cursor-pointer shrink-0"
               >
                 Anterior
               </button>
-              {Array.from({ length: totalPages }).map((_, i) => (
-                <button
-                  key={i}
-                  onClick={() => setCurrentPage(i + 1)}
-                  style={currentPage === i + 1 ? { backgroundColor: themeButtonBg, borderColor: themeButtonBg, color: themeTextContrast } : {
-                    '--hover-border': themePrimary
-                  } as React.CSSProperties}
-                  className={`px-3 py-1.5 rounded-lg font-bold border transition-all cursor-pointer ${
-                    currentPage === i + 1
-                      ? ''
-                      : 'bg-white dark:bg-[#1E1E1E] border-slate-200 dark:border-[#333] text-slate-600 dark:text-slate-400 hover:border-[var(--hover-border)]'
-                  }`}
-                >
-                  {i + 1}
-                </button>
-              ))}
+              
+              {(() => {
+                const pages: (number | string)[] = [];
+                const maxNeighbours = 1; // 1 page before and after on mobile/small screens
+
+                if (totalPages <= 5) {
+                  for (let i = 1; i <= totalPages; i++) {
+                    pages.push(i);
+                  }
+                } else {
+                  pages.push(1);
+                  const start = Math.max(2, currentPage - maxNeighbours);
+                  const end = Math.min(totalPages - 1, currentPage + maxNeighbours);
+
+                  if (start > 2) {
+                    pages.push('...');
+                  }
+
+                  for (let i = start; i <= end; i++) {
+                    pages.push(i);
+                  }
+
+                  if (end < totalPages - 1) {
+                    pages.push('...');
+                  }
+
+                  pages.push(totalPages);
+                }
+
+                return pages.map((p, idx) => {
+                  if (p === '...') {
+                    return (
+                      <span key={`dots-${idx}`} className="px-2 py-1 text-slate-400 dark:text-slate-500 font-bold select-none">
+                        ...
+                      </span>
+                    );
+                  }
+                  
+                  const pageNum = p as number;
+                  return (
+                    <button
+                      key={`page-${pageNum}`}
+                      onClick={() => setCurrentPage(pageNum)}
+                      style={currentPage === pageNum ? { backgroundColor: themeButtonBg, borderColor: themeButtonBg, color: themeTextContrast } : {
+                        '--hover-border': themePrimary
+                      } as React.CSSProperties}
+                      className={`px-3 py-1.5 rounded-lg font-bold border transition-all cursor-pointer ${
+                        currentPage === pageNum
+                          ? ''
+                          : 'bg-white dark:bg-[#1E1E1E] border-slate-200 dark:border-[#333] text-slate-600 dark:text-slate-400 hover:border-[var(--hover-border)]'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                });
+              })()}
+
               <button
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
@@ -3910,7 +3952,7 @@ export default function AccountsPayable() {
                   '--hover-border': themePrimary,
                   '--hover-text': isBebelu ? '#7F300C' : themePrimary
                 } as React.CSSProperties}
-                className="px-3 py-1.5 rounded-lg bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#333] hover:border-[var(--hover-border)] text-slate-600 dark:text-slate-400 hover:text-[var(--hover-text)] dark:hover:text-[var(--hover-text)] disabled:opacity-50 transition-all cursor-pointer"
+                className="px-3 py-1.5 rounded-lg bg-white dark:bg-[#1E1E1E] border border-slate-200 dark:border-[#333] hover:border-[var(--hover-border)] text-slate-600 dark:text-slate-400 hover:text-[var(--hover-text)] dark:hover:text-[var(--hover-text)] disabled:opacity-50 transition-all cursor-pointer shrink-0"
               >
                 Próximo
               </button>

@@ -613,7 +613,7 @@ export default function Checklist() {
         // Standard Tab Panel Dashboard
         <div className="space-y-6">
           {/* Custom Tabs Navigation Menu */}
-          <div className="flex border-b border-slate-100 dark:border-zinc-850 gap-2 overflow-x-auto pb-1 max-w-full">
+          <div className="flex flex-wrap sm:flex-nowrap border-b border-slate-100 dark:border-zinc-850 gap-1.5 sm:gap-2 overflow-x-auto pb-1 max-w-full">
             {[
               { id: 'fill', label: 'Executar Checklist', icon: ClipboardCheck },
               { id: 'history', label: 'Histórico & PDF', icon: History },
@@ -626,7 +626,7 @@ export default function Checklist() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex items-center gap-2 px-5 py-4 font-black uppercase italic text-xs tracking-wider border-b-2 whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-2 px-3 sm:px-5 py-3 sm:py-4 font-black uppercase italic text-[11px] sm:text-xs tracking-wider border-b-2 whitespace-nowrap transition-all flex-1 sm:flex-initial justify-center sm:justify-start ${
                     active
                       ? (isDarkMode ? 'border-[#FFCB05] text-[#FFCB05]' : 'border-amber-500 text-amber-600')
                       : 'border-transparent text-slate-500 hover:text-slate-300'
@@ -825,7 +825,7 @@ export default function Checklist() {
                 {/* Checklist Categories Quick reference info */}
                 <div className="space-y-4">
                   <h3 className={`text-xs font-black uppercase italic tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Áreas de Supervisão Padrão</h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                  <div className="grid grid-cols-1 min-[370px]:grid-cols-2 sm:grid-cols-5 gap-3">
                     {[
                       { l: 'Abertura da loja', count: templates.filter(t => t.category === 'Abertura da loja').length },
                       { l: 'Fechamento', count: templates.filter(t => t.category === 'Fechamento').length },
