@@ -450,8 +450,8 @@ export default function CashClosing() {
     <div className="space-y-8 pb-10">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className={`text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>Relatório de Caixa</h2>
-          <p className={`text-sm font-bold italic ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>Gestão operacional e financeira do PDV {currentStore.brand}</p>
+          <h2 className={`text-2xl sm:text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-black'}`}>Relatório de Caixa</h2>
+          <p className={`text-xs sm:text-sm font-bold italic ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>Gestão operacional e financeira do PDV {currentStore.brand}</p>
         </div>
         
         <button 
@@ -465,25 +465,27 @@ export default function CashClosing() {
             color: themeTextContrast,
             boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
           }}
-          className="flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer animate-fade-in"
+          className="flex items-center justify-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer animate-fade-in w-full md:w-auto"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 shrink-0" />
           Novo Fechamento
         </button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-4 p-1.5 rounded-2xl bg-slate-100 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 w-fit">
-        <div className="flex items-center gap-2">
-          <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
-          <select 
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-          >
-            {months.map(m => (
-              <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
-            ))}
-          </select>
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-2 sm:p-1.5 rounded-2xl bg-slate-100 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 w-full sm:w-fit">
+        <div className="flex items-center justify-between sm:justify-start gap-2 px-2 py-1">
+          <div className="flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+            <select 
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+            >
+              {months.map(m => (
+                <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
+              ))}
+            </select>
+          </div>
           <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
           <select 
             value={selectedYear}
@@ -495,7 +497,7 @@ export default function CashClosing() {
             ))}
           </select>
         </div>
-        <div className="h-6 w-px bg-slate-200 dark:bg-slate-800 hidden md:block" />
+        <div className="h-px sm:h-6 w-full sm:w-px bg-slate-200 dark:bg-slate-800" />
         <button 
           onClick={handleSavePeriod}
           disabled={isSaving}
@@ -504,7 +506,7 @@ export default function CashClosing() {
             color: isSaving ? '#FFFFFF' : themeTextContrast,
             boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}40`,
           }}
-          className={`flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer ${
+          className={`flex items-center justify-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer w-full sm:w-auto ${
             isSaving 
               ? 'bg-slate-400 cursor-not-allowed' 
               : ''

@@ -1235,18 +1235,20 @@ export default function Dashboard() {
           </p>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 mr-2">
-            <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
-            <select 
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-            >
-              {months.map(m => (
-                <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
-              ))}
-            </select>
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 w-full lg:w-auto">
+          <div className="flex items-center justify-between sm:justify-start gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-slate-400 ml-1.5 shrink-0" />
+              <select 
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+              >
+                {months.map(m => (
+                  <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
+                ))}
+              </select>
+            </div>
             <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
             <select 
               value={selectedYear}
@@ -1259,24 +1261,23 @@ export default function Dashboard() {
             </select>
           </div>
 
-          <button
-            onClick={exportDashboardPDF}
-            disabled={exportingPDF}
-            aria-label="Baixar Relatório em PDF"
-            style={{
-              backgroundColor: themeButtonBg,
-              color: themeTextContrast,
-              boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
-            }}
-            className="flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
-          >
-            <Download className={`w-4 h-4 ${exportingPDF ? 'animate-spin' : ''}`} />
-            {exportingPDF ? 'Gerando Relatório...' : 'Baixar Relatório (PDF)'}
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              onClick={exportDashboardPDF}
+              disabled={exportingPDF}
+              aria-label="Baixar Relatório em PDF"
+              style={{
+                backgroundColor: themeButtonBg,
+                color: themeTextContrast,
+                boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
+              }}
+              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 disabled:opacity-50 disabled:pointer-events-none cursor-pointer text-center whitespace-nowrap min-h-[44px]"
+            >
+              <Download className={`w-4 h-4 shrink-0 ${exportingPDF ? 'animate-spin' : ''}`} />
+              {exportingPDF ? 'Gerando Relatório...' : 'Baixar Relatório (PDF)'}
+            </button>
 
-          {currentStore.code !== 'ROOT' && (
-            <>
-
+            {currentStore.code !== 'ROOT' && (
               <button 
                 onClick={() => setShowEntry(!showEntry)}
                 style={{
@@ -1284,22 +1285,22 @@ export default function Dashboard() {
                   color: themeTextContrast,
                   boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
                 }}
-                className="flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer"
+                className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer text-center whitespace-nowrap min-h-[44px]"
               >
                 {showEntry ? (
                   <>
-                    <ArrowLeft className="w-4 h-4" />
+                    <ArrowLeft className="w-4 h-4 shrink-0" />
                     Voltar ao Dashboard
                   </>
                 ) : (
                   <>
                     Lançamentos Dashboard
-                    <ArrowRight className="w-4 h-4" />
+                    <ArrowRight className="w-4 h-4 shrink-0" />
                   </>
                 )}
               </button>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
 

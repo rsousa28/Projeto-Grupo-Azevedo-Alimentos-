@@ -1392,22 +1392,22 @@ export default function Finance() {
   return (
     <div className="space-y-8 pb-10">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-start lg:items-center justify-between gap-4 border-b border-slate-100 dark:border-zinc-800/50 pb-6">
         <div>
           <h2
-            className={`text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? "text-white" : "text-black"}`}
+            className={`text-2xl sm:text-3xl font-black uppercase italic tracking-tighter ${isDarkMode ? "text-white" : "text-black"}`}
           >
             {showEntry ? "Lançamentos DRE" : `DRE Inteligente`}
           </h2>
-          <div className="flex items-center gap-2 mt-1">
-            <p className="text-slate-500 font-medium lowercase">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mt-1.5">
+            <p className="text-slate-500 font-medium text-xs sm:text-sm">
               {showEntry
                 ? "Preencha os dados financeiros da unidade"
                 : "Demonstrativo de Resultados do Exercício Detalhado"}
             </p>
             {!showEntry && (
-              <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 ml-2">
-                <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
+              <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5 w-fit">
+                <Calendar className="w-4 h-4 text-slate-400 ml-1.5 shrink-0" />
                 <select
                   value={selectedMonth}
                   onChange={(e) => setSelectedMonth(e.target.value)}
@@ -1452,7 +1452,7 @@ export default function Finance() {
             )}
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <button
             onClick={() => setShowEntry(!showEntry)}
             style={{
@@ -1460,29 +1460,35 @@ export default function Finance() {
               color: themeTextContrast,
               boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
             }}
-            className="flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 px-5 py-3 h-[44px] rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer text-center whitespace-nowrap"
           >
             {showEntry ? (
               <>
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4 shrink-0" />
                 Voltar à DRE
               </>
             ) : (
               <>
                 Lançamentos DRE
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 shrink-0" />
               </>
             )}
           </button>
           {!showEntry && (
-            <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl">
-              <button
-                onClick={handleExportPDF}
-                className={`p-2 rounded-xl border transition-all active:scale-95 ${isDarkMode ? "bg-[#333] border-[#444] text-white" : "bg-white border-slate-200 shadow-sm"}`}
-              >
-                <Download className="w-5 h-5" />
-              </button>
-            </div>
+            <button
+              onClick={handleExportPDF}
+              style={{
+                borderColor: isDarkMode ? "#444" : "#E2E8F0",
+              }}
+              className={`flex items-center justify-center w-[44px] h-[44px] rounded-full border transition-all active:scale-95 shrink-0 cursor-pointer ${
+                isDarkMode 
+                  ? "bg-[#1E1E1E] text-white hover:bg-[#2A2A2A]" 
+                  : "bg-white text-slate-700 hover:bg-slate-50 shadow-sm"
+              }`}
+              title="Exportar PDF"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           )}
         </div>
       </div>

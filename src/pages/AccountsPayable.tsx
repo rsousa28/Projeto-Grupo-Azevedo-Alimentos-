@@ -2952,30 +2952,34 @@ export default function AccountsPayable() {
         </div>
 
         {/* Action Button Row */}
-        <div className="flex flex-wrap items-center gap-3 md:items-center">
+        <div className="flex flex-col lg:flex-row lg:items-center gap-3 w-full lg:w-auto">
           {/* Greyish Period Selector capsule matching other pages exactly */}
-          <div className="flex items-center gap-2 bg-slate-100 dark:bg-black/20 p-1.5 rounded-2xl border border-slate-200/50 dark:border-white/5">
-            <Calendar className="w-4 h-4 text-slate-400 ml-1.5" />
-            <select 
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-            >
-              {months.map(m => (
-                <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
-              ))}
-            </select>
-            <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
-            <select 
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(e.target.value)}
-              className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
-            >
-              {years.map(y => (
-                <option key={y} value={y} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{y}</option>
-              ))}
-            </select>
-            <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-2 sm:p-1.5 rounded-2xl bg-slate-100 dark:bg-black/20 border border-slate-200/50 dark:border-white/5 w-full sm:w-auto">
+            <div className="flex items-center justify-between sm:justify-start gap-2 px-2 py-1">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
+                <select 
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+                >
+                  {months.map(m => (
+                    <option key={m.value} value={m.value} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{m.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-px h-4 bg-slate-300 dark:bg-slate-700" />
+              <select 
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="bg-transparent border-none text-[10px] font-black uppercase tracking-widest outline-none px-2 py-1 cursor-pointer text-slate-900 dark:text-white"
+              >
+                {years.map(y => (
+                  <option key={y} value={y} className="bg-white dark:bg-[#1E1E1E] text-slate-900 dark:text-white">{y}</option>
+                ))}
+              </select>
+            </div>
+            <div className="h-px sm:h-6 w-full sm:w-px bg-slate-200 dark:bg-slate-800" />
             <button 
               onClick={handleSavePeriod}
               disabled={isSaving}
@@ -2984,13 +2988,13 @@ export default function AccountsPayable() {
                 color: isSaving ? '#FFFFFF' : themeTextContrast,
                 boxShadow: isSaving ? undefined : `0 10px 15px -3px ${themeButtonBg}40`,
               }}
-              className={`flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer ${
+              className={`flex items-center justify-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer w-full sm:w-auto ${
                 isSaving 
                   ? 'bg-slate-400 cursor-not-allowed' 
                   : ''
               }`}
             >
-              {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {isSaving ? <RefreshCw className="w-4 h-4 animate-spin text-white" /> : <Check className="w-4 h-4 text-white" />}
               {isSaving ? 'Salvando...' : 'Salvar Período'}
             </button>
           </div>
@@ -3012,7 +3016,7 @@ export default function AccountsPayable() {
               color: themeTextContrast,
               boxShadow: `0 10px 15px -3px ${themeButtonBg}40`,
             }}
-            className="flex items-center gap-2 px-5 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer shrink-0"
+            className="flex items-center justify-center gap-2 px-5 py-3 h-[44px] rounded-full font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 active:scale-95 hover:brightness-110 cursor-pointer w-full lg:w-auto shrink-0"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
             Adicionar Conta

@@ -312,7 +312,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
       {/* Main Content */}
       <main className={`flex-1 flex flex-col h-[100dvh] overflow-hidden transition-colors duration-500 ${isDarkMode ? 'bg-[#0F0F0F]' : 'bg-[#F8FAFC]'}`}>
-        <header className={`h-16 lg:h-20 flex items-center justify-between px-4 lg:px-8 border-b transition-colors duration-500 shrink-0 ${isDarkMode ? 'bg-[#0F0F0F] border-[#1E1E1E]' : 'bg-white border-slate-200'}`}>
+        <header className={`min-h-[4.5rem] py-3 lg:py-0 lg:h-20 pt-[calc(env(safe-area-inset-top,0px)+0.75rem)] lg:pt-0 flex items-center justify-between px-4 lg:px-8 border-b transition-colors duration-500 shrink-0 ${isDarkMode ? 'bg-[#0F0F0F] border-[#1E1E1E]' : 'bg-white border-slate-200'}`}>
           <div className="flex items-center gap-4">
             <button 
               onClick={() => setMobileMenuOpen(true)}
