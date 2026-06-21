@@ -26,6 +26,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getDocCached, setDocCached } from '../lib/firestoreQueryCache';
 import { AuditService } from '../services/AuditService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -103,7 +104,7 @@ export default function CashClosing() {
     const fetchCloudClosings = async () => {
       try {
         const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
-        const docSnap = await getDoc(docRef);
+        const docSnap = await getDocCached(docRef, currentStore.id, user);
         if (docSnap.exists() && isMounted) {
           const cloudData = docSnap.data().data || {};
           setClosingsData(prev => {
@@ -186,7 +187,7 @@ export default function CashClosing() {
     setIsSaving(true);
     try {
       const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
-      await setDoc(docRef, { data: closingsData });
+      await setDocCached(docRef, { data: closingsData }, currentStore.id, user);
       if (user) {
         const monthLabel = months.find(m => m.value === selectedMonth)?.label || selectedMonth;
         await AuditService.logAction({
@@ -329,7 +330,7 @@ export default function CashClosing() {
     // Save to Firestore
     try {
       const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
-      await setDoc(docRef, { data: updated });
+      await setDocCached(docRef, { data: updated }, currentStore.id, user);
       if (!currentVerified) {
         toastSuccess(`Caixa do dia ${id.split('-').reverse().join('/')} marcado como conferido!`);
       } else {
@@ -862,7 +863,7 @@ export default function CashClosing() {
                       
                       try {
                         const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
-                        await setDoc(docRef, { data: updated });
+                        await setDocCached(docRef, { data: updated }, currentStore.id, user);
                         toastSuccess("Fechamento de caixa confirmado e registrado com sucesso!");
                       } catch (err) {
                         console.error("Erro ao salvar fechamento no Firestore:", err);
@@ -933,7 +934,7 @@ export default function CashClosing() {
                   
                   try {
                     const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
-                    await setDoc(docRef, { data: updated });
+                    await setDocCached(docRef, { data: updated }, currentStore.id, user);
                   } catch (err) {
                     console.error("Erro ao remover fechamento do Firestore:", err);
                   }

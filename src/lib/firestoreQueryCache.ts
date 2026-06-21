@@ -31,34 +31,88 @@ export function extractStoreIdFromPath(path: string): string | null {
 }
 
 /**
- * Validates that the requested storeId matches the currently active store from StoreContext.
- * If there is an invalid cross-origin attempt, it enforces matching and logs a potential policy violation.
+ * Retrieves the list of permitted store IDs for a given user based on their role and metadata.
+ */
+export function getPermittedStoreIdsForUser(user: any): string[] {
+  if (!user) return [];
+  
+  const isRennan = user && ((user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan'));
+  const role = user.role;
+
+  if (role === 'ADMIN' || isRennan) {
+    return ['1', '2', '3', 'admin-global'];
+  } else if (role === 'FINANCIAL') {
+    return ['1', '2', '3'];
+  } else if (role === 'MANAGER_BEBELU_MOSSORO') {
+    return ['1'];
+  } else if (role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
+    return ['2'];
+  } else if (role === 'MANAGER_4ESTYLOS_MOSSORO') {
+    if (user.username?.toLowerCase().includes('jef')) {
+      return ['3', '1']; // Jef gets 4E09 and B32 (stores '3' and '1')
+    } else {
+      return ['3'];
+    }
+  } else {
+    // Other users / default fallback: standard stores except ROOT
+    return ['1', '2', '3'];
+  }
+}
+
+/**
+ * Validates that the requested storeId is within the permitted stores of the logged-in user.
+ * If the user does not have permission for the target store, we strictly block/redirect to prevent cross-store leak.
  */
 export function enforceStoreIsolation(
   targetStoreId: string | null,
   currentStoreId: string,
   user: any
 ): { isAuthorized: boolean; resolvedStoreId: string } {
+  const permitted = getPermittedStoreIdsForUser(user);
+  
+  // If no user is logged in, restrict to the current active unit parameter as a secure fallback
+  if (!user) {
+    const fallbackStoreId = currentStoreId || '1'; // Default to store '1' (Bebelu Mossoró)
+    if (targetStoreId && targetStoreId !== fallbackStoreId) {
+      console.warn(`[Security Alert] Unauthenticated attempt to access store "${targetStoreId}" instead of "${fallbackStoreId}". Redirected.`);
+      return { isAuthorized: false, resolvedStoreId: fallbackStoreId };
+    }
+    return { isAuthorized: true, resolvedStoreId: fallbackStoreId };
+  }
+
+  // If no specific target, default to the currently selected store in StoreContext (or user's first permitted store)
   if (!targetStoreId) {
-    return { isAuthorized: true, resolvedStoreId: currentStoreId };
+    const isCurrentAllowed = permitted.includes(currentStoreId);
+    const fallback = isCurrentAllowed ? currentStoreId : (permitted[0] || '1');
+    return { isAuthorized: true, resolvedStoreId: fallback };
   }
 
-  // Admin/Rennan users are authorized to query or consolidate multiple stores (like Consolidado 'ROOT')
-  const isRennan = user && ((user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan'));
-  const isAuthorizedToCrossQuery = user && (user.role === 'ADMIN' || isRennan);
+  // Check if target is explicitly authorized in the user's permitted units list
+  const isAllowed = permitted.includes(targetStoreId);
 
-  if (isAuthorizedToCrossQuery) {
-    return { isAuthorized: true, resolvedStoreId: targetStoreId };
-  }
-
-  // If there's an active selected store in currentStoreId and it mismatches the target,
-  // we strictly prevent data leakage and enforce the active unit from StoreContext.
-  if (currentStoreId && currentStoreId !== 'admin-global' && targetStoreId !== currentStoreId) {
+  if (!isAllowed) {
+    const fallback = permitted.includes(currentStoreId) ? currentStoreId : (permitted[0] || '1');
     console.warn(
-      `[Security Policy Alert] Unauthorized attempt to access store "${targetStoreId}" by user "${user?.username}". ` +
-      `System redirected target to active unit "${currentStoreId}" to prevent cross-store leak.`
+      `[Access Control Violation] User "${user.username}" with role "${user.role}" ` +
+      `attempted to access forbidden store "${targetStoreId}". ` +
+      `Enforced authorized unit fallback to: "${fallback}"`
     );
-    return { isAuthorized: false, resolvedStoreId: currentStoreId };
+    return { isAuthorized: false, resolvedStoreId: fallback };
+  }
+
+  // Even if allowed overall, check if the request matches the currentStoreId to maintain context consistency
+  // (unless the user has general cross-store querying rights e.g. Admin or Financial)
+  const isFinancialOrAdmin = user.role === 'ADMIN' || user.role === 'FINANCIAL' || 
+    (user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan');
+
+  if (!isFinancialOrAdmin && targetStoreId !== currentStoreId) {
+    // Ensure standard manager/collaborator cannot switch or view arbitrary store data outside the current context
+    console.warn(
+      `[Security Context Shift] User "${user.username}" requested store "${targetStoreId}" which differs from context "${currentStoreId}". ` +
+      `Redirected target to active context unit "${currentStoreId}" to prevent session cross-leak.`
+    );
+    const secureStore = permitted.includes(currentStoreId) ? currentStoreId : targetStoreId;
+    return { isAuthorized: false, resolvedStoreId: secureStore };
   }
 
   return { isAuthorized: true, resolvedStoreId: targetStoreId };

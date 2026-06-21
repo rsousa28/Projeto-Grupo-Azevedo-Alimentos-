@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
@@ -9,6 +10,22 @@ dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Ensure standard Apple Touch Icons exist in the public folder so Safari auto-detects them
+try {
+  const publicDir = path.join(process.cwd(), "public");
+  const logoPath = path.join(publicDir, "logo_azevedo.png");
+  if (fs.existsSync(logoPath)) {
+    const appleIconPath = path.join(publicDir, "apple-touch-icon.png");
+    const applePrecomposedPath = path.join(publicDir, "apple-touch-icon-precomposed.png");
+    
+    fs.copyFileSync(logoPath, appleIconPath);
+    fs.copyFileSync(logoPath, applePrecomposedPath);
+    console.log("Apple Touch Icons generated at /public/apple-touch-icon.png references.");
+  }
+} catch (e) {
+  console.warn("Could not copy Apple touch icons directly:", e);
+}
 
 // Helper to get API Key dynamically
 function getApiKey() {

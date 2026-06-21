@@ -27,12 +27,15 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../contexts/StoreContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { DREData } from '../types';
 import { db } from '../lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { getDocCached } from '../lib/firestoreQueryCache';
 
 export default function DataEntry() {
+  const { user } = useAuth();
   const { 
     isDarkMode, 
     brandColors,
@@ -375,7 +378,7 @@ export default function DataEntry() {
     try {
       const srcPeriodId = `${srcYear}-${srcMonth}`;
       const docRefStatus = doc(db, 'stores', currentStore.id, 'dre_periods', srcPeriodId);
-      const docSnap = await getDoc(docRefStatus);
+      const docSnap = await getDocCached(docRefStatus, currentStore.id, user);
       
       if (docSnap.exists()) {
         const monthData = docSnap.data() as DREData;
@@ -422,7 +425,7 @@ export default function DataEntry() {
         
         // Also check if there is CMV to copy
         const cmvDocRef = doc(db, 'stores', currentStore.id, 'cmv_periods', srcPeriodId);
-        const cmvSnap = await getDoc(cmvDocRef);
+        const cmvSnap = await getDocCached(cmvDocRef, currentStore.id, user);
         if (cmvSnap.exists()) {
           const cmvData = cmvSnap.data();
           if (cmvData.topProducts) {

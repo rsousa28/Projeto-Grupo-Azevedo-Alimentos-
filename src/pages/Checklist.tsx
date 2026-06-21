@@ -21,6 +21,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { AuditService } from '../services/AuditService';
 import { db } from '../lib/firebase';
 import { doc, onSnapshot, setDoc, collection, deleteDoc, getDoc } from 'firebase/firestore';
+import { getDocCached, setDocCached } from '../lib/firestoreQueryCache';
 import { 
   ChecklistTemplate, 
   ChecklistSubmission, 
@@ -374,13 +375,13 @@ export default function Checklist() {
         const promises = targetStoreIds.map(async (sId) => {
           localStorage.setItem(`checklist_templates_${sId}`, JSON.stringify(updated));
           const docRef = doc(db, 'stores', sId, 'checklists', 'templates');
-          await setDoc(docRef, { data: sanitizeForFirestore(updated) });
+          await setDocCached(docRef, { data: sanitizeForFirestore(updated) }, currentStore.id, user);
         });
         await Promise.all(promises);
       } else {
         // Each specific store keeps its own independent checklist model
         const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'templates');
-         await setDoc(docRef, { data: sanitizeForFirestore(updated) });
+         await setDocCached(docRef, { data: sanitizeForFirestore(updated) }, currentStore.id, user);
       }
     } catch (err) {
       console.error("Erro ao salvar templates:", err);
@@ -412,7 +413,7 @@ export default function Checklist() {
             // Save each newly or updated submission individually to prevent document size exhaustion!
             const individualSaves = list.map(async (sub) => {
               const docRef = doc(db, 'stores', storeId, 'checklist_submissions', sub.id);
-              await setDoc(docRef, { data: sanitizeForFirestore(sub) });
+              await setDocCached(docRef, { data: sanitizeForFirestore(sub) }, currentStore.id, user);
             });
             await Promise.all(individualSaves);
           } catch (err) {
@@ -425,7 +426,7 @@ export default function Checklist() {
         if (updated.length > 0) {
           const newestSub = updated[0]; // The newest is inserted at the beginning in handleSubmissionCommitted
           const docRef = doc(db, 'stores', currentStore.id, 'checklist_submissions', newestSub.id);
-          await setDoc(docRef, { data: sanitizeForFirestore(newestSub) });
+          await setDocCached(docRef, { data: sanitizeForFirestore(newestSub) }, currentStore.id, user);
         }
       }
     } catch (err) {
@@ -456,7 +457,7 @@ export default function Checklist() {
           try {
             localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(list));
             const docRef = doc(db, 'stores', storeId, 'checklists', 'action_plans');
-            await setDoc(docRef, { data: sanitizeForFirestore(list) });
+            await setDocCached(docRef, { data: sanitizeForFirestore(list) }, currentStore.id, user);
           } catch (err) {
             console.warn(`Erro ao salvar action_plans para loja ${storeId}:`, err);
           }
@@ -464,7 +465,7 @@ export default function Checklist() {
         await Promise.all(promises);
       } else {
         const docRef = doc(db, 'stores', currentStore.id, 'checklists', 'action_plans');
-        await setDoc(docRef, { data: sanitizeForFirestore(updated) });
+        await setDocCached(docRef, { data: sanitizeForFirestore(updated) }, currentStore.id, user);
       }
     } catch (err) {
       console.error("Erro ao salvar action plans:", err);
@@ -518,11 +519,11 @@ export default function Checklist() {
     // 3. Remove from legacy single document of submissions if present
     try {
       const legacyRef = doc(db, 'stores', currentStore.id, 'checklists', 'submissions');
-      const storedLegacyDoc = await getDoc(legacyRef);
+      const storedLegacyDoc = await getDocCached(legacyRef, currentStore.id, user);
       if (storedLegacyDoc.exists()) {
         const legacyData = storedLegacyDoc.data().data || [];
         const cleanLegacy = legacyData.filter((item: any) => item && item.id !== id);
-        await setDoc(legacyRef, { data: sanitizeForFirestore(cleanLegacy) });
+        await setDocCached(legacyRef, { data: sanitizeForFirestore(cleanLegacy) }, currentStore.id, user);
       }
     } catch (err) {
       console.warn("Erro ao remover do documento legacy de submissions:", err);

@@ -19,6 +19,7 @@ import { useStore } from '../../contexts/StoreContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/firebase';
 import { doc, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { getDocCached, setDocCached } from '../../lib/firestoreQueryCache';
 import { PhotoZoomModal } from '../../components/PhotoZoomModal';
 import { 
   ChecklistTemplate, 
@@ -87,7 +88,7 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
 
       try {
         const draftDocRef = doc(db, 'stores', currentStore.id, 'checklists', `draft_${template.id}`);
-        const snap = await getDoc(draftDocRef);
+        const snap = await getDocCached(draftDocRef, currentStore.id, user);
         if (snap.exists()) {
           const draftData = snap.data();
           if (draftData.answers) setAnswers({ ...initialAnswers, ...draftData.answers });
@@ -122,7 +123,7 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
 
         if (Object.keys(answers).length === 0) return;
 
-        await setDoc(draftDocRef, {
+        await setDocCached(draftDocRef, {
           templateId: template.id,
           templateTitle: template.title,
           category: template.category,
@@ -138,7 +139,7 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
           answersCount,
           questionsCount: template.questions.length,
           status: 'IN_PROGRESS'
-        });
+        }, currentStore.id, user);
       } catch (err) {
         console.warn("Erro ao salvar rascunho de checklist:", err);
       }

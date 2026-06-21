@@ -49,6 +49,7 @@ import { AuditService } from "../services/AuditService";
 import DataEntrySection from "../components/DataEntrySection";
 import { chatWithConsultant } from "../services/geminiService";
 import { DREData } from "../types";
+import { getDocCached } from "../lib/firestoreQueryCache";
 
 const monthsGlobal = [
   { value: "01", label: "Janeiro" },
@@ -114,7 +115,7 @@ export default function Finance() {
         const tempDreData: { [storeId: string]: DREData[] } = { '1': [], '2': [], '3': [] };
 
         try {
-          const { getDoc, doc } = await import("firebase/firestore");
+          const { doc } = await import("firebase/firestore");
           const { db } = await import("../lib/firebase");
 
           const promises = storeIds.flatMap(storeId => {
@@ -123,7 +124,7 @@ export default function Finance() {
                 const periodId = `${y}-${m}`;
                 try {
                   const dreRef = doc(db, 'stores', storeId, 'dre_periods', periodId);
-                  const snap = await getDoc(dreRef);
+                  const snap = await getDocCached(dreRef, currentStore.id, user);
                   if (snap.exists()) {
                     const data = { ...snap.data(), year: y } as DREData;
                     tempDreData[storeId].push(data);

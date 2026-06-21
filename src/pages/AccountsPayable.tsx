@@ -42,6 +42,7 @@ import { useToast } from '../contexts/ToastContext';
 import { AccountPayable } from '../types';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { getDocCached, setDocCached } from '../lib/firestoreQueryCache';
 import { AuditService } from '../services/AuditService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -600,7 +601,7 @@ export default function AccountsPayable() {
           const allPromises = STORES.map(async (store) => {
             try {
               const docRef = doc(db, 'stores', store.id, 'accounts_payable', 'all');
-              const docSnap = await getDoc(docRef);
+              const docSnap = await getDocCached(docRef, currentStore.id, user);
               if (docSnap.exists()) {
                 return docSnap.data().data || [];
               }
@@ -630,7 +631,7 @@ export default function AccountsPayable() {
         } else {
           // Single store scenario (e.g. Manager like Patricia, Andressa, Jef)
           const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
-          const docSnap = await getDoc(docRef);
+          const docSnap = await getDocCached(docRef, currentStore.id, user);
           if (docSnap.exists() && isMounted) {
             const cloudData = docSnap.data().data || [];
             const processed = processItems(cloudData);
@@ -765,14 +766,14 @@ export default function AccountsPayable() {
         
         const savePromises = Object.entries(grouped).map(async ([storeId, storeAccounts]) => {
           const docRef = doc(db, 'stores', storeId, 'accounts_payable', 'all');
-          await setDoc(docRef, { data: storeAccounts });
+          await setDocCached(docRef, { data: storeAccounts }, currentStore.id, user);
         });
         
         await Promise.all(savePromises);
       } else {
         // Manager saves only their own store to prevent cross-contamination
         const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
-        await setDoc(docRef, { data: cleanAccounts });
+        await setDocCached(docRef, { data: cleanAccounts }, currentStore.id, user);
       }
     } catch (firebaseErr: any) {
       console.error("Erro ao sincronizar com o Firestore automaticamente:", firebaseErr);
@@ -810,14 +811,14 @@ export default function AccountsPayable() {
         
         const savePromises = Object.entries(grouped).map(async ([storeId, storeAccounts]) => {
           const docRef = doc(db, 'stores', storeId, 'accounts_payable', 'all');
-          await setDoc(docRef, { data: storeAccounts });
+          await setDocCached(docRef, { data: storeAccounts }, currentStore.id, user);
         });
         
         await Promise.all(savePromises);
       } else {
         // Manager saves only their own store
         const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
-        await setDoc(docRef, { data: cleanAccounts });
+        await setDocCached(docRef, { data: cleanAccounts }, currentStore.id, user);
       }
       
       if (user) {
