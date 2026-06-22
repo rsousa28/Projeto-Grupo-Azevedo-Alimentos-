@@ -1290,7 +1290,6 @@ export default function DailyControl() {
                       </th>
                       <th className="px-4 py-3.5">Descrição</th>
                       <th className="px-4 py-3.5">Categoria</th>
-                      <th className="px-4 py-3.5">Beneficiário/Favorecido</th>
                       <th className="px-4 py-3.5">Valor</th>
                       <th className="px-4 py-3.5">Meio de Pagamento</th>
                       <th className="px-4 py-3.5 text-center">Status</th>
@@ -1311,7 +1310,7 @@ export default function DailyControl() {
                         </td>
                         <td className="px-4 py-4 font-bold">{item.description}</td>
                         <td className="px-4 py-4 font-medium text-slate-400">{item.category}</td>
-                        <td className="px-4 py-4 text-slate-400">{item.recipient || '-'}</td>
+                        
                         <td className="px-4 py-4 font-extrabold text-red-500">
                           R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
