@@ -89,6 +89,19 @@ const CHART_COLORS = [
   '#64748B'  // Slate
 ];
 
+const standardizeName = (name: string): string => {
+  if (!name) return '';
+  return name
+    .trim()
+    .replace(/\s+/g, ' ')
+    .split(' ')
+    .map(word => {
+      if (!word) return '';
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    })
+    .join(' ');
+};
+
 export default function DailyControl() {
   const { currentStore, isDarkMode, brandColors, setStore } = useStore();
   const { user } = useAuth();
@@ -132,6 +145,11 @@ export default function DailyControl() {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [newCategoryManagerName, setNewCategoryManagerName] = useState('');
   const [categoryToDeleteState, setCategoryToDeleteState] = useState<string | null>(null);
+
+  // Employee manager states
+  const [showEmployeeManager, setShowEmployeeManager] = useState(false);
+  const [newEmployeeManagerName, setNewEmployeeManagerName] = useState('');
+  const [employeeToDeleteState, setEmployeeToDeleteState] = useState<string | null>(null);
 
   // Form State
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -230,6 +248,79 @@ export default function DailyControl() {
     }
     
     toastSuccess(`Categoria "${categoryToDelete}" excluída com sucesso!`);
+  };
+
+  // Dynamic list of custom employees loaded from localStorage
+  const [employeesNamesList, setEmployeesNamesList] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('g_azevedo_custom_employees');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed.map(e => standardizeName(e)).filter(Boolean);
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao carregar funcionários customizados:", e);
+    }
+    return ['Yan Marques', 'Francineide'].map(e => standardizeName(e));
+  });
+
+  // Combined available employees (defaults, custom-added, and existing in loaded vouchers)
+  const allAvailableEmployees = useMemo(() => {
+    const setOfNames = new Set<string>();
+    
+    // Add default fallbacks
+    setOfNames.add('Yan Marques');
+    setOfNames.add('Francineide');
+    
+    // Add custom-managed ones
+    employeesNamesList.forEach(e => {
+      const formatted = standardizeName(e);
+      if (formatted) setOfNames.add(formatted);
+    });
+    
+    // Add existing ones from vouchers in DB
+    vouchers.forEach(v => {
+      const formatted = standardizeName(v.employeeName);
+      if (formatted) setOfNames.add(formatted);
+    });
+    
+    return Array.from(setOfNames).sort();
+  }, [employeesNamesList, vouchers]);
+
+  const handleCreateEmployee = (newEmpName: string): boolean => {
+    const trimmed = newEmpName.trim();
+    if (!trimmed) return false;
+    
+    const formatted = standardizeName(trimmed);
+    
+    if (allAvailableEmployees.map(e => e.toLowerCase()).includes(formatted.toLowerCase())) {
+      toastWarning('Este funcionário já existe!');
+      setFormEmployeeName(formatted);
+      return false;
+    }
+    
+    const updated = Array.from(new Set([...employeesNamesList, formatted])).sort();
+    setEmployeesNamesList(updated);
+    localStorage.setItem('g_azevedo_custom_employees', JSON.stringify(updated));
+    
+    toastSuccess(`Funcionário "${formatted}" cadastrado com sucesso!`);
+    setFormEmployeeName(formatted);
+    return true;
+  };
+
+  const handleDeleteEmployee = (empToDelete: string) => {
+    const formattedToDelete = standardizeName(empToDelete);
+    const updated = employeesNamesList.filter(e => standardizeName(e) !== formattedToDelete);
+    setEmployeesNamesList(updated);
+    localStorage.setItem('g_azevedo_custom_employees', JSON.stringify(updated));
+    
+    if (standardizeName(formEmployeeName) === formattedToDelete) {
+      setFormEmployeeName('');
+    }
+    
+    toastSuccess(`Funcionário "${empToDelete}" removido do cadastro!`);
   };
 
   // One-time automatic migration of June 2026 from B32 to B28 is now disabled to prevent duplicate data mapping
@@ -651,7 +742,7 @@ export default function DailyControl() {
           storeId: targetStoreId,
           storeName: targetStoreName,
           date: formDate,
-          employeeName: formEmployeeName,
+          employeeName: standardizeName(formEmployeeName),
           value: valueNum,
           description: formDescription || 'Lanche',
           paymentMethod: formPaymentMethod || 'Lanche',
@@ -872,6 +963,11 @@ export default function DailyControl() {
       );
     }
 
+    // Filter by Selected Employee Name
+    if (selectedCategory !== 'all') {
+      result = result.filter(item => standardizeName(item.employeeName) === standardizeName(selectedCategory));
+    }
+
     // Filter by Date format
     const todayStr = new Date().toISOString().split('T')[0];
     const sevenDaysAgo = new Date();
@@ -895,7 +991,7 @@ export default function DailyControl() {
     });
 
     return result;
-  }, [vouchers, selectedStoreId, searchQuery, dateFilter, selectedStatus, vouchersSortOrder]);
+  }, [vouchers, selectedStoreId, searchQuery, selectedCategory, dateFilter, selectedStatus, vouchersSortOrder]);
 
   // Overall calculations
   const stats = useMemo(() => {
@@ -914,9 +1010,13 @@ export default function DailyControl() {
     };
   }, [filteredExpensesList, filteredVouchersList]);
 
-  // Category-wise expenses distribution for interactive analysis
+  // Unique list of employee names for Vouchers filtering
+  const employeesList = allAvailableEmployees;
+
+  // Unified distribution for interactive analysis (expenses by category OR vouchers by employee)
   const expensesByCategory = useMemo(() => {
-    let baseList = [...expenses];
+    const isExpenses = activeTab === 'expenses';
+    let baseList: any[] = isExpenses ? [...expenses] : [...vouchers];
 
     // Apply store filter
     if (selectedStoreId !== 'all') {
@@ -931,22 +1031,41 @@ export default function DailyControl() {
     // Apply search filter
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      baseList = baseList.filter(item => 
-        item.description?.toLowerCase().includes(q) ||
-        item.category?.toLowerCase().includes(q)
-      );
+      if (isExpenses) {
+        baseList = baseList.filter(item => 
+          item.description?.toLowerCase().includes(q) ||
+          item.category?.toLowerCase().includes(q) ||
+          item.recipient?.toLowerCase().includes(q)
+        );
+      } else {
+        baseList = baseList.filter(item => 
+          item.employeeName?.toLowerCase().includes(q) ||
+          item.description?.toLowerCase().includes(q)
+        );
+      }
+    }
+
+    // Apply Date filter if present
+    const todayStr = new Date().toISOString().split('T')[0];
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    if (dateFilter === 'today') {
+      baseList = baseList.filter(item => item.date === todayStr);
+    } else if (dateFilter === '7days') {
+      baseList = baseList.filter(item => new Date(item.date) >= sevenDaysAgo);
     }
 
     const categoriesMap: Record<string, number> = {};
     let totalAmt = 0;
     baseList.forEach(item => {
-      const cat = item.category || 'Outros';
-      categoriesMap[cat] = (categoriesMap[cat] || 0) + item.value;
+      const key = isExpenses ? (item.category || 'Outros') : (item.employeeName ? standardizeName(item.employeeName) : 'Sem Nome');
+      categoriesMap[key] = (categoriesMap[key] || 0) + item.value;
       totalAmt += item.value;
     });
 
-    const entries = Object.entries(categoriesMap).map(([category, value]) => ({
-      category,
+    const entries = Object.entries(categoriesMap).map(([key, value]) => ({
+      category: key,
       value,
       percentage: totalAmt > 0 ? (value / totalAmt) * 100 : 0
     }));
@@ -955,7 +1074,7 @@ export default function DailyControl() {
       distribution: entries.sort((a, b) => b.value - a.value),
       total: totalAmt
     };
-  }, [expenses, selectedStoreId, searchQuery, selectedStatus]);
+  }, [expenses, vouchers, activeTab, selectedStoreId, searchQuery, dateFilter, selectedStatus]);
 
   // Export to PDF Helper (Aesthetic browser-direct PDF print style)
   const handleExportPDF = () => {
@@ -1039,7 +1158,7 @@ export default function DailyControl() {
             <tr style="border-bottom: 1px solid #f1f5f9;">
               <td style="padding: 10px; font-size: 11px; color: #334155;">${itemDate}</td>
               <td style="padding: 10px; font-size: 11px; color: #334155;">${item.storeName || '-'}</td>
-              <td style="padding: 10px; font-size: 11px; color: #334155; font-weight: bold;">${item.employeeName || '-'}</td>
+              <td style="padding: 10px; font-size: 11px; color: #334155; font-weight: bold;">${standardizeName(item.employeeName) || '-'}</td>
               <td style="padding: 10px; font-size: 11px; color: #334155;">${item.description || '-'}</td>
               <td style="padding: 10px; font-size: 11px; color: #0f172a; font-weight: bold; text-align: right;">R$ ${item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
             </tr>
@@ -1362,8 +1481,12 @@ export default function DailyControl() {
         <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm flex flex-col justify-between`}>
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Análise por Categoria</span>
-              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">Despesas</span>
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                {activeTab === 'expenses' ? 'Análise por Categoria' : 'Análise por Funcionário'}
+              </span>
+              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">
+                {activeTab === 'expenses' ? 'Despesas' : 'Vales'}
+              </span>
             </div>
             
             <div className="space-y-2 max-h-[120px] overflow-y-auto pr-1 scrollbar-thin">
@@ -1531,7 +1654,7 @@ export default function DailyControl() {
       {/* Tabs list */}
       <div className="flex flex-row flex-nowrap border-b border-slate-200 dark:border-[#333] gap-1 sm:gap-2 overflow-x-auto scrollbar-none snap-x w-full">
         <button
-          onClick={() => { setActiveTab('expenses'); setSelectedStatus('all'); }}
+          onClick={() => { setActiveTab('expenses'); setSelectedStatus('all'); setSelectedCategory('all'); }}
           className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition-all text-center justify-center whitespace-nowrap shrink-0 snap-center ${
             activeTab === 'expenses' 
               ? 'border-yellow-500 text-yellow-500' 
@@ -1542,7 +1665,7 @@ export default function DailyControl() {
           Despesas Diárias / Caixa Rápido
         </button>
         <button
-          onClick={() => { setActiveTab('vouchers'); setSelectedStatus('all'); }}
+          onClick={() => { setActiveTab('vouchers'); setSelectedStatus('all'); setSelectedCategory('all'); }}
           className={`flex-1 sm:flex-initial px-3 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold border-b-2 transition-all text-center justify-center whitespace-nowrap shrink-0 snap-center ${
             activeTab === 'vouchers' 
               ? 'border-yellow-500 text-yellow-500' 
@@ -1558,9 +1681,7 @@ export default function DailyControl() {
       <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1A1A1A] border-[#2E2E2E]' : 'bg-slate-50 border-slate-100'} grid grid-cols-1 md:grid-cols-12 gap-3 items-center shadow-sm`}>
         {/* Search */}
         <div className={`${
-          activeTab === 'expenses'
-            ? (isRoot ? 'md:col-span-6' : 'md:col-span-9')
-            : (isRoot ? 'md:col-span-9' : 'md:col-span-12')
+          isRoot ? 'md:col-span-6' : 'md:col-span-9'
         } relative`}>
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -1591,6 +1712,24 @@ export default function DailyControl() {
                 <option key={cat} value={cat}>{cat}</option>
               ))}
               <option value="Outros">Outras (Personalizadas)</option>
+            </select>
+          </div>
+        )}
+
+        {/* Employee filter for Vouchers tab */}
+        {activeTab === 'vouchers' && (
+          <div className="md:col-span-3">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
+                isDarkMode ? 'bg-[#252525] border-[#3F3F3F] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+              } outline-none cursor-pointer`}
+            >
+              <option value="all">Todos os Funcionários</option>
+              {employeesList.map(emp => (
+                <option key={emp} value={emp}>{emp}</option>
+              ))}
             </select>
           </div>
         )}
@@ -1741,8 +1880,6 @@ export default function DailyControl() {
                       <th className="px-4 py-3.5">Funcionário</th>
                       <th className="px-4 py-3.5">Lanche Escolhido</th>
                       <th className="px-4 py-3.5">Valor</th>
-                      <th className="px-4 py-3.5">Meio de Liberação</th>
-                      <th className="px-4 py-3.5 text-center">Status</th>
                       <th className="px-4 py-3.5 text-right">Ações</th>
                     </tr>
                   </thead>
@@ -1758,21 +1895,10 @@ export default function DailyControl() {
                         <td className="px-4 py-4 whitespace-nowrap font-medium text-slate-400">
                           {new Date(item.date + 'T12:00:00').toLocaleDateString('pt-BR')}
                         </td>
-                        <td className="px-4 py-4 font-bold text-slate-150">{item.employeeName}</td>
+                        <td className="px-4 py-4 font-bold text-slate-150">{standardizeName(item.employeeName)}</td>
                         <td className="px-4 py-4 text-slate-450">{item.description}</td>
                         <td className="px-4 py-4 font-extrabold text-amber-500">
                           R$ {item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                        </td>
-                        <td className="px-4 py-4 font-medium text-slate-400">{item.paymentMethod}</td>
-                        <td className="px-4 py-4 text-center">
-                          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                            item.status === 'Descontado' 
-                              ? 'bg-teal-500/10 text-teal-500' 
-                              : 'bg-orange-500/10 text-orange-500'
-                          }`}>
-                            {item.status === 'Descontado' ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                            {item.status === 'Descontado' ? 'Descontado/Saldado' : 'Pendente'}
-                          </span>
                         </td>
                         <td className="px-4 py-4 text-right">
                           <div className="flex gap-2 justify-end">
@@ -1853,7 +1979,7 @@ export default function DailyControl() {
                             <tr key={v.id} className={`hover:bg-slate-50 dark:hover:bg-neutral-800/50 ${isSuggestedMossoro ? 'bg-amber-500/5' : ''}`}>
                               <td className="px-4 py-3 font-mono">{v.date}</td>
                               <td className="px-4 py-3 font-bold">
-                                {v.employeeName}
+                                {standardizeName(v.employeeName)}
                                 {isSuggestedMossoro && (
                                   <span className="ml-2 text-[9px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded font-black">MOSSORÓ</span>
                                 )}
@@ -2117,17 +2243,29 @@ export default function DailyControl() {
                   <>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Nome do Funcionário</label>
-                        <input
-                          type="text"
-                          placeholder="Ex: Francisco de Assis"
+                        <div className="flex items-center justify-between h-5 mb-1 text-[10px] select-none">
+                          <label className="font-black uppercase text-slate-400">Nome do Funcionário</label>
+                          <button
+                            type="button"
+                            onClick={() => setShowEmployeeManager(true)}
+                            className="font-black uppercase text-amber-500 hover:text-amber-600 transition-colors flex items-center gap-0.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Gerenciar
+                          </button>
+                        </div>
+                        <select
                           value={formEmployeeName}
                           onChange={(e) => setFormEmployeeName(e.target.value)}
                           className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
-                            isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white' : 'bg-white border-slate-200'
-                          } outline-none focus:border-amber-500`}
+                            isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+                          } outline-none`}
                           required
-                        />
+                        >
+                          <option value="">Selecione...</option>
+                          {allAvailableEmployees.map(emp => (
+                            <option key={emp} value={emp}>{emp}</option>
+                          ))}
+                        </select>
                       </div>
 
                       <div>
@@ -2240,7 +2378,7 @@ export default function DailyControl() {
                 {itemToDelete.description && itemToDelete.description !== 'Lanche' 
                   ? `(${itemToDelete.description})` 
                   : itemToDelete.employeeName 
-                    ? `(${itemToDelete.employeeName})` 
+                    ? `(${standardizeName(itemToDelete.employeeName)})` 
                     : ''
                 }? Esta ação não poderá ser desfeita.
               </p>
@@ -2417,6 +2555,169 @@ export default function DailyControl() {
                   <button
                     type="button"
                     onClick={() => setShowCategoryManager(false)}
+                    className={`text-xs font-bold px-4 py-2 rounded-xl border transition-colors ${
+                      isDarkMode 
+                        ? 'border-[#333] hover:bg-[#252525] text-slate-300' 
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    Pronto
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* EMPLOYEE MANAGER MODAL */}
+      <AnimatePresence>
+        {showEmployeeManager && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            
+            {/* Backdrop visual */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowEmployeeManager(false)}
+              className="absolute inset-0 bg-black/60"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              className={`relative w-full max-w-sm p-6 rounded-2xl shadow-xl border overflow-hidden ${
+                isDarkMode 
+                  ? 'bg-[#181818] border-[#2C2C2C] text-white' 
+                  : 'bg-white border-slate-100 text-slate-900'
+              }`}
+            >
+              <button 
+                type="button"
+                onClick={() => setShowEmployeeManager(false)}
+                className="absolute right-4 top-4 p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#2C2C2C] transition-colors"
+                title="Fechar"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+
+              <h2 className="text-base font-black uppercase italic tracking-wider mb-5 text-amber-500">
+                Gerenciar Funcionários
+              </h2>
+
+              <div className="space-y-4">
+                {/* Form to Register Employee */}
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Cadastrar Novo Funcionário</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newEmployeeManagerName}
+                      onChange={(e) => setNewEmployeeManagerName(e.target.value)}
+                      placeholder="Ex: Yan Marques, Francineide..."
+                      className={`flex-1 text-xs px-3 py-2.5 rounded-xl border outline-none ${
+                        isDarkMode 
+                          ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' 
+                          : 'bg-white border-slate-200 focus:border-amber-500'
+                      }`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const success = handleCreateEmployee(newEmployeeManagerName);
+                          if (success) {
+                            setNewEmployeeManagerName('');
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const success = handleCreateEmployee(newEmployeeManagerName);
+                        if (success) {
+                          setNewEmployeeManagerName('');
+                        }
+                      }}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-900 text-xs font-black rounded-xl transition-all shadow-md flex items-center justify-center shrink-0"
+                    >
+                      Criar
+                    </button>
+                  </div>
+                </div>
+
+                {/* List of Custom Registered Employees */}
+                <div className="border-t border-slate-100 dark:border-[#2C2C2C] pt-4">
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">
+                    Funcionários Cadastrados
+                  </label>
+                  
+                  {employeesNamesList.length === 0 ? (
+                    <p className="text-center text-[11px] text-slate-400 italic py-4">
+                      Nenhum funcionário personalizado cadastrado ainda.
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                      {employeesNamesList
+                        .map(emp => {
+                          const isConfirming = employeeToDeleteState === emp;
+                          return (
+                            <div 
+                              key={emp} 
+                              className={`flex items-center justify-between p-2 rounded-xl border text-xs font-bold leading-none min-h-[40px] ${
+                                isDarkMode 
+                                  ? 'bg-[#222222] border-[#2C2C2C]' 
+                                  : 'bg-slate-50 border-slate-100'
+                              }`}
+                            >
+                              <span className="truncate max-w-[150px] text-[11px] font-bold">{emp}</span>
+                              
+                              {isConfirming ? (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[9px] text-red-500 uppercase font-black tracking-wider animate-pulse">Remover?</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleDeleteEmployee(emp);
+                                      setEmployeeToDeleteState(null);
+                                    }}
+                                    className="p-1 px-1.5 bg-red-500 hover:bg-red-600 active:scale-95 text-white rounded-lg transition-colors flex items-center justify-center shrink-0 text-[10px] font-bold"
+                                    title="Confirmar"
+                                  >
+                                    Sim
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEmployeeToDeleteState(null)}
+                                    className="p-1 px-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 active:scale-95 text-slate-700 dark:text-slate-300 rounded-lg transition-colors flex items-center justify-center shrink-0 text-[10px] font-bold"
+                                    title="Cancelar"
+                                  >
+                                    Não
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setEmployeeToDeleteState(emp)}
+                                  className="p-1.5 text-red-500 hover:bg-red-500/10 active:scale-95 rounded-lg transition-colors flex items-center justify-center shrink-0"
+                                  title="Excluir Funcionário"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowEmployeeManager(false)}
                     className={`text-xs font-bold px-4 py-2 rounded-xl border transition-colors ${
                       isDarkMode 
                         ? 'border-[#333] hover:bg-[#252525] text-slate-300' 
