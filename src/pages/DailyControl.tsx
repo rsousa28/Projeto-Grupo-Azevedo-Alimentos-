@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { 
   Plus, 
   Search, 
@@ -58,12 +59,14 @@ export interface DailyVoucher {
 }
 
 const EXPENSE_CATEGORIES = [
-  'Alimentação / Balcão',
-  'Limpeza / Higiene',
-  'Manutenção Rápida',
-  'Transporte / Frete Rápido',
-  'Papelaria / Escritório',
-  'Outros Gastos Operacionais',
+  'Aso',
+  'Despesa',
+  'Passagem',
+  'Diaria',
+  'Alimentação',
+  'Manutenção',
+  'Limpeza',
+  'Outros'
 ];
 
 const PAYMENT_METHODS = [
@@ -71,6 +74,19 @@ const PAYMENT_METHODS = [
   'PIX',
   'Cartão Coporativo',
   'Outros'
+];
+
+const CHART_COLORS = [
+  '#F59E0B', // Amber
+  '#3B82F6', // Blue
+  '#10B981', // Emerald
+  '#EF4444', // Red
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+  '#06B6D4', // Cyan
+  '#14B8A6', // Teal
+  '#F97316', // Orange
+  '#64748B'  // Slate
 ];
 
 export default function DailyControl() {
@@ -112,6 +128,11 @@ export default function DailyControl() {
   const [editingItem, setEditingItem] = useState<any | null>(null);
   const [itemToDelete, setItemToDelete] = useState<any | null>(null);
 
+  // Category manager states
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [newCategoryManagerName, setNewCategoryManagerName] = useState('');
+  const [categoryToDeleteState, setCategoryToDeleteState] = useState<string | null>(null);
+
   // Form State
   const [formDate, setFormDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [formDescription, setFormDescription] = useState('');
@@ -123,6 +144,93 @@ export default function DailyControl() {
   const [formEmployeeName, setFormEmployeeName] = useState('');
   const [formNotes, setFormNotes] = useState('');
   const [formStoreId, setFormStoreId] = useState('');
+
+  // Dynamic list of categories (defaults + custom ones loaded from localStorage)
+  const [categoriesList, setCategoriesList] = useState<string[]>(() => {
+    const defaultCategories = [
+      'Aso',
+      'Despesa',
+      'Passagem',
+      'Diaria',
+      'Alimentação',
+      'Manutenção',
+      'Limpeza',
+      'Outros'
+    ];
+    try {
+      const saved = localStorage.getItem('g_azevedo_custom_categories');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          const combined = [...defaultCategories];
+          parsed.forEach((cat: string) => {
+            const formatted = cat.trim();
+            if (formatted && !combined.includes(formatted)) {
+              combined.push(formatted);
+            }
+          });
+          return combined;
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao carregar categorias customizadas:", e);
+    }
+    return defaultCategories;
+  });
+
+  const handleCreateCategory = (newCategoryName: string): boolean => {
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) return false;
+    
+    // Format to capitalized word
+    const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    
+    if (categoriesList.includes(formatted)) {
+      toastWarning('Esta categoria já existe!');
+      setFormCategory(formatted);
+      return false;
+    }
+    
+    const updated = [...categoriesList, formatted];
+    setCategoriesList(updated);
+    
+    const defaultCategories = ['Aso', 'Despesa', 'Passagem', 'Diaria', 'Alimentação', 'Manutenção', 'Limpeza', 'Outros'];
+    const customOnly = updated.filter(c => !defaultCategories.includes(c));
+    localStorage.setItem('g_azevedo_custom_categories', JSON.stringify(customOnly));
+    
+    toastSuccess(`Categoria "${formatted}" criada com sucesso!`);
+    setFormCategory(formatted);
+    return true;
+  };
+
+  const handleDeleteCategory = (categoryToDelete: string) => {
+    const defaultCategories = [
+      'Aso',
+      'Despesa',
+      'Passagem',
+      'Diaria',
+      'Alimentação',
+      'Manutenção',
+      'Limpeza',
+      'Outros'
+    ];
+    if (defaultCategories.includes(categoryToDelete)) {
+      toastWarning('Categorias padrão não podem ser excluídas!');
+      return;
+    }
+    
+    const updated = categoriesList.filter(c => c !== categoryToDelete);
+    setCategoriesList(updated);
+    
+    const customOnly = updated.filter(c => !defaultCategories.includes(c));
+    localStorage.setItem('g_azevedo_custom_categories', JSON.stringify(customOnly));
+    
+    if (formCategory === categoryToDelete) {
+      setFormCategory('');
+    }
+    
+    toastSuccess(`Categoria "${categoryToDelete}" excluída com sucesso!`);
+  };
 
   // One-time automatic migration of June 2026 from B32 to B28 is now disabled to prevent duplicate data mapping
   const runMigrationB32toB28 = async () => {
@@ -460,6 +568,21 @@ export default function DailyControl() {
     const targetStoreId = isRoot ? formStoreId : currentStore.id;
     const targetStoreName = STORES.find(s => s.id === targetStoreId)?.name || currentStore.name;
 
+    // Auto-save newly typed custom category if any
+    if (activeTab === 'expenses' && formCategory) {
+      const trimmed = formCategory.trim();
+      if (trimmed) {
+        const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+        if (!categoriesList.includes(formatted)) {
+          const updated = [...categoriesList, formatted];
+          setCategoriesList(updated);
+          const defaultCategories = ['Aso', 'Despesa', 'Passagem', 'Diaria', 'Alimentação', 'Manutenção', 'Limpeza', 'Outros'];
+          const customOnly = updated.filter(c => !defaultCategories.includes(c));
+          localStorage.setItem('g_azevedo_custom_categories', JSON.stringify(customOnly));
+        }
+      }
+    }
+
     try {
       // Helper to generate docId based on the item date
       const getDocIdFromDate = (dateString: string) => {
@@ -790,6 +913,49 @@ export default function DailyControl() {
       pendingGrandTotal: pendingExp + pendingVch
     };
   }, [filteredExpensesList, filteredVouchersList]);
+
+  // Category-wise expenses distribution for interactive analysis
+  const expensesByCategory = useMemo(() => {
+    let baseList = [...expenses];
+
+    // Apply store filter
+    if (selectedStoreId !== 'all') {
+      baseList = baseList.filter(item => item.storeId === selectedStoreId);
+    }
+
+    // Apply status filter
+    if (selectedStatus !== 'all') {
+      baseList = baseList.filter(item => item.status === selectedStatus);
+    }
+
+    // Apply search filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      baseList = baseList.filter(item => 
+        item.description?.toLowerCase().includes(q) ||
+        item.category?.toLowerCase().includes(q)
+      );
+    }
+
+    const categoriesMap: Record<string, number> = {};
+    let totalAmt = 0;
+    baseList.forEach(item => {
+      const cat = item.category || 'Outros';
+      categoriesMap[cat] = (categoriesMap[cat] || 0) + item.value;
+      totalAmt += item.value;
+    });
+
+    const entries = Object.entries(categoriesMap).map(([category, value]) => ({
+      category,
+      value,
+      percentage: totalAmt > 0 ? (value / totalAmt) * 100 : 0
+    }));
+
+    return {
+      distribution: entries.sort((a, b) => b.value - a.value),
+      total: totalAmt
+    };
+  }, [expenses, selectedStoreId, searchQuery, selectedStatus]);
 
   // Export to PDF Helper (Aesthetic browser-direct PDF print style)
   const handleExportPDF = () => {
@@ -1154,38 +1320,211 @@ export default function DailyControl() {
         </div>
       </div>
 
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* KPI Stats Cards & Category Analysis Deck */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1 */}
-        <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm`}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Despesas Diárias</span>
-            <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
-              <TrendingDown className="w-4 h-4" />
+        <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm flex flex-col justify-between`}>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Despesas Diárias</span>
+              <div className="p-2 rounded-lg bg-red-500/10 text-red-500">
+                <TrendingDown className="w-4 h-4" />
+              </div>
             </div>
+            <h3 className="text-xl font-extrabold font-display">
+              R$ {stats.totalExp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </h3>
           </div>
-          <h3 className="text-xl font-extrabold font-display">
-            R$ {stats.totalExp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </h3>
-          <p className="text-[10px] text-slate-400 mt-1 font-medium">
+          <p className="text-[10px] text-slate-400 mt-2 font-medium">
             R$ {stats.pendingExp.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} pendentes de ajuste
           </p>
         </div>
 
         {/* KPI 2 */}
-        <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm`}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Vales do Período</span>
-            <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
-              <Users className="w-4 h-4" />
+        <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm flex flex-col justify-between`}>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Vales do Período</span>
+              <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
+                <Users className="w-4 h-4" />
+              </div>
             </div>
+            <h3 className="text-xl font-extrabold font-display">
+              R$ {stats.totalVch.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </h3>
           </div>
-          <h3 className="text-xl font-extrabold font-display">
-            R$ {stats.totalVch.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </h3>
-          <p className="text-[10px] text-slate-400 mt-1 font-medium">
+          <p className="text-[10px] text-slate-400 mt-2 font-medium">
             R$ {stats.pendingVch.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ativos (pendentes de desconto)
           </p>
+        </div>
+
+        {/* Category Breakdown Card */}
+        <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm flex flex-col justify-between`}>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Análise por Categoria</span>
+              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">Despesas</span>
+            </div>
+            
+            <div className="space-y-2 max-h-[120px] overflow-y-auto pr-1 scrollbar-thin">
+              {expensesByCategory.distribution.length === 0 ? (
+                <div className="text-center py-6 text-[11px] text-slate-400">
+                  Nenhum lançamento no filtro atual
+                </div>
+              ) : (
+                expensesByCategory.distribution.map(({ category, value, percentage }) => (
+                  <div 
+                    key={category} 
+                    onClick={() => setSelectedCategory(prev => prev === category ? 'all' : category)}
+                    className={`group p-1.5 rounded-lg cursor-pointer transition-all border ${
+                      selectedCategory === category 
+                        ? (isDarkMode ? 'bg-amber-500/10 border-amber-500/40 text-amber-400' : 'bg-amber-50 border-amber-300 text-amber-700') 
+                        : (isDarkMode ? 'bg-transparent border-transparent hover:bg-white/5' : 'bg-transparent border-transparent hover:bg-slate-50')
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-[11px] font-bold mb-1">
+                      <span className="truncate max-w-[120px]" style={{ color: selectedCategory === category ? brandColors.button : undefined }}>
+                        {category}
+                      </span>
+                      <span className={isDarkMode ? 'text-white' : 'text-slate-800'}>
+                        R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-100 dark:bg-white/10 h-1 rounded-full overflow-hidden">
+                      <div 
+                        className="h-full transition-all duration-500" 
+                        style={{ 
+                          width: `${percentage}%`,
+                          backgroundColor: brandColors.button || '#F59E0B'
+                        }}
+                      />
+                    </div>
+                    <div className="text-right text-[8px] text-slate-400 mt-0.5 font-medium">
+                      {percentage.toFixed(1)}% {selectedCategory === category && '(Ativo)'}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          
+          {selectedCategory !== 'all' && (
+            <button 
+              onClick={() => setSelectedCategory('all')}
+              className="mt-2 text-center text-[10px] font-bold text-amber-500 hover:text-amber-600 transition-colors pt-2 border-t border-slate-100 dark:border-white/5 w-full"
+            >
+              Exibir todas
+            </button>
+          )}
+        </div>
+
+        {/* Category Donut Chart Card */}
+        <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm flex flex-col justify-between`}>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Distribuição Visual</span>
+              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">Gráfico</span>
+            </div>
+
+            {expensesByCategory.distribution.length === 0 ? (
+              <div className="text-center py-10 text-[11px] text-slate-400 italic">
+                Nenhum lançamento no filtro atual
+              </div>
+            ) : (
+              <div className="h-[120px] w-full flex items-center justify-center relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={expensesByCategory.distribution.map((item, index) => ({
+                        name: item.category,
+                        value: item.value,
+                        percentage: item.percentage,
+                        index
+                      }))}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={32}
+                      outerRadius={48}
+                      paddingAngle={2}
+                      dataKey="value"
+                      onClick={(data) => {
+                        if (data && data.name) {
+                          setSelectedCategory(prev => prev === data.name ? 'all' : data.name);
+                        }
+                      }}
+                    >
+                      {expensesByCategory.distribution.map((entry, index) => {
+                        const isSelected = selectedCategory === entry.category;
+                        const cellColor = CHART_COLORS[index % CHART_COLORS.length];
+                        return (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={cellColor} 
+                            stroke={isDarkMode ? '#1E1E1E' : '#FFFFFF'}
+                            strokeWidth={isSelected ? 3 : 1}
+                            style={{ 
+                              cursor: 'pointer',
+                              filter: isSelected ? 'drop-shadow(0px 0px 4px rgba(245, 158, 11, 0.5))' : 'none',
+                              opacity: selectedCategory === 'all' || isSelected ? 1 : 0.4
+                            }}
+                          />
+                        );
+                      })}
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className={`p-2 rounded-xl border shadow-lg text-[10px] font-bold leading-none ${
+                              isDarkMode ? 'bg-[#222222]/95 border-[#333] text-white' : 'bg-white/95 border-slate-100 text-slate-900 shadow-slate-200/50'
+                            }`}>
+                              <p className="mb-1 font-black text-slate-400 uppercase text-[8px] tracking-wider">{data.name}</p>
+                              <p className="text-amber-500">R$ {data.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                              <p className="text-slate-400 text-[9px] mt-0.5">{data.percentage.toFixed(1)}%</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                
+                {/* Center text indicating total */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-[8px] font-black uppercase text-slate-400 leading-none">Total</span>
+                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-200 leading-tight">
+                    R$ {expensesByCategory.total > 1000 ? `${(expensesByCategory.total / 1000).toFixed(1)}k` : expensesByCategory.total.toFixed(0)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 mt-1 pt-1 border-t border-slate-100 dark:border-white/5">
+            {expensesByCategory.distribution.slice(0, 4).map((entry, index) => {
+              const isSelected = selectedCategory === entry.category;
+              const color = CHART_COLORS[index % CHART_COLORS.length];
+              return (
+                <div 
+                  key={entry.category} 
+                  onClick={() => setSelectedCategory(prev => prev === entry.category ? 'all' : entry.category)}
+                  className="flex items-center gap-1 cursor-pointer select-none"
+                >
+                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className={`text-[8px] font-extrabold truncate max-w-[50px] uppercase tracking-wider ${
+                    isSelected ? 'text-amber-500' : 'text-slate-400 hover:text-slate-300'
+                  }`}>
+                    {entry.category}
+                  </span>
+                </div>
+              );
+            })}
+            {expensesByCategory.distribution.length > 4 && (
+              <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">+{expensesByCategory.distribution.length - 4}</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1218,7 +1557,11 @@ export default function DailyControl() {
       {/* Search and Filters Strip */}
       <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1A1A1A] border-[#2E2E2E]' : 'bg-slate-50 border-slate-100'} grid grid-cols-1 md:grid-cols-12 gap-3 items-center shadow-sm`}>
         {/* Search */}
-        <div className={`${isRoot ? 'md:col-span-9' : 'md:col-span-12'} relative`}>
+        <div className={`${
+          activeTab === 'expenses'
+            ? (isRoot ? 'md:col-span-6' : 'md:col-span-9')
+            : (isRoot ? 'md:col-span-9' : 'md:col-span-12')
+        } relative`}>
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
@@ -1232,6 +1575,25 @@ export default function DailyControl() {
             } outline-none`}
           />
         </div>
+
+        {/* Category filter for Expenses tab */}
+        {activeTab === 'expenses' && (
+          <div className="md:col-span-3">
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
+                isDarkMode ? 'bg-[#252525] border-[#3F3F3F] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+              } outline-none cursor-pointer`}
+            >
+              <option value="all">Todas as Categorias</option>
+              {categoriesList.map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+              <option value="Outros">Outras (Personalizadas)</option>
+            </select>
+          </div>
+        )}
 
         {/* Store ID (Show only if ROOT) */}
         {isRoot && (
@@ -1694,21 +2056,34 @@ export default function DailyControl() {
                   <>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Categoria</label>
-                        <input
-                          type="text"
+                        <div className="flex items-center justify-between h-5 mb-1 text-[10px] select-none">
+                          <label className="font-black uppercase text-slate-400">Categoria</label>
+                          <button
+                            type="button"
+                            onClick={() => setShowCategoryManager(true)}
+                            className="font-black uppercase text-amber-500 hover:text-amber-600 transition-colors flex items-center gap-0.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" /> Gerenciar
+                          </button>
+                        </div>
+                        <select
                           value={formCategory}
                           onChange={(e) => setFormCategory(e.target.value)}
-                          placeholder="Digite a categoria..."
                           className={`w-full text-xs px-3 py-2.5 rounded-xl border ${
-                            isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white' : 'bg-white border-slate-200'
-                          } outline-none focus:border-amber-500`}
-                          required
-                        />
+                            isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
+                          } outline-none`}
+                        >
+                          <option value="">Selecione...</option>
+                          {categoriesList.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Meio de Pagamento</label>
+                        <div className="flex items-center h-5 mb-1 text-[10px] select-none">
+                          <label className="font-black uppercase text-slate-400">Meio de Pagamento</label>
+                        </div>
                         <select
                           value={formPaymentMethod}
                           onChange={(e) => setFormPaymentMethod(e.target.value)}
@@ -1887,6 +2262,170 @@ export default function DailyControl() {
                 >
                   Confirmar Exclusão
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* CATEGORY MANAGER MODAL */}
+      <AnimatePresence>
+        {showCategoryManager && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            
+            {/* Backdrop visual */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setShowCategoryManager(false)}
+              className="absolute inset-0 bg-black/60"
+            />
+
+            {/* Modal Body */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              className={`relative w-full max-w-sm p-6 rounded-2xl shadow-xl border overflow-hidden ${
+                isDarkMode 
+                  ? 'bg-[#181818] border-[#2C2C2C] text-white' 
+                  : 'bg-white border-slate-100 text-slate-900'
+              }`}
+            >
+              <button 
+                type="button"
+                onClick={() => setShowCategoryManager(false)}
+                className="absolute right-4 top-4 p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-[#2C2C2C] transition-colors"
+                title="Fechar"
+              >
+                <X className="w-4 h-4 text-slate-400" />
+              </button>
+
+              <h2 className="text-base font-black uppercase italic tracking-wider mb-5 text-amber-500">
+                Gerenciar Categorias
+              </h2>
+
+              <div className="space-y-4">
+                {/* Form to Create Category */}
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-1.5">Criar Nova Categoria</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newCategoryManagerName}
+                      onChange={(e) => setNewCategoryManagerName(e.target.value)}
+                      placeholder="Ex: Gasolina, Brindes..."
+                      className={`flex-1 text-xs px-3 py-2.5 rounded-xl border outline-none ${
+                        isDarkMode 
+                          ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' 
+                          : 'bg-white border-slate-200 focus:border-amber-500'
+                      }`}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const success = handleCreateCategory(newCategoryManagerName);
+                          if (success) {
+                            setNewCategoryManagerName('');
+                          }
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const success = handleCreateCategory(newCategoryManagerName);
+                        if (success) {
+                          setNewCategoryManagerName('');
+                        }
+                      }}
+                      className="px-4 py-2 bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-900 text-xs font-black rounded-xl transition-all shadow-md flex items-center justify-center shrink-0"
+                    >
+                      Criar
+                    </button>
+                  </div>
+                </div>
+
+                {/* List of Custom Categories */}
+                <div className="border-t border-slate-100 dark:border-[#2C2C2C] pt-4">
+                  <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">
+                    Minhas Categorias Personalizadas
+                  </label>
+                  
+                  {categoriesList.filter(c => !['Aso', 'Despesa', 'Passagem', 'Diaria', 'Alimentação', 'Manutenção', 'Limpeza', 'Outros'].includes(c)).length === 0 ? (
+                    <p className="text-center text-[11px] text-slate-400 italic py-4">
+                      Nenhuma categoria personalizada criada ainda.
+                    </p>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                      {categoriesList
+                        .filter(c => !['Aso', 'Despesa', 'Passagem', 'Diaria', 'Alimentação', 'Manutenção', 'Limpeza', 'Outros'].includes(c))
+                        .map(cat => {
+                          const isConfirming = categoryToDeleteState === cat;
+                          return (
+                            <div 
+                              key={cat} 
+                              className={`flex items-center justify-between p-2 rounded-xl border text-xs font-bold leading-none min-h-[40px] ${
+                                isDarkMode 
+                                  ? 'bg-[#222222] border-[#2C2C2C]' 
+                                  : 'bg-slate-50 border-slate-100'
+                              }`}
+                            >
+                              <span className="truncate max-w-[150px] text-[11px] font-bold">{cat}</span>
+                              
+                              {isConfirming ? (
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <span className="text-[9px] text-red-500 uppercase font-black tracking-wider animate-pulse">Apagar?</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      handleDeleteCategory(cat);
+                                      setCategoryToDeleteState(null);
+                                    }}
+                                    className="p-1 px-1.5 bg-red-500 hover:bg-red-600 active:scale-95 text-white rounded-lg transition-colors flex items-center justify-center shrink-0 text-[10px] font-bold"
+                                    title="Confirmar"
+                                  >
+                                    Sim
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setCategoryToDeleteState(null)}
+                                    className="p-1 px-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 active:scale-95 text-slate-700 dark:text-slate-300 rounded-lg transition-colors flex items-center justify-center shrink-0 text-[10px] font-bold"
+                                    title="Cancelar"
+                                  >
+                                    Não
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => setCategoryToDeleteState(cat)}
+                                  className="p-1.5 text-red-500 hover:bg-red-500/10 active:scale-95 rounded-lg transition-colors flex items-center justify-center shrink-0"
+                                  title="Excluir Categoria"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryManager(false)}
+                    className={`text-xs font-bold px-4 py-2 rounded-xl border transition-colors ${
+                      isDarkMode 
+                        ? 'border-[#333] hover:bg-[#252525] text-slate-300' 
+                        : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                    }`}
+                  >
+                    Pronto
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
