@@ -21,6 +21,7 @@ import {
   Check, 
   X, 
   ChevronDown, 
+  ChevronUp,
   RefreshCw,
   HelpCircle,
   CloudOff,
@@ -3413,23 +3414,48 @@ export default function AccountsPayable() {
                     className="rounded border-slate-300 dark:border-[#333] cursor-pointer"
                   />
                 </th>
-                <th onClick={() => handleSort('supplier')} className="px-6 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202020] transition-colors">
-                  Fornecedor / Doc
+                <th onClick={() => handleSort('supplier')} className="px-6 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202020] transition-colors select-none">
+                  <div className="flex items-center gap-1.5">
+                    Fornecedor / Doc
+                    {sortField === 'supplier' && (
+                      sortDirection === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-amber-500 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    )}
+                  </div>
                 </th>
-                <th onClick={() => handleSort('category')} className="px-4 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202020] transition-colors hidden md:table-cell">
-                  Categoria
+                <th onClick={() => handleSort('category')} className="px-4 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202020] transition-colors hidden md:table-cell select-none">
+                  <div className="flex items-center gap-1.5">
+                    Categoria
+                    {sortField === 'category' && (
+                      sortDirection === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-amber-500 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    )}
+                  </div>
                 </th>
-                <th onClick={() => handleSort('dueDate')} className="px-4 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202020] transition-colors">
-                  Vencimento
+                <th onClick={() => handleSort('dueDate')} className="px-4 py-4 cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202020] transition-colors select-none">
+                  <div className="flex items-center gap-1.5">
+                    Vencimento
+                    {sortField === 'dueDate' && (
+                      sortDirection === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-amber-500 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    )}
+                  </div>
                 </th>
-                <th onClick={() => handleSort('value')} className="px-4 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202020] transition-colors">
-                  Valor
+                <th onClick={() => handleSort('value')} className="px-4 py-4 text-right cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202020] transition-colors select-none">
+                  <div className="flex items-center gap-1.5 justify-end">
+                    Valor
+                    {sortField === 'value' && (
+                      sortDirection === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-amber-500 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    )}
+                  </div>
                 </th>
-                <th onClick={() => handleSort('status')} className="px-4 py-4 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202020] transition-colors">
-                  Situação
+                <th onClick={() => handleSort('status')} className="px-4 py-4 text-center cursor-pointer hover:bg-slate-100 dark:hover:bg-[#202020] transition-colors select-none">
+                  <div className="flex items-center gap-1.5 justify-center">
+                    Situação
+                    {sortField === 'status' && (
+                      sortDirection === 'asc' ? <ChevronUp className="w-3.5 h-3.5 text-amber-500 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    )}
+                  </div>
                 </th>
-                <th className="px-4 py-4 text-center">Anexos</th>
-                <th className="px-6 py-4 text-right">Ações</th>
+                <th className="px-4 py-4 text-center select-none">Anexos</th>
+                <th className="px-6 py-4 text-right select-none">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-150 dark:divide-[#1C1C1C]">

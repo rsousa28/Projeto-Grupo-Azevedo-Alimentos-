@@ -16,7 +16,9 @@ import {
   TrendingDown,
   Percent,
   X,
-  FileText
+  FileText,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -88,6 +90,8 @@ export default function DailyControl() {
   const [selectedStoreId, setSelectedStoreId] = useState<string>(
     currentStore.id === 'admin-global' ? 'all' : currentStore.id
   );
+  const [expensesSortOrder, setExpensesSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [vouchersSortOrder, setVouchersSortOrder] = useState<'asc' | 'desc'>('desc');
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
@@ -715,8 +719,15 @@ export default function DailyControl() {
       result = result.filter(item => item.status === selectedStatus);
     }
 
+    // Sort by Date
+    result.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return expensesSortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+
     return result;
-  }, [expenses, selectedStoreId, searchQuery, selectedCategory, dateFilter, selectedStatus]);
+  }, [expenses, selectedStoreId, searchQuery, selectedCategory, dateFilter, selectedStatus, expensesSortOrder]);
 
   const filteredVouchersList = useMemo(() => {
     let result = [...vouchers];
@@ -753,8 +764,15 @@ export default function DailyControl() {
       result = result.filter(item => item.status === selectedStatus);
     }
 
+    // Sort by Date
+    result.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return vouchersSortOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+
     return result;
-  }, [vouchers, selectedStoreId, searchQuery, dateFilter, selectedStatus]);
+  }, [vouchers, selectedStoreId, searchQuery, dateFilter, selectedStatus, vouchersSortOrder]);
 
   // Overall calculations
   const stats = useMemo(() => {
@@ -1137,7 +1155,7 @@ export default function DailyControl() {
       </div>
 
       {/* KPI Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* KPI 1 */}
         <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm`}>
           <div className="flex items-center justify-between mb-2">
@@ -1169,24 +1187,6 @@ export default function DailyControl() {
             R$ {stats.pendingVch.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} ativos (pendentes de desconto)
           </p>
         </div>
-
-        {/* KPI 3 */}
-        <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm`}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Total Lançamentos</span>
-            <div className="p-2 rounded-lg bg-teal-500/10 text-teal-500">
-              <DollarSign className="w-4 h-4" />
-            </div>
-          </div>
-          <h3 className="text-xl font-extrabold font-display">
-            R$ {stats.grandTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-          </h3>
-          <p className="text-[10px] text-slate-400 mt-1 font-medium">
-            Despesas + vales somados
-          </p>
-        </div>
-
-
       </div>
 
       {/* Tabs list */}
@@ -1273,7 +1273,21 @@ export default function DailyControl() {
                   <thead className={`${isDarkMode ? 'bg-[#1E1E1E] text-slate-300' : 'bg-slate-50 text-slate-600'} font-bold uppercase transition-colors`}>
                     <tr>
                       {isRoot && <th className="px-4 py-3.5">Unidade</th>}
-                      <th className="px-4 py-3.5">Data</th>
+                      <th 
+                        onClick={() => setExpensesSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                        className={`px-4 py-3.5 cursor-pointer select-none transition-colors ${
+                          isDarkMode ? 'hover:bg-[#252525] text-white' : 'hover:bg-slate-100 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          Data
+                          {expensesSortOrder === 'desc' ? (
+                            <ChevronDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          ) : (
+                            <ChevronUp className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          )}
+                        </div>
+                      </th>
                       <th className="px-4 py-3.5">Descrição</th>
                       <th className="px-4 py-3.5">Categoria</th>
                       <th className="px-4 py-3.5">Beneficiário/Favorecido</th>
@@ -1348,7 +1362,21 @@ export default function DailyControl() {
                   <thead className={`${isDarkMode ? 'bg-[#1E1E1E] text-slate-300' : 'bg-slate-50 text-slate-600'} font-bold uppercase transition-colors`}>
                     <tr>
                       {isRoot && <th className="px-4 py-3.5">Unidade</th>}
-                      <th className="px-4 py-3.5">Data</th>
+                      <th 
+                        onClick={() => setVouchersSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                        className={`px-4 py-3.5 cursor-pointer select-none transition-colors ${
+                          isDarkMode ? 'hover:bg-[#252525] text-white' : 'hover:bg-slate-100 text-slate-800'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          Data
+                          {vouchersSortOrder === 'desc' ? (
+                            <ChevronDown className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          ) : (
+                            <ChevronUp className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          )}
+                        </div>
+                      </th>
                       <th className="px-4 py-3.5">Funcionário</th>
                       <th className="px-4 py-3.5">Lanche Escolhido</th>
                       <th className="px-4 py-3.5">Valor</th>
