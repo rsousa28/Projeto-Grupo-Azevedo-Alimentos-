@@ -48,7 +48,7 @@ const NAV_ITEMS: NavItem[] = [
   { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: ['ADMIN'] },
   { icon: Megaphone, label: 'Marketing', path: '/marketing', allowedRoles: ['ADMIN'] },
   { icon: DollarSign, label: 'Despesas e Vales', path: '/daily-control', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
-  { icon: Receipt, label: 'Contas a Pagar', path: '/accounts-payable', allowedRoles: ['ADMIN'] },
+  { icon: Receipt, label: 'Contas a Pagar', path: '/accounts-payable', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
   { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
   { icon: Shield, label: 'Logs de Acesso', path: '/audit-logs', allowedRoles: ['ADMIN'] },
   { icon: Lock, label: 'Resumo de Segurança', path: '/security-summary', allowedRoles: ['ADMIN'] },
@@ -101,7 +101,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       return user?.username === 'adm' || user?.role === 'ADMIN';
     }
     if (item.path === '/accounts-payable') {
-      return user?.role === 'ADMIN' || user?.username === 'adm';
+      return user?.role === 'ADMIN' || user?.username === 'adm' || (!!user?.role && ALL_MANAGERS.includes(user.role)) || user?.role === 'FINANCIAL';
     }
     if (item.path === '/cmv') {
       const isAndressaOrMichele = 

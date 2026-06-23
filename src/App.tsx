@@ -79,7 +79,12 @@ function UnauthorizedRedirect({ routeName }: { routeName: string }) {
 function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const hasAccess =
-    user && (user.role === "ADMIN" || user.username === "adm");
+    user && (
+      user.role === "ADMIN" || 
+      user.username === "adm" || 
+      user.role === "FINANCIAL" || 
+      ["MANAGER", "MANAGER_BEBELU_RIOMAR_PAPICU", "MANAGER_BEBELU_MOSSORO", "MANAGER_4ESTYLOS_MOSSORO"].includes(user.role)
+    );
   if (!hasAccess) {
     return (
       <UnauthorizedRedirect routeName="Contas a Pagar (Accounts Payable)" />
