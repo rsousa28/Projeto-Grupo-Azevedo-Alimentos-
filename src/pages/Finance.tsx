@@ -1090,7 +1090,7 @@ export default function Finance() {
     const perfData = [
       ["Margem Bruta (Meta: > 50%)", `${marginBruta.toFixed(1)}%`, "---"],
       [
-        "Lucratividade",
+        "Margem Líquida",
         `${lucratividade.toFixed(1)}%`,
         lucratividade < 0 ? "Crítico (Prejuízo)" : "Saudável",
       ],
@@ -1268,7 +1268,7 @@ export default function Finance() {
     if (lucratividade < 10 && faturamentoVal > 0) {
       insights.push({
         title: "Margem de Lucro Baixa",
-        desc: `Lucratividade de ${lucratividade.toFixed(1)}% está abaixo da média de 15% do setor.`,
+        desc: `Margem Líquida de ${lucratividade.toFixed(1)}% está abaixo da média de 15% do setor.`,
         icon: <TrendingUp className="w-5 h-5 text-red-700" />,
         color: "bg-red-700/10",
       });
@@ -1547,7 +1547,7 @@ export default function Finance() {
                 color: "text-indigo-600",
               },
               {
-                label: "Lucratividade",
+                label: "Margem Líquida",
                 value: `${lucratividade.toFixed(1)}%`,
                 trend: lucratividadeTrend,
                 trendColor:
@@ -1707,16 +1707,16 @@ export default function Finance() {
                 className={`rounded-[2.5rem] border overflow-hidden ${isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"}`}
               >
                 <div
-                  className={`px-8 py-6 border-b flex items-center justify-between ${isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50/50 border-slate-100"}`}
+                  className={`px-10 py-6 border-b flex items-center justify-between ${isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50/50 border-slate-100"}`}
                 >
                   <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">
                     Estrutura de Resultados
                   </span>
-                  <div className="flex gap-12">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">
+                  <div className="flex gap-10 items-center shrink-0 pr-2">
+                    <span className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 italic w-14 text-right">
                       AV %
                     </span>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">
+                    <span className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 italic w-32 text-right">
                       Valor Nominal
                     </span>
                   </div>
@@ -1753,9 +1753,9 @@ export default function Finance() {
                               {group.label}
                             </span>
                           </div>
-                          <div className="flex gap-10 items-center">
+                          <div className="flex gap-10 items-center shrink-0 pr-2">
                             <span
-                              className={`text-[10px] font-bold w-10 text-right ${isDarkMode ? "text-slate-500" : "text-slate-600"}`}
+                              className={`text-xs font-black tracking-tight w-14 text-right ${isDarkMode ? "text-slate-200" : "text-slate-900"}`}
                             >
                               {(
                                 (Math.abs(group.total) /
@@ -1784,22 +1784,22 @@ export default function Finance() {
                                 initial={{ height: 0, opacity: 0 }}
                                 animate={{ height: "auto", opacity: 1 }}
                                 exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden space-y-1 px-4"
+                                className="overflow-hidden space-y-1 px-2"
                               >
                                 {group.items &&
                                   group.items.map((item) => (
                                     <div
                                       key={item.label}
-                                      className="flex items-center justify-between px-8 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+                                      className="flex items-center justify-between pl-10 pr-4 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
                                     >
                                       <span
                                         className={`text-[11px] font-medium italic lowercase ${isDarkMode ? "text-slate-500" : "text-slate-700"}`}
                                       >
                                         {item.label}
                                       </span>
-                                      <div className="flex gap-10">
+                                      <div className="flex gap-10 items-center shrink-0 pr-2">
                                         <span
-                                          className={`text-[9px] font-bold w-10 text-right ${isDarkMode ? "text-slate-400" : "text-slate-500"}`}
+                                          className={`text-[11px] font-black tracking-tight w-14 text-right ${isDarkMode ? "text-slate-300" : "text-slate-900"}`}
                                         >
                                           {(
                                             (Math.abs(item.valor) /

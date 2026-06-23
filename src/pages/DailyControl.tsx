@@ -1522,8 +1522,13 @@ export default function DailyControl() {
                         }}
                       />
                     </div>
-                    <div className="text-right text-[8px] text-slate-400 mt-0.5 font-medium">
-                      {percentage.toFixed(1)}% {selectedCategory === category && '(Ativo)'}
+                    <div className="flex items-center justify-end text-[11px] font-black text-slate-500 dark:text-slate-350 mt-1">
+                      <span>{percentage.toFixed(1)}%</span>
+                      {selectedCategory === category && (
+                        <span className="ml-1.5 text-[8px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded uppercase font-black tracking-widest leading-none">
+                          Ativo
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))
