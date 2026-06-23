@@ -515,7 +515,7 @@ export default function Finance() {
   const [isHoverExport, setIsHoverExport] = useState(false);
 
   // Professional DRE System States
-  const [activeDRETab, setActiveDRETab] = useState<"comparativo" | "base_real" | "base_orcado">("comparativo");
+  const [activeDRETab, setActiveDRETab] = useState<"unico_mes" | "comparativo" | "base_real" | "base_orcado">("comparativo");
   const [yearlyBudgets, setYearlyBudgets] = useState<Record<string, Record<string, Record<string, number>>>>({});
   const [isLoadingBudgets, setIsLoadingBudgets] = useState(false);
   const [isSavingBudgets, setIsSavingBudgets] = useState(false);
@@ -2043,6 +2043,7 @@ export default function Finance() {
                 }`}
               >
                 {[
+                  { id: "unico_mes", label: "DRE Realizado Mês", desc: "Apenas o realizado", icon: DollarSign },
                   { id: "comparativo", label: "Comparativo DRE", desc: "Real x Orçado x YoY", icon: BarChart3 },
                   { id: "base_real", label: "Planilha Real Mensal", desc: "Histórico Realizado", icon: Calendar },
                   { id: "base_orcado", label: "Orçamento Anual", desc: "Metas e Planejado", icon: FileText },
@@ -2080,6 +2081,141 @@ export default function Finance() {
                   );
                 })}
               </div>
+
+              {activeDRETab === "unico_mes" && (
+                <div
+                  className={`rounded-[2.5rem] border overflow-hidden ${
+                    isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"
+                  }`}
+                >
+                  <div
+                    className={`px-10 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                      isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50/50 border-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic block mb-1">
+                        DRE Realizado Mensal Do Período
+                      </span>
+                      <h3 className={`text-base font-black uppercase tracking-tight italic ${isDarkMode ? "text-white" : "text-slate-800"}`}>
+                        DRE Realizado de {monthsGlobal.find(m => m.value === selectedMonth)?.label} - {selectedYear}
+                      </h3>
+                    </div>
+                  </div>
+
+                  <div className="p-4 overflow-x-auto select-none">
+                    <table className="w-full text-left border-collapse min-w-[700px]">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] font-black tracking-wider text-slate-400 dark:text-zinc-500">
+                          <th className="py-4 px-3 w-[50%] border-r border-slate-200/80 dark:border-zinc-800">
+                            Conta DRE
+                          </th>
+                          <th className="py-4 px-3 text-right w-[25%] bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800 text-indigo-600 dark:text-indigo-400 font-extrabold uppercase">
+                            Valor Realizado (R$)
+                          </th>
+                          <th className="py-4 px-3 text-right w-[25%] bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] text-indigo-600 dark:text-indigo-400 font-extrabold uppercase">
+                            Participação (AV %)
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/30">
+                        {[
+                          { id: "faturamento", label: "RECEITA BRUTA", type: "income", mapGroupId: "receita" },
+                          { id: "deducoes", label: "DEDUÇÕES DA RECEITA", type: "expense", mapGroupId: "deducoes" },
+                          { id: "cmv", label: "CUSTOS VARIÁVEIS", type: "expense", mapGroupId: "cmv" },
+                          { id: "despesas_var", label: "DESPESAS VARIÁVEIS", type: "expense", mapGroupId: "despesas_variaveis" },
+                          { id: "margem_contrib", label: "Margem de Contribuição", type: "total", mapGroupId: "margem_contribuicao" },
+                          { id: "colaboradores", label: "DESPESAS COM PESSOAL", type: "expense", mapGroupId: "despesas_fixas_5" },
+                          { id: "funcionamento", label: "CUSTOS DE FUNCIONAMENTO", type: "expense", mapGroupId: "despesas_fixas_6" },
+                          { id: "manutencao", label: "MANUTENÇÃO E TÉCNICA", type: "expense", mapGroupId: "despesas_fixas_7" },
+                          { id: "comerciais", label: "DESPESAS COMERCIAIS / MKT", type: "expense", mapGroupId: "despesas_fixas_8" },
+                          { id: "administrativas", label: "DESPESAS ADM / GERAIS", type: "expense", mapGroupId: "despesas_fixas_9" },
+                          { id: "ebitda", label: "EBITDA - Resultado Operacional", type: "total", mapGroupId: "resultado_operacional_financeiro" },
+                          { id: "financeiro", label: "Result. Financeiro & Impostos", type: "expense", mapGroupId: "apuracao_financeira" },
+                          { id: "net_profit", label: "Resultado Líquido do Exercício", type: "total", mapGroupId: "resultado_liquido" },
+                        ].map((row) => {
+                          const compMonthLabel = monthsGlobal.find(m => m.value === selectedMonth)?.label || "";
+
+                          const matchCurr = activeDreTimeline.find(d => d.month === compMonthLabel && d.year === selectedYear);
+                          const valCurr = getActualRowValue(matchCurr, row.id);
+                          const fatCurr = getActualRowValue(matchCurr, "faturamento") || 1;
+                          const avCurr = row.id === "faturamento" ? 100 : (Math.abs(valCurr) / fatCurr) * 100;
+
+                          const isTotalRow = row.type === "total";
+
+                          const rowGroup = dreGroups.find(g => g.id === row.mapGroupId);
+                          const hasDetails = rowGroup && rowGroup.items && rowGroup.items.length > 0;
+
+                          return (
+                            <React.Fragment key={row.id}>
+                              <tr
+                                onClick={() => hasDetails && toggleGroup(row.mapGroupId)}
+                                className={`group/row transition-all hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 cursor-pointer ${
+                                  isTotalRow 
+                                    ? isDarkMode
+                                      ? "bg-zinc-900 border-y-2 border-zinc-800 font-extrabold"
+                                      : "bg-indigo-50/20 border-y border-indigo-100 font-extrabold"
+                                    : ""
+                                }`}
+                              >
+                                <td className="py-3 px-3 flex items-center gap-2 border-r border-slate-100 dark:border-zinc-800/40">
+                                  {hasDetails && (
+                                    <ChevronDown
+                                      className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
+                                        expandedGroups.includes(row.mapGroupId) ? "rotate-180" : ""
+                                      }`}
+                                    />
+                                  )}
+                                  <span className={`text-[11px] uppercase tracking-tight ${
+                                    isTotalRow 
+                                      ? "text-indigo-600 dark:text-amber-500 font-black leading-none" 
+                                      : isDarkMode ? "text-slate-200" : "text-slate-800 font-bold"
+                                  }`}>
+                                    {row.label}
+                                  </span>
+                                </td>
+                                {/* REAL CURR */}
+                                <td className="py-3 px-3 text-right font-black font-sans text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50/15 dark:bg-indigo-950/10 border-r border-slate-100 dark:border-zinc-800/40">
+                                  {formatCurrency(valCurr)}
+                                </td>
+                                <td className="py-3 px-3 text-right font-bold text-[11px] font-mono text-slate-600 dark:text-zinc-300 bg-indigo-50/15 dark:bg-indigo-950/10">
+                                  {avCurr.toFixed(1)}%
+                                </td>
+                              </tr>
+
+                              <AnimatePresence initial={false}>
+                                {expandedGroups.includes(row.mapGroupId) && hasDetails && (
+                                  rowGroup.items.map((item) => {
+                                    const detCurr = getActualDetailValue(matchCurr, row.mapGroupId, item.label);
+                                    
+                                    return (
+                                      <tr
+                                        key={item.label}
+                                        className="bg-slate-50/30 dark:bg-black/10 hover:bg-slate-100/40 dark:hover:bg-zinc-800/20 transition-all border-b border-slate-100/50 dark:border-zinc-800/20"
+                                      >
+                                        <td className="py-2.5 pl-8 pr-3 text-[10px] font-semibold text-slate-500 dark:text-zinc-400 border-r border-slate-100 dark:border-zinc-800/40 leading-tight">
+                                          {item.label}
+                                        </td>
+                                        {/* REAL CURR DET */}
+                                        <td className="py-2.5 px-3 text-right text-indigo-600/90 dark:text-indigo-400 font-sans font-semibold text-[10px] bg-indigo-50/5 dark:bg-indigo-950/5 border-r border-slate-100/50 dark:border-zinc-800/20">
+                                          {formatCurrency(detCurr)}
+                                        </td>
+                                        <td className="py-2.5 px-3 text-right text-[10px] font-bold font-mono text-slate-400 dark:text-zinc-400 bg-indigo-50/5 dark:bg-indigo-950/5">
+                                          {((Math.abs(detCurr) / fatCurr) * 100).toFixed(1)}%
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </AnimatePresence>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {activeDRETab === "comparativo" && (
                 <div
@@ -2633,67 +2769,7 @@ export default function Finance() {
                 </div>
               )}
 
-              {/* Ranking de Lucratividade Section */}
-              <div
-                className={`p-8 rounded-[2.5rem] border ${isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"}`}
-              >
-                <div className="flex items-center justify-between mb-8">
-                  <div>
-                    <h3
-                      className={`font-black uppercase tracking-tighter italic text-lg ${isDarkMode ? "text-white" : "text-black"}`}
-                    >
-                      Top Margem Líquida
-                    </h3>
-                    <p
-                      className={`text-[10px] font-medium italic ${isDarkMode ? "text-slate-500" : "text-slate-700"}`}
-                    >
-                      Baseado nas Fichas Técnicas importadas
-                    </p>
-                  </div>
-                  <TrendingUp className="w-6 h-6 text-green-500" />
-                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {topProducts.length > 0 ? (
-                    [...topProducts]
-                      .sort((a, b) => b.margin - a.margin)
-                      .slice(0, 3)
-                      .map((item, i) => (
-                        <div
-                          key={item.id}
-                          className={`p-5 rounded-3xl border transition-all hover:scale-105 cursor-pointer ${isDarkMode ? "bg-black/20 border-white/5" : "bg-slate-50 border-slate-100"}`}
-                        >
-                          <div className="flex items-center justify-between mb-4">
-                            <div
-                              className={`w-8 h-8 rounded-full ${i === 0 ? "bg-green-500" : i === 1 ? "bg-indigo-500" : "bg-blue-500"} flex items-center justify-center text-[10px] font-black text-white`}
-                            >
-                              #{i + 1}
-                            </div>
-                            <span className="text-[10px] font-black text-green-500">
-                              {item.margin}% mrg
-                            </span>
-                          </div>
-                          <div
-                            className={`text-xs font-black uppercase tracking-tighter mb-1 break-words whitespace-normal leading-tight ${isDarkMode ? "text-[#FFB800]" : "text-slate-900"}`}
-                          >
-                            {item.name}
-                          </div>
-                          <div className="text-[10px] text-slate-500 font-bold italic">
-                            {formatCurrency(
-                              (item.faturamento * (item.margin / 100)) /
-                                (item.quantidadeVendas || 1),
-                            )}{" "}
-                            lucro liq.
-                          </div>
-                        </div>
-                      ))
-                  ) : (
-                    <div className="col-span-3 py-10 text-center text-slate-400 text-xs italic">
-                      Nenhum produto cadastrado para análise de margem líquida.
-                    </div>
-                  )}
-                </div>
-              </div>
             </div>
 
             {/* Action Sidebar */}
