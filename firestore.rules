@@ -1,11 +1,132 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Enable full read and write access on all paths to ensure that logins, audit logs,
-    // migrations, and daily controls work flawlessly under all conditions
+
+    // Global Safety Net - Default Deny Catch-All
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
+    }
+
+    // Primitive Definitions & Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity-Specific Validation Blueprints (Anti-Update-Gap & Type-Safety)
+
+    function isValidAuditLog(data) {
+      return data.userId is string && data.userId.size() <= 128
+        && data.userName is string && data.userName.size() <= 128
+        && data.userRole is string && data.userRole.size() <= 128
+        && data.action is string && data.action.size() <= 128
+        && data.description is string && data.description.size() <= 2048
+        && data.timestamp is string && data.timestamp.size() <= 128
+        && data.userAgent is string && data.userAgent.size() <= 512;
+    }
+
+    function isValidUser(data) {
+      return data.name is string && data.name.size() <= 128
+        && data.username is string && data.username.size() <= 128
+        && data.password is string && data.password.size() <= 256
+        && data.role is string && data.role.size() <= 128;
+    }
+
+    function isValidStore(data) {
+      return data.id is string && data.id.size() <= 128
+        && data.name is string && data.name.size() <= 128
+        && data.brand is string && data.brand.size() <= 128;
+    }
+
+    // Collection Security Declarations
+
+    // 1. Audit Logs (Append-Only Global Collection)
+    match /audit_logs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidAuditLog(incoming()) && isValidId(logId);
+      allow update, delete: if false; // Audit logs are immutable and append-only
+    }
+
+    // 2. Users Collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidUser(incoming()) && isValidId(userId);
+      allow update: if isSignedIn() && isValidUser(incoming()) && isValidId(userId);
+      allow delete: if isSignedIn() && isValidId(userId);
+    }
+
+    // 3. Stores Collection
+    match /stores/{storeId} {
+      allow read: if isSignedIn() && isValidId(storeId);
+      allow create, update: if isSignedIn() && isValidStore(incoming()) && isValidId(storeId);
+      allow delete: if isSignedIn() && isValidId(storeId);
+
+      // Subcollections of Stores
+
+      // CMV Periods
+      match /cmv_periods/{periodId} {
+        allow read: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
+        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
+      }
+
+      // DRE Periods
+      match /dre_periods/{periodId} {
+        allow read: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
+        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
+      }
+
+      // Checklist Templates, Submissions, and Action Plans
+      match /checklists/{document} {
+        allow read: if isSignedIn() && isValidId(storeId) && isValidId(document);
+        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(document);
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(document);
+      }
+
+      // Accounts Payable
+      match /accounts_payable/{document} {
+        allow read: if isSignedIn() && isValidId(storeId) && isValidId(document);
+        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(document);
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(document);
+      }
+
+      // Daily Control
+      match /daily_control/{document} {
+        allow read: if isSignedIn() && isValidId(storeId) && isValidId(document);
+        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(document);
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(document);
+      }
+
+      // Closings
+      match /closings/{document} {
+        allow read: if isSignedIn() && isValidId(storeId) && isValidId(document);
+        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(document);
+        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(document);
+      }
+    }
+
+    // Backups collection
+    match /backups/{backupId} {
+      allow read: if isSignedIn() && isValidId(backupId);
+      allow create, update: if isSignedIn() && isValidId(backupId);
+      allow delete: if isSignedIn() && isValidId(backupId);
+    }
+
+    // Test collection for SDK initialization checks
+    match /test/connection {
+      allow read: if isSignedIn();
     }
   }
 }

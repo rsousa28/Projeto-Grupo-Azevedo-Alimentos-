@@ -188,26 +188,69 @@ const getActualRowValue = (data: any, rowId: string): number => {
 };
 
 const getActualDetailValue = (data: any, groupId: string, itemLabel: string): number => {
-  if (!data || !data.details) return 0;
-  const details = data.details;
+  if (!data) return 0;
+  const details = data.details || {};
   const label = itemLabel.trim();
   
+  if (groupId === "receita") {
+    if (label.includes("Balcão") || label.includes("Balção")) {
+      return data.receitaBalcao || details.receitaDetailed?.balcao || 0;
+    }
+    if (label.includes("Delivery")) {
+      return data.receitaDelivery || details.receitaDetailed?.delivery || 0;
+    }
+  }
+  if (groupId === "cmv") {
+    if (label.includes("Balcão") || label.includes("Balção")) {
+      return -(details.cmvDetailed?.balcao || (data.cmv || 0) * 0.4);
+    }
+    if (label.includes("Delivery")) {
+      return -(details.cmvDetailed?.delivery || (data.cmv || 0) * 0.6);
+    }
+  }
   if (groupId === "deducoes") {
-    if (label.includes("Simples Nacional") || label.includes("Simples")) {
-      return -(details.deducoes?.darfSimples || 0);
+    if (label.includes("Simples Nacional") || label.includes("Simples") || label.includes("DARF/SIMPLES") || label.includes("DARF")) {
+      return -(details.deducoes?.darfSimples || data.taxes || 0);
     }
     if (label.includes("Taxa Câmbio")) {
       return -(details.deducoes?.taxasCambio || 0);
     }
   }
   if (groupId === "despesas_variaveis") {
+    if (label.includes("Cartão") || label.includes("Cartao")) {
+      return -(details.despesasVariaveis?.taxaCartao || details.despesasVariaveis?.taxasCartao || 0);
+    }
+    if (label.includes("Motoqueiro")) {
+      return -(details.despesasVariaveis?.taxaMotoqueiro || 0);
+    }
+    if (label.includes("Taxa Ifood")) {
+      return -(details.despesasVariaveis?.taxaIfood || 0);
+    }
+    if (label.includes("Frete Compras")) {
+      return -(details.despesasVariaveis?.freteCompras || 0);
+    }
+    if (label.includes("Fundo de Marketing") || label.includes("Fundo de Promoção") || label.includes("Marketing")) {
+      return -(details.despesasVariaveis?.fundoMarketing || details.despesasVariaveis?.fundoPromo || 0);
+    }
+    if (label.includes("Royalties") || label.includes("Royaltis")) {
+      return -(details.despesasVariaveis?.royalties || 0);
+    }
+    if (label.includes("Banco do Nordeste") || label.includes("Bancaria + Juros") || label.includes("Bancária") || label.includes("Bancaria")) {
+      return -(details.despesasVariaveis?.taxaBancariaJuros || 0);
+    }
+    if (label.includes("Garantida") || label.includes("PIX") || label.includes("Pix")) {
+      return -(details.despesasVariaveis?.taxaPix || 0);
+    }
+    if (label.includes("Bonificações") || label.includes("Comissões") || label.includes("Bonificação") || label.includes("Comissão")) {
+      return -(details.despesasVariaveis?.bonificacoes || details.despesasVariaveis?.comissaoVendas || 0);
+    }
+    if (label.includes("Cortesia") || label.includes("Descontos")) {
+      return -(details.despesasVariaveis?.descontos || 0);
+    }
+    if (label.includes("Despesas Ifood")) {
+      return -(details.despesasVariaveis?.despesasIfood || 0);
+    }
     if (label.includes("Royalties")) return -(details.despesasVariaveis?.royalties || 0);
-    if (label.includes("Fundo de Promoção")) return -(details.despesasVariaveis?.fundoPromo || 0);
-    if (label.includes("Comissão de Vendas")) return -(details.despesasVariaveis?.comissaoVendas || 0);
-    if (label.includes("Taxas de Cartão")) return -(details.despesasVariaveis?.taxasCartao || 0);
-    if (label.includes("Bonificações")) return -(details.despesasVariaveis?.bonificacoes || 0);
-    if (label.includes("Cortesia")) return -(details.despesasVariaveis?.descontos || 0);
-    if (label.includes("iFood") || label.includes("Ifood")) return -(details.despesasVariaveis?.despesasIfood || 0);
   }
   if (groupId === "despesas_fixas_5") {
     const col = details.colaboradores || {};
