@@ -71,6 +71,216 @@ const formatCurrency = (val: number) =>
     val,
   );
 
+const getVarianceColor = (val: number, isExpense: boolean): string => {
+  if (Math.abs(val) < 0.001) return "text-slate-400 dark:text-slate-500 font-medium";
+  const isGood = isExpense ? val < 0 : val > 0;
+  return isGood 
+    ? "text-emerald-600 dark:text-emerald-400 font-extrabold" 
+    : "text-rose-600 dark:text-rose-400 font-extrabold";
+};
+
+const calculateRowValue = (budgetObj: Record<string, number> | undefined, rowId: string): number => {
+  if (!budgetObj) return 0;
+  const fat = budgetObj.faturamento || 0;
+  const ded = budgetObj.deducoes || 0;
+  const cmv = budgetObj.cmv || 0;
+  const desV = budgetObj.despesas_var || 0;
+  
+  const mc = fat - ded - cmv - desV;
+  
+  const col = budgetObj.colaboradores || 0;
+  const func = budgetObj.funcionamento || 0;
+  const man = budgetObj.manutencao || 0;
+  const com = budgetObj.comerciais || 0;
+  const adm = budgetObj.administrativas || 0;
+  
+  const ebitda = mc - col - func - man - com - adm;
+  
+  const fin = budgetObj.financeiro || 0;
+  const net = ebitda - fin;
+  
+  if (rowId === "margem_contrib") return mc;
+  if (rowId === "ebitda") return ebitda;
+  if (rowId === "net_profit") return net;
+  return 0;
+};
+
+const getActualRowValue = (data: any, rowId: string): number => {
+  if (!data) return 0;
+  switch (rowId) {
+    case "faturamento":
+      return data.faturamento || 0;
+    case "deducoes":
+      return Math.abs(data.details?.deducoes?.darfSimples || data.taxes || 0);
+    case "cmv":
+      return Math.abs(data.cmv || 0);
+    case "despesas_var":
+      return Math.abs(data.despesasVariaveis || 0);
+    case "margem_contrib": {
+      const fat = data.faturamento || 0;
+      const ded = Math.abs(data.details?.deducoes?.darfSimples || data.taxes || 0);
+      const cmv = Math.abs(data.cmv || 0);
+      const desV = Math.abs(data.despesasVariaveis || 0);
+      return fat - ded - cmv - desV;
+    }
+    case "colaboradores":
+      return Math.abs(data.payroll || 0);
+    case "funcionamento": {
+      if (data.details?.funcionamento) {
+        return Math.abs(
+          (Object.values(data.details.funcionamento) as any[]).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
+        );
+      }
+      return 0;
+    }
+    case "manutencao": {
+      if (data.details?.manutencao) {
+        return Math.abs(
+          (Object.values(data.details.manutencao) as any[]).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
+        );
+      }
+      return 0;
+    }
+    case "comerciais": {
+      if (data.details?.comerciais) {
+        return Math.abs(
+          (Object.values(data.details.comerciais) as any[]).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
+        );
+      }
+      return 0;
+    }
+    case "administrativas": {
+      if (data.details?.administrativas) {
+        return Math.abs(
+          (Object.values(data.details.administrativas) as any[]).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
+        );
+      }
+      return Math.abs(data.operational || 0);
+    }
+    case "ebitda": {
+      const mc = getActualRowValue(data, "margem_contrib");
+      const col = getActualRowValue(data, "colaboradores");
+      const func = getActualRowValue(data, "funcionamento");
+      const man = getActualRowValue(data, "manutencao");
+      const com = getActualRowValue(data, "comerciais");
+      const adm = getActualRowValue(data, "administrativas");
+      return mc - col - func - man - com - adm;
+    }
+    case "financeiro": {
+      const resFin = Math.abs(data.resultadoFinanceiro || 0);
+      const griStr = Math.abs(data.details?.griFinal || data.details?.despesasVariaveis?.griSecretaria || 0);
+      return resFin + griStr;
+    }
+    case "net_profit":
+      return data.netProfit || 0;
+    default:
+      return 0;
+  }
+};
+
+const getActualDetailValue = (data: any, groupId: string, itemLabel: string): number => {
+  if (!data || !data.details) return 0;
+  const details = data.details;
+  const label = itemLabel.trim();
+  
+  if (groupId === "deducoes") {
+    if (label.includes("Simples Nacional") || label.includes("Simples")) {
+      return -(details.deducoes?.darfSimples || 0);
+    }
+    if (label.includes("Taxa Câmbio")) {
+      return -(details.deducoes?.taxasCambio || 0);
+    }
+  }
+  if (groupId === "despesas_variaveis") {
+    if (label.includes("Royalties")) return -(details.despesasVariaveis?.royalties || 0);
+    if (label.includes("Fundo de Promoção")) return -(details.despesasVariaveis?.fundoPromo || 0);
+    if (label.includes("Comissão de Vendas")) return -(details.despesasVariaveis?.comissaoVendas || 0);
+    if (label.includes("Taxas de Cartão")) return -(details.despesasVariaveis?.taxasCartao || 0);
+    if (label.includes("Bonificações")) return -(details.despesasVariaveis?.bonificacoes || 0);
+    if (label.includes("Cortesia")) return -(details.despesasVariaveis?.descontos || 0);
+    if (label.includes("iFood") || label.includes("Ifood")) return -(details.despesasVariaveis?.despesasIfood || 0);
+  }
+  if (groupId === "despesas_fixas_5") {
+    const col = details.colaboradores || {};
+    if (label.includes("Salários")) return -(col.salarios || 0);
+    if (label.includes("Pro Labore")) return -(col.proLabore || 0);
+    if (label.includes("Avulso")) return -(col.avulso || 0);
+    if (label.includes("Diárias")) return -(col.diarias || 0);
+    if (label.includes("Premiação")) return -(col.premiacao || 0);
+    if (label.includes("Gratificações")) return -(col.gratificacoes || 0);
+    if (label.includes("13o")) return -(col.decimoTerceiro || 0);
+    if (label.includes("Férias")) return -(col.ferias || 0);
+    if (label.includes("INSS")) return -(col.INSS || 0);
+    if (label.includes("FGTS")) return -(col.FGTS || 0);
+    if (label.includes("rescisórias")) return -(col.rescisorias || 0);
+    if (label.includes("Cortesia")) return -(col.cortesia || 0);
+    if (label.includes("transporte")) return -(col.valeTransp || 0);
+    if (label.includes("Alimentação") && label.includes("Vale")) return -(col.valeAlim || 0);
+    if (label.includes("Alimentação") && !label.includes("Vale")) return -(col.alimentacao || 0);
+    if (label.includes("POS")) return -(col.pos || 0);
+    if (label.includes("Atestado")) return -(col.atestadoExame || 0);
+    if (label.includes("Uniformes")) return -(col.uniformesEPI || 0);
+    if (label.includes("Outros")) return -(col.outros || 0);
+  }
+  if (groupId === "despesas_fixas_6") {
+    const func = details.funcionamento || {};
+    if (label.includes("Aluguel")) return -(func.aluguel || 0);
+    if (label.includes("Condominio")) return -(func.condominio || 0);
+    if (label.includes("Fria") || label.includes("Rio Mar")) return -(func.energiaCâmaraFria || 0);
+    if (label.includes("IPTU")) return -(func.iptu || 0);
+    if (label.includes("Elétrica")) return -(func.energiaEletrica || 0);
+    if (label.includes("Água")) return -(func.agua || 0);
+    if (label.includes("Ar Condicionado")) return -(func.arCondicionado || 0);
+    if (label.includes("Internet")) return -(func.internetTelefonia || 0);
+  }
+  if (groupId === "despesas_fixas_7") {
+    const man = details.manutencao || {};
+    if (label.includes("Escritórios")) return -(man.escritorios || 0);
+    if (label.includes("Locação")) return -(man.locacaoMaq || 0);
+    if (label.includes("sistemas")) return -(man.manutencaoSist || 0);
+    if (label.includes("equipamentos")) return -(man.manutencaoEquip || 0);
+    if (label.includes("Outros")) return -(man.outros || 0);
+  }
+  if (groupId === "despesas_fixas_8") {
+    const com = details.comerciais || {};
+    if (label.includes("Aplicativo")) return -(com.aplicativo || 0);
+    if (label.includes("Marketing")) return -(com.marketing || 0);
+    if (label.includes("Seguro") || label.includes("Frete")) return -(com.frete || 0);
+  }
+  if (groupId === "despesas_fixas_9") {
+    const adm = details.administrativas || {};
+    if (label.includes("Sindicato")) return -(adm.sindicato || 0);
+    if (label.includes("Limpeza")) return -(adm.limpeza || 0);
+    if (label.includes("Call Center")) return -(adm.taxaCallCenter || 0);
+    if (label.includes("BERP")) return -(adm.sistemaBERP || 0);
+    if (label.includes("Consultoria")) return -(adm.consultoria || 0);
+    if (label.includes("Contabilidade")) return -(adm.contabilidade || 0);
+    if (label.includes("Premiação")) return -(adm.premiacao || 0);
+    if (label.includes("Dedetização")) return -(adm.dedetizacao || 0);
+    if (label.includes("Certificado")) return -(adm.certificado || 0);
+    if (label.includes("Diversos")) return -(adm.fretesDiversos || 0);
+    if (label.includes("Utencilios")) return -(adm.utensilios || 0);
+    if (label.includes("Fardamento") || label.includes("consumo")) return -(adm.materialConsumo || 0);
+    if (label.includes("escritorio")) return -(adm.materialEscritorio || 0);
+    if (label.includes("limpeza")) return -(adm.materialLimpeza || 0);
+    if (label.includes("Confraternização") || label.includes("Combustiveis")) return -(adm.combustiveis || 0);
+    if (label.includes("Uber") || label.includes("Rony")) return -(adm.ronyXimenes || 0);
+    if (label.includes("Seguros")) return -(adm.seguros || 0);
+    if (label.includes("Alvara")) return -(adm.taxaAlvara || 0);
+    if (label.includes("Operacionais")) return -(adm.despesasOperacionais || 0);
+    if (label.includes("Gerais")) return -(adm.despesasGerais || 0);
+  }
+  if (groupId === "apuracao_financeira") {
+    const fin = details.resultadoFinanceiro || {};
+    if (label.includes("Ifood")) return -(fin.taxasIfood || 0);
+    if (label.includes("Tarifas")) return -(fin.tarifasBancarias || 0);
+    if (label.includes("Taxas Bancárias")) return -(fin.taxasBancarias || 0);
+    if (label.includes("Juros")) return (fin.jurosRecebidos || 0);
+    if (label.includes("GRI")) return -(details.griFinal || details.despesasVariaveis?.griSecretaria || 0);
+  }
+  return 0;
+};
+
 export default function Finance() {
   const {
     isDarkMode,
@@ -303,6 +513,129 @@ export default function Finance() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
   const [isHoverExport, setIsHoverExport] = useState(false);
+
+  // Professional DRE System States
+  const [activeDRETab, setActiveDRETab] = useState<"comparativo" | "base_real" | "base_orcado">("comparativo");
+  const [yearlyBudgets, setYearlyBudgets] = useState<Record<string, Record<string, Record<string, number>>>>({});
+  const [isLoadingBudgets, setIsLoadingBudgets] = useState(false);
+  const [isSavingBudgets, setIsSavingBudgets] = useState(false);
+  const [realYearForTab, setRealYearForTab] = useState(selectedYear);
+  const [isLoadingAllMonths, setIsLoadingAllMonths] = useState(false);
+
+  const fetchBudgetsForYear = async (year: string) => {
+    setIsLoadingBudgets(true);
+    try {
+      const { doc, getDoc } = await import("firebase/firestore");
+      const { db } = await import("../lib/firebase");
+      
+      const monthsList = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+      const newYearData: Record<string, Record<string, number>> = {};
+      
+      for (const m of monthsList) {
+        const periodId = `${year}-${m}`;
+        const docRef = doc(db, 'stores', currentStore.id, 'budget_periods', periodId);
+        const snap = await getDoc(docRef);
+        
+        if (snap.exists()) {
+          newYearData[m] = snap.data().budget || snap.data();
+        } else {
+          const localString = localStorage.getItem(`g_azevedo_budget_backup_${currentStore.id}_${year}_${m}`);
+          if (localString) {
+            try {
+              newYearData[m] = JSON.parse(localString);
+            } catch (err) {
+              console.error(err);
+            }
+          }
+        }
+      }
+      
+      setYearlyBudgets(prev => ({
+        ...prev,
+        [year]: newYearData
+      }));
+    } catch (err) {
+      console.warn("Could not load budgets for year:", year, err);
+    } finally {
+      setIsLoadingBudgets(false);
+    }
+  };
+
+  const handleSaveBudget = async () => {
+    setIsSavingBudgets(true);
+    try {
+      const { doc, setDoc } = await import("firebase/firestore");
+      const { db } = await import("../lib/firebase");
+      
+      const yearBudgets = yearlyBudgets[selectedYear] || {};
+      const monthsList = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+      
+      for (const m of monthsList) {
+        const monthData = yearBudgets[m] || {};
+        const periodId = `${selectedYear}-${m}`;
+        const docRef = doc(db, 'stores', currentStore.id, 'budget_periods', periodId);
+        
+        await setDoc(docRef, {
+          ...monthData,
+          year: selectedYear,
+          month: m,
+          updatedAt: new Date().toISOString()
+        });
+        
+        localStorage.setItem(`g_azevedo_budget_backup_${currentStore.id}_${selectedYear}_${m}`, JSON.stringify(monthData));
+      }
+      
+      toastSuccess(`Orçamento de ${selectedYear} salvo com sucesso!`);
+      
+      if (user && currentStore) {
+        AuditService.logAction({
+          userId: user.id,
+          userName: user.name,
+          userRole: user.role,
+          action: 'BUDGET_SAVE' as any,
+          description: `Salvou as metas do DRE Orçado anual para o ano ${selectedYear}.`,
+          storeCode: currentStore.code,
+          storeName: currentStore.name
+        }).catch(err => console.error(err));
+      }
+    } catch (err) {
+      console.error("Error saving budgets:", err);
+      toastError("Erro ao salvar o orçamento. Verifique se possui permissão ou sua conexão.");
+    } finally {
+      setIsSavingBudgets(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBudgetsForYear(selectedYear);
+    const prevYear = (parseInt(selectedYear) - 1).toString();
+    fetchBudgetsForYear(prevYear);
+    
+    // Set default real view year
+    setRealYearForTab(selectedYear);
+    
+    const loadAllYearMonths = async () => {
+      setIsLoadingAllMonths(true);
+      try {
+        const yearsToLoad = [selectedYear, prevYear];
+        const monthsList = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
+        const promises: Promise<any>[] = [];
+        
+        yearsToLoad.forEach((y) => {
+          monthsList.forEach((m) => {
+            promises.push(loadDREPeriod(m, y).catch(() => false));
+          });
+        });
+        
+        await Promise.all(promises);
+      } catch (err) {
+        console.warn("Background DRE load warning:", err);
+      } finally {
+        setIsLoadingAllMonths(false);
+      }
+    };
+    loadAllYearMonths();
+  }, [selectedYear, currentStore.id]);
 
   const handleResetPeriod = async () => {
     if (!showConfirmReset) {
@@ -1703,127 +2036,602 @@ export default function Finance() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Main DRE Table */}
             <div className="lg:col-span-2 space-y-8">
+              {/* Tab Selector Segment */}
               <div
-                className={`rounded-[2.5rem] border overflow-hidden ${isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"}`}
+                className={`p-1 flex flex-col md:flex-row gap-1.5 rounded-2xl border shadow-sm ${
+                  isDarkMode ? "bg-zinc-900 border-[#333]" : "bg-slate-100/90 border-slate-200"
+                }`}
               >
-                <div
-                  className={`px-10 py-6 border-b flex items-center justify-between ${isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50/50 border-slate-100"}`}
-                >
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic">
-                    Estrutura de Resultados
-                  </span>
-                  <div className="flex gap-10 items-center shrink-0 pr-2">
-                    <span className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 italic w-14 text-right">
-                      AV %
-                    </span>
-                    <span className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 italic w-32 text-right">
-                      Valor Nominal
-                    </span>
-                  </div>
-                </div>
-
-                <div className="p-4 space-y-2 overflow-x-auto">
-                  <div className="min-w-[600px] space-y-2">
-                    {dreGroups.map((group) => (
-                      <div key={group.id} className="space-y-1">
-                        {/* Group Header */}
-                        <div
-                          onClick={() =>
-                            !group.isTotal && toggleGroup(group.id)
-                          }
-                          className={`flex items-center justify-between px-6 py-4 rounded-2xl transition-all cursor-pointer ${
-                            group.isTotal
-                              ? isDarkMode
-                                ? "bg-black/40 border border-white/5"
-                                : "bg-indigo-50/50 border border-indigo-100/50"
-                              : isDarkMode
-                                ? "hover:bg-white/5"
-                                : "hover:bg-slate-50"
-                          } ${group.border ? (group.total < 0 ? "border-2 border-red-500/50 shadow-lg shadow-red-500/20" : "border-2 border-green-500/30 shadow-lg shadow-green-500/10") : ""}`}
-                        >
-                          <div className="flex items-center gap-3">
-                            {!group.isTotal && (
-                              <ChevronDown
-                                className={`w-4 h-4 text-slate-400 transition-transform ${expandedGroups.includes(group.id) ? "" : "-rotate-90"}`}
-                              />
-                            )}
-                            <span
-                              className={`text-xs font-black italic tracking-tighter ${group.isTotal ? group.color || (isDarkMode ? "dark:text-white" : "text-black") : isDarkMode ? "text-slate-500" : "text-slate-800"}`}
-                            >
-                              {group.label}
-                            </span>
-                          </div>
-                          <div className="flex gap-10 items-center shrink-0 pr-2">
-                            <span
-                              className={`text-xs font-black tracking-tight w-14 text-right ${isDarkMode ? "text-slate-200" : "text-slate-900"}`}
-                            >
-                              {(
-                                (Math.abs(group.total) /
-                                  currentMonthData.faturamento) *
-                                100
-                              ).toFixed(1)}
-                              %
-                            </span>
-                            <span
-                              className={`text-sm font-black w-32 text-right flex items-center justify-end gap-1.5 ${group.isTotal ? group.color || (isDarkMode ? "dark:text-white" : "text-black") : isDarkMode ? "text-slate-300" : "text-black"}`}
-                            >
-                              {group.id === "resultado_liquido" &&
-                                group.total < 0 && (
-                                  <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 animate-pulse" />
-                                )}
-                              {formatCurrency(group.total)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Group Items */}
-                        <AnimatePresence>
-                          {expandedGroups.includes(group.id) &&
-                            !group.isTotal && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden space-y-1 px-2"
-                              >
-                                {group.items &&
-                                  group.items.map((item) => (
-                                    <div
-                                      key={item.label}
-                                      className="flex items-center justify-between pl-10 pr-4 py-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-                                    >
-                                      <span
-                                        className={`text-[11px] font-medium italic lowercase ${isDarkMode ? "text-slate-500" : "text-slate-700"}`}
-                                      >
-                                        {item.label}
-                                      </span>
-                                      <div className="flex gap-10 items-center shrink-0 pr-2">
-                                        <span
-                                          className={`text-[11px] font-black tracking-tight w-14 text-right ${isDarkMode ? "text-slate-300" : "text-slate-900"}`}
-                                        >
-                                          {(
-                                            (Math.abs(item.valor) /
-                                              currentMonthData.faturamento) *
-                                            100
-                                          ).toFixed(1)}
-                                          %
-                                        </span>
-                                        <span
-                                          className={`text-[11px] font-bold w-32 text-right ${item.valor < 0 ? "text-red-400" : isDarkMode ? "text-slate-400" : "text-slate-800"}`}
-                                        >
-                                          {formatCurrency(item.valor)}
-                                        </span>
-                                      </div>
-                                    </div>
-                                  ))}
-                              </motion.div>
-                            )}
-                        </AnimatePresence>
+                {[
+                  { id: "comparativo", label: "Comparativo DRE", desc: "Real x Orçado x YoY", icon: BarChart3 },
+                  { id: "base_real", label: "Planilha Real Mensal", desc: "Histórico Realizado", icon: Calendar },
+                  { id: "base_orcado", label: "Orçamento Anual", desc: "Metas e Planejado", icon: FileText },
+                ].map((t) => {
+                  const IconComp = t.icon;
+                  const isActive = activeDRETab === t.id;
+                  return (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveDRETab(t.id as any)}
+                      className={`flex-1 py-1.5 px-3 rounded-xl flex items-center gap-3.5 transition-all cursor-pointer ${
+                        isActive
+                          ? isDarkMode
+                            ? "bg-zinc-800 text-amber-500 border border-zinc-700/60 shadow-md"
+                            : "bg-white text-indigo-600 shadow-sm border border-slate-200"
+                          : "text-slate-500 hover:text-slate-800 dark:text-zinc-505 dark:hover:text-zinc-100"
+                      }`}
+                    >
+                      <div className={`p-1.5 rounded-lg shrink-0 transition-colors ${
+                        isActive 
+                          ? isDarkMode ? "bg-black/30" : "bg-indigo-50/70" 
+                          : "bg-transparent"
+                      }`}>
+                        <IconComp className="w-4 h-4 shrink-0 text-current" />
                       </div>
-                    ))}
+                      <div className="text-left leading-none">
+                        <div className="text-[11px] font-black uppercase tracking-tight mb-0.5">
+                          {t.label}
+                        </div>
+                        <div className={`text-[8.5px] font-medium ${isActive ? "text-slate-500" : "text-slate-400"}`}>
+                          {t.desc}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {activeDRETab === "comparativo" && (
+                <div
+                  className={`rounded-[2.5rem] border overflow-hidden ${
+                    isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"
+                  }`}
+                >
+                  <div
+                    className={`px-10 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                      isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50/50 border-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic block mb-1">
+                        Painel Analítico de DRE Comparativa
+                      </span>
+                      <h3 className={`text-base font-black uppercase tracking-tight italic ${isDarkMode ? "text-white" : "text-slate-800"}`}>
+                        Análise de {monthsGlobal.find(m => m.value === selectedMonth)?.label} - {selectedYear} x {parseInt(selectedYear) - 1}
+                      </h3>
+                    </div>
+                    {isLoadingAllMonths && (
+                      <span className="text-[10px] bg-indigo-500/15 text-indigo-500 font-bold px-3 py-1 rounded-full animate-pulse flex items-center gap-1.5 shrink-0 self-start md:self-auto">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Sincronizando Histórico...
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="p-4 overflow-x-auto select-none">
+                    <table className="w-full text-left border-collapse min-w-[1050px]">
+                      <thead>
+                        <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] font-black tracking-wider text-slate-400 dark:text-zinc-500">
+                          <th className="py-4 px-3 w-[22%] border-r border-slate-200/80 dark:border-zinc-800">
+                            Conta DRE
+                          </th>
+                          <th className="py-4 px-3 text-center w-[14%] bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-200/80 dark:border-zinc-800 uppercase" colSpan={2}>
+                            REAL {parseInt(selectedYear) - 1}
+                          </th>
+                          <th className="py-4 px-3 text-center w-[14%] bg-amber-500/[0.02] dark:bg-amber-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800 text-amber-600/90 dark:text-amber-400/90 uppercase font-extrabold" colSpan={2}>
+                            ORÇADO {selectedYear}
+                          </th>
+                          <th className="py-4 px-3 text-center w-[14%] bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800 text-indigo-600 dark:text-indigo-400 uppercase font-extrabold" colSpan={2}>
+                            REAL {selectedYear}
+                          </th>
+                          <th className="py-4 px-3 text-center w-[18%] bg-rose-500/[0.02] dark:bg-rose-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800 text-rose-600 dark:text-rose-450 font-extrabold uppercase" colSpan={2}>
+                            Divergência (Real x Orc)
+                          </th>
+                          <th className="py-4 px-3 text-center w-[18%] bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01] text-emerald-600 dark:text-emerald-400 font-extrabold uppercase" colSpan={2}>
+                            Crescimento YoY
+                          </th>
+                        </tr>
+                        <tr className="border-b border-slate-150 dark:border-zinc-800/60 text-[9px] font-bold text-slate-400 dark:text-zinc-500 tracking-wider">
+                          <th className="py-2.5 px-3 border-r border-slate-200/80 dark:border-zinc-800">CONCEITO / COMPONENTES</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30">VALOR (R$)</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-200/80 dark:border-zinc-800">PART. %</th>
+                          <th className="py-2.5 px-2 text-right bg-amber-500/[0.02] dark:bg-amber-500/[0.01]">VALOR (R$)</th>
+                          <th className="py-2.5 px-2 text-right bg-amber-500/[0.02] dark:bg-amber-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800">PART. %</th>
+                          <th className="py-2.5 px-2 text-right bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01]">VALOR (R$)</th>
+                          <th className="py-2.5 px-2 text-right bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800">PART. %</th>
+                          <th className="py-2.5 px-2 text-right bg-rose-500/[0.02] dark:bg-rose-500/[0.01]">VALOR (R$)</th>
+                          <th className="py-2.5 px-2 text-right bg-rose-500/[0.02] dark:bg-rose-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800">DIF. %</th>
+                          <th className="py-2.5 px-2 text-right bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]">R$ HISTATIV</th>
+                          <th className="py-2.5 px-2 text-right bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]">CRESC. %</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/30">
+                        {[
+                          { id: "faturamento", label: "RECEITA BRUTA", type: "income", mapGroupId: "receita" },
+                          { id: "deducoes", label: "DEDUÇÕES DA RECEITA", type: "expense", mapGroupId: "deducoes" },
+                          { id: "cmv", label: "CUSTOS VARIÁVEIS", type: "expense", mapGroupId: "cmv" },
+                          { id: "despesas_var", label: "DESPESAS VARIÁVEIS", type: "expense", mapGroupId: "despesas_variaveis" },
+                          { id: "margem_contrib", label: "Margem de Contribuição", type: "total", mapGroupId: "margem_contribuicao" },
+                          { id: "colaboradores", label: "DESPESAS COM PESSOAL", type: "expense", mapGroupId: "despesas_fixas_5" },
+                          { id: "funcionamento", label: "CUSTOS DE FUNCIONAMENTO", type: "expense", mapGroupId: "despesas_fixas_6" },
+                          { id: "manutencao", label: "MANUTENÇÃO E TÉCNICA", type: "expense", mapGroupId: "despesas_fixas_7" },
+                          { id: "comerciais", label: "DESPESAS COMERCIAIS / MKT", type: "expense", mapGroupId: "despesas_fixas_8" },
+                          { id: "administrativas", label: "DESPESAS ADM / GERAIS", type: "expense", mapGroupId: "despesas_fixas_9" },
+                          { id: "ebitda", label: "EBITDA - Resultado Operacional", type: "total", mapGroupId: "resultado_operacional_financeiro" },
+                          { id: "financeiro", label: "Result. Financeiro & Impostos", type: "expense", mapGroupId: "apuracao_financeira" },
+                          { id: "net_profit", label: "Resultado Líquido do Exercício", type: "total", mapGroupId: "resultado_liquido" },
+                        ].map((row) => {
+                          const prevYearStr = (parseInt(selectedYear) - 1).toString();
+                          const compMonthLabel = monthsGlobal.find(m => m.value === selectedMonth)?.label || "";
+
+                          const matchPrev = activeDreTimeline.find(d => d.month === compMonthLabel && d.year === prevYearStr);
+                          const valPrev = getActualRowValue(matchPrev, row.id);
+                          const fatPrev = getActualRowValue(matchPrev, "faturamento") || 1;
+                          const avPrev = row.id === "faturamento" ? 100 : (Math.abs(valPrev) / fatPrev) * 100;
+
+                          const monthlyBudgetObj = yearlyBudgets[selectedYear]?.[selectedMonth] || {};
+                          const valBudget = row.type === "total" 
+                            ? calculateRowValue(monthlyBudgetObj, row.id) 
+                            : (monthlyBudgetObj[row.id] || 0);
+                          const fatBudget = (yearlyBudgets[selectedYear]?.[selectedMonth]?.["faturamento"]) || 1;
+                          const avBudget = row.id === "faturamento" ? 100 : (Math.abs(valBudget) / fatBudget) * 100;
+
+                          const matchCurr = activeDreTimeline.find(d => d.month === compMonthLabel && d.year === selectedYear);
+                          const valCurr = getActualRowValue(matchCurr, row.id);
+                          const fatCurr = getActualRowValue(matchCurr, "faturamento") || 1;
+                          const avCurr = row.id === "faturamento" ? 100 : (Math.abs(valCurr) / fatCurr) * 100;
+
+                          // Variance vs Budget: Real - Budget (Variance of Expenses uses custom style where negative is good saving)
+                          const varBudVal = valCurr - valBudget;
+                          const varBudAH = valBudget !== 0 ? (varBudVal / Math.abs(valBudget)) * 100 : 0;
+
+                          // Variance YoY: Real Curr - Real Prev
+                          const varYoYVal = valCurr - valPrev;
+                          const varYoYAH = valPrev !== 0 ? (varYoYVal / Math.abs(valPrev)) * 100 : 0;
+
+                          const isExpenseRow = row.type === "expense";
+                          const isTotalRow = row.type === "total";
+
+                          const rowGroup = dreGroups.find(g => g.id === row.mapGroupId);
+                          const hasDetails = rowGroup && rowGroup.items && rowGroup.items.length > 0;
+
+                          return (
+                            <React.Fragment key={row.id}>
+                              <tr
+                                onClick={() => hasDetails && toggleGroup(row.mapGroupId)}
+                                className={`group/row transition-all hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 cursor-pointer ${
+                                  isTotalRow 
+                                    ? isDarkMode
+                                      ? "bg-zinc-900 border-y-2 border-zinc-800 font-extrabold"
+                                      : "bg-indigo-50/20 border-y border-indigo-100 font-extrabold"
+                                    : ""
+                                }`}
+                              >
+                                <td className="py-3 px-3 flex items-center gap-2 border-r border-slate-100 dark:border-zinc-800/40">
+                                  {hasDetails && (
+                                    <ChevronDown
+                                      className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
+                                        expandedGroups.includes(row.mapGroupId) ? "" : "-rotate-90"
+                                      }`}
+                                    />
+                                  )}
+                                  <span className={`text-[11px] uppercase tracking-tight ${
+                                    isTotalRow 
+                                      ? "text-indigo-600 dark:text-amber-500 font-black leading-none" 
+                                      : isDarkMode ? "text-slate-200" : "text-slate-800 font-bold"
+                                  }`}>
+                                    {row.label}
+                                  </span>
+                                </td>
+                                {/* REAL PREV */}
+                                <td className="py-3 px-2 text-right font-semibold font-sans text-xs text-slate-700 dark:text-zinc-300">
+                                  {formatCurrency(valPrev)}
+                                </td>
+                                <td className="py-3 px-2 text-right font-normal text-[10px] font-mono text-slate-450 border-r border-slate-100 dark:border-zinc-800/40">
+                                  {avPrev.toFixed(1)}%
+                                </td>
+                                {/* ORÇADO CURR */}
+                                <td className="py-3 px-2 text-right font-semibold font-sans text-xs text-amber-700 dark:text-amber-400/90">
+                                  {formatCurrency(valBudget)}
+                                </td>
+                                <td className="py-3 px-2 text-right font-normal text-[10px] font-mono text-slate-450 border-r border-slate-100 dark:border-zinc-800/40">
+                                  {avBudget.toFixed(1)}%
+                                </td>
+                                {/* REAL CURR */}
+                                <td className="py-3 px-2 text-right font-black font-sans text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50/15 dark:bg-indigo-950/10">
+                                  {formatCurrency(valCurr)}
+                                </td>
+                                <td className="py-3 px-2 text-right font-normal text-[10px] font-mono text-slate-450 border-r border-slate-200/60 dark:border-zinc-800/60 bg-indigo-50/15 dark:bg-indigo-950/10">
+                                  {avCurr.toFixed(1)}%
+                                </td>
+                                {/* VAR vs BUDGET */}
+                                <td className={`py-3 px-2 text-right font-bold font-sans text-[11px] ${getVarianceColor(varBudVal, isExpenseRow)}`}>
+                                  {varBudVal > 0 ? "+" : ""}{formatCurrency(varBudVal)}
+                                </td>
+                                <td className={`py-3 px-2 text-right font-bold text-[10px] font-mono border-r border-slate-100 dark:border-zinc-800/40 ${getVarianceColor(varBudAH, isExpenseRow)}`}>
+                                  {varBudAH > 0 ? "+" : ""}{varBudAH.toFixed(1)}%
+                                </td>
+                                {/* VAR YOY */}
+                                <td className={`py-3 px-2 text-right font-bold font-sans text-[11px] ${getVarianceColor(varYoYVal, isExpenseRow)}`}>
+                                  {varYoYVal > 0 ? "+" : ""}{formatCurrency(varYoYVal)}
+                                </td>
+                                <td className={`py-3 px-2 text-right font-bold text-[10px] font-mono ${getVarianceColor(varYoYAH, isExpenseRow)}`}>
+                                  {varYoYAH > 0 ? "+" : ""}{varYoYAH.toFixed(1)}%
+                                </td>
+                              </tr>
+
+                              {/* Nested Details Sub Rows */}
+                              <AnimatePresence>
+                                {hasDetails && expandedGroups.includes(row.mapGroupId) && (
+                                  rowGroup.items.map((item) => {
+                                    const detPrev = getActualDetailValue(matchPrev, row.mapGroupId, item.label);
+                                    const detCurr = getActualDetailValue(matchCurr, row.mapGroupId, item.label);
+                                    
+                                    const detVar = detCurr - detPrev;
+                                    const detVarPct = detPrev !== 0 ? (detVar / Math.abs(detPrev)) * 105 : 0;
+
+                                    return (
+                                      <tr
+                                        key={item.label}
+                                        className="bg-slate-50/30 dark:bg-black/10 hover:bg-slate-100/40 dark:hover:bg-zinc-800/20 transition-all border-b border-slate-100/50 dark:border-zinc-800/20"
+                                      >
+                                        <td className="py-2.5 pl-8 pr-3 text-[10px] font-semibold text-slate-500 dark:text-zinc-400 border-r border-slate-100 dark:border-zinc-800/40 leading-tight">
+                                          {item.label}
+                                        </td>
+                                        {/* REAL PREV DET */}
+                                        <td className="py-2.5 px-2 text-right text-slate-500 font-sans font-medium text-[10px]">
+                                          {formatCurrency(detPrev)}
+                                        </td>
+                                        <td className="py-2.5 px-2 text-right text-[9.5px] font-mono text-slate-400 border-r border-slate-100 dark:border-zinc-800/40">
+                                          {((Math.abs(detPrev) / fatPrev) * 100).toFixed(1)}%
+                                        </td>
+                                        {/* METAS ORÇADO (NOT SPECIFIED AT ACCOUNT LEVEL) */}
+                                        <td className="py-2.5 px-2 text-center text-[10px] font-mono text-slate-350 dark:text-zinc-600 italic">
+                                          —
+                                        </td>
+                                        <td className="py-2.5 px-2 text-center text-[9px] font-mono text-slate-350 dark:text-zinc-600 italic border-r border-slate-100 dark:border-zinc-800/40">
+                                          —
+                                        </td>
+                                        {/* REAL CURR DET */}
+                                        <td className="py-2.5 px-2 text-right text-indigo-600/90 dark:text-indigo-400 font-sans font-semibold text-[10px] bg-indigo-50/5 dark:bg-indigo-950/5">
+                                          {formatCurrency(detCurr)}
+                                        </td>
+                                        <td className="py-2.5 px-2 text-right text-[9.5px] font-mono text-slate-400 border-r border-slate-150 dark:border-[#333]/40 bg-indigo-50/5 dark:bg-indigo-950/5">
+                                          {((Math.abs(detCurr) / fatCurr) * 105).toFixed(1)}%
+                                        </td>
+                                        {/* COMPAR BUDGET (NOT ENTERED AT DETAIL LEVEL) */}
+                                        <td className="py-2.5 px-2 text-center text-[10px] font-mono text-slate-350 dark:text-zinc-650 italic">
+                                          —
+                                        </td>
+                                        <td className="py-2.5 px-2 text-center text-[9px] font-mono text-slate-350 dark:text-zinc-650 italic border-r border-slate-100 dark:border-zinc-800/40">
+                                          —
+                                        </td>
+                                        {/* VAR YOY DET */}
+                                        <td className={`py-2.5 px-2 text-right font-sans font-semibold text-[10px] ${getVarianceColor(detVar, isExpenseRow)}`}>
+                                          {detVar > 0 ? "+" : ""}{formatCurrency(detVar)}
+                                        </td>
+                                        <td className={`py-2.5 px-2 text-right font-mono font-semibold text-[9.5px] ${getVarianceColor(detVarPct, isExpenseRow)}`}>
+                                          {detVarPct > 0 ? "+" : ""}{detVarPct.toFixed(1)}%
+                                        </td>
+                                      </tr>
+                                    );
+                                  })
+                                )}
+                              </AnimatePresence>
+                            </React.Fragment>
+                          );
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              </div>
+              )}
+
+              {activeDRETab === "base_real" && (
+                <div
+                  className={`rounded-[2.5rem] border overflow-hidden ${
+                    isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"
+                  }`}
+                >
+                  <div
+                    className={`px-10 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                      isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50/50 border-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic block mb-1">
+                        PLANILHA MENSAL REALIZADO (HISTÓRICO)
+                      </span>
+                      <h3 className={`text-base font-black uppercase tracking-tight italic ${isDarkMode ? "text-white" : "text-slate-800"}`}>
+                        DRE Realizada Multi-Mês de {realYearForTab}
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest shrink-0 mr-1">Selectionar Ano DRE:</span>
+                      <select
+                        value={realYearForTab}
+                        onChange={(e) => setRealYearForTab(e.target.value)}
+                        className={`text-xs font-black px-3 py-2 rounded-xl border ${
+                          isDarkMode ? "bg-[#252525] border-[#3C3C3C] text-white" : "bg-white border-slate-200 text-slate-800"
+                        }`}
+                      >
+                        {["2023", "2024", "2025", "2026", "2027", "2028"].map((y) => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="p-4 overflow-x-auto select-none">
+                    <table className="w-full text-left border-collapse min-w-[1280px]">
+                      <thead>
+                        <tr className="border-b-2 border-slate-200 dark:border-zinc-800 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                          <th className="py-4 px-3 w-[16%] border-r border-slate-200/80 dark:border-zinc-800">CONCEITO / COMPONENTES</th>
+                          {monthsGlobal.map((m) => (
+                            <th key={m.value} className="py-4 px-2 text-right w-[6.5%] font-extrabold">{m.label.substring(0, 3).toUpperCase()}</th>
+                          ))}
+                          <th className="py-4 px-3 text-right bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] border-l border-indigo-150/50 dark:border-zinc-800/80 text-indigo-600 dark:text-indigo-400 font-extrabold w-[8%]">ACUMULADO</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/30">
+                        {[
+                          { id: "faturamento", label: "RECEITA BRUTA", type: "income" },
+                          { id: "deducoes", label: "DEDUÇÕES DA RECEITA", type: "expense" },
+                          { id: "cmv", label: "CUSTOS VARIÁVEIS", type: "expense" },
+                          { id: "despesas_var", label: "DESPESAS VARIÁVEIS", type: "expense" },
+                          { id: "margem_contrib", label: "Margem de Contribuição", type: "total" },
+                          { id: "colaboradores", label: "DESPESAS COM PESSOAL", type: "expense" },
+                          { id: "funcionamento", label: "CUSTOS DE FUNCIONAMENTO", type: "expense" },
+                          { id: "manutencao", label: "MANUTENÇÃO E TÉCNICA", type: "expense" },
+                          { id: "comerciais", label: "DESPESAS COMERCIAIS / MKT", type: "expense" },
+                          { id: "administrativas", label: "DESPESAS ADM / GERAIS", type: "expense" },
+                          { id: "ebitda", label: "EBITDA - Resultado Operacional", type: "total" },
+                          { id: "financeiro", label: "Result. Financeiro & Impostos", type: "expense" },
+                          { id: "net_profit", label: "Resultado Líquido do Exercício", type: "total" },
+                        ].map((row) => {
+                          const isTotalRow = row.type === "total";
+                          let accumulatedValue = 0;
+
+                          return (
+                            <tr
+                              key={row.id}
+                              className={`group/row transition-all hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 ${
+                                isTotalRow 
+                                  ? isDarkMode 
+                                    ? "bg-zinc-900 border-y border-zinc-800 font-extrabold" 
+                                    : "bg-indigo-50/20 border-y border-indigo-100 font-extrabold" 
+                                  : ""
+                              }`}
+                            >
+                              <td className="py-3 px-3 border-r border-slate-100 dark:border-zinc-800/40">
+                                <span className={`text-[11px] uppercase tracking-tight ${
+                                  isTotalRow 
+                                    ? "text-indigo-600 dark:text-amber-500 font-black" 
+                                    : isDarkMode ? "text-slate-300" : "text-slate-750 font-bold"
+                                }`}>
+                                  {row.label}
+                                </span>
+                              </td>
+                              {monthsGlobal.map((m) => {
+                                const compMonthName = m.label;
+                                const match = activeDreTimeline.find(d => d.month === compMonthName && d.year === realYearForTab);
+                                const cellVal = getActualRowValue(match, row.id);
+                                accumulatedValue += cellVal;
+
+                                return (
+                                  <td key={m.value} className={`py-3 px-2 text-right font-semibold font-sans text-xs ${
+                                    isTotalRow 
+                                      ? (cellVal >= 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold") 
+                                      : isDarkMode ? "text-slate-400" : "text-slate-650"
+                                  }`}>
+                                    {cellVal !== 0 ? formatCurrency(cellVal) : "—"}
+                                  </td>
+                                );
+                              })}
+                              {/* Accumulated Column */}
+                              <td className={`py-3 px-3 text-right font-bold font-mono text-xs border-l border-indigo-150/40 dark:border-zinc-800 bg-indigo-500/[0.04] dark:bg-indigo-950/20 ${
+                                accumulatedValue >= 0 
+                                  ? "text-emerald-600 dark:text-emerald-400 font-black" 
+                                  : "text-rose-600 dark:text-rose-450 font-black"
+                              }`}>
+                                {formatCurrency(accumulatedValue)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {activeDRETab === "base_orcado" && (
+                <div
+                  className={`rounded-[2.5rem] border overflow-hidden ${
+                    isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"
+                  }`}
+                >
+                  <div
+                    className={`px-10 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                      isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50/50 border-slate-100"
+                    }`}
+                  >
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic block mb-1">
+                        PLANILHA MENSAL PREVISTA / ORÇADA
+                      </span>
+                      <h3 className={`text-base font-black uppercase tracking-tight italic ${isDarkMode ? "text-white" : "text-slate-800"}`}>
+                        Editar DRE Orçada do Ano {selectedYear}
+                      </h3>
+                    </div>
+                    
+                    <div className="flex gap-2 shrink-0">
+                      <button
+                        onClick={() => {
+                          const lastY = (parseInt(selectedYear) - 1).toString();
+                          // Pre-populate budget state
+                          const newYearBudgetData: Record<string, Record<string, number>> = {};
+                          monthsGlobal.forEach((m) => {
+                            const match = activeDreTimeline.find(d => d.month === m.label && d.year === lastY);
+                            newYearBudgetData[m.value] = {
+                              faturamento: getActualRowValue(match, "faturamento"),
+                              deducoes: getActualRowValue(match, "deducoes"),
+                              cmv: getActualRowValue(match, "cmv"),
+                              despesas_var: getActualRowValue(match, "despesas_var"),
+                              colaboradores: getActualRowValue(match, "colaboradores"),
+                              funcionamento: getActualRowValue(match, "funcionamento"),
+                              manutencao: getActualRowValue(match, "manutencao"),
+                              comerciais: getActualRowValue(match, "comerciais"),
+                              administrativas: getActualRowValue(match, "administrativas"),
+                              financeiro: getActualRowValue(match, "financeiro"),
+                            };
+                          });
+                          
+                          setYearlyBudgets(prev => ({
+                            ...prev,
+                            [selectedYear]: newYearBudgetData
+                          }));
+                          toastSuccess(`Copiou dados históricos de ${lastY} como rascunho de orçamento!`);
+                        }}
+                        className={`text-[10px] font-black uppercase tracking-wider px-3.5 py-2.5 rounded-xl border active:scale-95 transition-all ${
+                          isDarkMode 
+                            ? "bg-black/30 border-white/5 text-amber-500 hover:bg-black/50" 
+                            : "bg-amber-100/30 border-amber-200 text-amber-700 hover:bg-amber-100/50"
+                        }`}
+                      >
+                        📋 Copiar do Real {parseInt(selectedYear) - 1}
+                      </button>
+
+                      <button
+                        onClick={handleSaveBudget}
+                        disabled={isSavingBudgets}
+                        style={{ backgroundColor: themeButtonBg, color: themeTextContrast }}
+                        className="text-[10px] font-black uppercase tracking-wider px-4 py-2.5 rounded-xl flex items-center gap-1.5 active:scale-95 transition-all disabled:opacity-50"
+                      >
+                        {isSavingBudgets ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Salvando...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-3.5 h-3.5" />
+                            Salvar Orçamento
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-4 overflow-x-auto select-none">
+                    <table className="w-full text-left border-collapse min-w-[1280px]">
+                      <thead>
+                        <tr className="border-b-2 border-slate-200 dark:border-zinc-800 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                          <th className="py-4 px-3 w-[16%] border-r border-slate-200/80 dark:border-zinc-800">CONCEITO / COMPONENTES</th>
+                          {monthsGlobal.map((m) => (
+                            <th key={m.value} className="py-4 px-2 text-right w-[6.5%] font-extrabold">{m.label.substring(0, 3).toUpperCase()}</th>
+                          ))}
+                          <th className="py-4 px-3 text-right bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] border-l border-indigo-150/50 dark:border-zinc-800/80 text-indigo-600 dark:text-indigo-400 font-extrabold w-[8%]">ACUMULADO</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/30">
+                        {[
+                          { id: "faturamento", label: "RECEITA BRUTA", type: "income", isCalculated: false },
+                          { id: "deducoes", label: "DEDUÇÕES DA RECEITA", type: "expense", isCalculated: false },
+                          { id: "cmv", label: "CUSTOS VARIÁVEIS", type: "expense", isCalculated: false },
+                          { id: "despesas_var", label: "DESPESAS VARIÁVEIS", type: "expense", isCalculated: false },
+                          { id: "margem_contrib", label: "Margem de Contribuição", type: "total", isCalculated: true },
+                          { id: "colaboradores", label: "DESPESAS COM PESSOAL", type: "expense", isCalculated: false },
+                          { id: "funcionamento", label: "CUSTOS DE FUNCIONAMENTO", type: "expense", isCalculated: false },
+                          { id: "manutencao", label: "MANUTENÇÃO E TÉCNICA", type: "expense", isCalculated: false },
+                          { id: "comerciais", label: "DESPESAS COMERCIAIS / MKT", type: "expense", isCalculated: false },
+                          { id: "administrativas", label: "DESPESAS ADM / GERAIS", type: "expense", isCalculated: false },
+                          { id: "ebitda", label: "EBITDA - Resultado Operacional", type: "total", isCalculated: true },
+                          { id: "financeiro", label: "Result. Financeiro & Impostos", type: "expense", isCalculated: false },
+                          { id: "net_profit", label: "Resultado Líquido do Exercício", type: "total", isCalculated: true },
+                        ].map((row) => {
+                          const isTotalRow = row.isCalculated;
+                          let accumulatedBudget = 0;
+
+                          return (
+                            <tr
+                              key={row.id}
+                              className={`group/row transition-all hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 ${
+                                isTotalRow 
+                                  ? isDarkMode 
+                                    ? "bg-zinc-900 border-y border-zinc-800 font-extrabold" 
+                                    : "bg-indigo-50/20 border-y border-indigo-100 font-extrabold" 
+                                  : ""
+                              }`}
+                            >
+                              <td className="py-3 px-3 border-r border-slate-100 dark:border-zinc-800/40">
+                                <span className={`text-[11px] uppercase tracking-tight ${
+                                  isTotalRow 
+                                    ? "text-indigo-600 dark:text-amber-500 font-black" 
+                                    : isDarkMode ? "text-slate-300" : "text-slate-750 font-bold"
+                                }`}>
+                                  {row.label}
+                                </span>
+                              </td>
+                              {monthsGlobal.map((m) => {
+                                const mObj = yearlyBudgets[selectedYear]?.[m.value] || {};
+                                const cellValue = row.isCalculated 
+                                  ? calculateRowValue(mObj, row.id) 
+                                  : (mObj[row.id] || 0);
+
+                                accumulatedBudget += cellValue;
+
+                                if (isTotalRow) {
+                                  return (
+                                    <td key={m.value} className="py-3 px-2 text-right font-semibold font-sans text-xs text-slate-700 dark:text-zinc-300">
+                                      {formatCurrency(cellValue)}
+                                    </td>
+                                  );
+                                }
+
+                                return (
+                                  <td key={m.value} className="py-1 px-1 text-right">
+                                    <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      placeholder="—"
+                                      value={cellValue || ""}
+                                      onChange={(e) => {
+                                        const cleanVal = e.target.value.replace(/[^\d.-]/g, "").replace(",", ".");
+                                        const parsed = parseFloat(cleanVal) || 0;
+                                        setYearlyBudgets(prev => {
+                                          const tempY = prev[selectedYear] ? { ...prev[selectedYear] } : {};
+                                          const tempM = tempY[m.value] ? { ...tempY[m.value] } : {};
+                                          tempM[row.id] = parsed;
+                                          tempY[m.value] = tempM;
+                                          return { ...prev, [selectedYear]: tempY };
+                                        });
+                                      }}
+                                      className={`w-full text-right font-sans text-xs font-bold px-1.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-indigo-500 shrink-0 select-all transition-all ${
+                                        isDarkMode 
+                                          ? "bg-[#252525] border-[#383838] text-white focus:ring-amber-500 focus:bg-zinc-800" 
+                                          : "bg-white border-slate-200 text-slate-800 focus:ring-indigo-500 focus:bg-slate-50"
+                                      }`}
+                                    />
+                                  </td>
+                                );
+                              })}
+                              {/* Accumulated Budget Column */}
+                              <td className={`py-3 px-3 text-right font-bold font-mono text-xs border-l border-indigo-150/40 dark:border-zinc-800 bg-indigo-500/[0.04] dark:bg-indigo-950/20 ${
+                                accumulatedBudget >= 0 
+                                  ? "text-emerald-600 dark:text-emerald-400 font-black" 
+                                  : "text-rose-600 dark:text-rose-455 font-black"
+                              }`}>
+                                {formatCurrency(accumulatedBudget)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               {/* Ranking de Lucratividade Section */}
               <div
@@ -1834,7 +2642,7 @@ export default function Finance() {
                     <h3
                       className={`font-black uppercase tracking-tighter italic text-lg ${isDarkMode ? "text-white" : "text-black"}`}
                     >
-                      Top Lucratividade
+                      Top Margem Líquida
                     </h3>
                     <p
                       className={`text-[10px] font-medium italic ${isDarkMode ? "text-slate-500" : "text-slate-700"}`}
@@ -1881,7 +2689,7 @@ export default function Finance() {
                       ))
                   ) : (
                     <div className="col-span-3 py-10 text-center text-slate-400 text-xs italic">
-                      Nenhum produto cadastrado para análise de lucratividade.
+                      Nenhum produto cadastrado para análise de margem líquida.
                     </div>
                   )}
                 </div>
