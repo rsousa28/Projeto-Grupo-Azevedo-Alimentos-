@@ -71,9 +71,18 @@ const formatCurrency = (val: number) =>
     val,
   );
 
-const getVarianceColor = (val: number, isExpense: boolean): string => {
-  if (Math.abs(val) < 0.001) return "text-slate-400 dark:text-slate-500 font-medium";
+const getVarianceColor = (val: number, isExpense: boolean, isBadge?: boolean): string => {
+  if (Math.abs(val) < 0.001) {
+    return isBadge 
+      ? "bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200" 
+      : "text-slate-400 dark:text-slate-500 font-medium";
+  }
   const isGood = isExpense ? val < 0 : val > 0;
+  if (isBadge) {
+    return isGood
+      ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border-emerald-100 dark:border-emerald-800/20"
+      : "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 border-rose-100 dark:border-rose-800/20";
+  }
   return isGood 
     ? "text-emerald-600 dark:text-emerald-400 font-extrabold" 
     : "text-rose-600 dark:text-rose-400 font-extrabold";
@@ -1333,7 +1342,7 @@ export default function Finance() {
     faturamentoVal > 0 ? (currentMonthData.payroll / faturamentoVal) * 100 : 0;
   const cmvCmoPercent = cmvPercent + payrollPercent;
 
-  // Usa o mês anterior já calculado acima para tendências de Margem Bruta e Lucratividade
+  // Usa o mês anterior já calculado acima para tendências de Margem Bruta, Margem de Contribuição e Lucratividade
   const prevFaturamentoVal = prevMonthData?.faturamento || 0;
   const prevMarginBruta =
     prevFaturamentoVal > 0
@@ -1344,6 +1353,24 @@ export default function Finance() {
     prevFaturamentoVal > 0
       ? (prevMonthData.netProfit / prevFaturamentoVal) * 100
       : 0;
+
+  const prevMc = prevMonthData
+    ? (prevMonthData.faturamento || 0) -
+      (prevMonthData.details?.deducoes?.darfSimples || prevMonthData.taxes || 0) -
+      (prevMonthData.cmv || 0) -
+      (prevMonthData.despesasVariaveis || 0)
+    : 0;
+  const prevMcPercent = prevFaturamentoVal > 0 ? prevMc / prevFaturamentoVal : 0;
+  const marginContribPercent = mcPercent * 100;
+  const prevMarginContribPercent = prevMcPercent * 100;
+  const marginContribDiff = prevFaturamentoVal > 0 ? marginContribPercent - prevMarginContribPercent : 0;
+
+  const marginContribTrend =
+    prevFaturamentoVal > 0
+      ? marginContribDiff >= 0
+        ? `+${marginContribDiff.toFixed(1)}%`
+        : `${marginContribDiff.toFixed(1)}%`
+      : "---";
 
   const marginBrutaDiff =
     prevFaturamentoVal > 0 ? marginBruta - prevMarginBruta : 0;
@@ -1421,7 +1448,7 @@ export default function Finance() {
 
     // Add Key Financial Performance Metrics Section BEFORE the main table
     const perfData = [
-      ["Margem Bruta (Meta: > 50%)", `${marginBruta.toFixed(1)}%`, "---"],
+      ["Margem de Contribuição (Meta: > 50%)", `${marginContribPercent.toFixed(1)}%`, "---"],
       [
         "Margem Líquida",
         `${lucratividade.toFixed(1)}%`,
@@ -1583,7 +1610,7 @@ export default function Finance() {
     } else if (cmvPercent > 0) {
       insights.push({
         title: "CMV Saudável",
-        desc: `Parabéns! Sua margem bruta está protegida com CMV de ${cmvPercent.toFixed(1)}%.`,
+        desc: `Parabéns! Sua margem de contribuição está protegida com CMV de ${cmvPercent.toFixed(1)}%.`,
         icon: <Check className="w-5 h-5 text-green-500" />,
         color: "bg-green-500/10",
       });
@@ -1611,8 +1638,8 @@ export default function Finance() {
       insights.push({
         title: "Tudo em Ordem",
         desc: "Suas métricas principais estão dentro da normalidade para este período.",
-        icon: <Lightbulb className="w-5 h-5 text-indigo-500" />,
-        color: "bg-indigo-500/10",
+        icon: <Lightbulb className={`w-5 h-5 ${isBebelu ? "text-amber-500" : "text-indigo-500"}`} />,
+        color: isBebelu ? "bg-amber-500/10" : "bg-indigo-500/10",
       });
     }
 
@@ -1868,16 +1895,16 @@ export default function Finance() {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {[
               {
-                label: "Margem Bruta",
-                value: `${marginBruta.toFixed(1)}%`,
-                trend: marginBrutaTrend,
+                label: "Margem de Contribuição",
+                value: `${marginContribPercent.toFixed(1)}%`,
+                trend: marginContribTrend,
                 trendColor:
-                  marginBrutaTrend === "---"
+                  marginContribTrend === "---"
                     ? "bg-slate-500/10 text-slate-400"
-                    : marginBrutaTrend.startsWith("+")
+                    : marginContribTrend.startsWith("+")
                       ? "bg-green-500/10 text-green-500"
                       : "bg-red-500/10 text-red-500",
-                color: "text-indigo-600",
+                color: isBebelu ? "text-amber-600" : "text-indigo-600",
               },
               {
                 label: "Margem Líquida",
@@ -2039,7 +2066,9 @@ export default function Finance() {
               {/* Tab Selector Segment */}
               <div
                 className={`p-1 flex flex-col md:flex-row gap-1.5 rounded-2xl border shadow-sm ${
-                  isDarkMode ? "bg-zinc-900 border-[#333]" : "bg-slate-100/90 border-slate-200"
+                  isBebelu
+                    ? isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-amber-500/5 border-amber-500/20"
+                    : (isDarkMode ? "bg-zinc-900 border-[#333]" : "bg-slate-100/90 border-slate-200")
                 }`}
               >
                 {[
@@ -2058,13 +2087,19 @@ export default function Finance() {
                         isActive
                           ? isDarkMode
                             ? "bg-zinc-800 text-amber-500 border border-zinc-700/60 shadow-md"
-                            : "bg-white text-indigo-600 shadow-sm border border-slate-200"
+                            : isBebelu
+                              ? "bg-[#FFCB05] text-amber-950 shadow-sm border border-amber-400 font-extrabold"
+                              : "bg-white text-indigo-600 shadow-sm border border-slate-200"
                           : "text-slate-500 hover:text-slate-800 dark:text-zinc-505 dark:hover:text-zinc-100"
                       }`}
                     >
                       <div className={`p-1.5 rounded-lg shrink-0 transition-colors ${
                         isActive 
-                          ? isDarkMode ? "bg-black/30" : "bg-indigo-50/70" 
+                          ? isDarkMode 
+                            ? "bg-black/30" 
+                            : isBebelu 
+                              ? "bg-amber-950/10 text-amber-900" 
+                              : "bg-indigo-50/70" 
                           : "bg-transparent"
                       }`}>
                         <IconComp className="w-4 h-4 shrink-0 text-current" />
@@ -2073,7 +2108,7 @@ export default function Finance() {
                         <div className="text-[11px] font-black uppercase tracking-tight mb-0.5">
                           {t.label}
                         </div>
-                        <div className={`text-[8.5px] font-medium ${isActive ? "text-slate-500" : "text-slate-400"}`}>
+                        <div className={`text-[8.5px] font-medium ${isActive ? (isBebelu ? "text-amber-900/80" : "text-slate-500") : "text-slate-400"}`}>
                           {t.desc}
                         </div>
                       </div>
@@ -2084,36 +2119,39 @@ export default function Finance() {
 
               {activeDRETab === "unico_mes" && (
                 <div
-                  className={`rounded-[2.5rem] border overflow-hidden ${
-                    isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"
+                  className={`rounded-[2.5rem] border overflow-hidden transition-all duration-300 ${
+                    isDarkMode ? "bg-[#1E1E1E] border-[#333] shadow-2xl shadow-black/40" : "bg-white border-slate-100 shadow-xl shadow-slate-100/50"
                   }`}
                 >
                   <div
-                    className={`px-10 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                      isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50/50 border-slate-100"
+                    className={`px-10 py-7 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                      isDarkMode ? "bg-black/25 border-[#333]" : "bg-slate-50/70 border-slate-100"
                     }`}
                   >
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic block mb-1">
-                        DRE Realizado Mensal Do Período
+                      <span className={`text-[10px] font-black uppercase tracking-[0.25em] ${isBebelu ? "text-amber-600 dark:text-amber-500" : "text-indigo-600 dark:text-indigo-500"} italic block mb-1 font-display`}>
+                        DRE Realizado Mensal Do Período • Análise Vertical (AV)
                       </span>
-                      <h3 className={`text-base font-black uppercase tracking-tight italic ${isDarkMode ? "text-white" : "text-slate-800"}`}>
+                      <h3 className={`text-xl font-black uppercase tracking-tight italic font-display ${isDarkMode ? "text-white" : "text-slate-800"}`}>
                         DRE Realizado de {monthsGlobal.find(m => m.value === selectedMonth)?.label} - {selectedYear}
                       </h3>
+                      <p className={`text-[11px] mt-1 font-medium leading-relaxed ${isDarkMode ? "text-zinc-400" : "text-slate-500"}`}>
+                        A representatividade (%) destaca a participação de cada conta e custo sobre o faturamento total da empresa (Receita Bruta = 100%).
+                      </p>
                     </div>
                   </div>
 
-                  <div className="p-4 overflow-x-auto select-none">
-                    <table className="w-full text-left border-collapse min-w-[700px]">
+                  <div className="p-6 overflow-x-auto select-none">
+                    <table className="w-full text-left border-collapse min-w-[750px]">
                       <thead>
-                        <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] font-black tracking-wider text-slate-400 dark:text-zinc-500">
-                          <th className="py-4 px-3 w-[50%] border-r border-slate-200/80 dark:border-zinc-800">
-                            Conta DRE
+                        <tr className="border-b-2 border-slate-200 dark:border-zinc-800 text-[10px] font-black tracking-wider text-slate-400 dark:text-zinc-500 uppercase font-display">
+                          <th className="py-4 px-4 w-[45%] border-r border-slate-100 dark:border-zinc-800/25">
+                            Estrutura de Contas / Demonstrativo
                           </th>
-                          <th className="py-4 px-3 text-right w-[25%] bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800 text-indigo-600 dark:text-indigo-400 font-extrabold uppercase">
+                          <th className="py-4 px-4 text-right w-[25%] bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-100 dark:border-zinc-800/25 text-slate-500 dark:text-zinc-400">
                             Valor Realizado (R$)
                           </th>
-                          <th className="py-4 px-3 text-right w-[25%] bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] text-indigo-600 dark:text-indigo-400 font-extrabold uppercase">
+                          <th className="py-4 px-4 text-right w-[30%] bg-slate-50/70 dark:bg-zinc-900/10 text-slate-500 dark:text-zinc-400">
                             Participação (AV %)
                           </th>
                         </tr>
@@ -2135,12 +2173,10 @@ export default function Finance() {
                           { id: "net_profit", label: "Resultado Líquido do Exercício", type: "total", mapGroupId: "resultado_liquido" },
                         ].map((row) => {
                           const compMonthLabel = monthsGlobal.find(m => m.value === selectedMonth)?.label || "";
-
                           const matchCurr = activeDreTimeline.find(d => d.month === compMonthLabel && d.year === selectedYear);
                           const valCurr = getActualRowValue(matchCurr, row.id);
                           const fatCurr = getActualRowValue(matchCurr, "faturamento") || 1;
                           const avCurr = row.id === "faturamento" ? 100 : (Math.abs(valCurr) / fatCurr) * 100;
-
                           const isTotalRow = row.type === "total";
 
                           const rowGroup = dreGroups.find(g => g.id === row.mapGroupId);
@@ -2150,36 +2186,64 @@ export default function Finance() {
                             <React.Fragment key={row.id}>
                               <tr
                                 onClick={() => hasDetails && toggleGroup(row.mapGroupId)}
-                                className={`group/row transition-all hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 cursor-pointer ${
+                                className={`group/row transition-all hover:bg-slate-50/80 dark:hover:bg-zinc-800/10 cursor-pointer ${
                                   isTotalRow 
                                     ? isDarkMode
-                                      ? "bg-zinc-900 border-y-2 border-zinc-800 font-extrabold"
-                                      : "bg-indigo-50/20 border-y border-indigo-100 font-extrabold"
+                                      ? "bg-zinc-900 border-y border-zinc-800 font-extrabold"
+                                      : "bg-slate-50/80 border-y border-slate-200 font-extrabold"
                                     : ""
                                 }`}
                               >
-                                <td className="py-3 px-3 flex items-center gap-2 border-r border-slate-100 dark:border-zinc-800/40">
+                                <td className="py-4 px-4 flex items-center gap-2 border-r border-slate-100 dark:border-zinc-800/20">
                                   {hasDetails && (
                                     <ChevronDown
-                                      className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
-                                        expandedGroups.includes(row.mapGroupId) ? "rotate-180" : ""
+                                      className={`w-3.5 h-3.5 text-slate-450 shrink-0 transition-transform duration-200 ${
+                                        expandedGroups.includes(row.mapGroupId) ? "rotate-180 text-orange-500 dark:text-amber-500" : ""
                                       }`}
                                     />
                                   )}
-                                  <span className={`text-[11px] uppercase tracking-tight ${
+                                  <span className={`text-xs uppercase tracking-tight ${
                                     isTotalRow 
-                                      ? "text-indigo-600 dark:text-amber-500 font-black leading-none" 
-                                      : isDarkMode ? "text-slate-200" : "text-slate-800 font-bold"
+                                      ? "text-slate-900 dark:text-slate-100 font-black font-display" 
+                                      : isDarkMode ? "text-slate-300 font-semibold" : "text-slate-700 font-semibold"
                                   }`}>
                                     {row.label}
                                   </span>
                                 </td>
-                                {/* REAL CURR */}
-                                <td className="py-3 px-3 text-right font-black font-sans text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50/15 dark:bg-indigo-950/10 border-r border-slate-100 dark:border-zinc-800/40">
+                                {/* VALUE */}
+                                <td className={`py-4 px-4 text-right font-bold font-mono text-xs md:text-sm border-r border-slate-100 dark:border-zinc-800/20 ${
+                                  isTotalRow 
+                                    ? valCurr >= 0 
+                                      ? "text-emerald-600 dark:text-emerald-400 font-black bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]" 
+                                      : "text-rose-600 dark:text-rose-450 font-black bg-rose-500/[0.02] dark:bg-rose-500/[0.01]"
+                                    : isDarkMode ? "text-slate-200 font-medium" : "text-slate-700 font-medium"
+                                }`}>
                                   {formatCurrency(valCurr)}
                                 </td>
-                                <td className="py-3 px-3 text-right font-bold text-[11px] font-mono text-slate-600 dark:text-zinc-300 bg-indigo-50/15 dark:bg-indigo-950/10">
-                                  {avCurr.toFixed(1)}%
+                                {/* PERCENTAGE (AV %) */}
+                                <td className="py-4 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-3.5">
+                                    {/* Sleek Mini Visual Progress Gauge */}
+                                    <div className="w-24 h-1.5 bg-slate-200/60 dark:bg-zinc-850 rounded-full overflow-hidden block md:block">
+                                      <div 
+                                        className={`h-full rounded-full transition-all duration-700 ease-out ${
+                                          row.id === "faturamento"
+                                            ? "bg-slate-400 dark:bg-zinc-500"
+                                            : row.type === "total"
+                                              ? valCurr >= 0
+                                                ? "bg-emerald-500"
+                                                : "bg-rose-500"
+                                              : "bg-slate-400 dark:bg-zinc-650"
+                                        }`}
+                                        style={{ width: `${Math.min(100, avCurr)}%` }}
+                                      />
+                                    </div>
+                                    
+                                    {/* High Contrast Color Coded Percentage Badge */}
+                                    <span className="text-xs font-bold font-mono px-2.5 py-0.5 rounded shadow-sm select-all inline-block min-w-[55px] text-center border transition-all bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                      {avCurr.toFixed(1)}%
+                                    </span>
+                                  </div>
                                 </td>
                               </tr>
 
@@ -2187,21 +2251,33 @@ export default function Finance() {
                                 {expandedGroups.includes(row.mapGroupId) && hasDetails && (
                                   rowGroup.items.map((item) => {
                                     const detCurr = getActualDetailValue(matchCurr, row.mapGroupId, item.label);
+                                    const detAV = ((Math.abs(detCurr) / fatCurr) * 100);
                                     
                                     return (
                                       <tr
                                         key={item.label}
-                                        className="bg-slate-50/30 dark:bg-black/10 hover:bg-slate-100/40 dark:hover:bg-zinc-800/20 transition-all border-b border-slate-100/50 dark:border-zinc-800/20"
+                                        className="bg-slate-50/20 dark:bg-black/5 hover:bg-slate-100/30 dark:hover:bg-zinc-800/10 transition-all border-b border-slate-100/40 dark:border-zinc-800/10"
                                       >
-                                        <td className="py-2.5 pl-8 pr-3 text-[10px] font-semibold text-slate-500 dark:text-zinc-400 border-r border-slate-100 dark:border-zinc-800/40 leading-tight">
+                                        <td className="py-2.5 pl-10 pr-4 text-[11px] font-medium text-slate-500 dark:text-zinc-450 border-r border-slate-100 dark:border-zinc-800/20 leading-tight italic">
                                           {item.label}
                                         </td>
-                                        {/* REAL CURR DET */}
-                                        <td className="py-2.5 px-3 text-right text-indigo-600/90 dark:text-indigo-400 font-sans font-semibold text-[10px] bg-indigo-50/5 dark:bg-indigo-950/5 border-r border-slate-100/50 dark:border-zinc-800/20">
+                                        {/* DETAIL VALUE */}
+                                        <td className="py-2.5 px-4 text-right text-slate-600 dark:text-zinc-400 font-mono font-medium text-[11px] border-r border-slate-100 dark:border-zinc-800/20">
                                           {formatCurrency(detCurr)}
                                         </td>
-                                        <td className="py-2.5 px-3 text-right text-[10px] font-bold font-mono text-slate-400 dark:text-zinc-400 bg-indigo-50/5 dark:bg-indigo-950/5">
-                                          {((Math.abs(detCurr) / fatCurr) * 100).toFixed(1)}%
+                                        {/* DETAIL AV % */}
+                                        <td className="py-2.5 px-4 text-right">
+                                          <div className="flex items-center justify-end gap-2.5">
+                                            <div className="w-16 h-1 bg-slate-200/50 dark:bg-zinc-850 rounded-full overflow-hidden">
+                                              <div 
+                                                className="h-full bg-slate-450 dark:bg-zinc-650 rounded-full"
+                                                style={{ width: `${Math.min(100, detAV)}%` }}
+                                              />
+                                            </div>
+                                            <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded border min-w-[50px] text-center bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                              {detAV.toFixed(1)}%
+                                            </span>
+                                          </div>
                                         </td>
                                       </tr>
                                     );
@@ -2220,25 +2296,25 @@ export default function Finance() {
               {activeDRETab === "comparativo" && (
                 <div
                   className={`rounded-[2.5rem] border overflow-hidden ${
-                    isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"
+                    isDarkMode ? "bg-[#1E1E1E] border-[#333] shadow-2xl shadow-black/40" : "bg-white border-slate-100 shadow-xl shadow-slate-100/50"
                   }`}
                 >
                   <div
-                    className={`px-10 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                      isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50/50 border-slate-100"
+                    className={`px-10 py-7 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                      isDarkMode ? "bg-black/25 border-[#333]" : "bg-slate-50/70 border-slate-100"
                     }`}
                   >
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic block mb-1">
-                        Painel Analítico de DRE Comparativa
+                      <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isBebelu ? "text-amber-600 dark:text-amber-500" : "text-indigo-600 dark:text-indigo-500"} italic block mb-1 font-display`}>
+                        Painel Analítico de DRE Comparativa • Análise Horizontal & Vertical
                       </span>
-                      <h3 className={`text-base font-black uppercase tracking-tight italic ${isDarkMode ? "text-white" : "text-slate-800"}`}>
+                      <h3 className={`text-xl font-black uppercase tracking-tight italic font-display ${isDarkMode ? "text-white" : "text-slate-800"}`}>
                         Análise de {monthsGlobal.find(m => m.value === selectedMonth)?.label} - {selectedYear} x {parseInt(selectedYear) - 1}
                       </h3>
                     </div>
                     {isLoadingAllMonths && (
-                      <span className="text-[10px] bg-indigo-500/15 text-indigo-500 font-bold px-3 py-1 rounded-full animate-pulse flex items-center gap-1.5 shrink-0 self-start md:self-auto">
-                        <Loader2 className="w-3 h-3 animate-spin" />
+                      <span className={`text-[10px] ${isBebelu ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-indigo-500/15 text-indigo-500"} font-bold px-3.5 py-1.5 rounded-full animate-pulse flex items-center gap-1.5 shrink-0 self-start md:self-auto`}>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         Sincronizando Histórico...
                       </span>
                     )}
@@ -2247,38 +2323,38 @@ export default function Finance() {
                   <div className="p-4 overflow-x-auto select-none">
                     <table className="w-full text-left border-collapse min-w-[1050px]">
                       <thead>
-                        <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] font-black tracking-wider text-slate-400 dark:text-zinc-500">
-                          <th className="py-4 px-3 w-[22%] border-r border-slate-200/80 dark:border-zinc-800">
+                        <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] font-black tracking-wider text-slate-400 dark:text-zinc-500 font-display">
+                          <th className="py-4 px-3 w-[22%] border-r border-slate-100 dark:border-zinc-800/20">
                             Conta DRE
                           </th>
-                          <th className="py-4 px-3 text-center w-[14%] bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-200/80 dark:border-zinc-800 uppercase" colSpan={2}>
+                          <th className="py-4 px-3 text-center w-[14%] bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-100 dark:border-zinc-800/20 uppercase" colSpan={2}>
                             REAL {parseInt(selectedYear) - 1}
                           </th>
-                          <th className="py-4 px-3 text-center w-[14%] bg-amber-500/[0.02] dark:bg-amber-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800 text-amber-600/90 dark:text-amber-400/90 uppercase font-extrabold" colSpan={2}>
+                          <th className="py-4 px-3 text-center w-[14%] bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20 text-slate-500 dark:text-zinc-400 uppercase font-bold" colSpan={2}>
                             ORÇADO {selectedYear}
                           </th>
-                          <th className="py-4 px-3 text-center w-[14%] bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800 text-indigo-600 dark:text-indigo-400 uppercase font-extrabold" colSpan={2}>
+                          <th className="py-4 px-3 text-center w-[14%] bg-slate-50/60 dark:bg-zinc-950/20 border-r border-slate-100 dark:border-zinc-800/20 text-slate-700 dark:text-zinc-300 uppercase font-extrabold" colSpan={2}>
                             REAL {selectedYear}
                           </th>
-                          <th className="py-4 px-3 text-center w-[18%] bg-rose-500/[0.02] dark:bg-rose-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800 text-rose-600 dark:text-rose-450 font-extrabold uppercase" colSpan={2}>
+                          <th className="py-4 px-3 text-center w-[18%] bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20 text-slate-500 dark:text-zinc-400 font-bold uppercase" colSpan={2}>
                             Divergência (Real x Orc)
                           </th>
-                          <th className="py-4 px-3 text-center w-[18%] bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01] text-emerald-600 dark:text-emerald-400 font-extrabold uppercase" colSpan={2}>
+                          <th className="py-4 px-3 text-center w-[18%] bg-slate-50/30 dark:bg-zinc-900/10 text-slate-500 dark:text-zinc-400 font-bold uppercase" colSpan={2}>
                             Crescimento YoY
                           </th>
                         </tr>
-                        <tr className="border-b border-slate-150 dark:border-zinc-800/60 text-[9px] font-bold text-slate-400 dark:text-zinc-500 tracking-wider">
-                          <th className="py-2.5 px-3 border-r border-slate-200/80 dark:border-zinc-800">CONCEITO / COMPONENTES</th>
+                        <tr className="border-b border-slate-100 dark:border-zinc-800/20 text-[9px] font-black text-slate-400 dark:text-zinc-500 tracking-wider">
+                          <th className="py-2.5 px-3 border-r border-slate-100 dark:border-zinc-800/20">CONCEITO / COMPONENTES</th>
                           <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30">VALOR (R$)</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-200/80 dark:border-zinc-800">PART. %</th>
-                          <th className="py-2.5 px-2 text-right bg-amber-500/[0.02] dark:bg-amber-500/[0.01]">VALOR (R$)</th>
-                          <th className="py-2.5 px-2 text-right bg-amber-500/[0.02] dark:bg-amber-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800">PART. %</th>
-                          <th className="py-2.5 px-2 text-right bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01]">VALOR (R$)</th>
-                          <th className="py-2.5 px-2 text-right bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800">PART. %</th>
-                          <th className="py-2.5 px-2 text-right bg-rose-500/[0.02] dark:bg-rose-500/[0.01]">VALOR (R$)</th>
-                          <th className="py-2.5 px-2 text-right bg-rose-500/[0.02] dark:bg-rose-500/[0.01] border-r border-slate-200/80 dark:border-zinc-800">DIF. %</th>
-                          <th className="py-2.5 px-2 text-right bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]">R$ HISTATIV</th>
-                          <th className="py-2.5 px-2 text-right bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]">CRESC. %</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-100 dark:border-zinc-800/20">% Part.</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">VALOR (R$)</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20">% Part.</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-950/20 font-bold text-slate-700 dark:text-zinc-300">VALOR (R$)</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-950/20 border-r border-slate-100 dark:border-zinc-800/20 font-bold text-slate-700 dark:text-zinc-300">% Part.</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">VALOR (R$)</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20">% Dif.</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">HISTATIV (R$)</th>
+                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">% YoY</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/30">
@@ -2338,61 +2414,71 @@ export default function Finance() {
                                 className={`group/row transition-all hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 cursor-pointer ${
                                   isTotalRow 
                                     ? isDarkMode
-                                      ? "bg-zinc-900 border-y-2 border-zinc-800 font-extrabold"
-                                      : "bg-indigo-50/20 border-y border-indigo-100 font-extrabold"
+                                      ? "bg-zinc-900 border-y border-zinc-800 font-extrabold"
+                                      : "bg-slate-50/80 border-y border-slate-200 font-extrabold"
                                     : ""
                                 }`}
                               >
-                                <td className="py-3 px-3 flex items-center gap-2 border-r border-slate-100 dark:border-zinc-800/40">
+                                <td className="py-3 px-3 flex items-center gap-2 border-r border-slate-100 dark:border-zinc-800/20">
                                   {hasDetails && (
                                     <ChevronDown
-                                      className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform ${
+                                      className={`w-3.5 h-3.5 text-slate-450 shrink-0 transition-transform ${
                                         expandedGroups.includes(row.mapGroupId) ? "" : "-rotate-90"
                                       }`}
                                     />
                                   )}
                                   <span className={`text-[11px] uppercase tracking-tight ${
                                     isTotalRow 
-                                      ? "text-indigo-600 dark:text-amber-500 font-black leading-none" 
-                                      : isDarkMode ? "text-slate-200" : "text-slate-800 font-bold"
+                                      ? "text-slate-900 dark:text-slate-105 font-black font-display leading-none" 
+                                      : isDarkMode ? "text-slate-300 font-bold" : "text-slate-700 font-bold"
                                   }`}>
                                     {row.label}
                                   </span>
                                 </td>
                                 {/* REAL PREV */}
-                                <td className="py-3 px-2 text-right font-semibold font-sans text-xs text-slate-700 dark:text-zinc-300">
+                                <td className={`py-3 px-2 text-right font-medium font-mono text-xs ${isTotalRow ? "font-bold text-slate-900 dark:text-slate-100" : "text-slate-700 dark:text-zinc-300"}`}>
                                   {formatCurrency(valPrev)}
                                 </td>
-                                <td className="py-3 px-2 text-right font-normal text-[10px] font-mono text-slate-450 border-r border-slate-100 dark:border-zinc-800/40">
-                                  {avPrev.toFixed(1)}%
+                                <td className="py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20">
+                                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                    {avPrev.toFixed(1)}%
+                                  </span>
                                 </td>
                                 {/* ORÇADO CURR */}
-                                <td className="py-3 px-2 text-right font-semibold font-sans text-xs text-amber-700 dark:text-amber-400/90">
+                                <td className={`py-3 px-2 text-right font-medium font-mono text-xs ${isTotalRow ? "font-bold text-slate-800 dark:text-slate-205" : "text-slate-600 dark:text-zinc-400"}`}>
                                   {formatCurrency(valBudget)}
                                 </td>
-                                <td className="py-3 px-2 text-right font-normal text-[10px] font-mono text-slate-450 border-r border-slate-100 dark:border-zinc-800/40">
-                                  {avBudget.toFixed(1)}%
+                                <td className="py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20">
+                                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                    {avBudget.toFixed(1)}%
+                                  </span>
                                 </td>
                                 {/* REAL CURR */}
-                                <td className="py-3 px-2 text-right font-black font-sans text-xs text-indigo-600 dark:text-indigo-400 bg-indigo-50/15 dark:bg-indigo-950/10">
+                                <td className={`py-3 px-2 text-right font-bold font-mono text-xs ${isTotalRow ? "text-slate-900 dark:text-white text-sm bg-slate-50/10 dark:bg-zinc-950/10" : "text-slate-800 dark:text-slate-200 bg-slate-50/30 dark:bg-zinc-950/5"}`}>
                                   {formatCurrency(valCurr)}
                                 </td>
-                                <td className="py-3 px-2 text-right font-normal text-[10px] font-mono text-slate-450 border-r border-slate-200/60 dark:border-zinc-800/60 bg-indigo-50/15 dark:bg-indigo-950/10">
-                                  {avCurr.toFixed(1)}%
+                                <td className={`py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20 ${isTotalRow ? "bg-slate-50/10 dark:bg-zinc-950/10" : "bg-slate-50/30 dark:bg-zinc-950/5"}`}>
+                                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                    {avCurr.toFixed(1)}%
+                                  </span>
                                 </td>
                                 {/* VAR vs BUDGET */}
-                                <td className={`py-3 px-2 text-right font-bold font-sans text-[11px] ${getVarianceColor(varBudVal, isExpenseRow)}`}>
+                                <td className={`py-3 px-2 text-right font-bold font-mono text-xs ${getVarianceColor(varBudVal, isExpenseRow)}`}>
                                   {varBudVal > 0 ? "+" : ""}{formatCurrency(varBudVal)}
                                 </td>
-                                <td className={`py-3 px-2 text-right font-bold text-[10px] font-mono border-r border-slate-100 dark:border-zinc-800/40 ${getVarianceColor(varBudAH, isExpenseRow)}`}>
-                                  {varBudAH > 0 ? "+" : ""}{varBudAH.toFixed(1)}%
+                                <td className={`py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20`}>
+                                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${getVarianceColor(varBudAH, isExpenseRow, true)}`}>
+                                    {varBudAH > 0 ? "+" : ""}{varBudAH.toFixed(1)}%
+                                  </span>
                                 </td>
                                 {/* VAR YOY */}
-                                <td className={`py-3 px-2 text-right font-bold font-sans text-[11px] ${getVarianceColor(varYoYVal, isExpenseRow)}`}>
+                                <td className={`py-3 px-2 text-right font-bold font-mono text-xs ${getVarianceColor(varYoYVal, isExpenseRow)}`}>
                                   {varYoYVal > 0 ? "+" : ""}{formatCurrency(varYoYVal)}
                                 </td>
-                                <td className={`py-3 px-2 text-right font-bold text-[10px] font-mono ${getVarianceColor(varYoYAH, isExpenseRow)}`}>
-                                  {varYoYAH > 0 ? "+" : ""}{varYoYAH.toFixed(1)}%
+                                <td className="py-3 px-2 text-right">
+                                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${getVarianceColor(varYoYAH, isExpenseRow, true)}`}>
+                                    {varYoYAH > 0 ? "+" : ""}{varYoYAH.toFixed(1)}%
+                                  </span>
                                 </td>
                               </tr>
 
@@ -2411,43 +2497,53 @@ export default function Finance() {
                                         key={item.label}
                                         className="bg-slate-50/30 dark:bg-black/10 hover:bg-slate-100/40 dark:hover:bg-zinc-800/20 transition-all border-b border-slate-100/50 dark:border-zinc-800/20"
                                       >
-                                        <td className="py-2.5 pl-8 pr-3 text-[10px] font-semibold text-slate-500 dark:text-zinc-400 border-r border-slate-100 dark:border-zinc-800/40 leading-tight">
+                                        <td className="py-2.5 pl-8 pr-3 text-[10px] font-semibold text-slate-500 dark:text-zinc-400 border-r border-slate-100 dark:border-zinc-800/20 leading-tight italic">
                                           {item.label}
                                         </td>
                                         {/* REAL PREV DET */}
-                                        <td className="py-2.5 px-2 text-right text-slate-500 font-sans font-medium text-[10px]">
+                                        <td className="py-2.5 px-2 text-right text-slate-500 dark:text-zinc-400 font-mono font-medium text-[10px]">
                                           {formatCurrency(detPrev)}
                                         </td>
-                                        <td className="py-2.5 px-2 text-right text-[9.5px] font-mono text-slate-400 border-r border-slate-100 dark:border-zinc-800/40">
-                                          {((Math.abs(detPrev) / fatPrev) * 100).toFixed(1)}%
+                                        <td className="py-2.5 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20">
+                                          <span className="font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                            {((Math.abs(detPrev) / fatPrev) * 100).toFixed(1)}%
+                                          </span>
                                         </td>
                                         {/* METAS ORÇADO (NOT SPECIFIED AT ACCOUNT LEVEL) */}
-                                        <td className="py-2.5 px-2 text-center text-[10px] font-mono text-slate-350 dark:text-zinc-600 italic">
+                                        <td className="py-2.5 px-2 text-center text-[10px] font-mono text-slate-400 dark:text-zinc-650 italic">
                                           —
                                         </td>
-                                        <td className="py-2.5 px-2 text-center text-[9px] font-mono text-slate-350 dark:text-zinc-600 italic border-r border-slate-100 dark:border-zinc-800/40">
+                                        <td className="py-2.5 px-2 text-center text-[9px] font-mono text-slate-400 dark:text-zinc-650 italic border-r border-slate-100 dark:border-zinc-800/20">
                                           —
                                         </td>
                                         {/* REAL CURR DET */}
-                                        <td className="py-2.5 px-2 text-right text-indigo-600/90 dark:text-indigo-400 font-sans font-semibold text-[10px] bg-indigo-50/5 dark:bg-indigo-950/5">
+                                        <td className="py-2.5 px-2 text-right font-mono font-medium text-[10px] text-slate-700 dark:text-zinc-300 bg-slate-50/15 dark:bg-zinc-950/5">
                                           {formatCurrency(detCurr)}
                                         </td>
-                                        <td className="py-2.5 px-2 text-right text-[9.5px] font-mono text-slate-400 border-r border-slate-150 dark:border-[#333]/40 bg-indigo-50/5 dark:bg-indigo-950/5">
-                                          {((Math.abs(detCurr) / fatCurr) * 105).toFixed(1)}%
+                                        <td className="py-2.5 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20 bg-slate-50/15 dark:bg-zinc-950/5">
+                                          <span className={`font-mono text-[9px] font-black px-1.5 py-0.5 rounded border ${
+                                            isBebelu 
+                                              ? "bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200" 
+                                              : "bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200"
+                                          }`}>
+                                            {((Math.abs(detCurr) / fatCurr) * 100).toFixed(1)}%
+                                          </span>
                                         </td>
                                         {/* COMPAR BUDGET (NOT ENTERED AT DETAIL LEVEL) */}
-                                        <td className="py-2.5 px-2 text-center text-[10px] font-mono text-slate-350 dark:text-zinc-650 italic">
+                                        <td className="py-2.5 px-2 text-center text-[10px] font-mono text-slate-400 dark:text-zinc-650 italic">
                                           —
                                         </td>
-                                        <td className="py-2.5 px-2 text-center text-[9px] font-mono text-slate-350 dark:text-zinc-650 italic border-r border-slate-100 dark:border-zinc-800/40">
+                                        <td className="py-2.5 px-2 text-center text-[9px] font-mono text-slate-400 dark:text-zinc-650 italic border-r border-slate-100 dark:border-zinc-800/20">
                                           —
                                         </td>
                                         {/* VAR YOY DET */}
-                                        <td className={`py-2.5 px-2 text-right font-sans font-semibold text-[10px] ${getVarianceColor(detVar, isExpenseRow)}`}>
+                                        <td className={`py-2.5 px-2 text-right font-mono font-semibold text-[10px] ${getVarianceColor(detVar, isExpenseRow)}`}>
                                           {detVar > 0 ? "+" : ""}{formatCurrency(detVar)}
                                         </td>
-                                        <td className={`py-2.5 px-2 text-right font-mono font-semibold text-[9.5px] ${getVarianceColor(detVarPct, isExpenseRow)}`}>
-                                          {detVarPct > 0 ? "+" : ""}{detVarPct.toFixed(1)}%
+                                        <td className="py-2.5 px-2 text-right">
+                                          <span className={`font-mono text-[9px] font-black px-1.5 py-0.5 rounded border shadow-sm ${getVarianceColor(detVarPct, isExpenseRow, true)}`}>
+                                            {detVarPct > 0 ? "+" : ""}{detVarPct.toFixed(1)}%
+                                          </span>
                                         </td>
                                       </tr>
                                     );
@@ -2475,15 +2571,15 @@ export default function Finance() {
                     }`}
                   >
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic block mb-1">
-                        PLANILHA MENSAL REALIZADO (HISTÓRICO)
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 block mb-1 font-display">
+                        Planilha Mensal Realizado (Histórico) • Análise Multi-Mês
                       </span>
-                      <h3 className={`text-base font-black uppercase tracking-tight italic ${isDarkMode ? "text-white" : "text-slate-800"}`}>
+                      <h3 className={`text-xl font-black uppercase tracking-tight italic font-display ${isDarkMode ? "text-white" : "text-slate-800"}`}>
                         DRE Realizada Multi-Mês de {realYearForTab}
                       </h3>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest shrink-0 mr-1">Selectionar Ano DRE:</span>
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest shrink-0 mr-1">Selecionar Ano DRE:</span>
                       <select
                         value={realYearForTab}
                         onChange={(e) => setRealYearForTab(e.target.value)}
@@ -2501,12 +2597,12 @@ export default function Finance() {
                   <div className="p-4 overflow-x-auto select-none">
                     <table className="w-full text-left border-collapse min-w-[1280px]">
                       <thead>
-                        <tr className="border-b-2 border-slate-200 dark:border-zinc-800 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                          <th className="py-4 px-3 w-[16%] border-r border-slate-200/80 dark:border-zinc-800">CONCEITO / COMPONENTES</th>
+                        <tr className="border-b-2 border-slate-200 dark:border-zinc-800 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider font-display">
+                          <th className="py-4 px-3 w-[16%] border-r border-slate-100 dark:border-zinc-800/20">CONCEITO / COMPONENTES</th>
                           {monthsGlobal.map((m) => (
                             <th key={m.value} className="py-4 px-2 text-right w-[6.5%] font-extrabold">{m.label.substring(0, 3).toUpperCase()}</th>
                           ))}
-                          <th className="py-4 px-3 text-right bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] border-l border-indigo-150/50 dark:border-zinc-800/80 text-indigo-600 dark:text-indigo-400 font-extrabold w-[8%]">ACUMULADO</th>
+                          <th className="py-4 px-3 text-right bg-slate-100/60 dark:bg-zinc-900/50 border-l border-slate-100 dark:border-zinc-800/20 text-slate-800 dark:text-slate-200 font-extrabold w-[8%]">ACUMULADO</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/30">
@@ -2535,15 +2631,15 @@ export default function Finance() {
                                 isTotalRow 
                                   ? isDarkMode 
                                     ? "bg-zinc-900 border-y border-zinc-800 font-extrabold" 
-                                    : "bg-indigo-50/20 border-y border-indigo-100 font-extrabold" 
+                                    : "bg-slate-50/80 border-y border-slate-200 font-extrabold" 
                                   : ""
                               }`}
                             >
-                              <td className="py-3 px-3 border-r border-slate-100 dark:border-zinc-800/40">
+                              <td className="py-3 px-3 border-r border-slate-100 dark:border-zinc-800/20">
                                 <span className={`text-[11px] uppercase tracking-tight ${
                                   isTotalRow 
-                                    ? "text-indigo-600 dark:text-amber-500 font-black" 
-                                    : isDarkMode ? "text-slate-300" : "text-slate-750 font-bold"
+                                    ? "text-slate-900 dark:text-slate-100 font-black" 
+                                    : isDarkMode ? "text-slate-300" : "text-slate-700 font-bold"
                                 }`}>
                                   {row.label}
                                 </span>
@@ -2555,9 +2651,9 @@ export default function Finance() {
                                 accumulatedValue += cellVal;
 
                                 return (
-                                  <td key={m.value} className={`py-3 px-2 text-right font-semibold font-sans text-xs ${
+                                  <td key={m.value} className={`py-3 px-2 text-right font-semibold font-mono text-[11px] ${
                                     isTotalRow 
-                                      ? (cellVal >= 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-400 font-bold") 
+                                      ? (cellVal >= 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-450 font-bold") 
                                       : isDarkMode ? "text-slate-400" : "text-slate-650"
                                   }`}>
                                     {cellVal !== 0 ? formatCurrency(cellVal) : "—"}
@@ -2565,7 +2661,7 @@ export default function Finance() {
                                 );
                               })}
                               {/* Accumulated Column */}
-                              <td className={`py-3 px-3 text-right font-bold font-mono text-xs border-l border-indigo-150/40 dark:border-zinc-800 bg-indigo-500/[0.04] dark:bg-indigo-950/20 ${
+                              <td className={`py-3 px-3 text-right font-bold font-mono text-xs border-l border-slate-100 dark:border-zinc-800/20 bg-slate-100/50 dark:bg-zinc-900/30 ${
                                 accumulatedValue >= 0 
                                   ? "text-emerald-600 dark:text-emerald-400 font-black" 
                                   : "text-rose-600 dark:text-rose-450 font-black"
@@ -2593,10 +2689,10 @@ export default function Finance() {
                     }`}
                   >
                     <div>
-                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 italic block mb-1">
-                        PLANILHA MENSAL PREVISTA / ORÇADA
+                      <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 block mb-1 font-display">
+                        Planilah Mensal Prevista / Orçada • Metas de Gestão
                       </span>
-                      <h3 className={`text-base font-black uppercase tracking-tight italic ${isDarkMode ? "text-white" : "text-slate-800"}`}>
+                      <h3 className={`text-xl font-black uppercase tracking-tight italic font-display ${isDarkMode ? "text-white" : "text-slate-800"}`}>
                         Editar DRE Orçada do Ano {selectedYear}
                       </h3>
                     </div>
@@ -2631,8 +2727,8 @@ export default function Finance() {
                         }}
                         className={`text-[10px] font-black uppercase tracking-wider px-3.5 py-2.5 rounded-xl border active:scale-95 transition-all ${
                           isDarkMode 
-                            ? "bg-black/30 border-white/5 text-amber-500 hover:bg-black/50" 
-                            : "bg-amber-100/30 border-amber-200 text-amber-700 hover:bg-amber-100/50"
+                            ? "bg-black/30 border-white/5 text-slate-300 hover:bg-black/50" 
+                            : "bg-slate-100/30 border-slate-200 text-slate-700 hover:bg-slate-100/50"
                         }`}
                       >
                         📋 Copiar do Real {parseInt(selectedYear) - 1}
@@ -2662,12 +2758,12 @@ export default function Finance() {
                   <div className="p-4 overflow-x-auto select-none">
                     <table className="w-full text-left border-collapse min-w-[1280px]">
                       <thead>
-                        <tr className="border-b-2 border-slate-200 dark:border-zinc-800 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                          <th className="py-4 px-3 w-[16%] border-r border-slate-200/80 dark:border-zinc-800">CONCEITO / COMPONENTES</th>
+                        <tr className="border-b-2 border-slate-200 dark:border-zinc-800 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider font-display">
+                          <th className="py-4 px-3 w-[16%] border-r border-slate-100 dark:border-zinc-800/20">CONCEITO / COMPONENTES</th>
                           {monthsGlobal.map((m) => (
                             <th key={m.value} className="py-4 px-2 text-right w-[6.5%] font-extrabold">{m.label.substring(0, 3).toUpperCase()}</th>
                           ))}
-                          <th className="py-4 px-3 text-right bg-indigo-500/[0.03] dark:bg-indigo-500/[0.01] border-l border-indigo-150/50 dark:border-zinc-800/80 text-indigo-600 dark:text-indigo-400 font-extrabold w-[8%]">ACUMULADO</th>
+                          <th className="py-4 px-3 text-right bg-slate-100/60 dark:bg-zinc-900/50 border-l border-slate-100 dark:border-zinc-800/20 text-slate-800 dark:text-slate-200 font-extrabold w-[8%]">ACUMULADO</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/30">
@@ -2696,15 +2792,15 @@ export default function Finance() {
                                 isTotalRow 
                                   ? isDarkMode 
                                     ? "bg-zinc-900 border-y border-zinc-800 font-extrabold" 
-                                    : "bg-indigo-50/20 border-y border-indigo-100 font-extrabold" 
+                                    : "bg-slate-50/80 border-y border-slate-200 font-extrabold" 
                                   : ""
                               }`}
                             >
-                              <td className="py-3 px-3 border-r border-slate-100 dark:border-zinc-800/40">
+                              <td className="py-3 px-3 border-r border-slate-100 dark:border-zinc-800/20">
                                 <span className={`text-[11px] uppercase tracking-tight ${
                                   isTotalRow 
-                                    ? "text-indigo-600 dark:text-amber-500 font-black" 
-                                    : isDarkMode ? "text-slate-300" : "text-slate-750 font-bold"
+                                    ? "text-slate-900 dark:text-slate-100 font-black" 
+                                    : isDarkMode ? "text-slate-300" : "text-slate-700 font-bold"
                                 }`}>
                                   {row.label}
                                 </span>
@@ -2719,7 +2815,7 @@ export default function Finance() {
 
                                 if (isTotalRow) {
                                   return (
-                                    <td key={m.value} className="py-3 px-2 text-right font-semibold font-sans text-xs text-slate-700 dark:text-zinc-300">
+                                    <td key={m.value} className="py-3 px-2 text-right font-semibold font-mono text-[11px] text-slate-700 dark:text-zinc-300 font-bold">
                                       {formatCurrency(cellValue)}
                                     </td>
                                   );
@@ -2743,20 +2839,20 @@ export default function Finance() {
                                           return { ...prev, [selectedYear]: tempY };
                                         });
                                       }}
-                                      className={`w-full text-right font-sans text-xs font-bold px-1.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-indigo-500 shrink-0 select-all transition-all ${
+                                      className={`w-full text-right font-mono text-[11px] font-bold px-1.5 py-1.5 rounded-lg border focus:outline-none focus:ring-1 focus:ring-slate-400 shrink-0 select-all transition-all ${
                                         isDarkMode 
                                           ? "bg-[#252525] border-[#383838] text-white focus:ring-amber-500 focus:bg-zinc-800" 
-                                          : "bg-white border-slate-200 text-slate-800 focus:ring-indigo-500 focus:bg-slate-50"
+                                          : "bg-white border-slate-200 text-slate-800 focus:ring-slate-400 focus:bg-slate-50"
                                       }`}
                                     />
                                   </td>
                                 );
                               })}
                               {/* Accumulated Budget Column */}
-                              <td className={`py-3 px-3 text-right font-bold font-mono text-xs border-l border-indigo-150/40 dark:border-zinc-800 bg-indigo-500/[0.04] dark:bg-indigo-950/20 ${
+                              <td className={`py-3 px-3 text-right font-bold font-mono text-xs border-l border-slate-100 dark:border-zinc-800/20 bg-slate-100/50 dark:bg-zinc-900/30 ${
                                 accumulatedBudget >= 0 
                                   ? "text-emerald-600 dark:text-emerald-400 font-black" 
-                                  : "text-rose-600 dark:text-rose-455 font-black"
+                                  : "text-rose-600 dark:text-rose-450 font-black"
                               }`}>
                                 {formatCurrency(accumulatedBudget)}
                               </td>
@@ -2856,8 +2952,11 @@ export default function Finance() {
                 className={`px-8 py-6 border-b flex items-center justify-between ${isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50 border-slate-100"}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-500 rounded-xl">
-                    <MessagesSquare className="w-5 h-5 text-white" />
+                  <div 
+                    style={{ backgroundColor: isBebelu ? '#FFCB05' : '#6366F1' }} 
+                    className="p-2 rounded-xl"
+                  >
+                    <MessagesSquare className={`w-5 h-5 ${isBebelu ? "text-amber-950" : "text-white"}`} />
                   </div>
                   <div>
                     <h3 className="font-black text-black dark:text-white uppercase tracking-tighter italic text-lg leading-tight">
@@ -2880,8 +2979,8 @@ export default function Finance() {
               <div className="flex-1 overflow-y-auto p-8 space-y-6">
                 {chatMessages.length === 0 && (
                   <div className="h-full flex flex-col items-center justify-center text-center space-y-4 px-10">
-                    <div className="w-16 h-16 bg-indigo-500/10 rounded-full flex items-center justify-center mb-2">
-                      <Zap className="w-8 h-8 text-indigo-500" />
+                    <div className={`w-16 h-16 ${isBebelu ? "bg-amber-500/15" : "bg-indigo-500/10"} rounded-full flex items-center justify-center mb-2`}>
+                      <Zap className={`w-8 h-8 ${isBebelu ? "text-amber-500" : "text-indigo-500"}`} />
                     </div>
                     <p className="text-sm font-black dark:text-white uppercase italic tracking-tighter">
                       Olá! Como posso te ajudar hoje?
@@ -2952,12 +3051,12 @@ export default function Finance() {
                     value={currentMessage}
                     onChange={(e) => setCurrentMessage(e.target.value)}
                     placeholder="Pergunte sobre sua DRE..."
-                    className={`w-full bg-white dark:bg-[#1E1E1E] border ${isDarkMode ? "border-[#333] text-white" : "border-slate-200"} rounded-2xl py-4 pl-6 pr-14 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all`}
+                    className={`w-full bg-white dark:bg-[#1E1E1E] border ${isDarkMode ? "border-[#333] text-white" : "border-slate-200"} rounded-2xl py-4 pl-6 pr-14 text-xs font-bold focus:outline-none focus:ring-2 ${isBebelu ? "focus:ring-amber-500" : "focus:ring-indigo-500"} transition-all`}
                   />
                   <button
                     type="submit"
                     disabled={!currentMessage.trim() || isChatLoading}
-                    className="absolute right-2 top-2 p-3 bg-[#FFB800] hover:bg-black text-black hover:text-white rounded-xl transition-all disabled:opacity-50 disabled:hover:bg-[#FFB800] disabled:hover:text-black"
+                    className="absolute right-2 top-2 p-3 bg-[#FFB800] hover:bg-amber-500 text-black rounded-xl transition-all disabled:opacity-50 disabled:hover:bg-[#FFB800] disabled:hover:text-black cursor-pointer"
                   >
                     <Send className="w-4 h-4" />
                   </button>

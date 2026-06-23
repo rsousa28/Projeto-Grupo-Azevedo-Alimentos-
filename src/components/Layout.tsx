@@ -346,7 +346,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             </button>
 
             <div className="text-right max-w-[80px] xs:max-w-[120px] sm:max-w-none">
-              <div className={`text-xs sm:text-sm font-bold uppercase tracking-tighter italic leading-none mb-1 truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+              <div className={`text-xs sm:text-sm font-black uppercase tracking-tighter italic leading-none mb-1 truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                 {user?.username || user?.name || 'Visitante'}
               </div>
               <div className="text-[8px] sm:text-[9px] text-slate-500 font-black uppercase tracking-[0.1em] italic leading-none truncate">
