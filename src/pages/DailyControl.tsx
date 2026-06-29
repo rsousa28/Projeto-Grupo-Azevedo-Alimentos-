@@ -121,6 +121,7 @@ export default function DailyControl() {
   );
   const [expensesSortOrder, setExpensesSortOrder] = useState<'asc' | 'desc'>('desc');
   const [vouchersSortOrder, setVouchersSortOrder] = useState<'asc' | 'desc'>('desc');
+  const [activeHovered, setActiveHovered] = useState<{ category: string; value: number; percentage: number } | null>(null);
 
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
@@ -1673,7 +1674,7 @@ export default function DailyControl() {
                       }))}
                       cx="50%"
                       cy="50%"
-                      innerRadius={32}
+                      innerRadius={35}
                       outerRadius={48}
                       paddingAngle={2}
                       dataKey="value"
@@ -1697,36 +1698,45 @@ export default function DailyControl() {
                               filter: isSelected ? 'drop-shadow(0px 0px 4px rgba(245, 158, 11, 0.5))' : 'none',
                               opacity: selectedCategory === 'all' || isSelected ? 1 : 0.4
                             }}
+                            onMouseEnter={() => {
+                              setActiveHovered({
+                                category: entry.category,
+                                value: entry.value,
+                                percentage: entry.percentage
+                              });
+                            }}
+                            onMouseLeave={() => {
+                              setActiveHovered(null);
+                            }}
                           />
                         );
                       })}
                     </Pie>
-                    <Tooltip
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          const data = payload[0].payload;
-                          return (
-                            <div className={`p-2 rounded-xl border shadow-lg text-[10px] font-bold leading-none ${
-                              isDarkMode ? 'bg-[#222222]/95 border-[#333] text-white' : 'bg-white/95 border-slate-100 text-slate-900 shadow-slate-200/50'
-                            }`}>
-                              <p className="mb-1 font-black text-slate-400 uppercase text-[8px] tracking-wider">{data.name}</p>
-                              <p className="text-amber-500">R$ {data.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                              <p className="text-slate-400 text-[9px] mt-0.5">{data.percentage.toFixed(1)}%</p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
                   </PieChart>
                 </ResponsiveContainer>
                 
-                {/* Center text indicating total */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-[8px] font-black uppercase text-slate-400 leading-none">Total</span>
-                  <span className="text-[10px] font-black text-slate-500 dark:text-slate-200 leading-tight">
-                    R$ {expensesByCategory.total > 1000 ? `${(expensesByCategory.total / 1000).toFixed(1)}k` : expensesByCategory.total.toFixed(0)}
-                  </span>
+                {/* Center text indicating total or active hovered category */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
+                  {activeHovered ? (
+                    <>
+                      <span className="text-[7px] font-black uppercase tracking-wider text-amber-500 truncate max-w-[65px]" title={activeHovered.category}>
+                        {activeHovered.category}
+                      </span>
+                      <span className="text-[9px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
+                        R$ {activeHovered.value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </span>
+                      <span className="text-[7px] font-bold text-slate-400 mt-0.5 leading-none">
+                        {activeHovered.percentage.toFixed(1)}%
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-[8px] font-black uppercase text-slate-400 leading-none">Total</span>
+                      <span className="text-[10px] font-black text-slate-500 dark:text-slate-200 leading-tight mt-0.5">
+                        R$ {expensesByCategory.total > 1000 ? `${(expensesByCategory.total / 1000).toFixed(1)}k` : expensesByCategory.total.toFixed(0)}
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
             )}
