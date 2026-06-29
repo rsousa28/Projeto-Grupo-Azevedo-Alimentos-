@@ -196,6 +196,38 @@ export default function DailyControl() {
     return defaultCategories;
   });
 
+  // Combined available categories (defaults, custom-added, and existing in loaded expenses in DB)
+  const allAvailableCategories = useMemo(() => {
+    const setOfCats = new Set<string>();
+    
+    // Add default fallbacks
+    const defaultCategories = [
+      'Aso',
+      'Despesa',
+      'Passagem',
+      'Diaria',
+      'Alimentação',
+      'Manutenção',
+      'Limpeza',
+      'Outros'
+    ];
+    defaultCategories.forEach(c => setOfCats.add(c));
+    
+    // Add custom-managed ones
+    categoriesList.forEach(c => {
+      const trimmed = c.trim();
+      if (trimmed) setOfCats.add(trimmed);
+    });
+    
+    // Add existing ones from expenses in DB (such as "Cortesia Rennan")
+    expenses.forEach(e => {
+      const trimmed = e.category?.trim();
+      if (trimmed) setOfCats.add(trimmed);
+    });
+    
+    return Array.from(setOfCats);
+  }, [categoriesList, expenses]);
+
   const handleCreateCategory = (newCategoryName: string): boolean => {
     const trimmed = newCategoryName.trim();
     if (!trimmed) return false;
@@ -203,7 +235,7 @@ export default function DailyControl() {
     // Format to capitalized word
     const formatted = trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
     
-    if (categoriesList.includes(formatted)) {
+    if (allAvailableCategories.includes(formatted)) {
       toastWarning('Esta categoria já existe!');
       setFormCategory(formatted);
       return false;
@@ -215,6 +247,13 @@ export default function DailyControl() {
     const defaultCategories = ['Aso', 'Despesa', 'Passagem', 'Diaria', 'Alimentação', 'Manutenção', 'Limpeza', 'Outros'];
     const customOnly = updated.filter(c => !defaultCategories.includes(c));
     localStorage.setItem('g_azevedo_custom_categories', JSON.stringify(customOnly));
+    
+    // Sync custom categories to Firestore
+    const storeIdForConfig = currentStore.id === 'admin-global' ? '2' : currentStore.id;
+    const categoriesRef = doc(db, 'stores', storeIdForConfig, 'daily_control', 'custom_categories');
+    setDocCached(categoriesRef, { categories: customOnly }, storeIdForConfig, user).catch(e => {
+      console.error("Erro ao salvar categorias customizadas no Firestore:", e);
+    });
     
     toastSuccess(`Categoria "${formatted}" criada com sucesso!`);
     setFormCategory(formatted);
@@ -242,6 +281,13 @@ export default function DailyControl() {
     
     const customOnly = updated.filter(c => !defaultCategories.includes(c));
     localStorage.setItem('g_azevedo_custom_categories', JSON.stringify(customOnly));
+    
+    // Sync custom categories to Firestore
+    const storeIdForConfig = currentStore.id === 'admin-global' ? '2' : currentStore.id;
+    const categoriesRef = doc(db, 'stores', storeIdForConfig, 'daily_control', 'custom_categories');
+    setDocCached(categoriesRef, { categories: customOnly }, storeIdForConfig, user).catch(e => {
+      console.error("Erro ao salvar categorias customizadas no Firestore:", e);
+    });
     
     if (formCategory === categoryToDelete) {
       setFormCategory('');
@@ -305,6 +351,13 @@ export default function DailyControl() {
     setEmployeesNamesList(updated);
     localStorage.setItem('g_azevedo_custom_employees', JSON.stringify(updated));
     
+    // Sync custom employees to Firestore
+    const storeIdForConfig = currentStore.id === 'admin-global' ? '2' : currentStore.id;
+    const employeesRef = doc(db, 'stores', storeIdForConfig, 'daily_control', 'custom_employees');
+    setDocCached(employeesRef, { employees: updated }, storeIdForConfig, user).catch(e => {
+      console.error("Erro ao salvar funcionários customizados no Firestore:", e);
+    });
+    
     toastSuccess(`Funcionário "${formatted}" cadastrado com sucesso!`);
     setFormEmployeeName(formatted);
     return true;
@@ -315,6 +368,13 @@ export default function DailyControl() {
     const updated = employeesNamesList.filter(e => standardizeName(e) !== formattedToDelete);
     setEmployeesNamesList(updated);
     localStorage.setItem('g_azevedo_custom_employees', JSON.stringify(updated));
+    
+    // Sync custom employees to Firestore
+    const storeIdForConfig = currentStore.id === 'admin-global' ? '2' : currentStore.id;
+    const employeesRef = doc(db, 'stores', storeIdForConfig, 'daily_control', 'custom_employees');
+    setDocCached(employeesRef, { employees: updated }, storeIdForConfig, user).catch(e => {
+      console.error("Erro ao salvar funcionários customizados no Firestore:", e);
+    });
     
     if (standardizeName(formEmployeeName) === formattedToDelete) {
       setFormEmployeeName('');
@@ -494,6 +554,48 @@ export default function DailyControl() {
     setLoading(true);
     const docId = `period_${selectedYear}_${selectedMonth}`;
     try {
+      // Load custom categories and custom employees from Firestore
+      const storeIdForConfig = currentStore.id === 'admin-global' ? '2' : currentStore.id;
+      const categoriesRef = doc(db, 'stores', storeIdForConfig, 'daily_control', 'custom_categories');
+      const employeesRef = doc(db, 'stores', storeIdForConfig, 'daily_control', 'custom_employees');
+
+      const [categoriesSnap, employeesSnap] = await Promise.all([
+        getDocCached(categoriesRef, storeIdForConfig, user),
+        getDocCached(employeesRef, storeIdForConfig, user)
+      ]).catch(err => {
+        console.error("Erro ao carregar configuracoes de categorias/funcionarios:", err);
+        return [null, null];
+      });
+
+      if (categoriesSnap && categoriesSnap.exists() && categoriesSnap.data().categories) {
+        const fetchedCats = categoriesSnap.data().categories;
+        setCategoriesList(prev => {
+          const defaultCategories = ['Aso', 'Despesa', 'Passagem', 'Diaria', 'Alimentação', 'Manutenção', 'Limpeza', 'Outros'];
+          const combined = [...defaultCategories];
+          fetchedCats.forEach((cat: string) => {
+            const trimmed = cat.trim();
+            if (trimmed && !combined.includes(trimmed)) {
+              combined.push(trimmed);
+            }
+          });
+          return combined;
+        });
+      }
+
+      if (employeesSnap && employeesSnap.exists() && employeesSnap.data().employees) {
+        const fetchedEmps = employeesSnap.data().employees;
+        setEmployeesNamesList(prev => {
+          const combined = [...prev];
+          fetchedEmps.forEach((emp: string) => {
+            const formatted = standardizeName(emp);
+            if (formatted && !combined.includes(formatted)) {
+              combined.push(formatted);
+            }
+          });
+          return combined;
+        });
+      }
+
       // Auto migration from B32 to B28 is now disabled to protect data segregation
       // June 2026 data correction is handled via the interactive Repair Panel for ADMIN users.
 
@@ -1713,7 +1815,7 @@ export default function DailyControl() {
               } outline-none cursor-pointer`}
             >
               <option value="all">Todas as Categorias</option>
-              {categoriesList.map(cat => (
+              {allAvailableCategories.map(cat => (
                 <option key={cat} value={cat}>{cat}</option>
               ))}
               <option value="Outros">Outras (Personalizadas)</option>
@@ -2205,7 +2307,7 @@ export default function DailyControl() {
                           } outline-none`}
                         >
                           <option value="">Selecione...</option>
-                          {categoriesList.map(cat => (
+                          {allAvailableCategories.map(cat => (
                             <option key={cat} value={cat}>{cat}</option>
                           ))}
                         </select>
