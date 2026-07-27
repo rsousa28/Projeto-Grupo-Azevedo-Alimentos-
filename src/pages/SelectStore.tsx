@@ -49,21 +49,21 @@ export default function SelectStore() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 relative flex flex-col items-center justify-between p-6 md:p-12 font-sans select-none overflow-y-auto">
+    <div className="min-h-screen bg-slate-50 relative flex flex-col items-center justify-between p-4 sm:p-6 md:p-12 pt-[max(3.75rem,calc(env(safe-area-inset-top,0px)+2.5rem))] pb-[max(2rem,calc(env(safe-area-inset-bottom,0px)+1.5rem))] font-sans select-none overflow-y-auto">
       {/* Decorative enterprise ambient highlights in Bebelu Brand Colors */}
       <div className="absolute top-0 inset-x-0 h-[600px] bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-[#FFCB05]/10 via-slate-50 to-transparent pointer-events-none" />
       <div className="absolute -left-1/4 top-1/4 w-[600px] h-[600px] bg-amber-400/3 rounded-full blur-[160px] pointer-events-none" />
       <div className="absolute -right-1/4 bottom-1/4 w-[600px] h-[600px] bg-[#7F300C]/3 rounded-full blur-[160px] pointer-events-none" />
 
       {/* Top Bar Status */}
-      <div className="w-full max-w-6xl flex justify-between items-center z-10">
-        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[9px] font-black tracking-widest text-[#059669] uppercase">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-          Ambiente Seguro Ativo
+      <div className="w-full max-w-6xl flex flex-col sm:flex-row justify-between items-center gap-2.5 z-10 pt-1 sm:pt-0 mb-4">
+        <div className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[9px] sm:text-[10px] font-black tracking-widest text-[#059669] uppercase shadow-xs">
+          <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse shrink-0" />
+          <span>Ambiente Seguro Ativo</span>
         </div>
-        <div className="flex items-center gap-1.5 text-slate-500 text-[10px] font-bold uppercase tracking-wider">
-          <ShieldCheck className="w-4 h-4 text-[#7F300C]" />
-          Grupo Azevedo • Portal de Gestão
+        <div className="flex items-center gap-1.5 text-slate-500 text-[10px] sm:text-xs font-bold uppercase tracking-wider">
+          <ShieldCheck className="w-4 h-4 text-[#7F300C] shrink-0" />
+          <span>Grupo Azevedo • Portal de Gestão</span>
         </div>
       </div>
 

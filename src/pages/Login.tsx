@@ -54,7 +54,7 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 md:p-6 bg-gradient-to-br from-[#FAF9F5] via-[#F3F2EC] to-[#E9E7DE] font-sans relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 md:p-6 pt-[max(3.5rem,calc(env(safe-area-inset-top,0px)+2rem))] pb-[max(2rem,calc(env(safe-area-inset-bottom,0px)+1.5rem))] bg-gradient-to-br from-[#FAF9F5] via-[#F3F2EC] to-[#E9E7DE] font-sans relative overflow-x-hidden overflow-y-auto">
       {/* Background Decorative Ambient Glows */}
       <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-[#FFCB05]/10 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-[#7F300C]/5 blur-[120px] pointer-events-none" />
