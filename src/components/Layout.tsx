@@ -356,7 +356,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           </div>
         </header>
 
-        <div className={`flex-1 overflow-y-auto p-3 lg:p-8 custom-scrollbar relative ${bgTextureClass}`}>
+        <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 pb-32 sm:pb-24 lg:pb-12 overscroll-contain custom-scrollbar relative ${bgTextureClass}`} style={{ WebkitOverflowScrolling: 'touch' }}>
           <div className="relative z-10 transition-all duration-300">
             {children || <Outlet />}
           </div>

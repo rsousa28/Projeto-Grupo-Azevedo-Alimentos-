@@ -2082,7 +2082,7 @@ export default function AccountsPayable() {
     });
 
     return (
-      <div className={`p-4 md:p-8 min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0A0A] text-slate-100' : 'bg-slate-50/50 text-slate-800'}`}>
+      <div className={`p-3 sm:p-6 md:p-8 pb-32 sm:pb-24 transition-colors duration-300 ${isDarkMode ? 'bg-[#0A0A0A] text-slate-100' : 'bg-slate-50/50 text-slate-800'}`}>
         
         {/* HEADER SECTION */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
@@ -3168,21 +3168,21 @@ export default function AccountsPayable() {
       </div>
 
       {/* MID PANEL: EXPENSES BY CATEGORIES CHART SUMMARY */}
-      <div className={`p-6 rounded-2xl border mb-6 transition-all ${
+      <div className={`p-4 sm:p-6 rounded-2xl border mb-6 sm:mb-8 transition-all ${
         isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
       }`}>
-        <h3 className="text-lg font-bold uppercase tracking-tight italic text-slate-900 dark:text-white mb-4">
+        <h3 className="text-base sm:text-lg font-bold uppercase tracking-tight italic text-slate-900 dark:text-white mb-3 sm:mb-4">
           Proporção de Despesas por Categoria
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-4 gap-x-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-y-3 sm:gap-y-4 gap-x-6 sm:gap-x-8">
           {CATEGORIES.map(cat => {
             const val = expensesByCategory[cat] || 0;
             const pct = (val / maxExpenseVal) * 100;
             return (
-              <div key={cat} className="flex flex-col gap-1">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-slate-500 dark:text-slate-400 truncate max-w-[200px]">{cat}</span>
-                  <span className="text-slate-800 dark:text-slate-200 font-mono">{formatValueBrl(val)}</span>
+              <div key={cat} className="flex flex-col gap-1 py-0.5">
+                <div className="flex items-center justify-between text-xs font-bold gap-2">
+                  <span className="text-slate-600 dark:text-slate-400 truncate max-w-[170px] xs:max-w-[210px] sm:max-w-none">{cat}</span>
+                  <span className="text-slate-900 dark:text-slate-100 font-mono shrink-0">{formatValueBrl(val)}</span>
                 </div>
                 <div className="w-full h-2 rounded-full bg-slate-100 dark:bg-[#1C1C1C] overflow-hidden">
                   <div 
