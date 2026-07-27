@@ -32,6 +32,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { User } from '../types';
 import NotificationCenter from './NotificationCenter';
 import BackupStatusIndicator from './BackupStatusIndicator';
+import OfflineSyncBadge from './OfflineSyncBadge';
 import { NotificationService } from '../services/NotificationService';
 
 interface NavItem {
@@ -383,9 +384,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               >
                 <Menu className={`w-6 h-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`} />
               </button>
-              <div className="hidden sm:flex items-center gap-2 text-sm text-slate-500 font-medium">
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                <span>Sistema Online</span>
+              <div className="hidden sm:flex items-center gap-2">
+                <OfflineSyncBadge />
               </div>
               <div className="sm:hidden flex items-center gap-2">
                  <div className="bg-white p-1 rounded-lg shrink-0 border border-slate-200/50 shadow-xs">
@@ -395,6 +395,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+              {/* Local-First IndexedDB Network & Sync Indicator for Mobile/All */}
+              <div className="sm:hidden">
+                <OfflineSyncBadge />
+              </div>
+
               {/* Admin Backup Status & Alert Indicator */}
               <BackupStatusIndicator />
 
