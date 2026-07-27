@@ -25,6 +25,7 @@ export default function Login() {
   const { login, loginWithBiometrics, user } = useAuth();
   const { success, error: toastError } = useToast();
   const [quoteIndex, setQuoteIndex] = useState(0);
+  const hasAutoPromptedRef = React.useRef(false);
 
   // High-performance corporate quotes representing top-tier quality and standard
   const quotes = [
@@ -43,6 +44,15 @@ export default function Login() {
     if (isSupported) {
       const creds = BiometricService.getRegisteredCredentials();
       setRegisteredBioUsers(creds);
+
+      // Auto trigger Face ID / Touch ID on page access if biometrics registered
+      if (creds.length > 0 && !hasAutoPromptedRef.current) {
+        hasAutoPromptedRef.current = true;
+        const autoTimer = setTimeout(() => {
+          handleBiometricLogin(creds[0].username, true);
+        }, 400);
+        return () => clearTimeout(autoTimer);
+      }
     }
   }, []);
 
@@ -73,15 +83,17 @@ export default function Login() {
     }
   };
 
-  const handleBiometricLogin = async (targetUsername?: string) => {
+  const handleBiometricLogin = async (targetUsername?: string, isAuto: boolean = false) => {
     setBiometricLoading(true);
     setError(null);
     try {
       await loginWithBiometrics(targetUsername);
       success('Autenticação biométrica efetuada com sucesso!', 'Acesso Autorizado');
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || 'Falha ao autenticar por leitura biométrica.');
+      console.warn('Biometric authentication result:', err);
+      if (!isAuto) {
+        setError(err.message || 'Falha ao autenticar por leitura biométrica.');
+      }
     } finally {
       setBiometricLoading(false);
     }
@@ -214,80 +226,38 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* Biometric Status Indicator */}
+              {/* Biometric Status / Discrete Trigger Indicator */}
               {biometricSupported && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200/80 rounded-full text-[10px] font-black uppercase tracking-wider text-amber-800">
-                  <Fingerprint className="w-3.5 h-3.5 text-[#7F300C]" />
-                  <span>Biometria Ativa</span>
-                </div>
-              )}
-            </div>
-
-            {/* Quick Biometric Authentication Bridge Section */}
-            {biometricSupported && (
-              <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-50/80 via-yellow-50/50 to-orange-50/60 border border-amber-200/70 shadow-xs relative overflow-hidden">
-                <div className="flex items-center justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-[#FFCB05] text-[#7F300C] flex items-center justify-center font-black shadow-xs shrink-0">
-                      <Fingerprint className="w-5 h-5 animate-pulse" />
-                    </div>
-                    <div>
-                      <h3 className="text-xs font-black uppercase italic tracking-tight text-slate-900">
-                        Ponte de Autenticação Biométrica
-                      </h3>
-                      <p className="text-[9.5px] font-semibold text-slate-500">
-                        Touch ID / Face ID / Leitura Digital
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowRegisterModal(true)}
-                    className="text-[9.5px] font-black uppercase tracking-wider text-[#7F300C] hover:underline bg-white/80 px-2.5 py-1 rounded-lg border border-amber-200 shadow-2xs"
-                  >
-                    + Cadastrar
-                  </button>
-                </div>
-
-                {registeredBioUsers.length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                      Contas com biometria vinculada neste dispositivo:
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {registeredBioUsers.map((cred) => (
-                        <button
-                          key={cred.credentialId}
-                          type="button"
-                          onClick={() => handleBiometricLogin(cred.username)}
-                          disabled={biometricLoading}
-                          className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white hover:bg-[#FFCB05] hover:text-[#7F300C] border border-amber-200/80 font-black text-xs uppercase tracking-tight text-slate-800 transition-all shadow-2xs group cursor-pointer active:scale-95 disabled:opacity-50"
-                        >
-                          {biometricLoading ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-[#7F300C]" />
-                          ) : (
-                            <ScanFace className="w-4 h-4 text-[#7F300C] group-hover:text-[#7F300C]" />
-                          )}
-                          <span>Entrar como <strong>@{cred.username}</strong></span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between gap-3 text-xs text-slate-600 pt-1">
-                    <span className="text-[11px] font-semibold">Sem biometria salva neste navegador.</span>
+                <div className="flex items-center gap-2">
+                  {registeredBioUsers.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => handleBiometricLogin(registeredBioUsers[0]?.username, false)}
+                      disabled={biometricLoading}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFCB05]/15 hover:bg-[#FFCB05]/30 text-[#7F300C] border border-[#FFCB05]/30 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50"
+                      title="Clique para autenticar com Face ID / Touch ID"
+                    >
+                      {biometricLoading ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#7F300C]" />
+                      ) : (
+                        <ScanFace className="w-3.5 h-3.5 text-[#7F300C]" />
+                      )}
+                      <span>Usar Face ID</span>
+                    </button>
+                  ) : (
                     <button
                       type="button"
                       onClick={() => setShowRegisterModal(true)}
-                      className="px-3 py-1.5 rounded-xl bg-[#FFCB05] text-[#7F300C] font-black uppercase tracking-wider text-[10px] shadow-2xs hover:bg-[#F3BD00] transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
+                      title="Cadastrar leitura biométrica"
                     >
-                      Cadastrar Touch ID
+                      <Fingerprint className="w-3.5 h-3.5 text-slate-500" />
+                      <span>+ Ativar Face ID</span>
                     </button>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
+                </div>
+              )}
+            </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
               {/* Username Input Container */}
@@ -392,6 +362,36 @@ export default function Login() {
                   </>
                 )}
               </button>
+
+              {/* Discrete Biometric Quick Action */}
+              {biometricSupported && (
+                <div className="pt-2 flex items-center justify-center">
+                  {registeredBioUsers.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => handleBiometricLogin(registeredBioUsers[0]?.username, false)}
+                      disabled={biometricLoading}
+                      className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-600 hover:text-[#7F300C] transition-colors py-1 cursor-pointer active:scale-95"
+                    >
+                      {biometricLoading ? (
+                        <Loader2 className="w-4 h-4 animate-spin text-[#7F300C]" />
+                      ) : (
+                        <ScanFace className="w-4 h-4 text-[#7F300C]" />
+                      )}
+                      <span>Entrar diretamente com Face ID</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setShowRegisterModal(true)}
+                      className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 transition-colors py-1 cursor-pointer"
+                    >
+                      <Fingerprint className="w-3.5 h-3.5 text-slate-400" />
+                      <span>Cadastrar Face ID / Touch ID neste aparelho</span>
+                    </button>
+                  )}
+                </div>
+              )}
             </form>
           </div>
 

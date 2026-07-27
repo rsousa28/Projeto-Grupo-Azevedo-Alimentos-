@@ -11,6 +11,13 @@ import {
 import { db } from '../lib/firebase';
 import { AuditService } from './AuditService';
 
+export interface BackupHealthStatus {
+  hasRecentBackup: boolean;
+  lastBackupTime: string | null;
+  hoursAgo: number | null;
+  latestBackupId: string | null;
+}
+
 export interface BackupRecord {
   backupId: string;
   timestamp: string; // ISO String
@@ -380,6 +387,43 @@ export const BackupService = {
     } catch (err) {
       console.error("Failed to restore backup:", err);
       throw err;
+    }
+  },
+
+  /**
+   * Checks backup status and returns health info for admin indicator
+   */
+  async getHealthStatus(): Promise<BackupHealthStatus> {
+    try {
+      const list = await this.fetchBackupsList();
+      if (!list || list.length === 0) {
+        return {
+          hasRecentBackup: false,
+          lastBackupTime: null,
+          hoursAgo: null,
+          latestBackupId: null,
+        };
+      }
+      const latest = list[0];
+      const timeMs = new Date(latest.timestamp).getTime();
+      const diffMs = Date.now() - timeMs;
+      const hoursAgo = Math.floor(diffMs / (1000 * 60 * 60));
+      const hasRecentBackup = diffMs <= 24 * 60 * 60 * 1000;
+
+      return {
+        hasRecentBackup,
+        lastBackupTime: latest.timestamp,
+        hoursAgo,
+        latestBackupId: latest.backupId,
+      };
+    } catch (e) {
+      console.error("Error checking backup health:", e);
+      return {
+        hasRecentBackup: false,
+        lastBackupTime: null,
+        hoursAgo: null,
+        latestBackupId: null,
+      };
     }
   }
 };

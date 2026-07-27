@@ -901,7 +901,7 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
         })}
 
         {/* Form Submission Bar */}
-        <div className={`p-6 rounded-[2.5rem] border sticky bottom-4 flex flex-wrap items-center justify-between gap-4 shadow-2xl z-20 ${
+        <div className={`mt-8 p-6 rounded-[2.5rem] border flex flex-wrap items-center justify-between gap-4 shadow-lg ${
           isDarkMode ? 'bg-[#121212] border-slate-800/90' : 'bg-white border-slate-200/90'
         }`}>
           <div>

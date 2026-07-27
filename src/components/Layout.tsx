@@ -30,6 +30,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { User } from '../types';
+import NotificationCenter from './NotificationCenter';
+import BackupStatusIndicator from './BackupStatusIndicator';
+import { NotificationService } from '../services/NotificationService';
 
 interface NavItem {
   icon: React.ElementType;
@@ -80,6 +83,53 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       navigate('/team');
     }
   }, [currentStore.code, location.pathname, navigate]);
+
+  // Routine manager check for pending checklist and cash closing notifications
+  React.useEffect(() => {
+    if (!currentStore.id || currentStore.code === 'ROOT') return;
+
+    const runRoutineCheck = () => {
+      const todayStr = new Date().toISOString().split('T')[0];
+
+      // Check if checklist complete today
+      let isChecklistCompleteToday = false;
+      try {
+        const storedSubmissions = localStorage.getItem(`checklist_submissions_${currentStore.id}`);
+        if (storedSubmissions) {
+          const subs = JSON.parse(storedSubmissions);
+          isChecklistCompleteToday = subs.some((s: any) => {
+            const dateStr = s.submittedAt ? s.submittedAt.split('T')[0] : '';
+            return dateStr === todayStr;
+          });
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      // Check if cash closed today
+      let isCashClosedToday = false;
+      try {
+        const savedClosings = localStorage.getItem(`closings_data_${currentStore.id}`);
+        if (savedClosings) {
+          const closings = JSON.parse(savedClosings);
+          isCashClosedToday = closings.some((c: any) => c.date === todayStr);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+
+      NotificationService.checkRoutineReminders({
+        storeCode: currentStore.code,
+        storeName: currentStore.name,
+        isChecklistCompleteToday,
+        isCashClosedToday,
+      });
+    };
+
+    runRoutineCheck();
+    const interval = setInterval(runRoutineCheck, 3 * 60 * 1000); // Check every 3 mins
+    return () => clearInterval(interval);
+  }, [currentStore.id, currentStore.code, currentStore.name]);
 
   const handleLogout = () => {
     logout();
@@ -344,7 +394,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 lg:gap-6">
+            <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+              {/* Admin Backup Status & Alert Indicator */}
+              <BackupStatusIndicator />
+
+              {/* Local Push Notification Center & Manager Alerts */}
+              <NotificationCenter />
+
               {/* Elegant Global Dark/Light Mode Toggle */}
               <button
                 onClick={toggleDarkMode}

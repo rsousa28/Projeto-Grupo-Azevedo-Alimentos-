@@ -18,7 +18,11 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { AuditService } from '../services/AuditService';
+import { IndexedDBService } from '../services/IndexedDBService';
+import { OfflineSyncManager } from '../services/OfflineSyncManager';
+import OfflineSyncBadge from '../components/OfflineSyncBadge';
 import { db } from '../lib/firebase';
 import { doc, onSnapshot, setDoc, collection, deleteDoc, getDoc } from 'firebase/firestore';
 import { getDocCached, setDocCached } from '../lib/firestoreQueryCache';
@@ -60,6 +64,7 @@ function sanitizeForFirestore<T>(val: T): any {
 export default function Checklist() {
   const { currentStore, isDarkMode, brandColors } = useStore();
   const { user } = useAuth();
+  const { success, warning, info } = useToast();
 
   // Primary navigation tabs
   const [activeTab, setActiveTab] = useState<'fill' | 'history' | 'plans' | 'config'>('fill');
@@ -475,12 +480,37 @@ export default function Checklist() {
 
   // Submission submitted callback
   const handleSubmissionCommitted = async (sub: ChecklistSubmission, newPlans: ActionPlan[]) => {
+    // 1. Save to IndexedDB queue first for guaranteed local-first resilience
+    try {
+      await IndexedDBService.savePendingSubmission(currentStore.id, sub, newPlans);
+      await IndexedDBService.cacheTemplates(templates);
+    } catch (idbErr) {
+      console.warn("Falha ao gravar no IndexedDB:", idbErr);
+    }
+
+    // 2. Local State update
     const updatedSubmissions = [sub, ...submissions];
     await saveSubmissions(updatedSubmissions);
 
     if (newPlans.length > 0) {
       const updatedPlans = [...newPlans, ...actionPlans];
       await savePlans(updatedPlans);
+    }
+
+    // 3. Attempt automatic cloud sync if online
+    if (OfflineSyncManager.isOnline()) {
+      try {
+        const { syncedCount } = await OfflineSyncManager.syncAllPending(user);
+        if (syncedCount > 0) {
+          success(`Checklist '${sub.templateTitle}' enviado e sincronizado na nuvem!`, 'Sincronizado');
+        } else {
+          info(`Checklist '${sub.templateTitle}' salvo localmente.`, 'Salvo');
+        }
+      } catch (syncErr) {
+        warning(`Checklist salvo no dispositivo (IndexedDB). Será sincronizado quando a conexão estabilizar.`, 'Modo Offline');
+      }
+    } else {
+      warning(`Sem sinal de internet. Checklist salvo com segurança no banco IndexedDB local!`, 'Salvo Offline');
     }
 
     if (user) {
@@ -656,6 +686,8 @@ export default function Checklist() {
                   </div>
                   
                   <div className="flex items-center gap-3 shrink-0">
+                    <OfflineSyncBadge />
+
                     <button
                       onClick={() => {
                         window.location.reload();

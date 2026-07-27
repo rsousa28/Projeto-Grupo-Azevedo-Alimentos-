@@ -268,6 +268,11 @@ export default function ChecklistHistory({ submissions, onDeleteSubmission }: Hi
                   <span className={`text-[9px] font-extrabold text-slate-500 uppercase tracking-widest`}>
                     Unidade: {sub.storeName}
                   </span>
+                  {(sub.isOfflineSaved || sub.syncStatus === 'pending') && (
+                    <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 italic">
+                      ⚡ Salvo Offline
+                    </span>
+                  )}
                 </div>
 
                 <h3 className={`text-sm font-bold leading-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>

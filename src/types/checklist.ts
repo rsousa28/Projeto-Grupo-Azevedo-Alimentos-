@@ -75,6 +75,8 @@ export interface ChecklistSubmission {
   score: number; // Pontuação alcançada (soma dos pesos das perguntas em conformidade)
   maxScore: number; // Pontuação máxima possível
   conformityIndex: number; // Porcentagem de conformidade (score / maxScore * 100)
+  isOfflineSaved?: boolean;
+  syncStatus?: 'pending' | 'syncing' | 'synced' | 'failed';
 }
 
 export interface ActionPlan {

@@ -99,3 +99,41 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
+// Message Event - Handle direct notifications requested by useSyncManager
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'TRIGGER_SYNC_NOTIFICATION') {
+    const { title, body, count } = event.data.payload || {};
+    const notifTitle = title || '⚡ Dados Sincronizados!';
+    const notifBody = body || `${count || 1} item(ns) sincronizado(s) com sucesso na nuvem!`;
+
+    self.registration.showNotification(notifTitle, {
+      body: notifBody,
+      icon: '/logo_azevedo.svg',
+      badge: '/logo_azevedo.svg',
+      tag: 'offline_sync_completed',
+      vibrate: [100, 50, 100],
+      data: { url: '/checklist' }
+    });
+  }
+});
+
+// Notification Click Event - Navigate user to relevant screen
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/checklist';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(targetUrl) && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
