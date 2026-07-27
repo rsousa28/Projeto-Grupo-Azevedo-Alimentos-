@@ -306,57 +306,79 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             ? 'bg-[#0F0F0F] border-[#1E1E1E]' 
             : 'bg-white border-slate-200 shadow-xl shadow-slate-200/50'
         }`}
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingLeft: 'env(safe-area-inset-left, 0px)'
+        }}
       >
         {SidebarContent()}
       </motion.aside>
 
       {/* Main Content */}
       <main className={`flex-1 flex flex-col h-[100dvh] overflow-hidden transition-colors duration-500 ${isDarkMode ? 'bg-[#0F0F0F]' : 'bg-[#F8FAFC]'}`}>
-        <header className={`min-h-[4.5rem] py-3 lg:py-0 lg:h-20 pt-[max(1.25rem,calc(env(safe-area-inset-top,0px)+0.85rem))] lg:pt-0 flex items-center justify-between px-4 lg:px-8 pl-[max(1rem,calc(env(safe-area-inset-left,0px)+1rem))] pr-[max(1rem,calc(env(safe-area-inset-right,0px)+1rem))] border-b transition-colors duration-500 shrink-0 ${isDarkMode ? 'bg-[#0F0F0F] border-[#1E1E1E]' : 'bg-white border-slate-200'}`}>
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-[#1E1E1E] rounded-lg transition-colors"
-            >
-              <Menu className={`w-6 h-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`} />
-            </button>
-            <div className="hidden sm:flex items-center gap-2 text-sm text-slate-500 font-medium">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span>Sistema Online</span>
-            </div>
-            <div className="sm:hidden flex items-center gap-2">
-               <div className="bg-white p-1 rounded-lg shrink-0">
-                  <img src={LOGO_URL} alt="Logo" className="h-6 w-auto object-contain" />
-               </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 lg:gap-6">
-            {/* Elegant Global Dark/Light Mode Toggle */}
-            <button
-              onClick={toggleDarkMode}
-              title={isDarkMode ? "Alternar para Modo Claro" : "Alternar para Modo Escuro (Foco Noturno)"}
-              className={`p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center ${
-                isDarkMode 
-                  ? 'bg-[#1E1E1E] border-[#2A2A2A] text-amber-400 hover:bg-[#252525] hover:text-amber-300' 
-                  : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-850'
-              }`}
-            >
-              {isDarkMode ? <Sun className="w-4 h-4 animate-spin-slow" /> : <Moon className="w-4 h-4" />}
-            </button>
-
-            <div className="text-right max-w-[80px] xs:max-w-[120px] sm:max-w-none">
-              <div className={`text-xs sm:text-sm font-black uppercase tracking-tighter italic leading-none mb-1 truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                {user?.username || user?.name || 'Visitante'}
+        <header 
+          className={`flex flex-col border-b transition-colors duration-500 shrink-0 ${isDarkMode ? 'bg-[#0F0F0F] border-[#1E1E1E]' : 'bg-white border-slate-200'}`}
+          style={{
+            paddingTop: 'env(safe-area-inset-top, 0px)',
+            paddingLeft: 'max(0.75rem, env(safe-area-inset-left, 0px))',
+            paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))'
+          }}
+        >
+          <div className="h-16 lg:h-20 flex items-center justify-between px-2 sm:px-4 lg:px-8">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <button 
+                onClick={() => setMobileMenuOpen(true)}
+                className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-[#1E1E1E] rounded-lg transition-colors"
+              >
+                <Menu className={`w-6 h-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`} />
+              </button>
+              <div className="hidden sm:flex items-center gap-2 text-sm text-slate-500 font-medium">
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <span>Sistema Online</span>
               </div>
-              <div className="text-[8px] sm:text-[9px] text-slate-500 font-black uppercase tracking-[0.1em] italic leading-none truncate">
-                {user?.role === 'ADMIN' ? 'CEO' : (user?.username === 'victordiretor' || user?.role === 'FINANCIAL') ? 'Diretor' : 'Gerente'}
+              <div className="sm:hidden flex items-center gap-2">
+                 <div className="bg-white p-1 rounded-lg shrink-0 border border-slate-200/50 shadow-xs">
+                    <img src={LOGO_URL} alt="Logo" className="h-6 w-auto object-contain" />
+                 </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 lg:gap-6">
+              {/* Elegant Global Dark/Light Mode Toggle */}
+              <button
+                onClick={toggleDarkMode}
+                title={isDarkMode ? "Alternar para Modo Claro" : "Alternar para Modo Escuro (Foco Noturno)"}
+                className={`p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center ${
+                  isDarkMode 
+                    ? 'bg-[#1E1E1E] border-[#2A2A2A] text-amber-400 hover:bg-[#252525] hover:text-amber-300' 
+                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-850'
+                }`}
+              >
+                {isDarkMode ? <Sun className="w-4 h-4 animate-spin-slow" /> : <Moon className="w-4 h-4" />}
+              </button>
+
+              <div className="text-right max-w-[90px] xs:max-w-[120px] sm:max-w-none">
+                <div className={`text-xs sm:text-sm font-black uppercase tracking-tighter italic leading-none mb-1 truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                  {user?.username || user?.name || 'Visitante'}
+                </div>
+                <div className="text-[8px] sm:text-[9px] text-slate-500 font-black uppercase tracking-[0.1em] italic leading-none truncate">
+                  {user?.role === 'ADMIN' ? 'CEO' : (user?.username === 'victordiretor' || user?.role === 'FINANCIAL') ? 'Diretor' : 'Gerente'}
+                </div>
               </div>
             </div>
           </div>
         </header>
 
-        <div className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 pb-32 sm:pb-24 lg:pb-12 overscroll-contain custom-scrollbar relative ${bgTextureClass}`} style={{ WebkitOverflowScrolling: 'touch' }}>
+        <div 
+          className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 overscroll-contain custom-scrollbar relative ${bgTextureClass}`} 
+          style={{ 
+            WebkitOverflowScrolling: 'touch',
+            paddingBottom: 'max(8rem, calc(env(safe-area-inset-bottom, 0px) + 3rem))',
+            paddingLeft: 'max(0.75rem, env(safe-area-inset-left, 0px))',
+            paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))'
+          }}
+        >
           <div className="relative z-10 transition-all duration-300">
             {children || <Outlet />}
           </div>
