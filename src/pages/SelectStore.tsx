@@ -52,8 +52,8 @@ export default function SelectStore() {
     <div 
       className="min-h-screen bg-slate-50 relative flex flex-col items-center justify-between p-4 sm:p-6 md:p-12 font-sans select-none overflow-y-auto"
       style={{
-        paddingTop: 'max(2.5rem, calc(env(safe-area-inset-top, 0px) + 1.5rem))',
-        paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1.25rem))',
+        paddingTop: 'max(3.5rem, calc(env(safe-area-inset-top, 0px) + 1.75rem))',
+        paddingBottom: 'max(2.5rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem))',
         paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
         paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))'
       }}

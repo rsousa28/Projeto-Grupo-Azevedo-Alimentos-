@@ -368,8 +368,61 @@ export default function Team() {
         </div>
       </div>
 
-      {/* Users Table */}
-      <div className={`rounded-[2.5rem] border overflow-hidden ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-xl'}`}>
+      {/* Mobile Users List (Cards) */}
+      <div className="block sm:hidden space-y-3">
+        {loading ? (
+          <div className={`p-8 rounded-2xl border text-center ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-indigo-500 mb-3" />
+            <p className="text-xs font-black uppercase italic tracking-widest text-slate-400">Carregando Cooperadores...</p>
+          </div>
+        ) : filteredUsers.length > 0 ? (
+          filteredUsers.map((u) => (
+            <div key={u.id} className={`p-4 rounded-2xl border flex flex-col gap-3 ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black italic shadow-md shrink-0 ${
+                    u.role === 'ADMIN' ? 'bg-red-700 text-white' : 
+                    u.role === 'MANAGER' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white'
+                  }`}>
+                    {(u.name || 'U').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className={`font-black uppercase italic tracking-tighter truncate ${isDarkMode ? 'text-white' : 'text-black'}`}>{u.name}</div>
+                    <div className="text-[10px] text-slate-500 font-bold tracking-widest uppercase italic truncate">@{u.username}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button 
+                    onClick={() => handleOpenModal(u)}
+                    className={`p-2.5 rounded-xl transition-all ${isDarkMode ? 'bg-white/5 text-slate-300' : 'bg-slate-100 text-slate-600'}`}
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(u.id)}
+                    className={`p-2.5 rounded-xl transition-all ${isDarkMode ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 dark:border-[#2A2A2A] flex items-center justify-between">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Role / Nível</span>
+                <div>{getRoleBadge(u.role)}</div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div className={`p-8 rounded-2xl border text-center text-slate-500 italic font-bold ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100'}`}>
+            Nenhum usuário encontrado.
+          </div>
+        )}
+      </div>
+
+      {/* Users Table (Desktop) */}
+      <div className={`hidden sm:block rounded-[2.5rem] border overflow-hidden ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-xl'}`}>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
             <thead>
