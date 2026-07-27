@@ -821,6 +821,9 @@ export default function DataEntry() {
     setSalesByHour(hourlyArray);
     
     setSaved(true);
+    if (!isAutoSave) {
+      toastSuccess(`Lançamentos de ${currentMonthLabel}/${selectedYear} salvos com sucesso no servidor!`);
+    }
     setTimeout(() => setSaved(false), 3000);
   };
 

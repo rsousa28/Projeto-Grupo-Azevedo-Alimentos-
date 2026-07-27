@@ -73,30 +73,30 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       {/* Toast Render View Overlay */}
       <div 
         id="global-toast-container" 
-        className="fixed top-6 right-6 z-[9999] flex flex-col gap-3 max-w-md w-full pointer-events-none md:max-w-sm"
+        className="fixed top-4 inset-x-4 sm:top-6 sm:right-6 sm:left-auto sm:inset-x-auto z-[9999] flex flex-col gap-2.5 max-w-md w-[calc(100%-2rem)] sm:w-full pointer-events-none sm:max-w-sm mx-auto sm:mx-0"
       >
         <AnimatePresence mode="popLayout">
           {toasts.map((toast) => {
             const colors = {
               success: {
-                bg: 'bg-emerald-950/95 border-emerald-500/40 text-emerald-50',
-                bar: 'bg-emerald-500',
-                icon: <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />,
+                bg: 'bg-emerald-950/95 border-emerald-500/50 text-emerald-50 shadow-emerald-950/50',
+                bar: 'bg-emerald-400',
+                icon: <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />,
               },
               error: {
-                bg: 'bg-red-950/95 border-red-500/40 text-red-50',
-                bar: 'bg-red-500',
-                icon: <XCircle className="w-5 h-5 text-red-400 shrink-0" />,
+                bg: 'bg-red-950/95 border-red-500/50 text-red-50 shadow-red-950/50',
+                bar: 'bg-red-400',
+                icon: <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />,
               },
               warning: {
-                bg: 'bg-amber-950/95 border-amber-500/40 text-amber-50',
-                bar: 'bg-amber-500',
-                icon: <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />,
+                bg: 'bg-amber-950/95 border-amber-500/50 text-amber-50 shadow-amber-950/50',
+                bar: 'bg-amber-400',
+                icon: <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />,
               },
               info: {
-                bg: 'bg-slate-900/95 border-sky-500/40 text-sky-50',
-                bar: 'bg-sky-500',
-                icon: <Info className="w-5 h-5 text-sky-400 shrink-0" />,
+                bg: 'bg-slate-900/95 border-sky-500/50 text-sky-50 shadow-slate-950/50',
+                bar: 'bg-sky-400',
+                icon: <Info className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />,
               },
             }[toast.type];
 
@@ -105,21 +105,21 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 key={toast.id}
                 id={`toast-item-${toast.id}`}
                 layout
-                initial={{ opacity: 0, x: 80, scale: 0.9 }}
-                animate={{ opacity: 1, x: 0, scale: 1 }}
-                exit={{ opacity: 0, x: 100, transition: { duration: 0.15 } }}
-                className={`relative overflow-hidden p-4 rounded-xl shadow-2xl border backdrop-blur-md flex items-start gap-3 pointer-events-auto cursor-pointer ${colors.bg}`}
+                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -15, scale: 0.95, transition: { duration: 0.15 } }}
+                className={`relative overflow-hidden p-3.5 sm:p-4 rounded-xl shadow-2xl border backdrop-blur-md flex items-start gap-3 pointer-events-auto cursor-pointer ${colors.bg}`}
                 onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
               >
                 {/* Visual Icon */}
                 {colors.icon}
 
                 {/* Toast Content */}
-                <div className="flex-1 min-w-0 pr-2">
-                  <h4 className="font-semibold text-sm tracking-tight leading-none mb-1 text-white">
+                <div className="flex-1 min-w-0 pr-1">
+                  <h4 className="font-semibold text-xs sm:text-sm tracking-tight leading-none mb-1 text-white">
                     {toast.title}
                   </h4>
-                  <p className="text-xs leading-relaxed text-slate-300 antialiased font-normal">
+                  <p className="text-xs leading-relaxed text-slate-200 antialiased font-medium">
                     {toast.message}
                   </p>
                 </div>
@@ -131,7 +131,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                     e.stopPropagation();
                     setToasts((prev) => prev.filter((t) => t.id !== toast.id));
                   }}
-                  className="text-slate-400 hover:text-white transition-colors duration-150 p-1 rounded-lg hover:bg-white/10"
+                  className="text-slate-400 hover:text-white transition-colors duration-150 p-1 rounded-lg hover:bg-white/10 shrink-0"
+                  aria-label="Fechar notificação"
                 >
                   <X className="w-4 h-4" />
                 </button>
