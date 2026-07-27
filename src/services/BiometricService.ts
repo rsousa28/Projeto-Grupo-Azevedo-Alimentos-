@@ -233,6 +233,42 @@ export class BiometricService {
   }
 
   /**
+   * Check if biometric login is enabled for a specific user on this device
+   */
+  static isBiometricEnabled(username?: string): boolean {
+    if (!username) return this.getRegisteredCredentials().length > 0;
+    const prefKey = `biometric_enabled_${username.toLowerCase()}`;
+    const pref = localStorage.getItem(prefKey);
+    if (pref === 'false') return false;
+    return this.isRegisteredForUser(username);
+  }
+
+  /**
+   * Explicitly enable or disable biometric login preference for a user
+   */
+  static setBiometricEnabled(username: string, enabled: boolean): void {
+    const prefKey = `biometric_enabled_${username.toLowerCase()}`;
+    localStorage.setItem(prefKey, enabled ? 'true' : 'false');
+  }
+
+  /**
+   * Toggle biometric login for a logged-in user (Registers if enabling & not yet registered, or disables/unregisters)
+   */
+  static async toggleBiometricForUser(user: User, enable: boolean): Promise<boolean> {
+    if (enable) {
+      if (!this.isRegisteredForUser(user.username)) {
+        await this.registerCredential(user);
+      }
+      this.setBiometricEnabled(user.username, true);
+      return true;
+    } else {
+      this.setBiometricEnabled(user.username, false);
+      this.unregisterUser(user.username);
+      return false;
+    }
+  }
+
+  /**
    * Remove biometric registration for a username
    */
   static unregisterUser(username: string): void {
@@ -240,5 +276,6 @@ export class BiometricService {
       (c) => c.username.toLowerCase() !== username.toLowerCase()
     );
     localStorage.setItem(STORAGE_KEY, JSON.stringify(creds));
+    localStorage.setItem(`biometric_enabled_${username.toLowerCase()}`, 'false');
   }
 }

@@ -226,37 +226,7 @@ export default function Login() {
                 </div>
               </div>
 
-              {/* Biometric Status / Discrete Trigger Indicator */}
-              {biometricSupported && (
-                <div className="flex items-center gap-2">
-                  {registeredBioUsers.length > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => handleBiometricLogin(registeredBioUsers[0]?.username, false)}
-                      disabled={biometricLoading}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFCB05]/15 hover:bg-[#FFCB05]/30 text-[#7F300C] border border-[#FFCB05]/30 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-2xs active:scale-95 disabled:opacity-50"
-                      title="Clique para autenticar com Face ID / Touch ID"
-                    >
-                      {biometricLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#7F300C]" />
-                      ) : (
-                        <ScanFace className="w-3.5 h-3.5 text-[#7F300C]" />
-                      )}
-                      <span>Usar Face ID</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setShowRegisterModal(true)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-full text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-2xs"
-                      title="Cadastrar leitura biométrica"
-                    >
-                      <Fingerprint className="w-3.5 h-3.5 text-slate-500" />
-                      <span>+ Ativar Face ID</span>
-                    </button>
-                  )}
-                </div>
-              )}
+
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">

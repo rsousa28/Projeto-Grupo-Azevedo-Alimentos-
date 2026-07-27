@@ -13,9 +13,12 @@ import {
   Settings, 
   Sparkles, 
   Volume2, 
+  ScanFace,
   X 
 } from 'lucide-react';
 import { NotificationService, NotificationPreferences, NotificationLogItem } from '../services/NotificationService';
+import { BiometricService } from '../services/BiometricService';
+import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
 
@@ -26,7 +29,10 @@ export default function NotificationCenter() {
   const [preferences, setPreferences] = useState<NotificationPreferences>(NotificationService.getPreferences());
   const [logs, setLogs] = useState<NotificationLogItem[]>([]);
   const [testing, setTesting] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(false);
 
+  const { user } = useAuth();
   const { isDarkMode, currentStore } = useStore();
   const { success, warning, error: toastError } = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -34,7 +40,33 @@ export default function NotificationCenter() {
   useEffect(() => {
     setPermission(NotificationService.getPermission());
     setLogs(NotificationService.getLogs());
-  }, [isOpen]);
+    
+    if (user) {
+      setBiometricSupported(BiometricService.isSupported());
+      setBiometricEnabled(BiometricService.isBiometricEnabled(user.username));
+    }
+  }, [isOpen, user]);
+
+  const handleToggleBiometric = async () => {
+    if (!user) return;
+    if (!BiometricService.isSupported()) {
+      toastError('Biometria não é suportada neste navegador.');
+      return;
+    }
+
+    try {
+      const nextState = !biometricEnabled;
+      await BiometricService.toggleBiometricForUser(user, nextState);
+      setBiometricEnabled(nextState);
+      if (nextState) {
+        success('Login por Face ID / Touch ID ativado com sucesso!', 'Biometria Ativada');
+      } else {
+        warning('Login biométrico desativado.', 'Biometria Desativada');
+      }
+    } catch (e: any) {
+      toastError(e.message || 'Erro ao alterar biometria');
+    }
+  };
 
   // Close popover when clicking outside
   useEffect(() => {
@@ -277,7 +309,44 @@ export default function NotificationCenter() {
               {/* Tab: Settings */}
               {activeTab === 'settings' && (
                 <div className="space-y-4">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                  {/* Biometric Toggle Section */}
+                  {user && (
+                    <>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+                        Segurança & Acesso
+                      </span>
+
+                      <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
+                        isDarkMode ? 'bg-[#202020] border-[#303030]' : 'bg-slate-50 border-slate-100'
+                      }`}>
+                        <div className="flex items-center gap-2.5">
+                          <ScanFace className="w-4 h-4 text-amber-500 shrink-0" />
+                          <div>
+                            <div className="text-xs font-black uppercase italic tracking-tight">
+                              Login Biométrico (Face ID)
+                            </div>
+                            <div className="text-[9.5px] text-slate-500 font-medium">
+                              {biometricSupported ? 'Entrar com sensores de hardware' : 'Não suportado no navegador'}
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleToggleBiometric}
+                          disabled={!biometricSupported}
+                          className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-0.5 cursor-pointer disabled:opacity-40 ${
+                            biometricEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
+                            biometricEnabled ? 'translate-x-5' : 'translate-x-0'
+                          }`} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block pt-1">
                     Configuração de Lembretes Automáticos
                   </span>
 

@@ -33,6 +33,7 @@ import { User } from '../types';
 import NotificationCenter from './NotificationCenter';
 import BackupStatusIndicator from './BackupStatusIndicator';
 import OfflineSyncBadge from './OfflineSyncBadge';
+import SettingsModal from './SettingsModal';
 import { NotificationService } from '../services/NotificationService';
 
 interface NavItem {
@@ -66,6 +67,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [headerDropdownOpen, setHeaderDropdownOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { currentStore, setStore, isDarkMode, toggleDarkMode, brandColors } = useStore();
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -406,6 +408,19 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               {/* Local Push Notification Center & Manager Alerts */}
               <NotificationCenter />
 
+              {/* Settings Menu Button */}
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                title="Configurações do Usuário e Biometria"
+                className={`p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center ${
+                  isDarkMode 
+                    ? 'bg-[#1E1E1E] border-[#2A2A2A] text-slate-300 hover:bg-[#252525] hover:text-white' 
+                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                }`}
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+
               {/* Elegant Global Dark/Light Mode Toggle */}
               <button
                 onClick={toggleDarkMode}
@@ -419,7 +434,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 {isDarkMode ? <Sun className="w-4 h-4 animate-spin-slow" /> : <Moon className="w-4 h-4" />}
               </button>
 
-              <div className="text-right max-w-[90px] xs:max-w-[120px] sm:max-w-none">
+              <div 
+                onClick={() => setIsSettingsOpen(true)}
+                className="text-right max-w-[90px] xs:max-w-[120px] sm:max-w-none cursor-pointer hover:opacity-80 transition-opacity"
+                title="Clique para abrir as Configurações"
+              >
                 <div className={`text-xs sm:text-sm font-black uppercase tracking-tighter italic leading-none mb-1 truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                   {user?.username || user?.name || 'Visitante'}
                 </div>
@@ -445,6 +464,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           </div>
         </div>
       </main>
+
+      {/* User Settings & Biometrics Modal */}
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </div>
   );
 }
