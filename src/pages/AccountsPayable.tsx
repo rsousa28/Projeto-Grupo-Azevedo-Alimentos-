@@ -34,12 +34,15 @@ import {
   ZoomIn,
   ZoomOut,
   RotateCcw,
-  Mail
+  Mail,
+  CheckCircle2,
+  Cloud
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
+import { NotificationService } from '../services/NotificationService';
 import { AccountPayable } from '../types';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -542,6 +545,98 @@ export default function AccountsPayable() {
   const [formInstallments, setFormInstallments] = useState('1'); // total installments generator
   const [attachedFileBase64, setAttachedFileBase64] = useState<string | null>(null);
   const [attachedNFBase64, setAttachedNFBase64] = useState<string | null>(null);
+
+  // Auto-Save status tracking for Accounts Payable form
+  const [apSaveStatus, setApSaveStatus] = useState<'IDLE' | 'SAVING' | 'SAVED'>('IDLE');
+  const [apLastSavedTime, setApLastSavedTime] = useState<string | null>(null);
+
+  // Auto-save form draft whenever form values change when showAddModal is active
+  useEffect(() => {
+    if (!showAddModal) return;
+    
+    // Only save if user started typing something
+    if (!formSupplier && !formValue && !formBarcode && !formDocumentNumber && !formNotes) {
+      setApSaveStatus('IDLE');
+      return;
+    }
+
+    setApSaveStatus('SAVING');
+    const saveApDraft = () => {
+      try {
+        const draft = {
+          formSupplier,
+          formDescription,
+          formCategory,
+          formCostCenter,
+          formValue,
+          formInterest,
+          formFine,
+          formDiscount,
+          formIssueDate,
+          formDueDate,
+          formPaymentMethod,
+          formBank,
+          formBarcode,
+          formDocumentNumber,
+          formNotes,
+          formStoreId
+        };
+        localStorage.setItem(`g_azevedo_ap_form_draft_${currentStore.id}`, JSON.stringify(draft));
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setApLastSavedTime(timeStr);
+        setApSaveStatus('SAVED');
+      } catch (err) {
+        console.warn("Erro ao salvar rascunho de contas a pagar:", err);
+        setApSaveStatus('IDLE');
+      }
+    };
+
+    const timer = setTimeout(saveApDraft, 500);
+    return () => clearTimeout(timer);
+  }, [
+    showAddModal,
+    formSupplier,
+    formDescription,
+    formCategory,
+    formCostCenter,
+    formValue,
+    formInterest,
+    formFine,
+    formDiscount,
+    formIssueDate,
+    formDueDate,
+    formPaymentMethod,
+    formBank,
+    formBarcode,
+    formDocumentNumber,
+    formNotes,
+    formStoreId,
+    currentStore.id
+  ]);
+
+  // Auto-restore form draft when opening showAddModal if present
+  useEffect(() => {
+    if (showAddModal) {
+      const storedDraft = localStorage.getItem(`g_azevedo_ap_form_draft_${currentStore.id}`);
+      if (storedDraft) {
+        try {
+          const d = JSON.parse(storedDraft);
+          if (d.formSupplier && !formSupplier) setFormSupplier(d.formSupplier);
+          if (d.formDescription && !formDescription) setFormDescription(d.formDescription);
+          if (d.formValue && !formValue) setFormValue(d.formValue);
+          if (d.formBarcode && !formBarcode) setFormBarcode(d.formBarcode);
+          if (d.formDocumentNumber && !formDocumentNumber) setFormDocumentNumber(d.formDocumentNumber);
+          if (d.formNotes && !formNotes) setFormNotes(d.formNotes);
+          if (d.formCategory) setFormCategory(d.formCategory);
+          if (d.formCostCenter) setFormCostCenter(d.formCostCenter);
+          if (d.formDueDate) setFormDueDate(d.formDueDate);
+          setApSaveStatus('SAVED');
+        } catch (e) {
+          console.warn("Erro ao restaurar rascunho:", e);
+        }
+      }
+    }
+  }, [showAddModal]);
 
   // Dynamically update formDueDate and formIssueDate when active period (selectedMonth/selectedYear) changes
   useEffect(() => {
@@ -1224,10 +1319,20 @@ export default function AccountsPayable() {
       setFormInstallments('1');
       setAttachedFileBase64(null);
       setAttachedNFBase64(null);
+      localStorage.removeItem(`g_azevedo_ap_form_draft_${currentStore.id}`);
 
       setShowAddModal(false);
       setIsSubmitting(false);
       showToast(intCount > 1 ? `Lançamento concluído! ${intCount} parcelas geradas de forma automatizada.` : 'Conta cadastrada com sucesso!', "success");
+
+      // Dispatch real-time push notification and recalculate hourly AP report
+      NotificationService.notifyAccountsPayableChanged({
+        action: 'CREATED',
+        supplier: formSupplier,
+        value: Number(formValue) || 0,
+        storeName: currentStore.name,
+        userName: user?.name || user?.username,
+      });
     }, 800);
   };
 
@@ -1268,6 +1373,15 @@ export default function AccountsPayable() {
 
     // Dynamic prompt simulation / cash flow integration
     showToast(`[Fluxo de Caixa] Conta marcada como paga! Lançamento de ${formatValueBrl(finalPaidAmount)} incluído com sucesso no extrato operacional.`, "success");
+
+    // Dispatch real-time push notification and recalculate hourly AP report
+    NotificationService.notifyAccountsPayableChanged({
+      action: 'PAID',
+      supplier: selectedPayAccount.supplier,
+      value: finalPaidAmount,
+      storeName: currentStore.name,
+      userName: user?.name || user?.username,
+    });
 
     setShowPaymentModal(false);
     setSelectedPayAccount(null);
@@ -1343,11 +1457,20 @@ export default function AccountsPayable() {
   // Perform actual single delete when confirmed in modal
   const handleSingleDeleteConfirm = () => {
     if (!deleteTarget) return;
+    const deletedSupplier = deleteTarget.supplier;
     const updated = accounts.filter(ac => ac.id !== deleteTarget.id);
     setAccounts(updated);
     saveAccountsToStorage(updated);
     setDeleteTarget(null);
     showToast('Conta excluída.', "success");
+
+    NotificationService.notifyAccountsPayableChanged({
+      action: 'DELETED',
+      supplier: deletedSupplier,
+      value: 0,
+      storeName: currentStore.name,
+      userName: user?.name || user?.username,
+    });
   };
 
   const handleSaveEdit = (e: React.FormEvent) => {
@@ -1375,6 +1498,15 @@ export default function AccountsPayable() {
     });
     setAccounts(updated);
     saveAccountsToStorage(updated);
+    
+    NotificationService.notifyAccountsPayableChanged({
+      action: 'UPDATED',
+      supplier: editSupplier,
+      value: valueNum,
+      storeName: currentStore.name,
+      userName: user?.name || user?.username,
+    });
+
     setEditingAccount(null);
     showToast('Boleto atualizado com sucesso!', 'success');
   };
@@ -4294,11 +4426,29 @@ export default function AccountsPayable() {
             >
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200 dark:border-[#222]">
                 <div>
-                  <h3 className="text-xl font-black italic uppercase tracking-tighter leading-none text-slate-900 dark:text-white">
-                    Novo Lançamento
-                  </h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-black italic uppercase tracking-tighter leading-none text-slate-900 dark:text-white">
+                      Novo Lançamento
+                    </h3>
+                    {/* Auto-Save Indicator */}
+                    {apSaveStatus === 'SAVING' && (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full animate-pulse border border-amber-500/20">
+                        <RefreshCw className="w-3 h-3 animate-spin" /> Salvando Rascunho...
+                      </span>
+                    )}
+                    {apSaveStatus === 'SAVED' && (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                        <CheckCircle2 className="w-3 h-3" /> Salvo {apLastSavedTime ? `(${apLastSavedTime})` : ''}
+                      </span>
+                    )}
+                    {apSaveStatus === 'IDLE' && (
+                      <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 bg-slate-500/10 px-2 py-0.5 rounded-full border border-slate-500/20">
+                        <Cloud className="w-3 h-3" /> Auto-Save Ativo
+                      </span>
+                    )}
+                  </div>
                   <p className="text-slate-400 text-[10px] tracking-wider uppercase font-black mt-1">
-                    Preencha as informações do boleto manualmente abaixo
+                    Preencha as informações do boleto com salvamento em tempo real
                   </p>
                 </div>
                 <button

@@ -1,5 +1,5 @@
 import { db } from '../lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
 import { STORES } from '../contexts/StoreContext';
 
 export interface NotificationPreferences {
@@ -24,6 +24,42 @@ export interface NotificationLogItem {
 
 const PREFS_KEY = 'grupo_azevedo_notification_prefs';
 const LOGS_KEY = 'grupo_azevedo_notification_logs';
+const PROCESSED_NOTIFS_KEY = 'grupo_azevedo_processed_notif_ids';
+
+let currentDeviceId: string | null = null;
+
+function getDeviceId(): string {
+  if (currentDeviceId) return currentDeviceId;
+  let stored = sessionStorage.getItem('g_azevedo_device_id');
+  if (!stored) {
+    stored = `dev_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    sessionStorage.setItem('g_azevedo_device_id', stored);
+  }
+  currentDeviceId = stored;
+  return currentDeviceId;
+}
+
+function isNotifProcessedLocally(notifId: string): boolean {
+  try {
+    const raw = localStorage.getItem(PROCESSED_NOTIFS_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    return list.includes(notifId);
+  } catch {
+    return false;
+  }
+}
+
+function markNotifProcessedLocally(notifId: string): void {
+  try {
+    const raw = localStorage.getItem(PROCESSED_NOTIFS_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    list.unshift(notifId);
+    const trimmed = list.slice(0, 50);
+    localStorage.setItem(PROCESSED_NOTIFS_KEY, JSON.stringify(trimmed));
+  } catch {
+    // ignore
+  }
+}
 
 const DEFAULT_PREFS: NotificationPreferences = {
   enabled: true,
@@ -34,6 +70,62 @@ const DEFAULT_PREFS: NotificationPreferences = {
 };
 
 export class NotificationService {
+  private static unsubscribeRealtime: (() => void) | null = null;
+
+  /**
+   * Initialize real-time Firestore listener for notifications across all devices
+   */
+  static initRealtimeListener(): () => void {
+    if (this.unsubscribeRealtime) return this.unsubscribeRealtime;
+
+    try {
+      const q = query(
+        collection(db, 'global_notifications'),
+        orderBy('createdAt', 'desc'),
+        limit(20)
+      );
+
+      let isInitialLoad = true;
+
+      const unsub = onSnapshot(q, (snapshot) => {
+        if (isInitialLoad) {
+          isInitialLoad = false;
+          snapshot.docs.forEach(docSnap => markNotifProcessedLocally(docSnap.id));
+          return;
+        }
+
+        snapshot.docChanges().forEach(change => {
+          if (change.type === 'added') {
+            const data = change.doc.data();
+            const notifId = change.doc.id;
+
+            if (data && data.createdByDeviceId !== getDeviceId() && !isNotifProcessedLocally(notifId)) {
+              markNotifProcessedLocally(notifId);
+              
+              // Trigger local push notification & in-app floating banner for remote update
+              this.sendPushNotification(data.title || '🔔 Notificação Grupo Azevedo', {
+                body: data.body || '',
+                type: data.type || 'SYSTEM',
+                tag: data.tag || 'remote_notif',
+                url: data.url || '/accounts-payable',
+                icon: data.icon || '/logo_azevedo.svg',
+                skipFirestoreSync: true, // Prevent infinite loop back to Firestore
+              });
+            }
+          }
+        });
+      }, (err) => {
+        console.warn("Erro ao escutar notificações em tempo real:", err);
+      });
+
+      this.unsubscribeRealtime = unsub;
+      return unsub;
+    } catch (err) {
+      console.warn("Falha ao inicializar listener de notificações em tempo real:", err);
+      return () => {};
+    }
+  }
+
   /**
    * Check if Web Notifications API is supported
    */
@@ -91,7 +183,7 @@ export class NotificationService {
   }
 
   /**
-   * Send a local push browser notification
+   * Send a local push browser notification & broadcast to Firestore for cross-device delivery
    */
   static sendPushNotification(
     title: string,
@@ -101,11 +193,34 @@ export class NotificationService {
       icon?: string;
       tag?: string;
       url?: string;
+      skipFirestoreSync?: boolean;
     }
   ): boolean {
     const type = options.type || 'SYSTEM';
+
+    // 1. Broadcast to Firestore for real-time delivery to mobile phones and other devices
+    if (!options.skipFirestoreSync) {
+      try {
+        const notifDocRef = doc(collection(db, 'global_notifications'));
+        setDoc(notifDocRef, {
+          id: notifDocRef.id,
+          title,
+          body: options.body,
+          type,
+          tag: options.tag || 'grupo_azevedo_alert',
+          url: options.url || '/accounts-payable',
+          icon: options.icon || '/logo_azevedo.svg',
+          createdAt: new Date().toISOString(),
+          createdByDeviceId: getDeviceId(),
+        }).catch(err => console.warn('Error broadcasting notification to Firestore:', err));
+
+        markNotifProcessedLocally(notifDocRef.id);
+      } catch (e) {
+        console.warn("Firestore notification broadcast failed:", e);
+      }
+    }
     
-    // Save to history log
+    // 2. Save to local history log
     this.addLogItem({
       id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       title,
@@ -115,7 +230,7 @@ export class NotificationService {
       read: false,
     });
 
-    // 1. Dispatch custom window event for in-app floating banner & toast
+    // 3. Dispatch custom window event for in-app floating banner & toast
     try {
       window.dispatchEvent(
         new CustomEvent('app_push_notification', {
@@ -131,7 +246,7 @@ export class NotificationService {
       console.warn('Error dispatching app_push_notification event:', e);
     }
 
-    // 2. Try ServiceWorker push notification (most reliable on mobile & PWA)
+    // 4. Try ServiceWorker push notification (most reliable on mobile & PWA)
     const hasPermission = typeof Notification !== 'undefined' && Notification.permission === 'granted';
 
     if ('serviceWorker' in navigator && hasPermission) {
@@ -168,7 +283,7 @@ export class NotificationService {
       }).catch(() => {});
     }
 
-    // 3. Fallback to standard window Notification constructor
+    // 5. Fallback to standard window Notification constructor
     if (this.isSupported() && Notification.permission === 'granted') {
       try {
         const notif = new Notification(title, {
@@ -256,6 +371,46 @@ export class NotificationService {
       tag: `cash_closed_${data.storeName}_${data.date}_${Date.now()}`,
       url: '/cash-closing',
     });
+  }
+
+  /**
+   * Dispatch real-time push notification when any user creates, updates, pays, or deletes an Account Payable
+   */
+  static notifyAccountsPayableChanged(data: {
+    action: 'CREATED' | 'UPDATED' | 'PAID' | 'DELETED';
+    supplier: string;
+    value: number;
+    storeName: string;
+    userName?: string;
+  }): boolean {
+    const prefs = this.getPreferences();
+    if (!prefs.enabled) return false;
+
+    const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const actionMap = {
+      CREATED: '📝 Nova Conta Cadastrada',
+      UPDATED: '✏️ Conta Atualizada',
+      PAID: '✅ Pagamento Confirmado',
+      DELETED: '🗑️ Conta Removida'
+    };
+
+    const actionText = actionMap[data.action] || 'Alteração em Contas a Pagar';
+    const title = `💳 ${actionText}: ${data.storeName}`;
+    const body = `Fornecedor: ${data.supplier}\n• Valor: ${fmt(data.value)}\n• Responsável: ${data.userName || 'Usuário'}\n• Loja: ${data.storeName}`;
+
+    const sent = this.sendPushNotification(title, {
+      body,
+      type: 'PAYABLE_HOURLY',
+      tag: `payable_change_${Date.now()}`,
+      url: '/accounts-payable',
+    });
+
+    // Automatically trigger fresh hourly report calculation and sync across devices
+    setTimeout(() => {
+      this.triggerAccountsPayableReport();
+    }, 1000);
+
+    return sent;
   }
 
   /**

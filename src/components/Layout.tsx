@@ -90,6 +90,14 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     }
   }, [currentStore.code, location.pathname, navigate]);
 
+  // Initialize cross-device real-time notification listener
+  React.useEffect(() => {
+    const unsub = NotificationService.initRealtimeListener();
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, []);
+
   // Routine manager check for pending checklist and cash closing notifications
   React.useEffect(() => {
     if (!currentStore.id || currentStore.code === 'ROOT') return;

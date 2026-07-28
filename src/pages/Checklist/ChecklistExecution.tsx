@@ -12,7 +12,11 @@ import {
   Thermometer,
   FileText,
   Clock,
-  ArrowRight
+  ArrowRight,
+  CheckCircle2,
+  RefreshCw,
+  Cloud,
+  Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore } from '../../contexts/StoreContext';
@@ -66,6 +70,10 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
   const [loadingDraft, setLoadingDraft] = useState(true);
   const [zoomedExecutionPhoto, setZoomedExecutionPhoto] = useState<string | null>(null);
 
+  // Auto-Save status tracking
+  const [saveStatus, setSaveStatus] = useState<'IDLE' | 'SAVING' | 'SAVED'>('IDLE');
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+
   // Initialize answers with defaults where appropriate, merged with existing draft
   useEffect(() => {
     const loadAndInit = async () => {
@@ -95,6 +103,9 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
           if (draftData.photos) setPhotos(draftData.photos);
           if (draftData.observations) setObservations(draftData.observations);
           if (draftData.signatures) setSignatures(draftData.signatures);
+          setSaveStatus('SAVED');
+          const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          setLastSavedTime(timeStr);
         } else {
           setAnswers(initialAnswers);
         }
@@ -109,20 +120,25 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
     loadAndInit();
   }, [template, currentStore.id]);
 
-  // Debounced auto-saving of draft to Firestore
+  // Debounced auto-saving of draft to Firestore & local cache
   useEffect(() => {
     if (loadingDraft) return;
 
     const saveDraft = async () => {
       try {
+        setSaveStatus('SAVING');
         const draftDocRef = doc(db, 'stores', currentStore.id, 'checklists', `draft_${template.id}`);
         
         // Find how many questions have been answered of the total
         const answeredKeys = Object.keys(answers).filter(k => answers[k] !== '');
         const answersCount = answeredKeys.length;
 
-        if (Object.keys(answers).length === 0) return;
+        if (Object.keys(answers).length === 0) {
+          setSaveStatus('IDLE');
+          return;
+        }
 
+        const nowIso = new Date().toISOString();
         await setDocCached(draftDocRef, {
           templateId: template.id,
           templateTitle: template.title,
@@ -130,8 +146,8 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
           storeId: currentStore.id,
           storeName: currentStore.name,
           startedBy: user?.name || user?.username || 'Colaborador',
-          startedAt: new Date().toISOString(), // Keep track of progress
-          updatedAt: new Date().toISOString(),
+          startedAt: nowIso,
+          updatedAt: nowIso,
           answers,
           photos,
           observations,
@@ -140,14 +156,19 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
           questionsCount: template.questions.length,
           status: 'IN_PROGRESS'
         }, currentStore.id, user);
+
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        setLastSavedTime(timeStr);
+        setSaveStatus('SAVED');
       } catch (err) {
         console.warn("Erro ao salvar rascunho de checklist:", err);
+        setSaveStatus('IDLE');
       }
     };
 
     const delayDebounceFn = setTimeout(() => {
       saveDraft();
-    }, 1200); // 1.2s debounce
+    }, 600); // 600ms rapid auto-save
 
     return () => clearTimeout(delayDebounceFn);
   }, [answers, photos, observations, signatures, loadingDraft, template.id, currentStore.id, user]);
@@ -533,9 +554,33 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
         </span>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <h2 className={`text-2xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{template.title}</h2>
-        <p className="text-xs text-slate-500">{template.description}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col gap-1">
+          <h2 className={`text-2xl font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{template.title}</h2>
+          <p className="text-xs text-slate-500">{template.description}</p>
+        </div>
+
+        {/* Auto-Save Visual Feedback Indicator */}
+        <div className="flex items-center gap-2 shrink-0">
+          {saveStatus === 'SAVING' && (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 animate-pulse">
+              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+              <span>Salvando alterações...</span>
+            </span>
+          )}
+          {saveStatus === 'SAVED' && (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Salvo no Firestore {lastSavedTime ? `(${lastSavedTime})` : ''}</span>
+            </span>
+          )}
+          {saveStatus === 'IDLE' && (
+            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-slate-500/10 text-slate-400 border border-slate-500/20">
+              <Cloud className="w-3.5 h-3.5" />
+              <span>Auto-Save Ativo</span>
+            </span>
+          )}
+        </div>
       </div>
 
       {errorMsg && (
