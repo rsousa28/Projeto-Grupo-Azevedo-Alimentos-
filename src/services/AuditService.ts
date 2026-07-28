@@ -71,27 +71,8 @@ export const AuditService = {
         metadata: params.metadata || {}
       };
 
-      if (params.action === 'PAGE_VIEW') {
-        // Guardar localmente no LocalStorage do cliente para poupar a cota de gravação do Firebase (plano gratuito)
-        let localLogs: AuditLog[] = [];
-        try {
-          const localLogsStr = localStorage.getItem('g_azevedo_local_page_views') || '[]';
-          localLogs = JSON.parse(localLogsStr);
-        } catch (e) {
-          localLogs = [];
-        }
-        
-        // Atribuir uma identificação única local
-        payload.id = `local-pv-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-        localLogs.push(payload);
-        
-        // Manter no máximo 150 visualizações recentes para não sobrecarregar o LocalStorage
-        if (localLogs.length > 150) {
-          localLogs.shift();
-        }
-        
-        localStorage.setItem('g_azevedo_local_page_views', JSON.stringify(localLogs));
-        return;
+      if (params.action === 'PAGE_VIEW' || params.action === 'STORE_CHANGE') {
+        return; // Ignore routine page navigation and store switching logs
       }
 
       // Escrita real no Firestore apenas para ações críticas de auditoria/segurança
@@ -109,6 +90,11 @@ export const AuditService = {
     lastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null = null
   ): Promise<PaginatedAuditResult> {
     try {
+      // Clean up legacy local page view logs
+      try {
+        localStorage.removeItem('g_azevedo_local_page_views');
+      } catch (e) {}
+
       const logsRef = collection(db, 'audit_logs');
       const q = lastVisibleDoc
         ? query(logsRef, orderBy('timestamp', 'desc'), startAfter(lastVisibleDoc), limit(pageSize))
@@ -121,29 +107,26 @@ export const AuditService = {
       if (!querySnapshot.empty) {
         newLastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
         querySnapshot.forEach((doc) => {
-          firestoreLogs.push({
-            id: doc.id,
-            ...doc.data()
-          } as AuditLog);
+          const data = doc.data() as AuditLog;
+          // Filter out navigation/store-change noise from audit logs
+          if (
+            data.action !== 'PAGE_VIEW' && 
+            data.action !== 'STORE_CHANGE' &&
+            !data.description?.startsWith('Acessou') &&
+            !data.description?.startsWith('Selecionou a unidade')
+          ) {
+            firestoreLogs.push({
+              id: doc.id,
+              ...data
+            });
+          }
         });
       }
 
-      // Merge local page view logs only on first page load
-      let localLogs: AuditLog[] = [];
-      if (!lastVisibleDoc) {
-        try {
-          const localLogsStr = localStorage.getItem('g_azevedo_local_page_views') || '[]';
-          localLogs = JSON.parse(localLogsStr);
-        } catch (e) {
-          localLogs = [];
-        }
-      }
-
-      const combined = [...firestoreLogs, ...localLogs];
-      combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      firestoreLogs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
       return {
-        logs: combined,
+        logs: firestoreLogs,
         lastDoc: newLastDoc,
         hasMore: querySnapshot.docs.length === pageSize
       };

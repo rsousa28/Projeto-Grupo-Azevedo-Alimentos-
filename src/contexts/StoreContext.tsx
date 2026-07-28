@@ -335,18 +335,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       { name: 'Meta', valor: 0, color: store.brand === 'BEBELU' ? '#7F300C' : '#8884d8' },
       { name: 'Realizado', valor: 0, color: store.brand === 'BEBELU' ? '#FFCB05' : '#0066FF' },
     ]);
-
-    if (user) {
-      AuditService.logAction({
-        userId: user.id,
-        userName: user.name,
-        userRole: user.role,
-        action: 'STORE_CHANGE',
-        description: `Selecionou a unidade '${store.name}' (${store.code || 'sem código'}) como ativa.`,
-        storeCode: store.code,
-        storeName: store.name
-      }).catch(err => console.error("Error logging store change: ", err));
-    }
   };
 
   // EFFECT: Enforce store permissions role constraint on user/auth changes or mount

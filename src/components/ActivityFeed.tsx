@@ -46,6 +46,16 @@ export default function ActivityFeed({ limitCount = 10, className = '' }: Activi
 
   // Filter logs by selected category
   const filteredLogs = logs.filter(log => {
+    // Ignore routine navigation and store switching noise
+    if (
+      log.action === 'PAGE_VIEW' || 
+      log.action === 'STORE_CHANGE' ||
+      log.description?.startsWith('Acessou') ||
+      log.description?.startsWith('Selecionou a unidade')
+    ) {
+      return false;
+    }
+
     if (filterType === 'ALL') return true;
     if (filterType === 'CASH') return log.action === 'CASH_CLOSING_SAVE';
     if (filterType === 'PAYABLE') return log.action.includes('ACCOUNT_PAYABLE');

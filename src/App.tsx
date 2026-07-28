@@ -138,91 +138,11 @@ function MarketingAccessRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function AuditNavigationTracker() {
-  const { user } = useAuth();
-  const location = useLocation();
-  const prevPathRef = useRef<string>("");
-
-  useEffect(() => {
-    if (!user) return;
-
-    // Evita duplicidade de logs rápidos da mesma rota
-    if (prevPathRef.current === location.pathname) return;
-    prevPathRef.current = location.pathname;
-
-    let routeDescription = "";
-    switch (location.pathname) {
-      case "/dashboard":
-        routeDescription = "Acessou o Painel Geral (Dashboard).";
-        break;
-      case "/cash-closing":
-        routeDescription = "Acessou o módulo de Fechamento de Caixa.";
-        break;
-      case "/data-entry":
-        routeDescription =
-          "Acessou o módulo de Lançamento de Gastos / Despesas.";
-        break;
-      case "/finance":
-        routeDescription = "Visualizou o Demonstrativo DRE / Fluxo Financeiro.";
-        break;
-      case "/marketing":
-        routeDescription = "Acessou o Módulo de Marketing.";
-        break;
-      case "/accounts-payable":
-        routeDescription = "Abriu a Gestão de Contas a Pagar.";
-        break;
-      case "/daily-control":
-        routeDescription = "Acessou o controle de Despesas Diárias e Vales de Funcionários.";
-        break;
-      case "/checklist":
-        routeDescription =
-          "Acessou as rotinas de Checklist e Auditoria Corretiva.";
-        break;
-      case "/audit-logs":
-        routeDescription = "Investigou os logs na Auditoria de Segurança.";
-        break;
-      case "/security-summary":
-        routeDescription =
-          "Visualizou o Resumo e a Central de Segurança Heurística.";
-        break;
-      case "/backups":
-        routeDescription =
-          "Acessou o gerenciador de Backups e Rollbacks do sistema.";
-        break;
-      case "/diagnostics":
-        routeDescription =
-          "Iniciou a varredura e diagnóstico de dados (Deep Scan).";
-        break;
-      case "/team":
-        routeDescription = "Consultou o controle de Colaboradores e Equipes.";
-        break;
-      case "/select-store":
-        routeDescription = "Carregou a tela de seleção das lojas operacionais.";
-        break;
-      default:
-        return;
-    }
-
-    AuditService.logAction({
-      userId: user.id || "anonymous",
-      userName: user.name || "unknown",
-      userRole: user.role || "NONE",
-      action: "PAGE_VIEW",
-      description: routeDescription,
-    }).catch((err) =>
-      console.error("Erro ao registrar log de navegação:", err),
-    );
-  }, [location.pathname, user]);
-
-  return null;
-}
-
 function AppRoutes() {
   const { user } = useAuth();
 
   return (
     <Router>
-      <AuditNavigationTracker />
       <Suspense fallback={<PageLoadingFallback />}>
         <Routes>
           <Route path="/login" element={<Login />} />
