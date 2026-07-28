@@ -148,6 +148,18 @@
       "schema": "ChecklistActionPlans",
       "description": "Action plans logs"
     },
+    "/stores/{storeId}/checklist_submissions/{submissionId}": {
+      "schema": "object",
+      "description": "Individual checklist submissions"
+    },
+    "/stores/{storeId}/action_plans/{planId}": {
+      "schema": "object",
+      "description": "Individual action plans"
+    },
+    "/stores/{storeId}/budget_periods/{periodId}": {
+      "schema": "object",
+      "description": "Monthly store budget configuration"
+    },
     "/stores/{storeId}/accounts_payable/all": {
       "schema": "AccountsPayable",
       "description": "All accounts payable items"

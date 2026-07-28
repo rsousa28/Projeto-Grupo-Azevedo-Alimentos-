@@ -35,6 +35,7 @@ import BackupStatusIndicator from './BackupStatusIndicator';
 import OfflineSyncBadge from './OfflineSyncBadge';
 import SettingsModal from './SettingsModal';
 import { NotificationService } from '../services/NotificationService';
+import { BackupService } from '../services/BackupService';
 import { useToast } from '../contexts/ToastContext';
 
 interface NavItem {
@@ -93,7 +94,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   React.useEffect(() => {
     if (!currentStore.id || currentStore.code === 'ROOT') return;
 
-    const runRoutineCheck = () => {
+    const runRoutineCheck = async () => {
       const todayStr = new Date().toISOString().split('T')[0];
 
       // Check if checklist complete today
@@ -132,6 +133,17 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
       // Check hourly Accounts Payable report reminder
       NotificationService.checkAccountsPayableHourlyReminder();
+
+      // Automated daily cloud backup check (Data Loss Prevention)
+      try {
+        const backupHealth = await BackupService.getHealthStatus();
+        if (!backupHealth.hasRecentBackup) {
+          console.log('[Auto-Backup] No recent backup found (< 24h). Creating automated cloud backup...');
+          await BackupService.createBackup(user?.username || 'sistema', 'auto');
+        }
+      } catch (backupErr) {
+        console.warn('[Auto-Backup] Background check error:', backupErr);
+      }
     };
 
     runRoutineCheck();

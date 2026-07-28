@@ -49,7 +49,8 @@ import { AuditService } from "../services/AuditService";
 import DataEntrySection from "../components/DataEntrySection";
 import { chatWithConsultant } from "../services/geminiService";
 import { DREData } from "../types";
-import { getDocCached } from "../lib/firestoreQueryCache";
+import { getDocCached, setDocCached } from "../lib/firestoreQueryCache";
+import { sanitizeForFirestore } from "../utils/firestoreSanitizer";
 
 const monthsGlobal = [
   { value: "01", label: "Janeiro" },
@@ -577,7 +578,7 @@ export default function Finance() {
   const fetchBudgetsForYear = async (year: string) => {
     setIsLoadingBudgets(true);
     try {
-      const { doc, getDoc } = await import("firebase/firestore");
+      const { doc } = await import("firebase/firestore");
       const { db } = await import("../lib/firebase");
       
       const monthsList = ["01", "02", "03", "04", "05", "06", "07", "08", "09", "10", "11", "12"];
@@ -586,7 +587,7 @@ export default function Finance() {
       for (const m of monthsList) {
         const periodId = `${year}-${m}`;
         const docRef = doc(db, 'stores', currentStore.id, 'budget_periods', periodId);
-        const snap = await getDoc(docRef);
+        const snap = await getDocCached(docRef, currentStore.id, user);
         
         if (snap.exists()) {
           newYearData[m] = snap.data().budget || snap.data();
@@ -616,7 +617,7 @@ export default function Finance() {
   const handleSaveBudget = async () => {
     setIsSavingBudgets(true);
     try {
-      const { doc, setDoc } = await import("firebase/firestore");
+      const { doc } = await import("firebase/firestore");
       const { db } = await import("../lib/firebase");
       
       const yearBudgets = yearlyBudgets[selectedYear] || {};
@@ -627,12 +628,14 @@ export default function Finance() {
         const periodId = `${selectedYear}-${m}`;
         const docRef = doc(db, 'stores', currentStore.id, 'budget_periods', periodId);
         
-        await setDoc(docRef, {
+        const payload = sanitizeForFirestore({
           ...monthData,
           year: selectedYear,
           month: m,
           updatedAt: new Date().toISOString()
         });
+        
+        await setDocCached(docRef, payload, currentStore.id, user);
         
         localStorage.setItem(`g_azevedo_budget_backup_${currentStore.id}_${selectedYear}_${m}`, JSON.stringify(monthData));
       }

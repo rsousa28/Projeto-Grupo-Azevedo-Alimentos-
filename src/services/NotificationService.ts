@@ -132,7 +132,9 @@ export class NotificationService {
     }
 
     // 2. Try ServiceWorker push notification (most reliable on mobile & PWA)
-    if ('serviceWorker' in navigator) {
+    const hasPermission = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+
+    if ('serviceWorker' in navigator && hasPermission) {
       if (navigator.serviceWorker.controller) {
         try {
           navigator.serviceWorker.controller.postMessage({
@@ -151,7 +153,7 @@ export class NotificationService {
       }
 
       navigator.serviceWorker.ready.then((reg) => {
-        try {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           reg.showNotification(title, {
             body: options.body,
             icon: options.icon || '/logo_azevedo.svg',
@@ -159,9 +161,9 @@ export class NotificationService {
             tag: options.tag || 'grupo_azevedo_alert',
             vibrate: [200, 100, 200, 100, 200],
             data: { url: options.url || '/accounts-payable' }
-          } as any);
-        } catch (e) {
-          console.warn('reg.showNotification failed:', e);
+          } as any).catch((e) => {
+            console.warn('reg.showNotification promise rejected:', e);
+          });
         }
       }).catch(() => {});
     }

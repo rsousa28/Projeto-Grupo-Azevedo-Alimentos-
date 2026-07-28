@@ -114,6 +114,8 @@ self.addEventListener('message', (event) => {
       tag: tag || 'grupo_azevedo_notif',
       vibrate: [200, 100, 200, 100, 200],
       data: { url: url || '/accounts-payable' }
+    }).catch((err) => {
+      console.warn('Service Worker showNotification failed:', err);
     });
   }
 });
