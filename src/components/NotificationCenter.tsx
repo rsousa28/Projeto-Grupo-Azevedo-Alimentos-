@@ -9,6 +9,7 @@ import {
   DollarSign, 
   Info, 
   Loader2, 
+  Receipt,
   Send, 
   Settings, 
   Sparkles, 
@@ -29,6 +30,7 @@ export default function NotificationCenter() {
   const [preferences, setPreferences] = useState<NotificationPreferences>(NotificationService.getPreferences());
   const [logs, setLogs] = useState<NotificationLogItem[]>([]);
   const [testing, setTesting] = useState(false);
+  const [testingPayable, setTestingPayable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricSupported, setBiometricSupported] = useState(false);
 
@@ -120,6 +122,19 @@ export default function NotificationCenter() {
     }
   };
 
+  const handleTriggerPayableReport = async () => {
+    setTestingPayable(true);
+    try {
+      await NotificationService.triggerAccountsPayableReport();
+      success('Relatório de Contas a Pagar disparado para todas as lojas com sucesso!', 'Relatório Enviado');
+      setLogs(NotificationService.getLogs());
+    } catch (err: any) {
+      toastError(err.message || 'Erro ao disparar relatório de contas a pagar.');
+    } finally {
+      setTestingPayable(false);
+    }
+  };
+
   const handleMarkAllRead = () => {
     NotificationService.markAllAsRead();
     setLogs(NotificationService.getLogs());
@@ -132,6 +147,8 @@ export default function NotificationCenter() {
         return <ClipboardList className="w-4 h-4 text-emerald-500" />;
       case 'CASH_CLOSING':
         return <DollarSign className="w-4 h-4 text-amber-500" />;
+      case 'PAYABLE_HOURLY':
+        return <Receipt className="w-4 h-4 text-rose-500" />;
       case 'TEST':
         return <Sparkles className="w-4 h-4 text-indigo-500" />;
       default:
@@ -350,6 +367,33 @@ export default function NotificationCenter() {
                     Configuração de Lembretes Automáticos
                   </span>
 
+                  {/* Toggle Accounts Payable Hourly Report */}
+                  <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
+                    isDarkMode ? 'bg-[#202020] border-[#303030]' : 'bg-slate-50 border-slate-100'
+                  }`}>
+                    <div className="flex items-center gap-2.5">
+                      <Receipt className="w-4 h-4 text-rose-500 shrink-0" />
+                      <div>
+                        <div className="text-xs font-black uppercase italic tracking-tight">
+                          Relatório Horário de Contas a Pagar
+                        </div>
+                        <div className="text-[9.5px] text-slate-500 font-medium">
+                          Resumo a cada 1h: A Pagar Hoje, Vencido, Pagas Mês e Futuro de cada unidade
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleTogglePreference('accountsPayableHourlyReminder')}
+                      className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-0.5 cursor-pointer ${
+                        preferences.accountsPayableHourlyReminder !== false ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
+                        preferences.accountsPayableHourlyReminder !== false ? 'translate-x-5' : 'translate-x-0'
+                      }`} />
+                    </button>
+                  </div>
+
                   {/* Toggle Cash Closing Reminder */}
                   <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
                     isDarkMode ? 'bg-[#202020] border-[#303030]' : 'bg-slate-50 border-slate-100'
@@ -404,8 +448,23 @@ export default function NotificationCenter() {
                     </button>
                   </div>
 
-                  {/* Test Notification Action Button */}
-                  <div className="pt-2">
+                  {/* Action Buttons */}
+                  <div className="pt-2 space-y-2">
+                    <button
+                      onClick={handleTriggerPayableReport}
+                      disabled={testingPayable}
+                      className="w-full py-3 rounded-xl bg-rose-600 text-white font-black uppercase tracking-wider text-[10px] italic flex items-center justify-center gap-2 hover:bg-rose-700 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                    >
+                      {testingPayable ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Receipt className="w-3.5 h-3.5" />
+                          <span>Disparar Relatório Contas a Pagar Agora</span>
+                        </>
+                      )}
+                    </button>
+
                     <button
                       onClick={handleTestNotification}
                       disabled={testing}
@@ -416,7 +475,7 @@ export default function NotificationCenter() {
                       ) : (
                         <>
                           <Send className="w-3.5 h-3.5 text-[#FFCB05]" />
-                          <span>Testar Notificação Push</span>
+                          <span>Testar Notificação Push Geral</span>
                         </>
                       )}
                     </button>

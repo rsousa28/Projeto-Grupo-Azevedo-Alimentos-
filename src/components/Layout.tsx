@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -35,6 +35,7 @@ import BackupStatusIndicator from './BackupStatusIndicator';
 import OfflineSyncBadge from './OfflineSyncBadge';
 import SettingsModal from './SettingsModal';
 import { NotificationService } from '../services/NotificationService';
+import { useToast } from '../contexts/ToastContext';
 
 interface NavItem {
   icon: React.ElementType;
@@ -70,6 +71,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const { currentStore, setStore, isDarkMode, toggleDarkMode, brandColors } = useStore();
   const { user, logout } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const location = useLocation();
@@ -127,12 +129,28 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         isChecklistCompleteToday,
         isCashClosedToday,
       });
+
+      // Check hourly Accounts Payable report reminder
+      NotificationService.checkAccountsPayableHourlyReminder();
     };
 
     runRoutineCheck();
-    const interval = setInterval(runRoutineCheck, 3 * 60 * 1000); // Check every 3 mins
+    const interval = setInterval(runRoutineCheck, 60 * 1000); // Check every 1 min for hourly accuracy
     return () => clearInterval(interval);
   }, [currentStore.id, currentStore.code, currentStore.name]);
+
+  // Listen for push notifications to trigger in-app floating Toast alerts
+  useEffect(() => {
+    const handlePushEvent = (e: any) => {
+      const { title, body } = e.detail || {};
+      if (title && body) {
+        showToast(body, 'info', title, 9000);
+      }
+    };
+
+    window.addEventListener('app_push_notification', handlePushEvent);
+    return () => window.removeEventListener('app_push_notification', handlePushEvent);
+  }, [showToast]);
 
   const handleLogout = () => {
     logout();

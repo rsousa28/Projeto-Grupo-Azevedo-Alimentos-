@@ -100,20 +100,20 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Message Event - Handle direct notifications requested by useSyncManager
+// Message Event - Handle direct notifications requested by application
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'TRIGGER_SYNC_NOTIFICATION') {
-    const { title, body, count } = event.data.payload || {};
-    const notifTitle = title || '⚡ Dados Sincronizados!';
+  if (event.data && (event.data.type === 'TRIGGER_SYNC_NOTIFICATION' || event.data.type === 'SHOW_NOTIFICATION')) {
+    const { title, body, icon, tag, url, count } = event.data.payload || {};
+    const notifTitle = title || (count ? '⚡ Dados Sincronizados!' : '🔔 Notificação Grupo Azevedo');
     const notifBody = body || `${count || 1} item(ns) sincronizado(s) com sucesso na nuvem!`;
 
     self.registration.showNotification(notifTitle, {
       body: notifBody,
-      icon: '/logo_azevedo.svg',
+      icon: icon || '/logo_azevedo.svg',
       badge: '/logo_azevedo.svg',
-      tag: 'offline_sync_completed',
-      vibrate: [100, 50, 100],
-      data: { url: '/checklist' }
+      tag: tag || 'grupo_azevedo_notif',
+      vibrate: [200, 100, 200, 100, 200],
+      data: { url: url || '/accounts-payable' }
     });
   }
 });
