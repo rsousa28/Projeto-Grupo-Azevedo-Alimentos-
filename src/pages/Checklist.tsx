@@ -22,6 +22,7 @@ import { useToast } from '../contexts/ToastContext';
 import { AuditService } from '../services/AuditService';
 import { IndexedDBService } from '../services/IndexedDBService';
 import { OfflineSyncManager } from '../services/OfflineSyncManager';
+import { NotificationService } from '../services/NotificationService';
 import OfflineSyncBadge from '../components/OfflineSyncBadge';
 import { db } from '../lib/firebase';
 import { doc, onSnapshot, setDoc, collection, deleteDoc, getDoc } from 'firebase/firestore';
@@ -497,7 +498,16 @@ export default function Checklist() {
       await savePlans(updatedPlans);
     }
 
-    // 3. Attempt automatic cloud sync if online
+    // 3. Dispatch real-time push notification
+    NotificationService.notifyChecklistCompleted({
+      storeName: currentStore.name,
+      templateTitle: sub.templateTitle,
+      userName: sub.submittedBy || user?.name || user?.username || 'Colaborador',
+      conformityIndex: sub.conformityIndex,
+      plansCount: newPlans.length,
+    });
+
+    // 4. Attempt automatic cloud sync if online
     if (OfflineSyncManager.isOnline()) {
       try {
         const { syncedCount } = await OfflineSyncManager.syncAllPending(user);

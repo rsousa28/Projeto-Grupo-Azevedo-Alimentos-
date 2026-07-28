@@ -195,6 +195,33 @@ export class NotificationService {
   }
 
   /**
+   * Dispatch push notification when any user completes/submits a checklist
+   */
+  static notifyChecklistCompleted(data: {
+    storeName: string;
+    templateTitle: string;
+    userName: string;
+    conformityIndex: number;
+    plansCount: number;
+  }): boolean {
+    const prefs = this.getPreferences();
+    if (!prefs.enabled || prefs.checklistReminder === false) return false;
+
+    const statusEmoji = data.conformityIndex >= 80 ? '🟢' : data.conformityIndex >= 60 ? '🟡' : '🔴';
+    const plansStr = data.plansCount > 0 ? ` | ⚠️ ${data.plansCount} Plano(s) de Ação` : '';
+
+    const title = `📋 Checklist Realizado: ${data.storeName}`;
+    const body = `Vistoria: ${data.templateTitle}\n• Responsável: ${data.userName}\n• Conformidade: ${statusEmoji} ${data.conformityIndex.toFixed(0)}%${plansStr}`;
+
+    return this.sendPushNotification(title, {
+      body,
+      type: 'CHECKLIST',
+      tag: `checklist_completed_${data.storeName}_${Date.now()}`,
+      url: '/checklist',
+    });
+  }
+
+  /**
    * Dispatch push notification when any user completes a cash closing
    */
   static notifyCashClosingCompleted(data: {
@@ -442,26 +469,8 @@ export class NotificationService {
     const currentHour = now.getHours();
     const currentMin = now.getMinutes();
 
-    // 1. Checklist Pending Reminder
-    if (
-      prefs.checklistReminder &&
-      params.isChecklistCompleteToday === false &&
-      prefs.lastNotifiedChecklistDate !== `${todayStr}_${params.storeCode}`
-    ) {
-      // Trigger reminder if current time is after 11:00 AM or 18:00 PM
-      if (currentHour >= 11) {
-        this.sendPushNotification(`📋 Pendência de Checklist: ${params.storeName}`, {
-          body: `Atenção Gerente: O checklist diário de hoje da unidade ${params.storeName} ainda não foi finalizado.`,
-          type: 'CHECKLIST',
-          tag: `checklist_pending_${todayStr}_${params.storeCode}`,
-          url: '/checklist',
-        });
+    // 1. Checklist completion notifications are handled in real-time when submitted via notifyChecklistCompleted()
 
-        // Save preference state so we don't spam
-        prefs.lastNotifiedChecklistDate = `${todayStr}_${params.storeCode}`;
-        this.savePreferences(prefs);
-      }
-    }
 
     // 2. Cash Closing Reminder
     if (

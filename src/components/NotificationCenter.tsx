@@ -421,7 +421,7 @@ export default function NotificationCenter() {
                     </button>
                   </div>
 
-                  {/* Toggle Checklist Pending Reminder */}
+                  {/* Toggle Checklist Completed Notification */}
                   <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
                     isDarkMode ? 'bg-[#202020] border-[#303030]' : 'bg-slate-50 border-slate-100'
                   }`}>
@@ -429,10 +429,10 @@ export default function NotificationCenter() {
                       <ClipboardList className="w-4 h-4 text-emerald-500 shrink-0" />
                       <div>
                         <div className="text-xs font-black uppercase italic tracking-tight">
-                          Checklist Pendente
+                          Checklist Realizado
                         </div>
                         <div className="text-[9.5px] text-slate-500 font-medium">
-                          Aviso se o checklist do dia não estiver concluído
+                          Notificação em tempo real quando qualquer checklist for concluído
                         </div>
                       </div>
                     </div>
