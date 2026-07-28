@@ -22,6 +22,7 @@ import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { DREData } from '../types';
 import DataEntrySection from '../components/DataEntrySection';
+import ActivityFeed from '../components/ActivityFeed';
 import { getDocCached } from '../lib/firestoreQueryCache';
 
 
@@ -1408,6 +1409,9 @@ export default function Dashboard() {
           );
         })}
       </div>
+
+      {/* Centro de Avisos & Atividades Recentes */}
+      <ActivityFeed limitCount={8} />
 
       {/* Main Analysis Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

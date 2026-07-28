@@ -100,21 +100,6 @@ export function enforceStoreIsolation(
     return { isAuthorized: false, resolvedStoreId: fallback };
   }
 
-  // Even if allowed overall, check if the request matches the currentStoreId to maintain context consistency
-  // (unless the user has general cross-store querying rights e.g. Admin or Financial)
-  const isFinancialOrAdmin = user.role === 'ADMIN' || user.role === 'FINANCIAL' || 
-    (user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan');
-
-  if (!isFinancialOrAdmin && targetStoreId !== currentStoreId) {
-    // Ensure standard manager/collaborator cannot switch or view arbitrary store data outside the current context
-    console.warn(
-      `[Security Context Shift] User "${user.username}" requested store "${targetStoreId}" which differs from context "${currentStoreId}". ` +
-      `Redirected target to active context unit "${currentStoreId}" to prevent session cross-leak.`
-    );
-    const secureStore = permitted.includes(currentStoreId) ? currentStoreId : targetStoreId;
-    return { isAuthorized: false, resolvedStoreId: secureStore };
-  }
-
   return { isAuthorized: true, resolvedStoreId: targetStoreId };
 }
 

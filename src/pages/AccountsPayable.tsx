@@ -633,16 +633,44 @@ export default function AccountsPayable() {
           // Single store scenario (e.g. Manager like Patricia, Andressa, Jef)
           const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
           const docSnap = await getDocCached(docRef, currentStore.id, user);
-          if (docSnap.exists() && isMounted) {
-            const cloudData = docSnap.data().data || [];
-            const processed = processItems(cloudData);
+          
+          let cloudData: AccountPayable[] = [];
+          if (docSnap.exists()) {
+            cloudData = docSnap.data().data || [];
+          }
+
+          // Merge local storage items with cloud items so locally added/updated accounts are NEVER lost
+          let localItems: AccountPayable[] = [];
+          const locallyStored = localStorage.getItem(storageKey);
+          if (locallyStored) {
+            try {
+              localItems = JSON.parse(locallyStored);
+            } catch (e) {
+              console.warn("Error parsing local accounts payable:", e);
+            }
+          }
+
+          const combinedMap = new Map<string, AccountPayable>();
+          // Add cloud data first
+          cloudData.forEach((item: AccountPayable) => {
+            if (item && item.id) combinedMap.set(item.id, item);
+          });
+          // Preserve local items not present in cloud
+          localItems.forEach((item: AccountPayable) => {
+            if (item && item.id && !combinedMap.has(item.id)) {
+              combinedMap.set(item.id, item);
+            }
+          });
+
+          if (isMounted) {
+            const merged = Array.from(combinedMap.values());
+            const processed = processItems(merged);
             setAccounts(processed);
             safeSetItemToLocalStorage(currentStore.id, processed);
-          } else if (isMounted) {
-            // Document doesn't exist on Firestore yet (the store is completely clean/new)
-            const locallyStored = localStorage.getItem(storageKey);
-            if (!locallyStored) {
-              setAccounts([]);
+
+            // Sync merged data back to Firestore if local items were preserved
+            if (merged.length > cloudData.length) {
+              setDocCached(docRef, { data: processed }, currentStore.id, user).catch(e => console.warn("Auto sync merged accounts failed:", e));
             }
           }
         }

@@ -314,6 +314,23 @@ export default function Checklist() {
             merged.push(item);
           }
         });
+
+        // Merge local storage items so offline or locally submitted items are NEVER wiped out
+        const localStored = localStorage.getItem(`checklist_submissions_${storeId}`);
+        if (localStored) {
+          try {
+            const localList: ChecklistSubmission[] = JSON.parse(localStored);
+            localList.forEach(item => {
+              if (item && item.id && !seen.has(item.id)) {
+                seen.add(item.id);
+                merged.push(item);
+              }
+            });
+          } catch (e) {
+            console.warn("Error parsing local submissions in Checklist:", e);
+          }
+        }
+
         merged.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
         setSubmissions(merged);
         localStorage.setItem(`checklist_submissions_${storeId}`, JSON.stringify(merged));
@@ -347,18 +364,37 @@ export default function Checklist() {
       // Fetch Action Plans
       const plansRef = doc(db, 'stores', storeId, 'checklists', 'action_plans');
       const unsubPlans = onSnapshot(plansRef, (snapshot) => {
-        if (snapshot.exists()) {
-          const cloudPlans = snapshot.data().data || [];
-          setActionPlans(cloudPlans);
-          localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(cloudPlans));
-        } else {
-          const stored = localStorage.getItem(`checklist_action_plans_${storeId}`);
-          if (stored) {
-            setActionPlans(JSON.parse(stored));
-          } else {
-            setActionPlans([]);
+        const cloudPlans: ActionPlan[] = snapshot.exists() ? (snapshot.data().data || []) : [];
+        
+        // Merge with local action plans to ensure local plans are not wiped out
+        const localStored = localStorage.getItem(`checklist_action_plans_${storeId}`);
+        let localPlans: ActionPlan[] = [];
+        if (localStored) {
+          try {
+            localPlans = JSON.parse(localStored);
+          } catch (e) {
+            console.warn("Error parsing local action plans:", e);
           }
         }
+
+        const seenPlans = new Set<string>();
+        const mergedPlans: ActionPlan[] = [];
+        cloudPlans.forEach(p => {
+          if (p && p.id) {
+            seenPlans.add(p.id);
+            mergedPlans.push(p);
+          }
+        });
+        localPlans.forEach(p => {
+          if (p && p.id && !seenPlans.has(p.id)) {
+            seenPlans.add(p.id);
+            mergedPlans.push(p);
+          }
+        });
+
+        mergedPlans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        setActionPlans(mergedPlans);
+        localStorage.setItem(`checklist_action_plans_${storeId}`, JSON.stringify(mergedPlans));
       }, (err) => {
         console.error("Erro ao sincronizar action plans em tempo real:", err);
       });
