@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Store, Metric, DREData } from '../types';
 import { useToast } from './ToastContext';
 import { mockMetrics, dreTimeline as mockDreTimeline, metaVsRealizado as mockMetaVsRealizado, topProducts as mockTopProducts, deliveryChannels as mockDeliveryChannels, salesByHour as mockSalesByHour, salesByDay as mockSalesByDay } from '../lib/mockData';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, authReadyPromise } from '../lib/firebase';
 import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { getDocCached, setDocCached, clearQueryCache } from '../lib/firestoreQueryCache';
 import { useAuth } from './AuthContext';
@@ -430,8 +430,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Background migration to assist copying April 2026 data over to January 2026
     const runMigration = async () => {
       const storeId = currentStore.id;
-      if (!storeId || storeId === 'admin-global') return;
+      if (!storeId || storeId === 'admin-global' || !user) return;
       try {
+        await authReadyPromise;
         const aprilDRE = await getDocCached(doc(db, 'stores', storeId, 'dre_periods', '2026-04'), currentStore.id, user);
         if (aprilDRE.exists()) {
           const aprilData = aprilDRE.data();
@@ -472,12 +473,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
         }
       } catch (err) {
-        console.error("Migration error:", err);
+        console.warn("Migration notice:", err);
       }
     };
 
     runMigration();
-  }, [currentStore.id]);
+  }, [currentStore.id, user]);
 
   useEffect(() => {
     // Update colors when store changes

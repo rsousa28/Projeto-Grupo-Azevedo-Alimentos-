@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '../types';
-import { db } from '../lib/firebase';
+import { db, authReadyPromise } from '../lib/firebase';
 import { collection, query, where, getDocs, limit, doc, deleteDoc } from 'firebase/firestore';
 import { AuditService } from '../services/AuditService';
 import { sha256 } from '../utils/crypto';
@@ -31,9 +31,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     localStorage.removeItem('auth_user');
 
-    // Clean up Victor and Paloma from firestore on startup to ensure removal is permanent
+    // Clean up restricted users from firestore after auth session is established
     const cleanupBadUsers = async () => {
       try {
+        await authReadyPromise;
         const usersRef = collection(db, 'users');
         const qUsers = await getDocs(usersRef);
         qUsers.forEach(async (docSnap) => {
@@ -51,7 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         });
       } catch (err) {
-        console.error("Error auto-cleaning up restricted users:", err);
+        console.warn("Notice: restricted users cleanup skipped or unauthorized:", err);
       }
     };
     cleanupBadUsers();

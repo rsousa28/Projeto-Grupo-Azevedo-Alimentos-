@@ -31,7 +31,7 @@ export const db = initializeFirestore(app, {
 export const auth = getAuth(app);
 
 // Authenticate the client instance anonymously to establish secure session credentials in Firestore rules
-signInAnonymously(auth)
+export const authReadyPromise = signInAnonymously(auth)
   .then(() => {
     console.log("Firebase secure anonymous session established.");
   })
