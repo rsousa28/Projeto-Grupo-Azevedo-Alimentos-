@@ -18,6 +18,7 @@ export interface NotificationLogItem {
   title: string;
   body: string;
   type: 'CHECKLIST' | 'CASH_CLOSING' | 'SYSTEM' | 'TEST' | 'PAYABLE_HOURLY';
+  tag?: string;
   timestamp: string;
   read: boolean;
 }
@@ -73,6 +74,23 @@ export class NotificationService {
   private static unsubscribeRealtime: (() => void) | null = null;
 
   /**
+   * Helper to verify if current logged in user is Admin / Financial Director
+   */
+  static isCurrentUserAdmin(): boolean {
+    try {
+      const raw = localStorage.getItem('auth_user');
+      if (!raw) return false;
+      const user = JSON.parse(raw);
+      if (!user) return false;
+      const role = (user.role || '').toUpperCase();
+      const username = (user.username || '').toLowerCase();
+      return role === 'ADMIN' || role === 'FINANCIAL' || username === 'rennan' || username.includes('admin') || username === 'victordiretor';
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Initialize real-time Firestore listener for notifications across all devices
    */
   static initRealtimeListener(): () => void {
@@ -101,6 +119,15 @@ export class NotificationService {
 
             if (data && data.createdByDeviceId !== getDeviceId() && !isNotifProcessedLocally(notifId)) {
               markNotifProcessedLocally(notifId);
+
+              // Restrict Accounts Payable notifications strictly to Admin logins
+              const isPayableNotif = data.type === 'PAYABLE_HOURLY' || 
+                                     (data.title && data.title.includes('Contas a Pagar')) || 
+                                     (data.tag && data.tag.includes('payable'));
+
+              if (isPayableNotif && !this.isCurrentUserAdmin()) {
+                return; // Skip notification delivery for non-admin users
+              }
               
               // Trigger local push notification & in-app floating banner for remote update
               this.sendPushNotification(data.title || '🔔 Notificação Grupo Azevedo', {
@@ -148,6 +175,16 @@ export class NotificationService {
     if (!this.isSupported()) {
       throw new Error('Notificações de navegador não são suportadas neste dispositivo.');
     }
+
+    // Register service worker for mobile PWA push notifications
+    if ('serviceWorker' in navigator) {
+      try {
+        await navigator.serviceWorker.register('/sw.js');
+      } catch (swErr) {
+        console.warn('Error registering service worker during permission request:', swErr);
+      }
+    }
+
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       // Save enabled state
@@ -156,6 +193,31 @@ export class NotificationService {
       this.savePreferences(prefs);
     }
     return permission;
+  }
+
+  /**
+   * Synthesize audio chime for mobile and browser notifications
+   */
+  static playNotificationSound(): void {
+    try {
+      if (typeof window === 'undefined') return;
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12); // A5
+      gain.gain.setValueAtTime(0.35, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.35);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    } catch (e) {
+      // Ignore autoplay audio restriction error if user hasn't interacted yet
+    }
   }
 
   /**
@@ -198,6 +260,15 @@ export class NotificationService {
   ): boolean {
     const type = options.type || 'SYSTEM';
 
+    // Restrict Accounts Payable notifications strictly to Admin logins
+    const isPayableNotif = type === 'PAYABLE_HOURLY' || 
+                           title.includes('Contas a Pagar') || 
+                           (options.tag && options.tag.includes('payable'));
+
+    if (isPayableNotif && !this.isCurrentUserAdmin()) {
+      return false;
+    }
+
     // 1. Broadcast to Firestore for real-time delivery to mobile phones and other devices
     if (!options.skipFirestoreSync) {
       try {
@@ -226,11 +297,20 @@ export class NotificationService {
       title,
       body: options.body,
       type,
+      tag: options.tag || 'grupo_azevedo_alert',
       timestamp: new Date().toISOString(),
       read: false,
     });
 
-    // 3. Dispatch custom window event for in-app floating banner & toast
+    // 3. Play audio chime and vibrate mobile device
+    this.playNotificationSound();
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      try {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+      } catch (e) {}
+    }
+
+    // 4. Dispatch custom window event for in-app floating banner & toast
     try {
       window.dispatchEvent(
         new CustomEvent('app_push_notification', {
@@ -246,11 +326,11 @@ export class NotificationService {
       console.warn('Error dispatching app_push_notification event:', e);
     }
 
-    // 4. Try ServiceWorker push notification (most reliable on mobile & PWA)
+    // 5. Try ServiceWorker push notification (most reliable on mobile & PWA)
     const hasPermission = typeof Notification !== 'undefined' && Notification.permission === 'granted';
 
-    if ('serviceWorker' in navigator && hasPermission) {
-      if (navigator.serviceWorker.controller) {
+    if ('serviceWorker' in navigator) {
+      if (navigator.serviceWorker.controller && hasPermission) {
         try {
           navigator.serviceWorker.controller.postMessage({
             type: 'SHOW_NOTIFICATION',
@@ -283,7 +363,7 @@ export class NotificationService {
       }).catch(() => {});
     }
 
-    // 5. Fallback to standard window Notification constructor
+    // 6. Fallback to standard window Notification constructor
     if (this.isSupported() && Notification.permission === 'granted') {
       try {
         const notif = new Notification(title, {
@@ -417,6 +497,7 @@ export class NotificationService {
    * Check and trigger hourly Accounts Payable report for all store units
    */
   static async checkAccountsPayableHourlyReminder(): Promise<void> {
+    if (!this.isCurrentUserAdmin()) return;
     const prefs = this.getPreferences();
     if (!prefs.enabled || prefs.accountsPayableHourlyReminder === false) return;
 
@@ -439,6 +520,7 @@ export class NotificationService {
    * Helper to fetch AP data from Firestore for all stores, calculate metrics, and dispatch notification
    */
   static async triggerAccountsPayableReport(hourKey?: string): Promise<boolean> {
+    if (!this.isCurrentUserAdmin()) return false;
     const now = new Date();
     const year = now.getFullYear();
     const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -502,7 +584,7 @@ export class NotificationService {
     firestoreResults.forEach(list => {
       if (Array.isArray(list)) {
         list.forEach(item => {
-          if (item && item.id && !masterMap.has(item.id)) {
+          if (item && item.id) {
             masterMap.set(item.id, item);
           }
         });
@@ -517,7 +599,7 @@ export class NotificationService {
         normalizedStoreId = '1';
         normalizedStoreName = 'Bebelu Mossoró';
       }
-      const isOverdue = (item.status === 'Pendente' || item.status === 'Agendado') && item.dueDate < todayStr;
+      const isOverdue = (item.status === 'Pendente' || item.status === 'Agendado' || item.status === 'Parcialmente Pago') && item.dueDate < todayStr;
       return {
         ...item,
         storeId: normalizedStoreId,
@@ -561,8 +643,8 @@ export class NotificationService {
           if (remainingVal > 0) storeToday += remainingVal;
         }
 
-        // Total Vencido (strictly due before today and unpaid)
-        if (isAcOverdue && ac.dueDate < todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
+        // Total Vencido (overdue and unpaid)
+        if (isAcOverdue && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
           const remainingVal = Number(ac.value || 0) - Number(ac.partialAmountPaid || 0);
           if (remainingVal > 0) storeOverdue += remainingVal;
         }
@@ -656,7 +738,15 @@ export class NotificationService {
   static getLogs(): NotificationLogItem[] {
     try {
       const data = localStorage.getItem(LOGS_KEY);
-      return data ? JSON.parse(data) : [];
+      const list: NotificationLogItem[] = data ? JSON.parse(data) : [];
+      if (!this.isCurrentUserAdmin()) {
+        return list.filter(item => 
+          item.type !== 'PAYABLE_HOURLY' && 
+          !item.title.includes('Contas a Pagar') &&
+          !(item.tag && item.tag.includes('payable'))
+        );
+      }
+      return list;
     } catch (e) {
       console.error('Error reading notification logs:', e);
       return [];
