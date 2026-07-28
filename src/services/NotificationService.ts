@@ -283,11 +283,93 @@ export class NotificationService {
    */
   static async triggerAccountsPayableReport(hourKey?: string): Promise<boolean> {
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
-    const currentYear = now.getFullYear().toString();
-    const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+    const currentYear = String(year);
+    const currentMonth = month;
 
-    // Get non-ROOT functional stores
+    // Build master list of all accounts across stores (combining localStorage & Firestore)
+    const masterMap = new Map<string, any>();
+
+    // 1. Read from local storage (if in browser context) for instant local updates
+    if (typeof window !== 'undefined' && window.localStorage) {
+      STORES.forEach(s => {
+        const key = `g_azevedo_ap_items_clean_${s.id}`;
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          try {
+            const list = JSON.parse(raw);
+            if (Array.isArray(list)) {
+              list.forEach(item => {
+                if (item && item.id) masterMap.set(item.id, item);
+              });
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+      });
+
+      const rawGlobal = localStorage.getItem('g_azevedo_ap_items_clean_admin-global');
+      if (rawGlobal) {
+        try {
+          const list = JSON.parse(rawGlobal);
+          if (Array.isArray(list)) {
+            list.forEach(item => {
+              if (item && item.id) masterMap.set(item.id, item);
+            });
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
+    // 2. Fetch from Firestore for all stores
+    const allStorePromises = STORES.map(async store => {
+      try {
+        const docRef = doc(db, 'stores', store.id, 'accounts_payable', 'all');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          return docSnap.data().data || [];
+        }
+      } catch (e) {
+        console.warn(`Error reading AP data for store ${store.name}:`, e);
+      }
+      return [];
+    });
+
+    const firestoreResults = await Promise.all(allStorePromises);
+    firestoreResults.forEach(list => {
+      if (Array.isArray(list)) {
+        list.forEach(item => {
+          if (item && item.id && !masterMap.has(item.id)) {
+            masterMap.set(item.id, item);
+          }
+        });
+      }
+    });
+
+    // 3. Process & normalize accounts (normalize storeId and auto-set overdue statuses)
+    const allAccounts = Array.from(masterMap.values()).map(item => {
+      let normalizedStoreId = item.storeId;
+      let normalizedStoreName = item.storeName;
+      if (!normalizedStoreId || normalizedStoreId === 'admin-global') {
+        normalizedStoreId = '1';
+        normalizedStoreName = 'Bebelu Mossoró';
+      }
+      const isOverdue = (item.status === 'Pendente' || item.status === 'Agendado') && item.dueDate < todayStr;
+      return {
+        ...item,
+        storeId: normalizedStoreId,
+        storeName: normalizedStoreName,
+        status: isOverdue ? 'Vencido' : item.status
+      };
+    });
+
+    // 4. Group by store and compute metrics matching AccountsPayable.tsx logic
     const functionalStores = STORES.filter(s => s.code !== 'ROOT');
 
     const storeSummaries: Array<{
@@ -309,48 +391,45 @@ export class NotificationService {
       let storePaid = 0;
       let storeUpcoming = 0;
 
-      try {
-        const docRef = doc(db, 'stores', store.id, 'accounts_payable', 'all');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const accounts = docSnap.data().data || [];
-          accounts.forEach((ac: any) => {
-            if (!ac) return;
-            const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado' || ac.status === 'Parcialmente Pago') && ac.dueDate < todayStr);
+      const storeAccounts = allAccounts.filter(ac => ac.storeId === store.id);
 
-            // A Pagar Hoje
-            if (ac.dueDate === todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
-              const remainingVal = ac.value - (ac.partialAmountPaid || 0);
-              if (remainingVal > 0) storeToday += remainingVal;
-            }
+      storeAccounts.forEach((ac: any) => {
+        if (!ac) return;
 
-            // Total Vencido
-            if (isAcOverdue && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
-              const remainingVal = ac.value - (ac.partialAmountPaid || 0);
-              if (remainingVal > 0) storeOverdue += remainingVal;
-            }
+        const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado' || ac.status === 'Parcialmente Pago') && ac.dueDate < todayStr);
 
-            // Pagas no Mês
-            const hasDueDateInRange = ac.dueDate?.startsWith(`${currentYear}-${currentMonth}`);
-            const hasPaymentDateInRange = ac.paymentDate && ac.paymentDate.includes(`${currentYear}-${currentMonth}`);
-            const matchesPeriod = ac.paymentDate ? hasPaymentDateInRange : hasDueDateInRange;
-
-            if (ac.status === 'Pago' && matchesPeriod) {
-              storePaid += ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0);
-            } else if (ac.status === 'Parcialmente Pago' && matchesPeriod && ac.partialAmountPaid) {
-              storePaid += ac.partialAmountPaid;
-            }
-
-            // Compromissos Futuros
-            if (ac.dueDate > todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
-              const remainingVal = ac.value - (ac.partialAmountPaid || 0);
-              if (remainingVal > 0) storeUpcoming += remainingVal;
-            }
-          });
+        // A Pagar Hoje (strictly due today and unpaid)
+        if (ac.dueDate === todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
+          const remainingVal = Number(ac.value || 0) - Number(ac.partialAmountPaid || 0);
+          if (remainingVal > 0) storeToday += remainingVal;
         }
-      } catch (e) {
-        console.warn(`Error reading accounts payable for store ${store.name}:`, e);
-      }
+
+        // Total Vencido (strictly due before today and unpaid)
+        if (isAcOverdue && ac.dueDate < todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
+          const remainingVal = Number(ac.value || 0) - Number(ac.partialAmountPaid || 0);
+          if (remainingVal > 0) storeOverdue += remainingVal;
+        }
+
+        // Pagas no Mês
+        const hasDueDateInRange = ac.dueDate?.startsWith(`${currentYear}-${currentMonth}`);
+        const hasPaymentDateInRange = ac.paymentDate && (
+          ac.paymentDate.startsWith(`${currentYear}-${currentMonth}`) ||
+          ac.paymentDate.includes(`${currentYear}-${currentMonth}`)
+        );
+        const matchesPeriod = ac.paymentDate ? hasPaymentDateInRange : hasDueDateInRange;
+
+        if (ac.status === 'Pago' && matchesPeriod) {
+          storePaid += Number(ac.value || 0) + Number(ac.fine || 0) + Number(ac.interest || 0) - Number(ac.discount || 0);
+        } else if (ac.status === 'Parcialmente Pago' && matchesPeriod && ac.partialAmountPaid) {
+          storePaid += Number(ac.partialAmountPaid || 0);
+        }
+
+        // Compromissos Futuros (strictly due after today and unpaid)
+        if (ac.dueDate > todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
+          const remainingVal = Number(ac.value || 0) - Number(ac.partialAmountPaid || 0);
+          if (remainingVal > 0) storeUpcoming += remainingVal;
+        }
+      });
 
       storeSummaries.push({
         storeName: store.name,

@@ -100,7 +100,7 @@ export default function BackupStatusIndicator() {
       <button
         onClick={() => setIsOpen(!isOpen)}
         title={isAlert ? "ALERTA: Backup de dados pendente (>24h)" : "Status do Backup Diário: Em dia"}
-        className={`px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-2 text-xs font-black uppercase tracking-tight shadow-2xs active:scale-95 ${
+        className={`px-2.5 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-2 text-xs font-black uppercase tracking-tight shadow-2xs active:scale-95 shrink-0 ${
           isAlert
             ? 'bg-red-500/15 border-red-500/40 text-red-600 dark:text-red-400 hover:bg-red-500/25 animate-pulse'
             : isDarkMode
@@ -131,7 +131,7 @@ export default function BackupStatusIndicator() {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className={`absolute right-0 mt-3 w-80 sm:w-96 rounded-3xl border shadow-2xl z-50 overflow-hidden ${
+            className={`fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:mt-3 w-auto sm:w-96 rounded-3xl border shadow-2xl z-50 overflow-hidden ${
               isDarkMode ? 'bg-[#181818] border-[#333] text-white' : 'bg-white border-slate-200 text-slate-900'
             }`}
           >

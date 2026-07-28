@@ -426,23 +426,27 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3 lg:gap-4">
+            <div className="flex items-center gap-1.5 sm:gap-3 lg:gap-4 shrink-0">
               {/* Local-First IndexedDB Network & Sync Indicator for Mobile/All */}
-              <div className="sm:hidden">
+              <div className="sm:hidden shrink-0">
                 <OfflineSyncBadge />
               </div>
 
               {/* Admin Backup Status & Alert Indicator */}
-              <BackupStatusIndicator />
+              <div className="shrink-0">
+                <BackupStatusIndicator />
+              </div>
 
               {/* Local Push Notification Center & Manager Alerts */}
-              <NotificationCenter />
+              <div className="shrink-0">
+                <NotificationCenter />
+              </div>
 
               {/* Settings Menu Button */}
               <button
                 onClick={() => setIsSettingsOpen(true)}
                 title="Configurações do Usuário e Biometria"
-                className={`p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center ${
+                className={`p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center shrink-0 ${
                   isDarkMode 
                     ? 'bg-[#1E1E1E] border-[#2A2A2A] text-slate-300 hover:bg-[#252525] hover:text-white' 
                     : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
@@ -454,7 +458,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
               <div 
                 onClick={() => setIsSettingsOpen(true)}
-                className="text-right max-w-[90px] xs:max-w-[120px] sm:max-w-none cursor-pointer hover:opacity-80 transition-opacity"
+                className="text-right max-w-[70px] xs:max-w-[110px] sm:max-w-none cursor-pointer hover:opacity-80 transition-opacity shrink-0"
                 title="Clique para abrir as Configurações"
               >
                 <div className={`text-xs sm:text-sm font-black uppercase tracking-tighter italic leading-none mb-1 truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
