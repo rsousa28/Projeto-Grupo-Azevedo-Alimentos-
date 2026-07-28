@@ -195,6 +195,39 @@ export class NotificationService {
   }
 
   /**
+   * Dispatch push notification when any user completes a cash closing
+   */
+  static notifyCashClosingCompleted(data: {
+    storeName: string;
+    userName: string;
+    date: string;
+    totalGeral: number;
+    totalSistema: number;
+    diff: number;
+  }): boolean {
+    const prefs = this.getPreferences();
+    if (!prefs.enabled || prefs.cashClosingReminder === false) return false;
+
+    const dateFormatted = data.date.split('-').reverse().join('/');
+    const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const diffStr = data.diff === 0 
+      ? '✅ Caixa Bateu' 
+      : data.diff > 0 
+        ? `🟢 Sobra: +${fmt(data.diff)}` 
+        : `🔴 Falta: ${fmt(data.diff)}`;
+
+    const title = `💰 Caixa Fechado: ${data.storeName}`;
+    const body = `Operador: ${data.userName} | Data: ${dateFormatted}\n• Receita: ${fmt(data.totalGeral)}\n• Sistema: ${fmt(data.totalSistema)}\n• Balanço: ${diffStr}`;
+
+    return this.sendPushNotification(title, {
+      body,
+      type: 'CASH_CLOSING',
+      tag: `cash_closed_${data.storeName}_${data.date}_${Date.now()}`,
+      url: '/cash-closing',
+    });
+  }
+
+  /**
    * Check and trigger hourly Accounts Payable report for all store units
    */
   static async checkAccountsPayableHourlyReminder(): Promise<void> {

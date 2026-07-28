@@ -405,7 +405,7 @@ export default function NotificationCenter() {
                           Fechamento de Caixa
                         </div>
                         <div className="text-[9.5px] text-slate-500 font-medium">
-                          Alertas nos fins de turno (14h30 / 21h30)
+                          Notificação em tempo real quando qualquer operador finalizar o caixa
                         </div>
                       </div>
                     </div>

@@ -30,6 +30,7 @@ import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { getDocCached, setDocCached } from '../lib/firestoreQueryCache';
 import { AuditService } from '../services/AuditService';
+import { NotificationService } from '../services/NotificationService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -888,6 +889,17 @@ export default function CashClosing() {
                         const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
                         await setDocCached(docRef, { data: updated }, currentStore.id, user);
                         toastSuccess("Fechamento de caixa confirmado e registrado com sucesso!");
+
+                        // Dispatch real-time push notification to all devices
+                        const activeOperator = user?.name || user?.username || formData.operator || 'Operador';
+                        NotificationService.notifyCashClosingCompleted({
+                          storeName: currentStore.name,
+                          userName: activeOperator,
+                          date: formData.date,
+                          totalGeral,
+                          totalSistema: formData.totalSistema,
+                          diff,
+                        });
                       } catch (err) {
                         console.error("Erro ao salvar fechamento no Firestore:", err);
                         toastError("Erro ao salvar dados no servidor online.");
