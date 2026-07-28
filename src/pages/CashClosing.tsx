@@ -202,6 +202,30 @@ export default function CashClosing() {
           storeCode: currentStore.code,
           storeName: currentStore.name
         }).catch(err => console.error(err));
+
+        // Dispatch real-time push notification alert for cash closing save
+        let periodTotalGeral = 0;
+        let periodTotalSistema = 0;
+        let periodDiff = 0;
+        const monthPrefix = `${selectedYear}-${selectedMonth}`;
+
+        Object.entries(closingsData).forEach(([dateKey, val]: [string, any]) => {
+          if (dateKey.startsWith(monthPrefix) && val) {
+            periodTotalGeral += Number(val.totalGeral || 0);
+            periodTotalSistema += Number(val.totalSistema || 0);
+            periodDiff += Number(val.diff || 0);
+          }
+        });
+
+        const activeOperator = user.name || user.username || 'Operador';
+        NotificationService.notifyCashClosingCompleted({
+          storeName: currentStore.name,
+          userName: activeOperator,
+          date: `${monthLabel}/${selectedYear}`,
+          totalGeral: periodTotalGeral,
+          totalSistema: periodTotalSistema,
+          diff: periodDiff,
+        });
       }
       setIsSaving(false);
       toastSuccess(`Dados de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`);

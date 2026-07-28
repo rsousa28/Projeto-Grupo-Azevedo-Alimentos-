@@ -237,7 +237,9 @@ export class NotificationService {
     const prefs = this.getPreferences();
     if (!prefs.enabled || prefs.cashClosingReminder === false) return false;
 
-    const dateFormatted = data.date.split('-').reverse().join('/');
+    const dateFormatted = data.date.includes('-') 
+      ? data.date.split('-').reverse().join('/') 
+      : data.date;
     const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const diffStr = data.diff === 0 
       ? '✅ Caixa Bateu' 
