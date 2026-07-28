@@ -47,7 +47,7 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         setPlatformAuthAvailable(platformAvail);
         
         if (user) {
-          const isEnabled = BiometricService.isBiometricEnabled(user.username);
+          const isEnabled = user.biometricEnabled ?? BiometricService.isBiometricEnabled(user.username);
           setBiometricEnabled(isEnabled);
         }
       }
@@ -74,9 +74,9 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       setBiometricEnabled(newState);
 
       if (newState) {
-        success('Login por Face ID / Touch ID ativado com sucesso para este dispositivo!', 'Biometria Ativada');
+        success('Login biométrico ativado e salvo no seu perfil de usuário no banco de dados!', 'Perfil Atualizado');
       } else {
-        warning('Login por biometria desativado neste dispositivo.', 'Biometria Desativada');
+        warning('Login biométrico desativado no seu perfil de usuário no banco de dados.', 'Perfil Atualizado');
       }
     } catch (err: any) {
       toastError(err.message || 'Erro ao alterar configuração de biometria.');

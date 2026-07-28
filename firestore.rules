@@ -39,8 +39,9 @@ service cloud.firestore {
     function isValidUser(data) {
       return data.name is string && data.name.size() <= 128
         && data.username is string && data.username.size() <= 128
-        && data.password is string && data.password.size() <= 256
-        && data.role is string && data.role.size() <= 128;
+        && (!('password' in data) || (data.password is string && data.password.size() <= 256))
+        && data.role is string && data.role.size() <= 128
+        && (!('biometricEnabled' in data) || data.biometricEnabled is bool);
     }
 
     function isValidStore(data) {

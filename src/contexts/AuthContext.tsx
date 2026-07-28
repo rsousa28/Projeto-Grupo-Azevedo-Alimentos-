@@ -176,7 +176,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               name: userData.name,
               username: userData.username,
               role: userData.role,
-              email: userData.email
+              email: userData.email,
+              biometricEnabled: userData.biometricEnabled !== undefined ? userData.biometricEnabled : BiometricService.isBiometricEnabled(userData.username)
             };
             setUser(newUser);
             localStorage.setItem('auth_user', JSON.stringify(newUser));
@@ -342,12 +343,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (!querySnapshot.empty) {
           const docUser = querySnapshot.docs[0];
           const userData = docUser.data();
+          if (userData.biometricEnabled === false) {
+            throw new Error('A autenticação biométrica foi desativada nas configurações do seu perfil.');
+          }
           authenticatedUser = {
             id: docUser.id,
             name: userData.name || bioCred.userName,
             username: userData.username || bioCred.username,
             role: userData.role || bioCred.userRole,
             email: userData.email,
+            biometricEnabled: true,
           };
         }
       } catch (err) {

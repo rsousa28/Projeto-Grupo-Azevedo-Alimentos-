@@ -6,6 +6,7 @@ export interface User {
   email?: string;
   role: 'ADMIN' | 'MANAGER' | 'FINANCIAL' | 'MANAGER_4ESTYLOS_MOSSORO' | 'MANAGER_BEBELU_MOSSORO' | 'MANAGER_BEBELU_RIOMAR_PAPICU';
   password?: string;
+  biometricEnabled?: boolean;
 }
 
 export interface Store {

@@ -421,18 +421,6 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 <Settings className="w-4 h-4" />
               </button>
 
-              {/* Elegant Global Dark/Light Mode Toggle */}
-              <button
-                onClick={toggleDarkMode}
-                title={isDarkMode ? "Alternar para Modo Claro" : "Alternar para Modo Escuro (Foco Noturno)"}
-                className={`p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center ${
-                  isDarkMode 
-                    ? 'bg-[#1E1E1E] border-[#2A2A2A] text-amber-400 hover:bg-[#252525] hover:text-amber-300' 
-                    : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-850'
-                }`}
-              >
-                {isDarkMode ? <Sun className="w-4 h-4 animate-spin-slow" /> : <Moon className="w-4 h-4" />}
-              </button>
 
               <div 
                 onClick={() => setIsSettingsOpen(true)}

@@ -70,10 +70,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     <ToastContext.Provider value={{ showToast, success, error, warning, info }}>
       {children}
       
-      {/* Toast Render View Overlay */}
+      {/* Toast Render View Overlay with Safe Area clearance for Mobile */}
       <div 
         id="global-toast-container" 
-        className="fixed top-4 inset-x-4 sm:top-6 sm:right-6 sm:left-auto sm:inset-x-auto z-[9999] flex flex-col gap-2.5 max-w-md w-[calc(100%-2rem)] sm:w-full pointer-events-none sm:max-w-sm mx-auto sm:mx-0"
+        className="fixed top-[max(3.75rem,calc(env(safe-area-inset-top)+0.75rem))] inset-x-3 sm:top-6 sm:right-6 sm:left-auto sm:inset-x-auto z-[9999] flex flex-col gap-2.5 max-w-md w-[calc(100%-1.5rem)] sm:w-full pointer-events-none sm:max-w-sm mx-auto sm:mx-0"
       >
         <AnimatePresence mode="popLayout">
           {toasts.map((toast) => {
