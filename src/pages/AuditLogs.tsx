@@ -79,15 +79,41 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
   const [foundDREInBackups, setFoundDREInBackups] = useState<any[]>([]);
   const [restoringSingleItem, setRestoringSingleItem] = useState<string | null>(null);
 
+  // Firestore Query Cursor Pagination state
+  const [lastDoc, setLastDoc] = useState<any>(null);
+  const [hasMore, setHasMore] = useState<boolean>(false);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
+
   const fetchLogsData = async () => {
     setLoading(true);
     try {
-      const data = await AuditService.fetchLogs(300);
-      setLogs(data);
+      const res = await AuditService.fetchLogsPaginated(50, null);
+      setLogs(res.logs);
+      setLastDoc(res.lastDoc);
+      setHasMore(res.hasMore);
     } catch (err) {
       console.error("Error loading logs:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLoadMoreLogs = async () => {
+    if (!lastDoc || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const res = await AuditService.fetchLogsPaginated(50, lastDoc);
+      setLogs(prev => {
+        const existingIds = new Set(prev.map(l => l.id));
+        const newItems = res.logs.filter(l => l.id && !existingIds.has(l.id));
+        return [...prev, ...newItems];
+      });
+      setLastDoc(res.lastDoc);
+      setHasMore(res.hasMore);
+    } catch (err) {
+      console.error("Error loading more logs via query cursor:", err);
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -901,6 +927,19 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {hasMore && activeTab === 'logs' && !loading && (
+              <div className="p-4 bg-[#111] border-t border-[#222] text-center">
+                <button
+                  onClick={handleLoadMoreLogs}
+                  disabled={loadingMore}
+                  className="px-6 py-2.5 rounded-xl bg-indigo-600/20 border border-indigo-500/40 hover:bg-indigo-600/30 text-indigo-300 text-xs font-bold transition flex items-center gap-2 mx-auto disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loadingMore ? 'animate-spin' : ''}`} />
+                  {loadingMore ? 'Carregando mais registros via cursor...' : 'Carregar Próximos 50 Registros (Cursor Firestore)'}
+                </button>
               </div>
             )}
           </div>

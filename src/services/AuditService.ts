@@ -1,5 +1,5 @@
 import { db } from '../lib/firebase';
-import { collection, addDoc, getDocs, query, orderBy, limit } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, orderBy, limit, startAfter, QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 
 export interface AuditLog {
   id?: string;
@@ -14,6 +14,12 @@ export interface AuditLog {
   userAgent: string;
   ipAddress?: string;
   metadata?: Record<string, any>;
+}
+
+export interface PaginatedAuditResult {
+  logs: AuditLog[];
+  lastDoc: QueryDocumentSnapshot<DocumentData> | null;
+  hasMore: boolean;
 }
 
 let cachedIp: string | null = null;
@@ -96,44 +102,62 @@ export const AuditService = {
   },
 
   /**
-   * Fetch all audit logs, ordered by timestamp descending, blending critical Firestore events and local page views
+   * Paginated fetch for audit logs using Firestore query cursors (startAfter)
    */
-  async fetchLogs(maxCount: number = 300): Promise<AuditLog[]> {
+  async fetchLogsPaginated(
+    pageSize: number = 50,
+    lastVisibleDoc: QueryDocumentSnapshot<DocumentData> | null = null
+  ): Promise<PaginatedAuditResult> {
     try {
       const logsRef = collection(db, 'audit_logs');
-      const q = query(logsRef, orderBy('timestamp', 'desc'), limit(maxCount));
-      const querySnapshot = await getDocs(q);
-      
-      const firestoreLogs: AuditLog[] = [];
-      querySnapshot.forEach((doc) => {
-        firestoreLogs.push({
-          id: doc.id,
-          ...doc.data()
-        } as AuditLog);
-      });
+      const q = lastVisibleDoc
+        ? query(logsRef, orderBy('timestamp', 'desc'), startAfter(lastVisibleDoc), limit(pageSize))
+        : query(logsRef, orderBy('timestamp', 'desc'), limit(pageSize));
 
-      // Recuperar histórico local de visualizações de páginas
-      let localLogs: AuditLog[] = [];
-      try {
-        const localLogsStr = localStorage.getItem('g_azevedo_local_page_views') || '[]';
-        localLogs = JSON.parse(localLogsStr);
-      } catch (e) {
-        localLogs = [];
+      const querySnapshot = await getDocs(q);
+      const firestoreLogs: AuditLog[] = [];
+      let newLastDoc: QueryDocumentSnapshot<DocumentData> | null = null;
+
+      if (!querySnapshot.empty) {
+        newLastDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
+        querySnapshot.forEach((doc) => {
+          firestoreLogs.push({
+            id: doc.id,
+            ...doc.data()
+          } as AuditLog);
+        });
       }
 
-      // Unir as fontes de dados e ordenar pelo timestamp em ordem decrescente
+      // Merge local page view logs only on first page load
+      let localLogs: AuditLog[] = [];
+      if (!lastVisibleDoc) {
+        try {
+          const localLogsStr = localStorage.getItem('g_azevedo_local_page_views') || '[]';
+          localLogs = JSON.parse(localLogsStr);
+        } catch (e) {
+          localLogs = [];
+        }
+      }
+
       const combined = [...firestoreLogs, ...localLogs];
       combined.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 
-      return combined.slice(0, maxCount);
+      return {
+        logs: combined,
+        lastDoc: newLastDoc,
+        hasMore: querySnapshot.docs.length === pageSize
+      };
     } catch (err) {
-      console.error("Failed to fetch audit logs: ", err);
-      try {
-        const localLogsStr = localStorage.getItem('g_azevedo_local_page_views') || '[]';
-        return JSON.parse(localLogsStr);
-      } catch (e) {
-        return [];
-      }
+      console.error("Failed to fetch paginated audit logs: ", err);
+      return { logs: [], lastDoc: null, hasMore: false };
     }
+  },
+
+  /**
+   * Legacy fetch all audit logs (up to maxCount)
+   */
+  async fetchLogs(maxCount: number = 300): Promise<AuditLog[]> {
+    const res = await this.fetchLogsPaginated(maxCount, null);
+    return res.logs;
   }
 };
