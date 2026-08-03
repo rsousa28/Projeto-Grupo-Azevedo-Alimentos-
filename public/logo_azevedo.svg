@@ -1,58 +1,60 @@
-<svg viewBox="0 0 600 420" xmlns="http://www.w3.org/2000/svg" fill="none">
-  <!-- 
-    Brand: AZEVEDO
-    Design: High-Luxury Serif Brand Emblem
-    Characteristics: Mathematical bezier symmetry, stable vector curves, crisp vector geometry, didot high-contrast stems
-    Aligned and cropped to remove redundant vertical padding, ensuring optimal centering and crispness across all screen sizes.
-  -->
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" fill="none">
   <defs>
-    <style>
-      @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;display=swap');
-      .serif-brand-text {
-        font-family: 'Playfair Display', 'Didot', 'Times New Roman', serif;
-        font-size: 38px;
-        font-weight: 400;
-        letter-spacing: 24px;
-        fill: #111111;
-        text-anchor: middle;
-      }
-    </style>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#B45309" />
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="100%" stop-color="#020617" />
+    </linearGradient>
+    <filter id="goldGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
   </defs>
 
-  <!-- Elegant vector symbol A -->
-  <path d="
-    M 300 20 
-    L 383 275 
-    C 383 287, 395 300, 425 300 
-    L 305 300 
-    C 325 300, 345 287, 345 275 
-    L 329 215 
-    C 305 155, 255 155, 232 215 
-    L 210 275 
-    C 210 287, 218 300, 245 300 
-    L 165 300 
-    C 190 300, 200 287, 200 275 
-    L 300 20 
-    Z 
-    
-    M 288 65 
-    L 247 175 
-    C 260 145, 305 145, 318 175 
-    L 288 65 
-    Z
-  " 
-  fill="#111111" 
-  fill-rule="evenodd" 
-  stroke="#111111" 
-  stroke-width="0.5" 
-  stroke-linejoin="round"
-  />
+  <!-- Dark Executive Canvas -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)" />
 
-  <!-- Perfectly balanced spaced-out typography with compensating offset (dx) for trailing letter-spacing -->
-  <text 
-    x="300" 
-    y="360" 
-    dx="12"
-    class="serif-brand-text"
-  >AZEVEDO</text>
+  <!-- Outer Metallic Gold Border -->
+  <rect x="12" y="12" width="488" height="488" rx="100" fill="none" stroke="url(#goldGrad)" stroke-width="6" opacity="0.85" />
+
+  <!-- Geometric Crest Diamond -->
+  <polygon points="256,70 410,256 256,442 102,256" fill="none" stroke="url(#goldGrad)" stroke-width="4" opacity="0.4" />
+
+  <!-- Luxury Monogram Emblem "A" -->
+  <path d="
+    M 256 120
+    L 350 350
+    C 350 360, 360 370, 380 370
+    L 300 370
+    C 315 370, 325 360, 320 350
+    L 305 310
+    L 207 310
+    L 192 350
+    C 187 360, 197 370, 212 370
+    L 132 370
+    C 152 370, 162 360, 162 350
+    L 256 120
+    Z
+
+    M 256 180
+    L 222 270
+    L 290 270
+    L 256 180
+    Z
+  " fill="url(#goldGrad)" filter="url(#goldGlow)" />
+
+  <!-- Crown Top Accent -->
+  <polygon points="256,85 272,112 240,112" fill="url(#goldGrad)" />
+
+  <!-- Brand Subtitle -->
+  <text x="256" y="420" text-anchor="middle" fill="#FFFFFF" font-family="'Playfair Display', serif, sans-serif" font-size="28" font-weight="700" letter-spacing="10" opacity="0.95">
+    GRUPO AZEVEDO
+  </text>
+  <text x="256" y="445" text-anchor="middle" fill="#F59E0B" font-family="sans-serif" font-size="12" font-weight="600" letter-spacing="6" opacity="0.8">
+    GESTAO & EMPREENDIMENTOS
+  </text>
 </svg>

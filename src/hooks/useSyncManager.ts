@@ -67,8 +67,8 @@ export function useSyncManager(): UseSyncManagerReturn {
           try {
             registration.showNotification(title, {
               body,
-              icon: '/logo_azevedo.svg',
-              badge: '/logo_azevedo.svg',
+              icon: '/logo_azevedo.png?v=7',
+              badge: '/logo_azevedo.png?v=7',
               tag: 'sw_sync_success',
               data: { url: '/checklist' },
             });

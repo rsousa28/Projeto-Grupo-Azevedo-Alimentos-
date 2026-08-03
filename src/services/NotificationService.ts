@@ -1,5 +1,6 @@
-import { db } from '../lib/firebase';
+import { db, getFirebaseMessaging } from '../lib/firebase';
 import { doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { getToken, onMessage } from 'firebase/messaging';
 import { STORES } from '../contexts/StoreContext';
 
 export interface NotificationPreferences {
@@ -135,7 +136,7 @@ export class NotificationService {
                 type: data.type || 'SYSTEM',
                 tag: data.tag || 'remote_notif',
                 url: data.url || '/accounts-payable',
-                icon: data.icon || '/logo_azevedo.svg',
+                icon: data.icon || '/logo_azevedo.png?v=7',
                 skipFirestoreSync: true, // Prevent infinite loop back to Firestore
               });
             }
@@ -146,11 +147,105 @@ export class NotificationService {
       });
 
       this.unsubscribeRealtime = unsub;
+      
+      // Also initialize Firebase Cloud Messaging (FCM) push token & foreground listener
+      this.initFCMToken().catch(err => console.warn('FCM registration error:', err));
+
       return unsub;
     } catch (err) {
       console.warn("Falha ao inicializar listener de notificações em tempo real:", err);
       return () => {};
     }
+  }
+
+  private static fcmInitialized = false;
+
+  /**
+   * Register Firebase Cloud Messaging (FCM) Service Worker and obtain device registration token
+   */
+  static async initFCMToken(): Promise<string | null> {
+    if (typeof window === 'undefined') return null;
+    if (Notification.permission !== 'granted') return null;
+
+    try {
+      const messaging = await getFirebaseMessaging();
+      if (!messaging) {
+        console.log('Firebase Messaging is not supported or disabled in this browser.');
+        return null;
+      }
+
+      // Register FCM service worker
+      let registration: ServiceWorkerRegistration | undefined;
+      if ('serviceWorker' in navigator) {
+        try {
+          registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+        } catch (swErr) {
+          console.warn('Could not register /firebase-messaging-sw.js, falling back to active service worker:', swErr);
+          registration = await navigator.serviceWorker.ready;
+        }
+      }
+
+      // VAPID key if provided in env
+      const vapidKey = (import.meta as any).env?.VITE_FIREBASE_VAPID_KEY || undefined;
+
+      const token = await getToken(messaging, {
+        serviceWorkerRegistration: registration,
+        vapidKey,
+      }).catch(err => {
+        console.warn('FCM getToken request did not complete (VAPID key required or permission pending):', err.message || err);
+        return null;
+      });
+
+      if (token) {
+        console.log('FCM Token successfully acquired:', token);
+        localStorage.setItem('g_azevedo_fcm_token', token);
+
+        // Store token in Firestore for remote cloud push dispatching
+        try {
+          await setDoc(doc(db, 'fcm_tokens', getDeviceId()), {
+            token,
+            updatedAt: new Date().toISOString(),
+            deviceId: getDeviceId(),
+            userRole: this.isCurrentUserAdmin() ? 'ADMIN' : 'USER',
+            platform: 'PWA Web Push',
+            userAgent: navigator.userAgent
+          }, { merge: true });
+        } catch (dbErr) {
+          console.warn('Could not store FCM token in Firestore:', dbErr);
+        }
+      }
+
+      // Attach foreground FCM listener once
+      if (!this.fcmInitialized && messaging) {
+        this.fcmInitialized = true;
+        onMessage(messaging, (payload) => {
+          console.log('[Foreground FCM Notification]', payload);
+          const title = payload.notification?.title || payload.data?.title || '🔔 Grupo Azevedo';
+          const body = payload.notification?.body || payload.data?.body || '';
+          
+          this.sendPushNotification(title, {
+            body,
+            type: (payload.data?.type as any) || 'SYSTEM',
+            tag: payload.data?.tag || 'fcm_fg',
+            url: payload.data?.url || '/accounts-payable',
+            skipFirestoreSync: true
+          });
+        });
+      }
+
+      return token;
+    } catch (err: any) {
+      console.warn('FCM Initialization error:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Get cached FCM token
+   */
+  static getFCMToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('g_azevedo_fcm_token');
   }
 
   /**
@@ -191,6 +286,9 @@ export class NotificationService {
       const prefs = this.getPreferences();
       prefs.enabled = true;
       this.savePreferences(prefs);
+
+      // Register FCM Token
+      this.initFCMToken().catch(err => console.warn('Error obtaining FCM token after permission granted:', err));
     }
     return permission;
   }
@@ -280,7 +378,7 @@ export class NotificationService {
           type,
           tag: options.tag || 'grupo_azevedo_alert',
           url: options.url || '/accounts-payable',
-          icon: options.icon || '/logo_azevedo.svg',
+          icon: options.icon || '/logo_azevedo.png?v=7',
           createdAt: new Date().toISOString(),
           createdByDeviceId: getDeviceId(),
         }).catch(err => console.warn('Error broadcasting notification to Firestore:', err));
@@ -337,7 +435,7 @@ export class NotificationService {
             payload: {
               title,
               body: options.body,
-              icon: options.icon || '/logo_azevedo.svg',
+              icon: options.icon || '/logo_azevedo.png?v=7',
               tag: options.tag || 'grupo_azevedo_alert',
               url: options.url || '/accounts-payable',
             },
@@ -351,8 +449,8 @@ export class NotificationService {
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           reg.showNotification(title, {
             body: options.body,
-            icon: options.icon || '/logo_azevedo.svg',
-            badge: '/logo_azevedo.svg',
+            icon: options.icon || '/logo_azevedo.png?v=7',
+            badge: '/logo_azevedo.png?v=7',
             tag: options.tag || 'grupo_azevedo_alert',
             vibrate: [200, 100, 200, 100, 200],
             data: { url: options.url || '/accounts-payable' }
@@ -368,9 +466,9 @@ export class NotificationService {
       try {
         const notif = new Notification(title, {
           body: options.body,
-          icon: options.icon || '/logo_azevedo.svg',
+          icon: options.icon || '/logo_azevedo.png?v=7',
           tag: options.tag || 'grupo_azevedo_alert',
-          badge: '/logo_azevedo.svg',
+          badge: '/logo_azevedo.png?v=7',
           requireInteraction: type !== 'TEST',
         });
 

@@ -1,13 +1,13 @@
-const CACHE_NAME = 'grupo-azevedo-v1';
+const CACHE_NAME = 'grupo-azevedo-v3';
 
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/logo_azevedo.png',
-  '/logo_azevedo_512.png',
-  '/logo_azevedo.svg',
-  '/apple-touch-icon.png'
+  '/manifest.json?v=7',
+  '/logo_azevedo.png?v=7',
+  '/logo_azevedo_512.png?v=7',
+  '/logo_azevedo.svg?v=7',
+  '/apple-touch-icon.png?v=7'
 ];
 
 // Install Event - Pre-cache core shell
@@ -109,8 +109,8 @@ self.addEventListener('message', (event) => {
 
     self.registration.showNotification(notifTitle, {
       body: notifBody,
-      icon: icon || '/logo_azevedo.svg',
-      badge: '/logo_azevedo.svg',
+      icon: icon || '/logo_azevedo.png?v=7',
+      badge: '/logo_azevedo.png?v=7',
       tag: tag || 'grupo_azevedo_notif',
       vibrate: [200, 100, 200, 100, 200],
       data: { url: url || '/accounts-payable' }

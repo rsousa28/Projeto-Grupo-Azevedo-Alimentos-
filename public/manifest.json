@@ -5,39 +5,39 @@
   "description": "Sistema Integrado de Gestão e Controle Financeiro do Grupo Azevedo",
   "icons": [
     {
-      "src": "/logo_azevedo.png",
+      "src": "/logo_azevedo.png?v=7",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "any"
     },
     {
-      "src": "/logo_azevedo.png",
+      "src": "/logo_azevedo.png?v=7",
       "type": "image/png",
       "sizes": "192x192",
       "purpose": "maskable"
     },
     {
-      "src": "/logo_azevedo_512.png",
+      "src": "/logo_azevedo_512.png?v=7",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "any"
     },
     {
-      "src": "/logo_azevedo_512.png",
+      "src": "/logo_azevedo_512.png?v=7",
       "type": "image/png",
       "sizes": "512x512",
       "purpose": "maskable"
     },
     {
-      "src": "/apple-touch-icon.png",
+      "src": "/apple-touch-icon.png?v=7",
       "type": "image/png",
       "sizes": "180x180"
     }
   ],
   "start_url": "/",
   "scope": "/",
-  "background_color": "#111827",
-  "theme_color": "#111827",
+  "background_color": "#0a0e17",
+  "theme_color": "#0a0e17",
   "display": "standalone",
   "orientation": "portrait-primary",
   "categories": ["business", "finance", "productivity"]

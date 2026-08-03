@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getMessaging, isSupported as isMessagingSupported, Messaging } from 'firebase/messaging';
 import { 
   initializeFirestore, 
   persistentLocalCache, 
@@ -10,9 +11,24 @@ import {
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 const databaseId = (firebaseConfig as any).firestoreDatabaseId || '(default)';
 console.log('Initializing Firestore with databaseId:', databaseId);
+
+let messagingInstance: Messaging | null = null;
+export async function getFirebaseMessaging(): Promise<Messaging | null> {
+  if (messagingInstance) return messagingInstance;
+  try {
+    const supported = await isMessagingSupported();
+    if (supported && typeof window !== 'undefined') {
+      messagingInstance = getMessaging(app);
+      return messagingInstance;
+    }
+  } catch (err) {
+    console.warn("FCM messaging initialization skipped or not supported:", err);
+  }
+  return null;
+}
 
 let localCacheConfig;
 try {

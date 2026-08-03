@@ -13,6 +13,7 @@ import {
   Send, 
   Settings, 
   Sparkles, 
+  Smartphone,
   Volume2, 
   ScanFace,
   X 
@@ -89,13 +90,18 @@ export default function NotificationCenter() {
 
   const handleRequestPermission = async () => {
     try {
+      if ('serviceWorker' in navigator) {
+        await navigator.serviceWorker.register('/sw.js');
+      }
       const res = await NotificationService.requestPermission();
       setPermission(res);
       if (res === 'granted') {
-        success('Notificações Push ativadas com sucesso neste dispositivo!', 'Permissão Concedida');
+        success('Notificações Push ativadas com sucesso no seu dispositivo!', 'Permissão Concedida');
         setPreferences(NotificationService.getPreferences());
+        // Trigger test notification immediately to confirm
+        await NotificationService.sendTestNotification();
       } else {
-        warning('A permissão de notificações foi negada no navegador.', 'Permissão Negada');
+        warning('A permissão de notificações foi negada no navegador. Habilite nas configurações do seu celular.', 'Permissão Negada');
       }
     } catch (err: any) {
       toastError(err.message || 'Erro ao solicitar permissão de notificações.');
@@ -249,15 +255,21 @@ export default function NotificationCenter() {
                   </div>
                   <p className="text-[10.5px] font-medium leading-relaxed opacity-90">
                     {permission === 'denied'
-                      ? 'As notificações estão desativadas no navegador. Permita o envio nas configurações do site.'
-                      : 'Receba alertas no seu celular ou computador sobre fechamentos de caixa e pendências de checklist.'}
+                      ? 'As notificações estão bloqueadas nas configurações do seu navegador ou celular. Toque nas configurações do site para permitir.'
+                      : 'Receba alertas automáticos no seu celular sobre fechamentos de caixa, movimentações e pendências do Grupo Azevedo.'}
                   </p>
+                  <div className="text-[9.5px] text-slate-400 font-medium bg-black/20 p-2 rounded-xl border border-white/5 space-y-0.5">
+                    <p className="font-bold text-amber-300">💡 Dica para Celulares (PWA):</p>
+                    <p>• <strong>iPhone (iOS):</strong> É necessário adicionar o app à <strong>"Tela de Início"</strong> (Compartilhar &gt; Adicionar à Tela de Início).</p>
+                    <p>• <strong>Android:</strong> Toque no botão abaixo para autorizar alertas e vibrações do sistema.</p>
+                  </div>
                   {permission === 'default' && (
                     <button
                       onClick={handleRequestPermission}
-                      className="mt-1 w-full py-2 bg-[#FFCB05] text-[#7F300C] font-black uppercase tracking-wider text-[10px] rounded-xl shadow-xs hover:bg-[#F3BD00] transition italic"
+                      className="mt-1 w-full py-2.5 bg-[#FFCB05] text-[#7F300C] font-black uppercase tracking-wider text-[10px] rounded-xl shadow-xs hover:bg-[#F3BD00] transition italic flex items-center justify-center gap-1.5 cursor-pointer"
                     >
-                      Permitir Notificações
+                      <Bell className="w-3.5 h-3.5" />
+                      <span>Ativar Notificações no Celular</span>
                     </button>
                   )}
                 </div>
@@ -421,6 +433,62 @@ export default function NotificationCenter() {
                         preferences.cashClosingReminder ? 'translate-x-5' : 'translate-x-0'
                       }`} />
                     </button>
+                  </div>
+
+                  {/* Firebase Cloud Messaging (FCM) Status Card */}
+                  <div className={`p-3.5 rounded-2xl border space-y-2 ${
+                    isDarkMode ? 'bg-[#181818] border-amber-500/20' : 'bg-amber-500/5 border-amber-500/20'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Smartphone className="w-4 h-4 text-amber-500 shrink-0" />
+                        <div>
+                          <div className="text-xs font-black uppercase italic tracking-tight text-amber-500">
+                            Firebase Cloud Messaging (FCM)
+                          </div>
+                          <div className="text-[9.5px] text-slate-400 font-medium">
+                            Notificações Push nativas e em segundo plano ativas no PWA
+                          </div>
+                        </div>
+                      </div>
+                      <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                        Ativo
+                      </span>
+                    </div>
+
+                    {NotificationService.getFCMToken() ? (
+                      <div className="pt-1 flex items-center justify-between gap-2 bg-black/20 p-2 rounded-xl border border-white/5">
+                        <div className="truncate text-[9px] font-mono text-slate-400">
+                          Token FCM: <span className="text-amber-300 font-bold">{NotificationService.getFCMToken()?.slice(0, 18)}...</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            const token = NotificationService.getFCMToken();
+                            if (token) {
+                              navigator.clipboard.writeText(token);
+                              success('Token FCM copiado para a área de transferência!');
+                            }
+                          }}
+                          className="text-[9px] font-bold text-amber-400 hover:underline shrink-0"
+                        >
+                          Copiar Token
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          const tok = await NotificationService.initFCMToken();
+                          if (tok) {
+                            success('Token FCM registrado com sucesso!');
+                          } else {
+                            warning('Não foi possível obter o Token FCM. Verifique as permissões de notificação.');
+                          }
+                        }}
+                        className="w-full py-1.5 bg-amber-500/20 text-amber-400 font-bold text-[10px] rounded-xl border border-amber-500/30 hover:bg-amber-500/30 transition italic"
+                      >
+                        ⚡ Conectar / Atualizar Token FCM
+                      </button>
+                    )}
                   </div>
 
                   {/* Toggle Checklist Completed Notification */}
