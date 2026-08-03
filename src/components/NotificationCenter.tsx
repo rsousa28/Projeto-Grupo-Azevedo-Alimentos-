@@ -457,21 +457,44 @@ export default function NotificationCenter() {
                     </div>
 
                     {NotificationService.getFCMToken() ? (
-                      <div className="pt-1 flex items-center justify-between gap-2 bg-black/20 p-2 rounded-xl border border-white/5">
-                        <div className="truncate text-[9px] font-mono text-slate-400">
-                          Token FCM: <span className="text-amber-300 font-bold">{NotificationService.getFCMToken()?.slice(0, 18)}...</span>
+                      <div className="pt-1 space-y-2">
+                        <div className="flex items-center justify-between gap-2 bg-black/20 p-2 rounded-xl border border-white/5">
+                          <div className="truncate text-[9px] font-mono text-slate-400">
+                            Token FCM: <span className="text-amber-300 font-bold">{NotificationService.getFCMToken()?.slice(0, 18)}...</span>
+                          </div>
+                          <button
+                            onClick={() => {
+                              const token = NotificationService.getFCMToken();
+                              if (token) {
+                                navigator.clipboard.writeText(token);
+                                success('Token FCM copiado para a área de transferência!');
+                              }
+                            }}
+                            className="text-[9px] font-bold text-amber-400 hover:underline shrink-0"
+                          >
+                            Copiar Token
+                          </button>
                         </div>
+
                         <button
-                          onClick={() => {
-                            const token = NotificationService.getFCMToken();
-                            if (token) {
-                              navigator.clipboard.writeText(token);
-                              success('Token FCM copiado para a área de transferência!');
+                          onClick={async () => {
+                            const sent = NotificationService.notifyFinancialAlert({
+                              title: '🚨 Alerta Financeiro FCM: Contas Vencendo',
+                              body: '⚠️ Existem contas a pagar pendentes com vencimento hoje totalizando R$ 4.850,00. Clique para conferir no PWA.',
+                              type: 'FINANCIAL_ALERT',
+                              url: '/accounts-payable',
+                            });
+                            if (sent) {
+                              success('Alerta Financeiro enviado via Push FCM!');
+                              setLogs(NotificationService.getLogs());
+                            } else {
+                              warning('Não foi possível enviar o alerta financeiro.');
                             }
                           }}
-                          className="text-[9px] font-bold text-amber-400 hover:underline shrink-0"
+                          className="w-full py-1.5 px-3 bg-red-500/15 hover:bg-red-500/25 text-red-400 font-bold text-[10px] rounded-xl border border-red-500/30 transition flex items-center justify-center gap-1.5 italic"
                         >
-                          Copiar Token
+                          <DollarSign className="w-3.5 h-3.5" />
+                          Testar Alerta Financeiro Push
                         </button>
                       </div>
                     ) : (

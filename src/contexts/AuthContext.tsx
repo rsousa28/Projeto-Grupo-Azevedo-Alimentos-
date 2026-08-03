@@ -9,6 +9,7 @@ import { useToast } from './ToastContext';
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos em milissegundos
 
 import { BiometricService } from '../services/BiometricService';
+import { NotificationService } from '../services/NotificationService';
 
 interface AuthContextType {
   user: User | null;
@@ -364,6 +365,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       localStorage.setItem('auth_user', JSON.stringify(authenticatedUser));
       localStorage.setItem('last_activity_timestamp', Date.now().toString());
 
+      // Auto sync FCM device registration token for PWA push alerts
+      NotificationService.initFCMToken(authenticatedUser).catch(err => 
+        console.warn('Auto FCM token registration on biometric login failed:', err)
+      );
+
       await AuditService.logAction({
         userId: authenticatedUser.id,
         userName: authenticatedUser.name,
@@ -381,6 +387,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Sync FCM token automatically when user logs in
+  useEffect(() => {
+    if (user) {
+      NotificationService.initFCMToken(user).catch(err => 
+        console.warn('Auto FCM token registration error:', err)
+      );
+    }
+  }, [user]);
+
   const logout = () => {
     if (user) {
       AuditService.logAction({
@@ -391,6 +406,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: `Usuário '${user.name}' deslogou temporariamente do sistema.`
       });
     }
+    NotificationService.unregisterFCMUser().catch(err => 
+      console.warn('Error unregistering FCM user on logout:', err)
+    );
     setUser(null);
     localStorage.removeItem('auth_user');
     localStorage.removeItem('active_store_id');

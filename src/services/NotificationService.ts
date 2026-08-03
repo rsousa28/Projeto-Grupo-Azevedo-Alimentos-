@@ -18,7 +18,7 @@ export interface NotificationLogItem {
   id: string;
   title: string;
   body: string;
-  type: 'CHECKLIST' | 'CASH_CLOSING' | 'SYSTEM' | 'TEST' | 'PAYABLE_HOURLY';
+  type: 'CHECKLIST' | 'CASH_CLOSING' | 'SYSTEM' | 'TEST' | 'PAYABLE_HOURLY' | 'FINANCIAL_ALERT';
   tag?: string;
   timestamp: string;
   read: boolean;
@@ -161,9 +161,10 @@ export class NotificationService {
   private static fcmInitialized = false;
 
   /**
-   * Register Firebase Cloud Messaging (FCM) Service Worker and obtain device registration token
+   * Register Firebase Cloud Messaging (FCM) Service Worker and obtain device registration token,
+   * associating current authenticated user details in Firestore.
    */
-  static async initFCMToken(): Promise<string | null> {
+  static async initFCMToken(currentUser?: { id?: string; name?: string; username?: string; role?: string } | null): Promise<string | null> {
     if (typeof window === 'undefined') return null;
     if (Notification.permission !== 'granted') return null;
 
@@ -174,7 +175,7 @@ export class NotificationService {
         return null;
       }
 
-      // Register Service Worker
+      // Register Service Worker for FCM PWA Background Push Notifications
       let registration: ServiceWorkerRegistration | undefined;
       if ('serviceWorker' in navigator) {
         try {
@@ -200,14 +201,28 @@ export class NotificationService {
         console.log('FCM Token successfully acquired:', token);
         localStorage.setItem('g_azevedo_fcm_token', token);
 
-        // Store token in Firestore for remote cloud push dispatching
+        // Retrieve user info from param or fallback to localStorage
+        let userToLink = currentUser;
+        if (!userToLink) {
+          try {
+            const rawUser = localStorage.getItem('auth_user');
+            if (rawUser) userToLink = JSON.parse(rawUser);
+          } catch (e) {}
+        }
+
+        // Store / update token document in Firestore fcm_tokens collection
         try {
           await setDoc(doc(db, 'fcm_tokens', getDeviceId()), {
             token,
             updatedAt: new Date().toISOString(),
+            lastActiveAt: new Date().toISOString(),
             deviceId: getDeviceId(),
-            userRole: this.isCurrentUserAdmin() ? 'ADMIN' : 'USER',
-            platform: 'PWA Web Push',
+            userId: userToLink?.id || 'anonymous',
+            userName: userToLink?.name || 'Usuário PWA',
+            username: userToLink?.username || 'user',
+            userRole: userToLink?.role || (this.isCurrentUserAdmin() ? 'ADMIN' : 'USER'),
+            platform: 'PWA Web Push FCM',
+            notificationsEnabled: true,
             userAgent: navigator.userAgent
           }, { merge: true });
         } catch (dbErr) {
@@ -225,7 +240,7 @@ export class NotificationService {
           
           this.sendPushNotification(title, {
             body,
-            type: (payload.data?.type as any) || 'SYSTEM',
+            type: (payload.data?.type as any) || 'FINANCIAL_ALERT',
             tag: payload.data?.tag || 'fcm_fg',
             url: payload.data?.url || '/accounts-payable',
             skipFirestoreSync: true
@@ -237,6 +252,24 @@ export class NotificationService {
     } catch (err: any) {
       console.warn('FCM Initialization error:', err);
       return null;
+    }
+  }
+
+  /**
+   * Mark FCM user session as logged out / guest in Firestore fcm_tokens
+   */
+  static async unregisterFCMUser(): Promise<void> {
+    try {
+      if (typeof window === 'undefined') return;
+      await setDoc(doc(db, 'fcm_tokens', getDeviceId()), {
+        userId: 'guest',
+        userName: 'Desconectado',
+        userRole: 'NONE',
+        updatedAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
+      }, { merge: true });
+    } catch (e) {
+      console.warn('Error unregistering FCM user:', e);
     }
   }
 
@@ -343,13 +376,34 @@ export class NotificationService {
   }
 
   /**
+   * Dispatch push notification for Financial Alerts (overdue bills, high value payments, due today)
+   */
+  static notifyFinancialAlert(data: {
+    title: string;
+    body: string;
+    type?: 'FINANCIAL_ALERT' | 'PAYABLE_HOURLY';
+    tag?: string;
+    url?: string;
+  }): boolean {
+    const prefs = this.getPreferences();
+    if (!prefs.enabled) return false;
+
+    return this.sendPushNotification(data.title, {
+      body: data.body,
+      type: data.type || 'FINANCIAL_ALERT',
+      tag: data.tag || `financial_alert_${Date.now()}`,
+      url: data.url || '/accounts-payable',
+    });
+  }
+
+  /**
    * Send a local push browser notification & broadcast to Firestore for cross-device delivery
    */
   static sendPushNotification(
     title: string,
     options: {
       body: string;
-      type?: 'CHECKLIST' | 'CASH_CLOSING' | 'SYSTEM' | 'TEST' | 'PAYABLE_HOURLY';
+      type?: 'CHECKLIST' | 'CASH_CLOSING' | 'SYSTEM' | 'TEST' | 'PAYABLE_HOURLY' | 'FINANCIAL_ALERT';
       icon?: string;
       tag?: string;
       url?: string;

@@ -372,7 +372,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   );
 
   return (
-    <div className={`flex min-h-screen font-sans ${currentStore.brand === 'BEBELU' || currentStore.code === 'ROOT' ? 'selection:bg-amber-200 selection:text-[#7F300C]' : 'selection:bg-red-200 selection:text-red-950'} ${isDarkMode ? 'dark' : ''}`}>
+    <div className={`flex min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden font-sans ${currentStore.brand === 'BEBELU' || currentStore.code === 'ROOT' ? 'selection:bg-amber-200 selection:text-[#7F300C]' : 'selection:bg-red-200 selection:text-red-950'} ${isDarkMode ? 'dark' : ''}`}>
       {/* Mobile Backdrop */}
       <AnimatePresence>
         {mobileMenuOpen && (
@@ -401,10 +401,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
       {/* Sidebar for Mobile */}
       <motion.aside 
-        initial={{ x: -280 }}
-        animate={{ x: mobileMenuOpen ? 0 : -280 }}
+        initial={{ x: '-100%' }}
+        animate={{ x: mobileMenuOpen ? '0%' : '-100%' }}
         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className={`fixed top-0 left-0 h-[100dvh] w-[280px] z-50 flex flex-col border-r transition-colors duration-500 lg:hidden ${
+        className={`fixed top-0 left-0 h-[100dvh] w-[280px] max-w-[85dvw] z-50 flex flex-col border-r transition-colors duration-500 lg:hidden ${
           isDarkMode 
             ? 'bg-[#0F0F0F] border-[#1E1E1E]' 
             : 'bg-white border-slate-200 shadow-xl shadow-slate-200/50'
@@ -419,7 +419,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       </motion.aside>
 
       {/* Main Content */}
-      <main className={`flex-1 flex flex-col h-[100dvh] overflow-hidden transition-colors duration-500 ${isDarkMode ? 'bg-[#0F0F0F]' : 'bg-[#F8FAFC]'}`}>
+      <main className={`flex-1 flex flex-col h-[100dvh] w-full max-w-full overflow-x-hidden min-w-0 transition-colors duration-500 ${isDarkMode ? 'bg-[#0F0F0F]' : 'bg-[#F8FAFC]'}`}>
         <header 
           className={`flex flex-col border-b transition-colors duration-500 shrink-0 ${isDarkMode ? 'bg-[#0F0F0F] border-[#1E1E1E]' : 'bg-white border-slate-200'}`}
           style={{
@@ -428,8 +428,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))'
           }}
         >
-          <div className="h-16 lg:h-20 flex items-center justify-between px-2 sm:px-4 lg:px-8">
-            <div className="flex items-center gap-3 sm:gap-4">
+          <div className="h-16 lg:h-20 flex items-center justify-between px-1.5 sm:px-4 lg:px-8 max-w-full">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               <button 
                 onClick={() => setMobileMenuOpen(true)}
                 className="lg:hidden p-2 hover:bg-slate-100 dark:hover:bg-[#1E1E1E] rounded-lg transition-colors"
@@ -441,12 +441,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               </div>
               <div className="sm:hidden flex items-center gap-2">
                  <div className="shrink-0">
-                    <Logo className="h-8 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
+                    <Logo className="h-7 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
                  </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-3 lg:gap-4 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-3 lg:gap-4 shrink-0 min-w-0">
               {/* Local-First IndexedDB Network & Sync Indicator for Mobile/All */}
               <div className="sm:hidden shrink-0">
                 <OfflineSyncBadge />
@@ -478,7 +478,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
               <div 
                 onClick={() => setIsSettingsOpen(true)}
-                className="text-right max-w-[70px] xs:max-w-[110px] sm:max-w-none cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+                className="text-right max-w-[65px] xs:max-w-[100px] sm:max-w-none cursor-pointer hover:opacity-80 transition-opacity shrink min-w-0"
                 title="Clique para abrir as Configurações"
               >
                 <div className={`text-xs sm:text-sm font-black uppercase tracking-tighter italic leading-none mb-1 truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
