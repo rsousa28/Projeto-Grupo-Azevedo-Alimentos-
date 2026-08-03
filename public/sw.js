@@ -1,13 +1,13 @@
-const CACHE_NAME = 'grupo-azevedo-v4';
+const CACHE_NAME = 'grupo-azevedo-v5';
 
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json?v=7',
-  '/logo_azevedo.png?v=7',
-  '/logo_azevedo_512.png?v=7',
-  '/logo_azevedo.svg?v=7',
-  '/apple-touch-icon.png?v=7'
+  '/manifest.json?v=8',
+  '/logo_azevedo.png?v=8',
+  '/logo_azevedo_512.png?v=8',
+  '/logo_azevedo.svg?v=8',
+  '/apple-touch-icon.png?v=8'
 ];
 
 // Install Event - Pre-cache core shell

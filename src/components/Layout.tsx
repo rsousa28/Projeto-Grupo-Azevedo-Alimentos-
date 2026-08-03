@@ -249,8 +249,15 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 exit={{ opacity: 0, x: -10 }}
                 className="flex items-center gap-3 overflow-visible font-display animate-fade-in"
               >
-                <div className="bg-white p-1 rounded-xl shadow-md shadow-amber-500/15 border border-amber-500/15 shrink-0 transition-transform hover:scale-105 duration-300">
-                  <img src={LOGO_URL} alt="Logo" className="h-8 w-auto object-contain" />
+                <div className="bg-[#16120b] p-1 rounded-xl shadow-md border border-amber-500/20 shrink-0 transition-transform hover:scale-105 duration-300 overflow-hidden">
+                  <img 
+                    src={LOGO_URL} 
+                    alt="Grupo Azevedo Logo" 
+                    className="h-8 w-auto object-contain rounded-lg" 
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/logo_azevedo.png';
+                    }}
+                  />
                 </div>
                 <span className={`font-black text-xs italic tracking-tight whitespace-nowrap py-1.5 px-0.5 leading-normal select-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                   GRUPO AZEVEDO
@@ -428,8 +435,15 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 <OfflineSyncBadge />
               </div>
               <div className="sm:hidden flex items-center gap-2">
-                 <div className="bg-white p-1 rounded-lg shrink-0 border border-slate-200/50 shadow-xs">
-                    <img src={LOGO_URL} alt="Logo" className="h-6 w-auto object-contain" />
+                 <div className="bg-[#16120b] p-1 rounded-lg shrink-0 border border-amber-500/20 shadow-xs overflow-hidden">
+                    <img 
+                      src={LOGO_URL} 
+                      alt="Grupo Azevedo Logo" 
+                      className="h-6 w-auto object-contain rounded-md" 
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/logo_azevedo.png';
+                      }}
+                    />
                  </div>
               </div>
             </div>

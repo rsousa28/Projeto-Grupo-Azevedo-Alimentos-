@@ -88,11 +88,14 @@ export default function SelectStore() {
             <div className="relative group">
               {/* Outer glow ring utilizing Bebelu color palette */}
               <div className="absolute -inset-1.5 bg-gradient-to-r from-[#FFCB05] to-[#7F300C] rounded-2xl blur opacity-15 group-hover:opacity-30 transition duration-1000" />
-              <div className="relative bg-white p-5 rounded-2xl border border-amber-500/10 shadow-lg flex items-center justify-center">
+              <div className="relative bg-[#16120b] p-3 rounded-2xl border border-amber-500/20 shadow-xl flex items-center justify-center overflow-hidden">
                 <img 
                   src="/logo_azevedo.svg" 
                   alt="Logo Grupo Azevedo" 
-                  className="h-12 md:h-14 w-auto object-contain transform transition-transform duration-500 group-hover:scale-105"
+                  className="h-14 md:h-16 w-auto object-contain transform transition-transform duration-500 group-hover:scale-105 rounded-xl"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = '/logo_azevedo.png';
+                  }}
                 />
               </div>
             </div>
