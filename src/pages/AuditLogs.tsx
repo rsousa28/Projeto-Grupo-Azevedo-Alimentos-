@@ -145,6 +145,33 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
     }
   };
 
+  const handleCreateAndDownloadBackup = async () => {
+    if (!user) return;
+    setIsCreatingBackup(true);
+    try {
+      toastWarning("Gerando backup completo das finanças e preparando download...");
+      const bkp = await BackupService.createBackup(user.username, 'manual');
+      toastSuccess(`Backup '${bkp.backupId}' gerado com sucesso! Baixando arquivo...`);
+      await fetchBackupsList();
+      await fetchLogsData();
+
+      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+        JSON.stringify(bkp, null, 2)
+      )}`;
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", jsonString);
+      downloadAnchor.setAttribute("download", `GRUPO_AZEVEDO_BACKUP_${bkp.backupId}_${new Date(bkp.timestamp).toISOString().split('T')[0]}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    } catch (err) {
+      console.error(err);
+      toastError("Falha ao gerar e baixar arquivo de backup.");
+    } finally {
+      setIsCreatingBackup(false);
+    }
+  };
+
   const handleDeleteBackup = async (backupId: string) => {
     if (!user) return;
     if (!window.confirm(`Tem certeza que deseja excluir permanentemente o backup '${backupId}'?`)) return;
@@ -992,10 +1019,10 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
                   <Database className="w-4 h-4" /> Gerar Checkpoint Sob Demanda
                 </h4>
                 <p className="text-xs text-slate-500 font-semibold leading-relaxed mt-1">
-                  Varre todas as coleções do Firestore (Metas, DREs, CMVs, usuários, submissões de checklists de lojas, e planejamentos operacionais) e persiste o snapshot.
+                  Varre todas as coleções do Firestore (Contas a Pagar, Fechamentos, DREs, CMVs, Usuários e Checklists) e salva no banco ou permite o download do JSON.
                 </p>
               </div>
-              <div>
+              <div className="grid sm:grid-cols-2 gap-2">
                 <button
                   onClick={handleCreateManualBackup}
                   disabled={isCreatingBackup || backupsLoading}
@@ -1004,21 +1031,30 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
                     color: themeTextContrast,
                     boxShadow: `0 10px 15px -3px ${themeButtonBg}30`,
                   } : {}}
-                  className={`w-full py-3 px-4 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition hover:brightness-110 active:scale-95 disabled:bg-slate-800 disabled:text-slate-600 duration-200 ${
+                  className={`w-full py-3 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 transition hover:brightness-110 active:scale-95 disabled:bg-slate-800 disabled:text-slate-600 duration-200 ${
                     (isCreatingBackup || backupsLoading) ? '' : 'text-white shadow-md'
                   }`}
                 >
                   {isCreatingBackup ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Capturando Estado...
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Capturando...
                     </>
                   ) : (
                     <>
-                      <Archive className="w-4 h-4" />
-                      Criar Backup Manual Agora
+                      <Archive className="w-3.5 h-3.5" />
+                      Backup no Banco
                     </>
                   )}
+                </button>
+
+                <button
+                  onClick={handleCreateAndDownloadBackup}
+                  disabled={isCreatingBackup || backupsLoading}
+                  className="w-full py-3 px-3 rounded-xl text-[11px] font-bold uppercase tracking-wider flex items-center justify-center gap-1.5 bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-500/30 text-emerald-300 hover:text-white transition active:scale-95 disabled:bg-slate-800 disabled:text-slate-600 duration-200"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Baixar JSON Local
                 </button>
               </div>
             </div>
@@ -1120,7 +1156,7 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
                       </div>
 
                       {/* Diagnostic Breakdown */}
-                      <div className="mt-4 bg-black/60 p-3 rounded-xl border border-[#222] grid grid-cols-3 gap-2 text-center text-[10px] font-bold">
+                      <div className="mt-4 bg-black/60 p-3 rounded-xl border border-[#222] grid grid-cols-4 gap-2 text-center text-[10px] font-bold">
                         <div>
                           <div className="text-slate-500 text-[8px] uppercase tracking-wider mb-0.5">Usuários</div>
                           <div className="text-white font-mono">{bk.summary.usersCount}</div>
@@ -1130,15 +1166,22 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
                           <div className="text-indigo-400 font-mono">{bk.summary.dreCount}</div>
                         </div>
                         <div>
-                          <div className="text-teal-400 text-[8px] uppercase tracking-wider mb-0.5">CMV Lojas</div>
+                          <div className="text-teal-400 text-[8px] uppercase tracking-wider mb-0.5">CMV</div>
                           <div className="text-teal-400 font-mono">{bk.summary.cmvCount}</div>
                         </div>
-                        <div className="col-span-3 pt-1.5 mt-1 border-t border-[#1e1e1e] flex justify-around text-slate-400">
+                        <div>
+                          <div className="text-amber-400 text-[8px] uppercase tracking-wider mb-0.5">Contas Pagar</div>
+                          <div className="text-amber-400 font-mono">{bk.summary.accountsPayableCount ?? '-'}</div>
+                        </div>
+                        <div className="col-span-4 pt-1.5 mt-1 border-t border-[#1e1e1e] flex justify-around text-slate-400 text-[9px]">
+                          <div>
+                            Caixa: <strong className="text-slate-200 font-mono">{bk.summary.closingsCount ?? '-'}</strong>
+                          </div>
                           <div>
                             Checklists: <strong className="text-slate-200 font-mono">{bk.summary.submissionsCount}</strong>
                           </div>
                           <div>
-                            Ações Corretivas: <strong className="text-slate-200 font-mono">{bk.summary.plansCount}</strong>
+                            Ações: <strong className="text-slate-200 font-mono">{bk.summary.plansCount}</strong>
                           </div>
                         </div>
                       </div>

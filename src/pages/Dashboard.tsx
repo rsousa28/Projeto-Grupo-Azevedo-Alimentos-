@@ -74,8 +74,9 @@ export default function Dashboard() {
   const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
 
   const currentInitialDate = new Date();
-  const initialMonthStr = String(currentInitialDate.getMonth() + 1).padStart(2, '0');
-  const initialYearStr = String(currentInitialDate.getFullYear());
+  const prevMonthDate = new Date(currentInitialDate.getFullYear(), currentInitialDate.getMonth() - 1, 1);
+  const initialMonthStr = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
+  const initialYearStr = String(prevMonthDate.getFullYear());
 
   const [showEntry, setShowEntry] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(initialMonthStr);

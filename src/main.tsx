@@ -1,5 +1,7 @@
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
+import App from './App';
+import './index.css';
 
 // Robust local and session storage polyfill for strict browsers / sandboxed iframes (Google Chrome)
 // to prevent "Access is denied for this document" DOMExceptions which cause white screens.
@@ -71,11 +73,8 @@ import {createRoot} from 'react-dom/client';
   }
 })();
 
-import App from './App.tsx';
-import './index.css';
-
 // Shim process for browser environments where it might be expected by libraries
-if (typeof window !== 'undefined' && !window.process) {
+if (typeof window !== 'undefined' && !(window as any).process) {
   (window as any).process = { env: {} };
 }
 
@@ -105,4 +104,5 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 );
+
 

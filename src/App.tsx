@@ -3,14 +3,13 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { lazy, Suspense, useEffect, useRef } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import {
   BrowserRouter,
   HashRouter,
   Routes,
   Route,
   Navigate,
-  useLocation,
 } from "react-router-dom";
 import { StoreProvider } from "./contexts/StoreContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -20,10 +19,12 @@ import Layout from "./components/Layout";
 import { useAuth } from "./contexts/AuthContext";
 import { AuditService } from "./services/AuditService";
 
-// Lazy-loaded page modules for bundle size optimization & fast initial paint
-const Login = lazy(() => import("./pages/Login"));
-const SelectStore = lazy(() => import("./pages/SelectStore"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+// Eagerly loaded core routes for instant initial paint & standard workflow
+import Login from "./pages/Login";
+import SelectStore from "./pages/SelectStore";
+import Dashboard from "./pages/Dashboard";
+
+// Lazy-loaded secondary modules with prefetching strategy
 const Finance = lazy(() => import("./pages/Finance"));
 const DataEntry = lazy(() => import("./pages/DataEntry"));
 const Team = lazy(() => import("./pages/Team"));
@@ -34,13 +35,42 @@ const AuditLogs = lazy(() => import("./pages/AuditLogs"));
 const Marketing = lazy(() => import("./pages/Marketing"));
 const DailyControl = lazy(() => import("./pages/DailyControl"));
 
-function PageLoadingFallback() {
+/**
+ * Background prefetching helper: warms up lazy module chunks in browser cache
+ * during idle moments so route navigation feels instant without blocking UI.
+ */
+function prefetchSecondaryModules() {
+  if (typeof window === "undefined") return;
+  const load = () => {
+    import("./pages/AccountsPayable");
+    import("./pages/DailyControl");
+    import("./pages/Finance");
+    import("./pages/CashClosing");
+    import("./pages/DataEntry");
+    import("./pages/Checklist");
+    import("./pages/AuditLogs");
+    import("./pages/Team");
+    import("./pages/Marketing");
+  };
+
+  if ("requestIdleCallback" in window) {
+    (window as any).requestIdleCallback(load);
+  } else {
+    setTimeout(load, 1200);
+  }
+}
+
+/**
+ * Lightweight, non-intrusive loading state rendered INSIDE the layout content frame
+ * to prevent full-screen flashing or UI jumps.
+ */
+function ContentLoadingFallback() {
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#0d0d0d] text-white">
-      <div className="flex flex-col items-center gap-3 p-6 rounded-2xl bg-[#141414] border border-[#262626] shadow-2xl">
-        <div className="w-8 h-8 border-3 border-amber-500/30 border-t-amber-500 rounded-full animate-spin" />
-        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Carregando Módulo...</span>
-      </div>
+    <div className="w-full h-64 flex flex-col items-center justify-center gap-3">
+      <div className="w-7 h-7 border-2 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+        Carregando visualização...
+      </span>
     </div>
   );
 }
@@ -141,10 +171,15 @@ function MarketingAccessRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const { user } = useAuth();
 
+  useEffect(() => {
+    if (user) {
+      prefetchSecondaryModules();
+    }
+  }, [user]);
+
   return (
     <Router>
-      <Suspense fallback={<PageLoadingFallback />}>
-        <Routes>
+      <Routes>
           <Route path="/login" element={<Login />} />
 
           <Route
@@ -165,75 +200,85 @@ function AppRoutes() {
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/cash-closing" element={<CashClosing />} />
-            <Route path="/data-entry" element={<DataEntry />} />
-            <Route path="/daily-control" element={<DailyControl />} />
-            <Route
-              path="/finance"
-              element={
-                <FinanceAccessRoute>
-                  <Finance />
-                </FinanceAccessRoute>
-              }
-            />
-            <Route
-              path="/marketing"
-              element={
-                <MarketingAccessRoute>
-                  <Marketing />
-                </MarketingAccessRoute>
-              }
-            />
-            <Route
-              path="/accounts-payable"
-              element={
-                <AdminOnlyRoute>
-                  <AccountsPayable />
-                </AdminOnlyRoute>
-              }
-            />
-
-            <Route
-              path="/audit-logs"
-              element={
-                <RootAdminOnlyRoute>
-                  <AuditLogs forcedTab="logs" />
-                </RootAdminOnlyRoute>
-              }
-            />
-            <Route
-              path="/security-summary"
-              element={
-                <RootAdminOnlyRoute>
-                  <AuditLogs forcedTab="security" />
-                </RootAdminOnlyRoute>
-              }
-            />
-            <Route
-              path="/backups"
-              element={
-                <RootAdminOnlyRoute>
-                  <AuditLogs forcedTab="backups" />
-                </RootAdminOnlyRoute>
-              }
-            />
-            <Route
-              path="/diagnostics"
-              element={
-                <RootAdminOnlyRoute>
-                  <AuditLogs forcedTab="diagnostics" />
-                </RootAdminOnlyRoute>
-              }
-            />
-            <Route path="/checklist" element={<Checklist />} />
             <Route path="/analysis" element={<Dashboard />} />
             <Route path="/reports" element={<Dashboard />} />
+
+            {/* Secondary routes wrapped in Suspense with lightweight fallback */}
             <Route
-              path="/team"
+              path="*"
               element={
-                <RootAdminOnlyRoute>
-                  <Team />
-                </RootAdminOnlyRoute>
+                <Suspense fallback={<ContentLoadingFallback />}>
+                  <Routes>
+                    <Route path="/cash-closing" element={<CashClosing />} />
+                    <Route path="/data-entry" element={<DataEntry />} />
+                    <Route path="/daily-control" element={<DailyControl />} />
+                    <Route
+                      path="/finance"
+                      element={
+                        <FinanceAccessRoute>
+                          <Finance />
+                        </FinanceAccessRoute>
+                      }
+                    />
+                    <Route
+                      path="/marketing"
+                      element={
+                        <MarketingAccessRoute>
+                          <Marketing />
+                        </MarketingAccessRoute>
+                      }
+                    />
+                    <Route
+                      path="/accounts-payable"
+                      element={
+                        <AdminOnlyRoute>
+                          <AccountsPayable />
+                        </AdminOnlyRoute>
+                      }
+                    />
+                    <Route
+                      path="/audit-logs"
+                      element={
+                        <RootAdminOnlyRoute>
+                          <AuditLogs forcedTab="logs" />
+                        </RootAdminOnlyRoute>
+                      }
+                    />
+                    <Route
+                      path="/security-summary"
+                      element={
+                        <RootAdminOnlyRoute>
+                          <AuditLogs forcedTab="security" />
+                        </RootAdminOnlyRoute>
+                      }
+                    />
+                    <Route
+                      path="/backups"
+                      element={
+                        <RootAdminOnlyRoute>
+                          <AuditLogs forcedTab="backups" />
+                        </RootAdminOnlyRoute>
+                      }
+                    />
+                    <Route
+                      path="/diagnostics"
+                      element={
+                        <RootAdminOnlyRoute>
+                          <AuditLogs forcedTab="diagnostics" />
+                        </RootAdminOnlyRoute>
+                      }
+                    />
+                    <Route path="/checklist" element={<Checklist />} />
+                    <Route
+                      path="/team"
+                      element={
+                        <RootAdminOnlyRoute>
+                          <Team />
+                        </RootAdminOnlyRoute>
+                      }
+                    />
+                  </Routes>
+                </Suspense>
               }
             />
           </Route>
@@ -250,7 +295,6 @@ function AppRoutes() {
           />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
-      </Suspense>
     </Router>
   );
 }

@@ -529,13 +529,41 @@ export class NotificationService {
     const currentYear = String(year);
     const currentMonth = month;
 
-    // Build master list of all accounts across stores (combining localStorage & Firestore)
+    // Build master list of all accounts across stores prioritizing Firestore
     const masterMap = new Map<string, any>();
 
-    // 1. Read from local storage (if in browser context) for instant local updates
-    if (typeof window !== 'undefined' && window.localStorage) {
-      STORES.forEach(s => {
-        const key = `g_azevedo_ap_items_clean_${s.id}`;
+    // 1. Fetch from Firestore for all stores first (authoritative database source)
+    const allStorePromises = STORES.map(async store => {
+      try {
+        const docRef = doc(db, 'stores', store.id, 'accounts_payable', 'all');
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data().data || [];
+          // Keep local storage synced with cloud data
+          if (typeof window !== 'undefined' && window.localStorage) {
+            try {
+              localStorage.setItem(`g_azevedo_ap_items_clean_${store.id}`, JSON.stringify(data));
+            } catch (e) {}
+          }
+          return { storeId: store.id, data, hasCloud: true };
+        }
+      } catch (e) {
+        console.warn(`Error reading AP data for store ${store.name}:`, e);
+      }
+      return { storeId: store.id, data: [], hasCloud: false };
+    });
+
+    const storeResults = await Promise.all(allStorePromises);
+    storeResults.forEach(res => {
+      if (res.hasCloud) {
+        res.data.forEach((item: any) => {
+          if (item && item.id) {
+            masterMap.set(item.id, item);
+          }
+        });
+      } else if (typeof window !== 'undefined' && window.localStorage) {
+        // Fallback to local storage only if store has no cloud document or network failed
+        const key = `g_azevedo_ap_items_clean_${res.storeId}`;
         const raw = localStorage.getItem(key);
         if (raw) {
           try {
@@ -545,49 +573,8 @@ export class NotificationService {
                 if (item && item.id) masterMap.set(item.id, item);
               });
             }
-          } catch (e) {
-            // ignore
-          }
+          } catch (e) {}
         }
-      });
-
-      const rawGlobal = localStorage.getItem('g_azevedo_ap_items_clean_admin-global');
-      if (rawGlobal) {
-        try {
-          const list = JSON.parse(rawGlobal);
-          if (Array.isArray(list)) {
-            list.forEach(item => {
-              if (item && item.id) masterMap.set(item.id, item);
-            });
-          }
-        } catch (e) {
-          // ignore
-        }
-      }
-    }
-
-    // 2. Fetch from Firestore for all stores
-    const allStorePromises = STORES.map(async store => {
-      try {
-        const docRef = doc(db, 'stores', store.id, 'accounts_payable', 'all');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          return docSnap.data().data || [];
-        }
-      } catch (e) {
-        console.warn(`Error reading AP data for store ${store.name}:`, e);
-      }
-      return [];
-    });
-
-    const firestoreResults = await Promise.all(allStorePromises);
-    firestoreResults.forEach(list => {
-      if (Array.isArray(list)) {
-        list.forEach(item => {
-          if (item && item.id) {
-            masterMap.set(item.id, item);
-          }
-        });
       }
     });
 

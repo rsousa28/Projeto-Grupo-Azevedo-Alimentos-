@@ -30,6 +30,10 @@ export interface BackupRecord {
     cmvCount: number;
     submissionsCount: number;
     plansCount: number;
+    accountsPayableCount?: number;
+    closingsCount?: number;
+    dailyControlCount?: number;
+    budgetPeriodsCount?: number;
   };
   payload: {
     users: any[];
@@ -43,6 +47,10 @@ export interface BackupRecord {
           templates?: any;
           action_plans?: any;
         };
+        accounts_payable?: any[];
+        closings?: any[];
+        daily_control?: any[];
+        budget_periods?: any[];
       };
     };
   };
@@ -91,6 +99,10 @@ export const BackupService = {
       let cmvCount = 0;
       let submissionsCount = 0;
       let plansCount = 0;
+      let accountsPayableCount = 0;
+      let closingsCount = 0;
+      let dailyControlCount = 0;
+      let budgetPeriodsCount = 0;
 
       // 3. Drill down into store subcollections
       for (const storeId of storeIds) {
@@ -108,6 +120,26 @@ export const BackupService = {
         const subSnap = await getDocs(collection(db, 'stores', storeId, 'checklist_submissions'));
         const checklist_submissions = subSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         submissionsCount += checklist_submissions.length;
+
+        // Fetch accounts_payable
+        const apSnap = await getDocs(collection(db, 'stores', storeId, 'accounts_payable'));
+        const accounts_payable = apSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        accountsPayableCount += accounts_payable.length;
+
+        // Fetch closings
+        const closingsSnap = await getDocs(collection(db, 'stores', storeId, 'closings'));
+        const closings = closingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        closingsCount += closings.length;
+
+        // Fetch daily_control
+        const dcSnap = await getDocs(collection(db, 'stores', storeId, 'daily_control'));
+        const daily_control = dcSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        dailyControlCount += daily_control.length;
+
+        // Fetch budget_periods
+        const bpSnap = await getDocs(collection(db, 'stores', storeId, 'budget_periods'));
+        const budget_periods = bpSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        budgetPeriodsCount += budget_periods.length;
 
         // Fetch any templates or action plans in checklists parent doc
         const checklists: any = {};
@@ -129,7 +161,11 @@ export const BackupService = {
           dre_periods,
           cmv_periods,
           checklist_submissions,
-          checklists
+          checklists,
+          accounts_payable,
+          closings,
+          daily_control,
+          budget_periods
         };
       }
 
@@ -147,7 +183,11 @@ export const BackupService = {
           dreCount,
           cmvCount,
           submissionsCount,
-          plansCount
+          plansCount,
+          accountsPayableCount,
+          closingsCount,
+          dailyControlCount,
+          budgetPeriodsCount
         },
         payload: {
           users,
@@ -368,6 +408,46 @@ export const BackupService = {
             if (collections.checklists.action_plans) {
               const plansRef = doc(db, 'stores', storeId, 'checklists', 'action_plans');
               await setDoc(plansRef, this.sanitizeData(collections.checklists.action_plans));
+            }
+          }
+
+          // E. Restore accounts_payable
+          if (collections.accounts_payable && Array.isArray(collections.accounts_payable)) {
+            for (const item of collections.accounts_payable) {
+              if (!item.id) continue;
+              const itemRef = doc(db, 'stores', storeId, 'accounts_payable', item.id);
+              const { id, ...data } = item;
+              await setDoc(itemRef, this.sanitizeData(data));
+            }
+          }
+
+          // F. Restore closings
+          if (collections.closings && Array.isArray(collections.closings)) {
+            for (const item of collections.closings) {
+              if (!item.id) continue;
+              const itemRef = doc(db, 'stores', storeId, 'closings', item.id);
+              const { id, ...data } = item;
+              await setDoc(itemRef, this.sanitizeData(data));
+            }
+          }
+
+          // G. Restore daily_control
+          if (collections.daily_control && Array.isArray(collections.daily_control)) {
+            for (const item of collections.daily_control) {
+              if (!item.id) continue;
+              const itemRef = doc(db, 'stores', storeId, 'daily_control', item.id);
+              const { id, ...data } = item;
+              await setDoc(itemRef, this.sanitizeData(data));
+            }
+          }
+
+          // H. Restore budget_periods
+          if (collections.budget_periods && Array.isArray(collections.budget_periods)) {
+            for (const item of collections.budget_periods) {
+              if (!item.id) continue;
+              const itemRef = doc(db, 'stores', storeId, 'budget_periods', item.id);
+              const { id, ...data } = item;
+              await setDoc(itemRef, this.sanitizeData(data));
             }
           }
         }

@@ -730,43 +730,35 @@ export default function AccountsPayable() {
           const docSnap = await getDocCached(docRef, currentStore.id, user);
           
           let cloudData: AccountPayable[] = [];
+          let hasCloudDoc = false;
           if (docSnap.exists()) {
             cloudData = docSnap.data().data || [];
+            hasCloudDoc = true;
           }
 
-          // Merge local storage items with cloud items so locally added/updated accounts are NEVER lost
-          let localItems: AccountPayable[] = [];
-          const locallyStored = localStorage.getItem(storageKey);
-          if (locallyStored) {
-            try {
-              localItems = JSON.parse(locallyStored);
-            } catch (e) {
-              console.warn("Error parsing local accounts payable:", e);
-            }
-          }
+          let finalAccounts: AccountPayable[] = [];
 
-          const combinedMap = new Map<string, AccountPayable>();
-          // Add cloud data first
-          cloudData.forEach((item: AccountPayable) => {
-            if (item && item.id) combinedMap.set(item.id, item);
-          });
-          // Preserve local items not present in cloud
-          localItems.forEach((item: AccountPayable) => {
-            if (item && item.id && !combinedMap.has(item.id)) {
-              combinedMap.set(item.id, item);
+          if (hasCloudDoc) {
+            // Firestore is the authoritative database record.
+            finalAccounts = cloudData;
+          } else {
+            // Fallback to local storage if Firestore document does not exist yet
+            let localItems: AccountPayable[] = [];
+            const locallyStored = localStorage.getItem(storageKey);
+            if (locallyStored) {
+              try {
+                localItems = JSON.parse(locallyStored);
+              } catch (e) {
+                console.warn("Error parsing local accounts payable:", e);
+              }
             }
-          });
+            finalAccounts = localItems;
+          }
 
           if (isMounted) {
-            const merged = Array.from(combinedMap.values());
-            const processed = processItems(merged);
+            const processed = processItems(finalAccounts);
             setAccounts(processed);
             safeSetItemToLocalStorage(currentStore.id, processed);
-
-            // Sync merged data back to Firestore if local items were preserved
-            if (merged.length > cloudData.length) {
-              setDocCached(docRef, { data: processed }, currentStore.id, user).catch(e => console.warn("Auto sync merged accounts failed:", e));
-            }
           }
         }
       } catch (err) {
