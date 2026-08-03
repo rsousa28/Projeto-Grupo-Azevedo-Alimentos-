@@ -410,8 +410,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             : 'bg-white border-slate-200 shadow-xl shadow-slate-200/50'
         }`}
         style={{
-          paddingTop: 'max(2.75rem, calc(env(safe-area-inset-top, 0px) + 0.75rem))',
-          paddingBottom: 'max(2rem, calc(env(safe-area-inset-bottom, 0px) + 1rem))',
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)',
           paddingLeft: 'env(safe-area-inset-left, 0px)'
         }}
       >
@@ -423,7 +423,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         <header 
           className={`flex flex-col border-b transition-colors duration-500 shrink-0 ${isDarkMode ? 'bg-[#0F0F0F] border-[#1E1E1E]' : 'bg-white border-slate-200'}`}
           style={{
-            paddingTop: 'max(2.75rem, calc(env(safe-area-inset-top, 0px) + 0.75rem))',
+            paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.25rem)',
             paddingLeft: 'max(0.75rem, env(safe-area-inset-left, 0px))',
             paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))'
           }}
@@ -493,10 +493,10 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         </header>
 
         <div 
-          className={`flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 overscroll-contain custom-scrollbar relative ${bgTextureClass}`} 
+          className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 overscroll-contain custom-scrollbar relative" 
           style={{ 
             WebkitOverflowScrolling: 'touch',
-            paddingBottom: 'max(10rem, calc(env(safe-area-inset-bottom, 0px) + 4rem))',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2.5rem)',
             paddingLeft: 'max(0.75rem, env(safe-area-inset-left, 0px))',
             paddingRight: 'max(0.75rem, env(safe-area-inset-right, 0px))'
           }}

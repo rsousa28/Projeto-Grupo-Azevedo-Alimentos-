@@ -4785,7 +4785,7 @@ export default function AccountsPayable() {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className={`w-full max-w-md rounded-2xl border p-6 shadow-2xl overflow-hidden ${
+              className={`w-full max-w-md max-h-[90dvh] overflow-y-auto custom-scrollbar rounded-2xl border p-6 shadow-2xl ${
                 isDarkMode ? 'bg-[#0E0E0E] text-slate-100 border-[#222]' : 'bg-white text-slate-800 border-slate-200'
               }`}
             >

@@ -635,7 +635,7 @@ export default function CSVImportModal({ isOpen, onClose, type }: CSVImportModal
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-            className={`relative w-full max-w-2xl rounded-[2.5rem] border overflow-hidden shadow-2xl ${
+            className={`relative w-full max-w-2xl max-h-[90dvh] overflow-y-auto custom-scrollbar rounded-[2rem] sm:rounded-[2.5rem] border shadow-2xl ${
               isDarkMode ? 'bg-[#1A1A1A] border-[#333]' : 'bg-white border-slate-100'
             }`}
           >

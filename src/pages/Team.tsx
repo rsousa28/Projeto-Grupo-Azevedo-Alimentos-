@@ -506,7 +506,7 @@ export default function Team() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className={`relative w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border ${
+              className={`relative w-full max-w-lg max-h-[90dvh] overflow-y-auto custom-scrollbar rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl border ${
                 isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-white'
               }`}
             >
