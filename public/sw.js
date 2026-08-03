@@ -1,4 +1,47 @@
-const CACHE_NAME = 'grupo-azevedo-v7';
+/*
+ * Service Worker Principal para o PWA do Grupo Azevedo
+ * Suporta Caching Offline, Push Notifications Nativas Web Push e Firebase Messaging
+ */
+
+// Importa Firebase SDKs no Service Worker para escutar mensagens FCM em segundo plano
+try {
+  importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+  importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+
+  if (typeof firebase !== 'undefined' && firebase.initializeApp) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyBNYBj-SnNhqwrzDXvuIigIdcD-LOpNQqI",
+      authDomain: "gen-lang-client-0790951913.firebaseapp.com",
+      projectId: "gen-lang-client-0790951913",
+      storageBucket: "gen-lang-client-0790951913.firebasestorage.app",
+      messagingSenderId: "244010170526",
+      appId: "1:244010170526:web:035ef6dca66a6f059ee38f"
+    });
+
+    const messaging = firebase.messaging();
+    messaging.onBackgroundMessage((payload) => {
+      console.log('[SW] Firebase Background Push Message received:', payload);
+      const title = payload.notification?.title || payload.data?.title || '🔔 Grupo Azevedo';
+      const body = payload.notification?.body || payload.data?.body || 'Nova notificação do sistema.';
+      const icon = payload.notification?.icon || payload.data?.icon || '/logo_azevedo.png?v=10';
+      const tag = payload.data?.tag || 'fcm_background_push';
+      const url = payload.data?.url || '/';
+
+      self.registration.showNotification(title, {
+        body,
+        icon,
+        badge: '/logo_azevedo.png?v=10',
+        tag,
+        vibrate: [200, 100, 200, 100, 200],
+        data: { url }
+      });
+    });
+  }
+} catch (e) {
+  console.warn('[SW] Firebase messaging import in Service Worker warning:', e);
+}
+
+const CACHE_NAME = 'grupo-azevedo-v10';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -103,8 +146,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       caches.match(request, { ignoreSearch: true }).then((cachedResponse) => {
         if (cachedResponse) {
-          // Instant Cache Hit! Serve immediately.
-          // Optionally trigger background refresh if online
           fetch(request)
             .then((networkResponse) => {
               if (networkResponse && networkResponse.status === 200) {
@@ -112,13 +153,10 @@ self.addEventListener('fetch', (event) => {
                 caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
               }
             })
-            .catch(() => {
-              // Silently ignore background fetch errors when offline
-            });
+            .catch(() => {});
           return cachedResponse;
         }
 
-        // Cache miss: fetch from network and cache for future instant loads
         return fetch(request)
           .then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
@@ -128,7 +166,6 @@ self.addEventListener('fetch', (event) => {
             return networkResponse;
           })
           .catch(async () => {
-            // Image/Asset Network Failure Fallback
             if (url.pathname.endsWith('.svg') || url.pathname.endsWith('.png') || url.pathname.includes('logo')) {
               const fallbackSvg = await caches.match('/logo_azevedo.svg', { ignoreSearch: true });
               if (fallbackSvg) return fallbackSvg;
@@ -153,13 +190,46 @@ self.addEventListener('fetch', (event) => {
           }
           return networkResponse;
         })
-        .catch(() => {
-          // Network error ignored when serving cached fallback
-        });
+        .catch(() => {});
 
       return cachedResponse || fetchPromise;
     })
   );
+});
+
+// Push Event - Handles raw Web Push / FCM network pushes when the browser is closed or in background
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push Event Received:', event);
+  let title = '🔔 Grupo Azevedo Alimentos';
+  let body = 'Nova atualização disponível.';
+  let icon = '/logo_azevedo.png?v=10';
+  let tag = 'push_event_notif';
+  let url = '/';
+
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      title = payload.notification?.title || payload.title || title;
+      body = payload.notification?.body || payload.body || body;
+      icon = payload.notification?.icon || payload.icon || icon;
+      tag = payload.data?.tag || payload.tag || tag;
+      url = payload.data?.url || payload.url || url;
+    } catch (err) {
+      body = event.data.text() || body;
+    }
+  }
+
+  const options = {
+    body,
+    icon,
+    badge: '/logo_azevedo.png?v=10',
+    tag,
+    vibrate: [200, 100, 200, 100, 200],
+    data: { url },
+    renotify: true,
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
 });
 
 // Message Event - Handle direct notifications requested by application
@@ -171,8 +241,8 @@ self.addEventListener('message', (event) => {
 
     self.registration.showNotification(notifTitle, {
       body: notifBody,
-      icon: icon || '/logo_azevedo.png?v=7',
-      badge: '/logo_azevedo.png?v=7',
+      icon: icon || '/logo_azevedo.png?v=10',
+      badge: '/logo_azevedo.png?v=10',
       tag: tag || 'grupo_azevedo_notif',
       vibrate: [200, 100, 200, 100, 200],
       data: { url: url || '/accounts-payable' }
@@ -200,4 +270,3 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
-

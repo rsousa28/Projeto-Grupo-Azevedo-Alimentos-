@@ -136,7 +136,7 @@ export class NotificationService {
                 type: data.type || 'SYSTEM',
                 tag: data.tag || 'remote_notif',
                 url: data.url || '/accounts-payable',
-                icon: data.icon || '/logo_azevedo.png?v=7',
+                icon: data.icon || '/logo_azevedo.png?v=10',
                 skipFirestoreSync: true, // Prevent infinite loop back to Firestore
               });
             }
@@ -174,13 +174,13 @@ export class NotificationService {
         return null;
       }
 
-      // Register FCM service worker
+      // Register Service Worker
       let registration: ServiceWorkerRegistration | undefined;
       if ('serviceWorker' in navigator) {
         try {
-          registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+          registration = await navigator.serviceWorker.register('/sw.js');
         } catch (swErr) {
-          console.warn('Could not register /firebase-messaging-sw.js, falling back to active service worker:', swErr);
+          console.warn('Could not register /sw.js, falling back to active service worker:', swErr);
           registration = await navigator.serviceWorker.ready;
         }
       }
@@ -378,7 +378,7 @@ export class NotificationService {
           type,
           tag: options.tag || 'grupo_azevedo_alert',
           url: options.url || '/accounts-payable',
-          icon: options.icon || '/logo_azevedo.png?v=7',
+          icon: options.icon || '/logo_azevedo.png?v=10',
           createdAt: new Date().toISOString(),
           createdByDeviceId: getDeviceId(),
         }).catch(err => console.warn('Error broadcasting notification to Firestore:', err));
@@ -435,7 +435,7 @@ export class NotificationService {
             payload: {
               title,
               body: options.body,
-              icon: options.icon || '/logo_azevedo.png?v=7',
+              icon: options.icon || '/logo_azevedo.png?v=10',
               tag: options.tag || 'grupo_azevedo_alert',
               url: options.url || '/accounts-payable',
             },
@@ -449,8 +449,8 @@ export class NotificationService {
         if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
           reg.showNotification(title, {
             body: options.body,
-            icon: options.icon || '/logo_azevedo.png?v=7',
-            badge: '/logo_azevedo.png?v=7',
+            icon: options.icon || '/logo_azevedo.png?v=10',
+            badge: '/logo_azevedo.png?v=10',
             tag: options.tag || 'grupo_azevedo_alert',
             vibrate: [200, 100, 200, 100, 200],
             data: { url: options.url || '/accounts-payable' }
@@ -461,14 +461,14 @@ export class NotificationService {
       }).catch(() => {});
     }
 
-    // 6. Fallback to standard window Notification constructor
+    // 6. Fallback to standard window Notification constructor if supported (non-iOS)
     if (this.isSupported() && Notification.permission === 'granted') {
       try {
         const notif = new Notification(title, {
           body: options.body,
-          icon: options.icon || '/logo_azevedo.png?v=7',
+          icon: options.icon || '/logo_azevedo.png?v=10',
           tag: options.tag || 'grupo_azevedo_alert',
-          badge: '/logo_azevedo.png?v=7',
+          badge: '/logo_azevedo.png?v=10',
           requireInteraction: type !== 'TEST',
         });
 
@@ -482,7 +482,8 @@ export class NotificationService {
 
         return true;
       } catch (err) {
-        console.warn('Native notification instantiation failed:', err);
+        // Ignored on iOS where new Notification() is disallowed in window scope
+        console.log('Window Notification constructor not supported or restricted on this device.');
       }
     }
 
