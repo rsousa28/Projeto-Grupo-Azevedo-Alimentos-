@@ -2,43 +2,75 @@
   "id": "/",
   "short_name": "Grupo Azevedo",
   "name": "Gestão Grupo Azevedo",
-  "description": "Sistema Integrado de Gestão e Controle Financeiro do Grupo Azevedo",
-  "icons": [
-    {
-      "src": "/logo_azevedo.png?v=7",
-      "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "any"
-    },
-    {
-      "src": "/logo_azevedo.png?v=7",
-      "type": "image/png",
-      "sizes": "192x192",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/logo_azevedo_512.png?v=7",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "any"
-    },
-    {
-      "src": "/logo_azevedo_512.png?v=7",
-      "type": "image/png",
-      "sizes": "512x512",
-      "purpose": "maskable"
-    },
-    {
-      "src": "/apple-touch-icon.png?v=7",
-      "type": "image/png",
-      "sizes": "180x180"
-    }
-  ],
+  "description": "Sistema Integrado de Gestão, Operações e Controle Financeiro do Grupo Azevedo",
   "start_url": "/",
   "scope": "/",
-  "background_color": "#0a0e17",
-  "theme_color": "#0a0e17",
   "display": "standalone",
   "orientation": "portrait-primary",
-  "categories": ["business", "finance", "productivity"]
+  "background_color": "#16120b",
+  "theme_color": "#16120b",
+  "categories": ["business", "finance", "productivity"],
+  "icons": [
+    {
+      "src": "/logo_azevedo.png?v=10",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo_azevedo.png?v=10",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/logo_azevedo_512.png?v=10",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo_azevedo_512.png?v=10",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/apple-touch-icon.png?v=10",
+      "type": "image/png",
+      "sizes": "180x180",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Visão geral do sistema",
+      "url": "/",
+      "icons": [{ "src": "/logo_azevedo.png?v=10", "sizes": "192x192" }]
+    },
+    {
+      "name": "Fechamento de Caixa",
+      "short_name": "Caixa",
+      "description": "Registrar fechamento diário de caixa",
+      "url": "/fechamento-caixa",
+      "icons": [{ "src": "/logo_azevedo.png?v=10", "sizes": "192x192" }]
+    },
+    {
+      "name": "Checklists",
+      "short_name": "Checklists",
+      "description": "Auditoria e checklists da loja",
+      "url": "/checklists",
+      "icons": [{ "src": "/logo_azevedo.png?v=10", "sizes": "192x192" }]
+    },
+    {
+      "name": "Financeiro",
+      "short_name": "Financeiro",
+      "description": "Contas a Pagar e DRE",
+      "url": "/financeiro",
+      "icons": [{ "src": "/logo_azevedo.png?v=10", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
 }
