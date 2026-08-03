@@ -1,4 +1,4 @@
-const CACHE_NAME = 'grupo-azevedo-v3';
+const CACHE_NAME = 'grupo-azevedo-v4';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -14,6 +14,7 @@ const PRECACHE_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
+      console.log('[SW] Pre-caching core shell assets...');
       return cache.addAll(PRECACHE_ASSETS);
     }).then(() => {
       return self.skipWaiting();
@@ -28,7 +29,10 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .map((name) => {
+            console.log('[SW] Removing old cache:', name);
+            return caches.delete(name);
+          })
       );
     }).then(() => {
       return self.clients.claim();
@@ -36,7 +40,17 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - Handle network & offline strategy
+// Helper to determine if a request is for a static asset
+function isStaticAsset(url) {
+  const path = url.pathname;
+  return (
+    path.startsWith('/assets/') ||
+    /\.(js|css|png|jpg|jpeg|svg|webp|ico|woff|woff2|ttf|eot|json)(\?.*)?$/i.test(path) ||
+    PRECACHE_ASSETS.includes(path)
+  );
+}
+
+// Fetch Event - Cache-First Strategy for static assets & Instant UI Shell
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
@@ -47,52 +61,79 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Skip external APIs or WebSocket calls (Firestore, Google Auth, etc.)
+  // Skip external APIs or WebSocket calls (Firestore, Firebase Auth, Google Maps, etc.)
   if (!url.origin.includes(self.location.origin)) {
     return;
   }
 
-  // Strategy for Navigation requests (HTML pages): Network-first with cache fallback
+  // Strategy for Navigation requests (HTML pages / routes): Cache-First with Network Update for Instant Load
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Clone and store fresh copy in cache
-          if (response && response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return response;
-        })
-        .catch(async () => {
-          // Offline fallback
-          const cache = await caches.open(CACHE_NAME);
-          const cachedResponse = await cache.match(request);
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // Default offline root fallback
-          return cache.match('/index.html');
-        })
+      caches.match('/index.html').then((cachedHtml) => {
+        const fetchPromise = fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseToCache = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseToCache));
+            }
+            return networkResponse;
+          })
+          .catch(() => {
+            // Offline - network failed, return cached index.html
+          });
+
+        // Return cached HTML immediately if present, otherwise wait for network
+        return cachedHtml || fetchPromise;
+      })
     );
     return;
   }
 
-  // Strategy for static assets (JS, CSS, images, fonts): Stale-while-revalidate
+  // Strategy for Static Assets: Explicit Cache-First Strategy
+  if (isStaticAsset(url)) {
+    event.respondWith(
+      caches.match(request).then((cachedResponse) => {
+        if (cachedResponse) {
+          // Cache hit: serve from cache instantly, update cache asynchronously in background
+          fetch(request)
+            .then((networkResponse) => {
+              if (networkResponse && networkResponse.status === 200) {
+                const copy = networkResponse.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+              }
+            })
+            .catch(() => {
+              // Network fetch failed silently in background (offline)
+            });
+          return cachedResponse;
+        }
+
+        // Cache miss: fetch from network and store in cache
+        return fetch(request).then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+          }
+          return networkResponse;
+        });
+      })
+    );
+    return;
+  }
+
+  // Default Stale-While-Revalidate for any other local GET request
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       const fetchPromise = fetch(request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
-            const responseToCache = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache);
-            });
+            const copy = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
           }
           return networkResponse;
         })
         .catch(() => {
-          // Ignore network fetch failure when offline
+          // Offline fallback
         });
 
       return cachedResponse || fetchPromise;
