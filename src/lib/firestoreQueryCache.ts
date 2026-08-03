@@ -149,15 +149,57 @@ export async function getDocCached(
 
   // Trigger read
   console.log(`[Firestore Cache Miss] Loading from cloud server: ${finalPath}`);
-  const snap = await firestoreGetDoc(finalDocRef);
-  
-  // Cache the resolved result (even if it does not exist, we save the null to prevent spamming reads)
-  queryCache.set(finalPath, {
-    data: snap.exists() ? snap.data() : null,
-    timestamp: now
-  });
+  try {
+    const snap = await firestoreGetDoc(finalDocRef);
+    const docData = snap.exists() ? snap.data() : null;
+    
+    // Cache the resolved result
+    queryCache.set(finalPath, {
+      data: docData,
+      timestamp: now
+    });
 
-  return snap;
+    if (docData !== null) {
+      try {
+        localStorage.setItem(`doc_cache_${finalPath}`, JSON.stringify(docData));
+      } catch (_) {}
+    }
+
+    return snap;
+  } catch (err: any) {
+    console.warn(`[Firestore Read Fallback] (${finalPath}):`, err?.message || err);
+
+    // Try localStorage fallback
+    try {
+      const local = localStorage.getItem(`doc_cache_${finalPath}`);
+      if (local) {
+        const parsed = JSON.parse(local);
+        return {
+          exists: () => true,
+          data: () => parsed,
+          id: finalDocRef.id,
+          ref: finalDocRef
+        };
+      }
+    } catch (_) {}
+
+    // Return in-memory cached if available
+    if (cached && cached.data) {
+      return {
+        exists: () => true,
+        data: () => cached.data,
+        id: finalDocRef.id,
+        ref: finalDocRef
+      };
+    }
+
+    return {
+      exists: () => false,
+      data: () => null,
+      id: finalDocRef.id,
+      ref: finalDocRef
+    };
+  }
 }
 
 /**
@@ -184,15 +226,23 @@ export async function setDocCached(
     finalPath = newPath;
   }
 
-  // Perform Firestore save
-  await firestoreSetDoc(finalDocRef, data);
+  // Perform Firestore save with catch for quota/offline
+  try {
+    await firestoreSetDoc(finalDocRef, data);
+    console.log(`[Firestore Cache Set] Synced with server: ${finalPath}`);
+  } catch (err: any) {
+    console.warn(`[Firestore Write Fallback] Quota or connection limit reached (${finalPath}):`, err?.message || err);
+  }
 
-  // Instantly cache the newly saved data
+  // Instantly cache the newly saved data in memory & local storage
   queryCache.set(finalPath, {
     data: data,
     timestamp: Date.now()
   });
-  console.log(`[Firestore Cache Set] Synced memory with server: ${finalPath}`);
+
+  try {
+    localStorage.setItem(`doc_cache_${finalPath}`, JSON.stringify(data));
+  } catch (_) {}
 }
 
 /**

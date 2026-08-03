@@ -86,12 +86,16 @@ export default function Team() {
       if (missingUsers.length > 0) {
         console.log(`Seeding ${missingUsers.length} missing default system users to Firestore...`);
         for (const mu of missingUsers) {
-          const { id, defaultPassword, ...data } = mu;
-          const hashedPassword = await sha256(defaultPassword);
-          await setDoc(doc(db, 'users', id), {
-            ...data,
-            password: hashedPassword
-          });
+          try {
+            const { id, defaultPassword, ...data } = mu;
+            const hashedPassword = await sha256(defaultPassword);
+            await setDoc(doc(db, 'users', id), {
+              ...data,
+              password: hashedPassword
+            });
+          } catch (seedErr) {
+            console.warn(`Could not seed user ${mu.username}:`, seedErr);
+          }
         }
         
         // Re-fetch since we just seeded the missing ones

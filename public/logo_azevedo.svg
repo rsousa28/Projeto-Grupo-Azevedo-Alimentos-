@@ -1,9 +1,8 @@
-<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <!-- Transparent Background (No background box) -->
-
-  <g transform="translate(256, 195) scale(1.05)">
+<svg viewBox="0 0 512 370" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
+  <!-- Transparent Background -->
+  <g transform="translate(256, 145) scale(1.15)">
     <!-- Iconic Monogram 'A' with Arch Crossbar -->
-    <path fill="#FFFFFF" d="
+    <path fill="currentColor" d="
       M 0 -115
       C -3 -115 -10 -108 -18 -88
       L -82 82
@@ -30,7 +29,7 @@
     "/>
 
     <!-- Upward Arch Bar Detail -->
-    <path fill="#FFFFFF" d="
+    <path fill="currentColor" d="
       M -36 30
       Q 0 -12 36 30
       Q 0 4 0 4
@@ -38,8 +37,8 @@
     " opacity="0.95"/>
   </g>
 
-  <!-- Wordmark "A Z E V E D O" -->
-  <text x="256" y="405" text-anchor="middle" fill="#FFFFFF" font-family="'Playfair Display', 'Didot', 'Bodoni MT', 'Georgia', serif" font-size="30" font-weight="600" letter-spacing="12">
-    A Z E V E D O
+  <!-- Wordmark "AZEVEDO" -->
+  <text x="256" y="342" text-anchor="middle" fill="currentColor" font-family="'Plus Jakarta Sans', 'Inter', 'Cinzel', -apple-system, sans-serif" font-size="52" font-weight="900" letter-spacing="10">
+    AZEVEDO
   </text>
 </svg>

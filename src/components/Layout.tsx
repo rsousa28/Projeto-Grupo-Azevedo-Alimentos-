@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
+import { Logo } from './Logo';
 import { 
   LayoutDashboard, 
   BarChart3, 
@@ -242,26 +243,30 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       <div className="p-6 flex flex-col gap-6 shrink-0">
         <div className="flex items-center justify-between">
           <AnimatePresence mode="wait">
-            {(!collapsed || mobileMenuOpen) && (
+            {!collapsed || mobileMenuOpen ? (
               <motion.div 
+                key="expanded-logo"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
                 className="flex items-center gap-3 overflow-visible font-display animate-fade-in"
               >
                 <div className="shrink-0 transition-transform hover:scale-105 duration-300">
-                  <img 
-                    src={LOGO_URL} 
-                    alt="Grupo Azevedo Logo" 
-                    className="h-7 w-auto object-contain" 
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = '/logo_azevedo.png';
-                    }}
-                  />
+                  <Logo className="h-9 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
                 </div>
                 <span className={`font-black text-xs italic tracking-tight whitespace-nowrap py-1.5 px-0.5 leading-normal select-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                   GRUPO AZEVEDO
                 </span>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="collapsed-logo"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="shrink-0"
+              >
+                <Logo className="h-8 w-auto" variant={isDarkMode ? 'light' : 'dark'} showSubtext={false} />
               </motion.div>
             )}
           </AnimatePresence>
@@ -436,14 +441,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               </div>
               <div className="sm:hidden flex items-center gap-2">
                  <div className="shrink-0">
-                    <img 
-                      src={LOGO_URL} 
-                      alt="Grupo Azevedo Logo" 
-                      className="h-6 w-auto object-contain" 
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).src = '/logo_azevedo.png';
-                      }}
-                    />
+                    <Logo className="h-8 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
                  </div>
               </div>
             </div>

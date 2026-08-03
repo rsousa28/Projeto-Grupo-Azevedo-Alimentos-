@@ -3,11 +3,13 @@ import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getMessaging, isSupported as isMessagingSupported, Messaging } from 'firebase/messaging';
 import { 
   initializeFirestore, 
+  getFirestore,
   persistentLocalCache, 
   persistentMultipleTabManager, 
   memoryLocalCache,
   doc,
-  getDoc
+  getDoc,
+  Firestore
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -30,19 +32,31 @@ export async function getFirebaseMessaging(): Promise<Messaging | null> {
   return null;
 }
 
-let localCacheConfig;
-try {
-  localCacheConfig = persistentLocalCache({
-    tabManager: persistentMultipleTabManager()
-  });
-} catch (error) {
-  console.warn('Persistent cache initialization failed, falling back to memoryLocalCache:', error);
-  localCacheConfig = memoryLocalCache();
+function createFirestoreInstance(): Firestore {
+  try {
+    let localCacheConfig;
+    try {
+      localCacheConfig = persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      });
+    } catch (error) {
+      console.warn('Persistent cache initialization failed, falling back to memoryLocalCache:', error);
+      localCacheConfig = memoryLocalCache();
+    }
+    return initializeFirestore(app, {
+      localCache: localCacheConfig
+    }, databaseId);
+  } catch (err) {
+    console.warn("initializeFirestore failed or instance already initialized, using getFirestore fallback:", err);
+    try {
+      return getFirestore(app, databaseId);
+    } catch (e) {
+      return getFirestore(app);
+    }
+  }
 }
 
-export const db = initializeFirestore(app, {
-  localCache: localCacheConfig
-}, databaseId);
+export const db = createFirestoreInstance();
 
 export const auth = getAuth(app);
 
@@ -84,6 +98,7 @@ interface FirestoreErrorInfo {
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errorMessage = error instanceof Error ? error.message : String(error);
   const isOffline = errorMessage.includes('offline') || errorMessage.includes('connection');
+  const isQuota = errorMessage.includes('resource-exhausted') || errorMessage.includes('Quota limit exceeded') || errorMessage.includes('Quota exceeded');
   
   const errInfo: FirestoreErrorInfo = {
     error: errorMessage,
@@ -102,9 +117,9 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
   
-  if (isOffline) {
-    console.warn('Firestore is offline. Path:', path, 'Details:', errorMessage);
-    // don't throw for offline errors to avoid crashing the UI in preview mode
+  if (isOffline || isQuota) {
+    console.warn('Firestore notice (offline/quota): Path:', path, 'Details:', errorMessage);
+    // don't throw for offline/quota errors to ensure smooth app fallback via local cache
     return;
   }
   

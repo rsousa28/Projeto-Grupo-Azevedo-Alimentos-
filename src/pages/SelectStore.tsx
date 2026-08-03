@@ -5,6 +5,7 @@ import { Store as StoreIcon, MapPin, LogOut, ShieldCheck, ChevronRight } from 'l
 import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { Store } from '../types';
+import { Logo } from '../components/Logo';
 
 export default function SelectStore() {
   const navigate = useNavigate();
@@ -83,25 +84,14 @@ export default function SelectStore() {
         className="w-full max-w-5xl z-10 my-auto py-8"
       >
         <div className="text-center mb-12">
-          {/* Logo Frame */}
+          {/* Logo Header */}
           <div className="inline-flex flex-col items-center justify-center mb-6">
-            <div className="relative group">
-              {/* Outer glow ring utilizing Bebelu color palette */}
-              <div className="absolute -inset-1.5 bg-gradient-to-r from-[#FFCB05] to-[#7F300C] rounded-2xl blur opacity-15 group-hover:opacity-30 transition duration-1000" />
-              <div className="relative flex items-center justify-center p-1">
-                <img 
-                  src="/logo_azevedo.svg" 
-                  alt="Logo Grupo Azevedo" 
-                  className="h-10 md:h-12 w-auto object-contain transform transition-transform duration-500 group-hover:scale-105"
-                  onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).src = '/logo_azevedo.png';
-                  }}
-                />
-              </div>
+            <div className="inline-block">
+              <Logo className="h-16 md:h-20 w-auto transform transition-transform duration-500 hover:scale-105" variant="dark" />
             </div>
             
-            <div className="mt-5 flex items-center gap-1.5">
-              <span className="text-[10px] font-black tracking-[0.25em] text-[#7F300C] uppercase italic font-display">
+            <div className="mt-4 flex items-center gap-1.5">
+              <span className="text-[11px] font-black tracking-[0.3em] text-[#7F300C] uppercase italic font-display">
                 SISTEMA INTEGRADO DE GESTÃO
               </span>
             </div>

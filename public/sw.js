@@ -1,4 +1,4 @@
-const CACHE_NAME = 'grupo-azevedo-v6';
+const CACHE_NAME = 'grupo-azevedo-v7';
 
 const PRECACHE_ASSETS = [
   '/',

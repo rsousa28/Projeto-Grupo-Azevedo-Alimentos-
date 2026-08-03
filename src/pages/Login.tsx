@@ -6,6 +6,7 @@ import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { BiometricService, BiometricCredential } from '../services/BiometricService';
 import { useToast } from '../contexts/ToastContext';
+import { Logo } from '../components/Logo';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -156,14 +157,9 @@ export default function Login() {
               className="mb-8"
               id="login_logo_container"
             >
-              <img 
-                src="/logo_azevedo.svg" 
-                alt="Grupo Azevedo Logo" 
-                className="w-28 md:w-32 h-auto hover:scale-105 transition-transform duration-300 object-contain drop-shadow-md"
-                onError={(e) => {
-                  (e.currentTarget as HTMLImageElement).src = '/logo_azevedo.png';
-                }}
-              />
+              <div className="inline-block">
+                <Logo className="w-32 md:w-40 h-auto hover:scale-105 transition-transform duration-300" variant="gold" />
+              </div>
             </motion.div>
             
             <motion.div
