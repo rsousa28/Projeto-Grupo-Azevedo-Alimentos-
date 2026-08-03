@@ -159,9 +159,8 @@ export default function Login() {
               <img 
                 src="/logo_azevedo.svg" 
                 alt="Grupo Azevedo Logo" 
-                className="w-36 md:w-44 h-auto rounded-2xl shadow-2xl border border-white/10 hover:scale-105 transition-transform duration-300 object-contain"
+                className="w-28 md:w-32 h-auto hover:scale-105 transition-transform duration-300 object-contain drop-shadow-md"
                 onError={(e) => {
-                  // Fallback to png if svg cache issues
                   (e.currentTarget as HTMLImageElement).src = '/logo_azevedo.png';
                 }}
               />

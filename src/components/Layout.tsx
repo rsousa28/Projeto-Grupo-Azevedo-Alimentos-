@@ -249,11 +249,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 exit={{ opacity: 0, x: -10 }}
                 className="flex items-center gap-3 overflow-visible font-display animate-fade-in"
               >
-                <div className="bg-[#16120b] p-1 rounded-xl shadow-md border border-amber-500/20 shrink-0 transition-transform hover:scale-105 duration-300 overflow-hidden">
+                <div className="shrink-0 transition-transform hover:scale-105 duration-300">
                   <img 
                     src={LOGO_URL} 
                     alt="Grupo Azevedo Logo" 
-                    className="h-8 w-auto object-contain rounded-lg" 
+                    className="h-7 w-auto object-contain" 
                     onError={(e) => {
                       (e.currentTarget as HTMLImageElement).src = '/logo_azevedo.png';
                     }}
@@ -435,11 +435,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                 <OfflineSyncBadge />
               </div>
               <div className="sm:hidden flex items-center gap-2">
-                 <div className="bg-[#16120b] p-1 rounded-lg shrink-0 border border-amber-500/20 shadow-xs overflow-hidden">
+                 <div className="shrink-0">
                     <img 
                       src={LOGO_URL} 
                       alt="Grupo Azevedo Logo" 
-                      className="h-6 w-auto object-contain rounded-md" 
+                      className="h-6 w-auto object-contain" 
                       onError={(e) => {
                         (e.currentTarget as HTMLImageElement).src = '/logo_azevedo.png';
                       }}

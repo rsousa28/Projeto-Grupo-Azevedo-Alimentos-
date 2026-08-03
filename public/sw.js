@@ -1,20 +1,29 @@
-const CACHE_NAME = 'grupo-azevedo-v5';
+const CACHE_NAME = 'grupo-azevedo-v6';
 
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
-  '/manifest.json?v=8',
-  '/logo_azevedo.png?v=8',
-  '/logo_azevedo_512.png?v=8',
-  '/logo_azevedo.svg?v=8',
-  '/apple-touch-icon.png?v=8'
+  '/manifest.json',
+  '/logo_azevedo.png',
+  '/logo_azevedo_512.png',
+  '/logo_azevedo.svg',
+  '/apple-touch-icon.png',
+  '/apple-touch-icon-180x180.png',
+  '/apple-touch-icon-152x152.png',
+  '/apple-touch-icon-144x144.png',
+  '/apple-touch-icon-120x120.png',
+  '/apple-touch-icon-114x114.png',
+  '/apple-touch-icon-76x76.png',
+  '/apple-touch-icon-72x72.png',
+  '/apple-touch-icon-57x57.png',
+  '/apple-touch-icon-precomposed.png'
 ];
 
-// Install Event - Pre-cache core shell
+// Install Event - Pre-cache core shell & critical brand assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log('[SW] Pre-caching core shell assets...');
+      console.log('[SW] Pre-caching core shell and critical brand assets...');
       return cache.addAll(PRECACHE_ASSETS);
     }).then(() => {
       return self.skipWaiting();
@@ -30,7 +39,7 @@ self.addEventListener('activate', (event) => {
         cacheNames
           .filter((name) => name !== CACHE_NAME)
           .map((name) => {
-            console.log('[SW] Removing old cache:', name);
+            console.log('[SW] Purging old cache version:', name);
             return caches.delete(name);
           })
       );
@@ -40,17 +49,18 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Helper to determine if a request is for a static asset
+// Helper to determine if a request is for a static asset or image
 function isStaticAsset(url) {
   const path = url.pathname;
   return (
     path.startsWith('/assets/') ||
     /\.(js|css|png|jpg|jpeg|svg|webp|ico|woff|woff2|ttf|eot|json)(\?.*)?$/i.test(path) ||
-    PRECACHE_ASSETS.includes(path)
+    PRECACHE_ASSETS.includes(path) ||
+    path.includes('logo_azevedo')
   );
 }
 
-// Fetch Event - Cache-First Strategy for static assets & Instant UI Shell
+// Fetch Event - Aggressive Cache-First Strategy for static assets & Instant UI Shell
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
@@ -61,15 +71,15 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
 
-  // Skip external APIs or WebSocket calls (Firestore, Firebase Auth, Google Maps, etc.)
+  // Skip external APIs or third-party origins (Firestore, Firebase Auth, Google Maps, etc.)
   if (!url.origin.includes(self.location.origin)) {
     return;
   }
 
-  // Strategy for Navigation requests (HTML pages / routes): Cache-First with Network Update for Instant Load
+  // Strategy for Navigation requests (HTML pages / routes): Cache-First with Background Network Update
   if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match('/index.html').then((cachedHtml) => {
+      caches.match('/index.html', { ignoreSearch: true }).then((cachedHtml) => {
         const fetchPromise = fetch(request)
           .then((networkResponse) => {
             if (networkResponse && networkResponse.status === 200) {
@@ -82,19 +92,19 @@ self.addEventListener('fetch', (event) => {
             // Offline - network failed, return cached index.html
           });
 
-        // Return cached HTML immediately if present, otherwise wait for network
         return cachedHtml || fetchPromise;
       })
     );
     return;
   }
 
-  // Strategy for Static Assets: Explicit Cache-First Strategy
+  // Aggressive Cache-First Strategy for Static Assets, Icons, and Logos
   if (isStaticAsset(url)) {
     event.respondWith(
-      caches.match(request).then((cachedResponse) => {
+      caches.match(request, { ignoreSearch: true }).then((cachedResponse) => {
         if (cachedResponse) {
-          // Cache hit: serve from cache instantly, update cache asynchronously in background
+          // Instant Cache Hit! Serve immediately.
+          // Optionally trigger background refresh if online
           fetch(request)
             .then((networkResponse) => {
               if (networkResponse && networkResponse.status === 200) {
@@ -103,27 +113,38 @@ self.addEventListener('fetch', (event) => {
               }
             })
             .catch(() => {
-              // Network fetch failed silently in background (offline)
+              // Silently ignore background fetch errors when offline
             });
           return cachedResponse;
         }
 
-        // Cache miss: fetch from network and store in cache
-        return fetch(request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            const copy = networkResponse.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
-          return networkResponse;
-        });
+        // Cache miss: fetch from network and cache for future instant loads
+        return fetch(request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const copy = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+            }
+            return networkResponse;
+          })
+          .catch(async () => {
+            // Image/Asset Network Failure Fallback
+            if (url.pathname.endsWith('.svg') || url.pathname.endsWith('.png') || url.pathname.includes('logo')) {
+              const fallbackSvg = await caches.match('/logo_azevedo.svg', { ignoreSearch: true });
+              if (fallbackSvg) return fallbackSvg;
+              const fallbackPng = await caches.match('/logo_azevedo.png', { ignoreSearch: true });
+              if (fallbackPng) return fallbackPng;
+            }
+            return new Response('Asset unavailable offline', { status: 503, statusText: 'Service Unavailable' });
+          });
       })
     );
     return;
   }
 
-  // Default Stale-While-Revalidate for any other local GET request
+  // Default Cache-First with Stale-While-Revalidate for all other local GET requests
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
+    caches.match(request, { ignoreSearch: true }).then((cachedResponse) => {
       const fetchPromise = fetch(request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
@@ -133,7 +154,7 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // Offline fallback
+          // Network error ignored when serving cached fallback
         });
 
       return cachedResponse || fetchPromise;
