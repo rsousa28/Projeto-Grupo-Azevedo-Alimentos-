@@ -144,6 +144,11 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create, update: if isSignedIn() && isValidId(backupId);
       allow delete: if isSignedIn() && isValidId(backupId);
+
+      match /chunks/{chunkId} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSignedIn() && isValidId(backupId) && isValidId(chunkId);
+      }
     }
 
     // Test collection for SDK initialization checks

@@ -196,10 +196,40 @@ export const BackupService = {
         }
       };
 
-      // 4. Save to /backups/{backupId} in Firestore
+      // 4. Save to /backups/{backupId} in Firestore with chunking support for >1MB payloads
       const backupRef = doc(db, 'backups', backupId);
-      // We sanitize undefined fields in the backup tree so Firestore setDoc does not throw
-      await setDoc(backupRef, this.sanitizeData(backup));
+      const sanitizedPayload = this.sanitizeData(backup.payload);
+      const jsonPayload = JSON.stringify(sanitizedPayload);
+
+      // Firestore limit is 1MB (1,048,576 bytes). We chunk if payload > 500,000 chars.
+      const CHUNK_SIZE = 500000;
+
+      if (jsonPayload.length <= CHUNK_SIZE) {
+        await setDoc(backupRef, this.sanitizeData(backup));
+      } else {
+        const chunksCount = Math.ceil(jsonPayload.length / CHUNK_SIZE);
+        const metaRecord = {
+          ...this.sanitizeData({
+            backupId: backup.backupId,
+            timestamp: backup.timestamp,
+            createdBy: backup.createdBy,
+            type: backup.type,
+            summary: backup.summary
+          }),
+          isChunked: true,
+          chunksCount,
+          payloadSize: jsonPayload.length
+        };
+        await setDoc(backupRef, metaRecord);
+
+        for (let i = 0; i < chunksCount; i++) {
+          const chunkStr = jsonPayload.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+          await setDoc(doc(db, 'backups', backupId, 'chunks', `chunk_${i}`), {
+            index: i,
+            data: chunkStr
+          });
+        }
+      }
 
       // 5. Log activity in Audit Logs
       await AuditService.logAction({
@@ -243,6 +273,11 @@ export const BackupService = {
           const timestampTime = new Date(data.timestamp).getTime();
           if (now - timestampTime > SEVEN_DAYS_MS) {
             console.log(`Purgando backup automático legado expirado (ID: ${docSnap.id}) de data ${data.timestamp}`);
+            // Delete chunks subcollection if present
+            const chunksSnap = await getDocs(collection(db, 'backups', docSnap.id, 'chunks'));
+            for (const cDoc of chunksSnap.docs) {
+              await deleteDoc(cDoc.ref);
+            }
             await deleteDoc(docSnap.ref);
             deletedCount++;
           }
@@ -306,10 +341,27 @@ export const BackupService = {
   async getBackupById(backupId: string): Promise<BackupRecord | null> {
     try {
       const docSnap = await getDoc(doc(db, 'backups', backupId));
-      if (docSnap.exists()) {
-        return docSnap.data() as BackupRecord;
+      if (!docSnap.exists()) return null;
+
+      const data = docSnap.data();
+      if (data.isChunked) {
+        const chunksSnap = await getDocs(collection(db, 'backups', backupId, 'chunks'));
+        const chunksList = chunksSnap.docs.map(d => d.data() as { index: number; data: string });
+        chunksList.sort((a, b) => a.index - b.index);
+        const fullJson = chunksList.map(c => c.data).join('');
+        const payload = JSON.parse(fullJson);
+
+        return {
+          backupId: data.backupId,
+          timestamp: data.timestamp,
+          createdBy: data.createdBy,
+          type: data.type || 'manual',
+          summary: data.summary,
+          payload
+        } as BackupRecord;
       }
-      return null;
+
+      return data as BackupRecord;
     } catch (err) {
       console.error("Error fetching backup detail:", err);
       return null;
@@ -321,6 +373,10 @@ export const BackupService = {
    */
   async deleteBackup(backupId: string, username: string): Promise<void> {
     try {
+      const chunksSnap = await getDocs(collection(db, 'backups', backupId, 'chunks'));
+      for (const chunkDoc of chunksSnap.docs) {
+        await deleteDoc(chunkDoc.ref);
+      }
       await deleteDoc(doc(db, 'backups', backupId));
       await AuditService.logAction({
         userId: 'system',
