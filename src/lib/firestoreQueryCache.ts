@@ -174,8 +174,21 @@ export async function getDocCached(
   console.log(`[Firestore Cache Miss] Loading from cloud server: ${finalPath}`);
   try {
     const snap = await firestoreGetDoc(finalDocRef);
-    const docData = snap.exists() ? snap.data() : null;
+    let docData = snap.exists() ? snap.data() : null;
     
+    if (docData && docData._isChunked) {
+      try {
+        const { getDocs, collection } = await import('firebase/firestore');
+        const chunksSnap = await getDocs(collection(db, `${finalPath}/chunks`));
+        const chunksList = chunksSnap.docs.map(d => d.data() as { index: number; data: string });
+        chunksList.sort((a, b) => a.index - b.index);
+        const reassembledJson = chunksList.map(c => c.data).join('');
+        docData = JSON.parse(reassembledJson);
+      } catch (chunkErr) {
+        console.error(`[Chunk Reassembly Error] Failed to reassemble chunks for ${finalPath}:`, chunkErr);
+      }
+    }
+
     // Cache the resolved result
     queryCache.set(finalPath, {
       data: docData,
@@ -186,7 +199,12 @@ export async function getDocCached(
       safeLocalStorageSet(`doc_cache_${finalPath}`, JSON.stringify(docData));
     }
 
-    return snap;
+    return {
+      exists: () => docData !== null,
+      data: () => docData,
+      id: finalDocRef.id,
+      ref: finalDocRef
+    };
   } catch (err: any) {
     console.warn(`[Firestore Read Fallback] (${finalPath}):`, err?.message || err);
 
@@ -225,6 +243,7 @@ export async function getDocCached(
 
 /**
  * Write to Firestore and instantly update memory cache to keep state in sync across components.
+ * Automatically chunks large payloads (>400KB) into Firestore subcollections to prevent 1MB limit failures.
  */
 export async function setDocCached(
   docRef: DocumentReference<DocumentData>,
@@ -247,12 +266,35 @@ export async function setDocCached(
     finalPath = newPath;
   }
 
-  // Perform Firestore save with catch for quota/offline
+  const CHUNK_SIZE = 400000; // 400KB limit per chunk
+  const jsonStr = JSON.stringify(data);
+
+  // Perform Firestore save with chunking support
   try {
-    await firestoreSetDoc(finalDocRef, data);
-    console.log(`[Firestore Cache Set] Synced with server: ${finalPath}`);
+    if (jsonStr.length <= CHUNK_SIZE) {
+      await firestoreSetDoc(finalDocRef, data);
+      console.log(`[Firestore Cache Set] Synced with server: ${finalPath}`);
+    } else {
+      console.log(`[Firestore Chunking] Payload size ${jsonStr.length} bytes exceeds ${CHUNK_SIZE}. Storing in subcollection chunks...`);
+      const chunksCount = Math.ceil(jsonStr.length / CHUNK_SIZE);
+      await firestoreSetDoc(finalDocRef, {
+        _isChunked: true,
+        _chunksCount: chunksCount,
+        _payloadSize: jsonStr.length,
+        _updatedAt: new Date().toISOString()
+      });
+
+      for (let i = 0; i < chunksCount; i++) {
+        const chunkDataStr = jsonStr.substring(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+        await firestoreSetDoc(doc(db, `${finalPath}/chunks/chunk_${i}`), {
+          index: i,
+          data: chunkDataStr
+        });
+      }
+      console.log(`[Firestore Chunking] Stored ${chunksCount} chunks for: ${finalPath}`);
+    }
   } catch (err: any) {
-    console.warn(`[Firestore Write Fallback] Quota or connection limit reached (${finalPath}):`, err?.message || err);
+    console.warn(`[Firestore Write Fallback] Quota, size limit or connection error (${finalPath}):`, err?.message || err);
   }
 
   // Instantly cache the newly saved data in memory & local storage

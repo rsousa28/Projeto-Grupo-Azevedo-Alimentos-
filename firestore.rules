@@ -74,68 +74,8 @@ service cloud.firestore {
       allow delete: if isSignedIn() && isValidId(storeId);
 
       // Subcollections of Stores
-
-      // CMV Periods
-      match /cmv_periods/{periodId} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
-        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
-      }
-
-      // DRE Periods
-      match /dre_periods/{periodId} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
-        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
-      }
-
-      // Checklist Templates, Submissions, and Action Plans
-      match /checklists/{document} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(document);
-        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(document);
-      }
-
-      // Individual Checklist Submissions Subcollection
-      match /checklist_submissions/{submissionId} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(submissionId);
-        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(submissionId);
-      }
-
-      // Individual Action Plans Subcollection
-      match /action_plans/{planId} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(planId);
-        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(planId);
-      }
-
-      // Budget Periods
-      match /budget_periods/{periodId} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
-        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(periodId);
-      }
-
-      // Accounts Payable
-      match /accounts_payable/{document} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(document);
-        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(document);
-      }
-
-      // Daily Control
-      match /daily_control/{document} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(document);
-        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(document);
-      }
-
-      // Closings
-      match /closings/{document} {
-        allow read: if isSignedIn();
-        allow create, update: if isSignedIn() && isValidId(storeId) && isValidId(document);
-        allow delete: if isSignedIn() && isValidId(storeId) && isValidId(document);
+      match /{collectionId}/{document=**} {
+        allow read, write: if isSignedIn();
       }
     }
 
