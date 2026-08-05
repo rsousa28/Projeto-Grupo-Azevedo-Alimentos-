@@ -2,6 +2,7 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Robust local and session storage polyfill for strict browsers / sandboxed iframes (Google Chrome)
 // to prevent "Access is denied for this document" DOMExceptions which cause white screens.
@@ -101,7 +102,9 @@ if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 );
 

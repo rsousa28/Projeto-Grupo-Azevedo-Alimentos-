@@ -7,6 +7,29 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 
+export function safeLocalStorageSet(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err: any) {
+    if (err?.name === 'QuotaExceededError' || err?.code === 22 || err?.toString().includes('QuotaExceededError')) {
+      console.warn('[Storage Safeguard] localStorage quota exceeded. Cleaning up old cached documents...');
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('doc_cache_') || k.startsWith('g_azevedo_dre_backup_') || k.includes('_draft_') || k.includes('_backup_'))) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        localStorage.setItem(key, value);
+      } catch (_) {
+        console.warn('[Storage Safeguard] Could not write to localStorage even after cleanup.');
+      }
+    }
+  }
+}
+
 // Simple in-memory cache definition
 interface CacheEntry {
   data: any;
@@ -160,9 +183,7 @@ export async function getDocCached(
     });
 
     if (docData !== null) {
-      try {
-        localStorage.setItem(`doc_cache_${finalPath}`, JSON.stringify(docData));
-      } catch (_) {}
+      safeLocalStorageSet(`doc_cache_${finalPath}`, JSON.stringify(docData));
     }
 
     return snap;
@@ -240,9 +261,7 @@ export async function setDocCached(
     timestamp: Date.now()
   });
 
-  try {
-    localStorage.setItem(`doc_cache_${finalPath}`, JSON.stringify(data));
-  } catch (_) {}
+  safeLocalStorageSet(`doc_cache_${finalPath}`, JSON.stringify(data));
 }
 
 /**

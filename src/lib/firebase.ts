@@ -34,15 +34,46 @@ export async function getFirebaseMessaging(): Promise<Messaging | null> {
 
 function createFirestoreInstance(): Firestore {
   try {
-    let localCacheConfig;
-    try {
-      localCacheConfig = persistentLocalCache({
-        tabManager: persistentMultipleTabManager()
-      });
-    } catch (error) {
-      console.warn('Persistent cache initialization failed, falling back to memoryLocalCache:', error);
-      localCacheConfig = memoryLocalCache();
+    // Proactively clean stale cache keys if localStorage is near quota
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        let totalBytes = 0;
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k) totalBytes += (localStorage.getItem(k) || '').length;
+        }
+        // If localStorage usage exceeds 2MB, prune temporary doc caches and draft keys
+        if (totalBytes > 2000000) {
+          console.warn('[Storage Safeguard] Storage usage > 2MB. Cleaning stale doc_cache_ items...');
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith('doc_cache_') || k.startsWith('firestore_') || k.includes('_draft_') || k.includes('_backup_'))) {
+              keysToRemove.push(k);
+            }
+          }
+          keysToRemove.forEach(k => localStorage.removeItem(k));
+        }
+      } catch (_) {}
     }
+
+    let localCacheConfig;
+    // Check if running in iframe / restricted sandbox
+    const inIframe = typeof window !== 'undefined' && window.self !== window.top;
+    if (inIframe) {
+      // In sandboxed iframes, prefer memoryLocalCache to prevent QuotaExceededError in IndexedDB/localStorage
+      localCacheConfig = memoryLocalCache();
+    } else {
+      try {
+        localCacheConfig = persistentLocalCache({
+          tabManager: persistentMultipleTabManager()
+        });
+      } catch (error) {
+        console.warn('Persistent cache initialization failed, falling back to memoryLocalCache:', error);
+        localCacheConfig = memoryLocalCache();
+      }
+    }
+
     return initializeFirestore(app, {
       localCache: localCacheConfig
     }, databaseId);
