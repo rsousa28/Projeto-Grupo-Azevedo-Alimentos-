@@ -88,7 +88,7 @@ export default function CashClosing() {
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [confirmResetId, setConfirmResetId] = useState<string | null>(null);
 
-  // Load initial store custom closings on mount and store changes
+  // Load initial store custom closings on mount, store, and period changes
   useEffect(() => {
     // 1. Immediate local fallback
     const saved = localStorage.getItem(`closings_data_${currentStore.id}`);
@@ -102,16 +102,31 @@ export default function CashClosing() {
       setClosingsData({});
     }
 
-    // 2. Load from central Firestore for cross-user/cross-device synchronization (e.g., patriciab28 and owner)
+    // 2. Load from central Firestore for cross-user/cross-device synchronization
     let isMounted = true;
     const fetchCloudClosings = async () => {
       try {
-        const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
-        const docSnap = await getDocCached(docRef, currentStore.id, user);
-        if (docSnap.exists() && isMounted) {
-          const cloudData = docSnap.data().data || {};
+        const periodDocKey = `${selectedYear}_${selectedMonth}`;
+        const periodRef = doc(db, 'stores', currentStore.id, 'closings', periodDocKey);
+        const allRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
+
+        const [periodSnap, allSnap] = await Promise.all([
+          getDocCached(periodRef, currentStore.id, user).catch(() => ({ exists: () => false, data: () => null })),
+          getDocCached(allRef, currentStore.id, user).catch(() => ({ exists: () => false, data: () => null }))
+        ]);
+
+        let cloudMerged: Record<string, any> = {};
+
+        if (allSnap.exists() && allSnap.data()?.data) {
+          cloudMerged = { ...allSnap.data().data };
+        }
+        if (periodSnap.exists() && periodSnap.data()?.data) {
+          cloudMerged = { ...cloudMerged, ...periodSnap.data().data };
+        }
+
+        if (isMounted && Object.keys(cloudMerged).length > 0) {
           setClosingsData(prev => {
-            const merged = { ...prev, ...cloudData };
+            const merged = { ...prev, ...cloudMerged };
             localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(merged));
             return merged;
           });
@@ -126,7 +141,7 @@ export default function CashClosing() {
     return () => {
       isMounted = false;
     };
-  }, [currentStore.id, setClosingsData]);
+  }, [currentStore.id, selectedYear, selectedMonth, setClosingsData]);
 
   // Form Initial State
   const initialFormState: CashClosingForm = {
@@ -189,8 +204,23 @@ export default function CashClosing() {
   const handleSavePeriod = async () => {
     setIsSaving(true);
     try {
-      const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
-      await setDocCached(docRef, { data: closingsData }, currentStore.id, user);
+      const periodDocKey = `${selectedYear}_${selectedMonth}`;
+      const periodRef = doc(db, 'stores', currentStore.id, 'closings', periodDocKey);
+      const allRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
+
+      // Filter entries belonging to this month to keep period payload lean
+      const monthPrefix = `${selectedYear}-${selectedMonth}`;
+      const periodEntries: Record<string, any> = {};
+      Object.entries(closingsData).forEach(([dateKey, val]) => {
+        if (dateKey.startsWith(monthPrefix)) {
+          periodEntries[dateKey] = val;
+        }
+      });
+
+      await Promise.all([
+        setDocCached(periodRef, { data: periodEntries }, currentStore.id, user),
+        setDocCached(allRef, { data: closingsData }, currentStore.id, user)
+      ]);
       if (user) {
         const monthLabel = months.find(m => m.value === selectedMonth)?.label || selectedMonth;
         await AuditService.logAction({
@@ -910,8 +940,17 @@ export default function CashClosing() {
                       localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
                       
                       try {
-                        const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
-                        await setDocCached(docRef, { data: updated }, currentStore.id, user);
+                        const entryDateKey = formData.date; // e.g. 2026-08-05
+                        const periodKey = entryDateKey.substring(0, 7).replace('-', '_'); // e.g. 2026_08
+                        const periodRef = doc(db, 'stores', currentStore.id, 'closings', periodKey);
+                        const allRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
+
+                        const entryData = { ...formData, totalGeral, diff, sobra, falta };
+                        
+                        await Promise.all([
+                          setDocCached(periodRef, { data: { [entryDateKey]: entryData } }, currentStore.id, user),
+                          setDocCached(allRef, { data: updated }, currentStore.id, user)
+                        ]);
                         toastSuccess("Fechamento de caixa confirmado e registrado com sucesso!");
 
                         // Dispatch real-time push notification to all devices

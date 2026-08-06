@@ -6,6 +6,7 @@ import {
   doc
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { sanitizeForFirestore } from '../utils/firestoreSanitizer';
 
 export function safeLocalStorageSet(key: string, value: string): void {
   try {
@@ -266,13 +267,16 @@ export async function setDocCached(
     finalPath = newPath;
   }
 
+  // Sanitize undefined properties recursively so Firestore setDoc does not throw
+  const sanitized = sanitizeForFirestore(data);
+
   const CHUNK_SIZE = 400000; // 400KB limit per chunk
-  const jsonStr = JSON.stringify(data);
+  const jsonStr = JSON.stringify(sanitized);
 
   // Perform Firestore save with chunking support
   try {
     if (jsonStr.length <= CHUNK_SIZE) {
-      await firestoreSetDoc(finalDocRef, data);
+      await firestoreSetDoc(finalDocRef, sanitized);
       console.log(`[Firestore Cache Set] Synced with server: ${finalPath}`);
     } else {
       console.log(`[Firestore Chunking] Payload size ${jsonStr.length} bytes exceeds ${CHUNK_SIZE}. Storing in subcollection chunks...`);
@@ -293,17 +297,18 @@ export async function setDocCached(
       }
       console.log(`[Firestore Chunking] Stored ${chunksCount} chunks for: ${finalPath}`);
     }
+
+    // Instantly cache the newly saved data in memory & local storage on successful write
+    queryCache.set(finalPath, {
+      data: sanitized,
+      timestamp: Date.now()
+    });
+
+    safeLocalStorageSet(`doc_cache_${finalPath}`, JSON.stringify(sanitized));
   } catch (err: any) {
-    console.warn(`[Firestore Write Fallback] Quota, size limit or connection error (${finalPath}):`, err?.message || err);
+    console.error(`[Firestore Write Error] Failed to write (${finalPath}):`, err?.message || err);
+    throw err;
   }
-
-  // Instantly cache the newly saved data in memory & local storage
-  queryCache.set(finalPath, {
-    data: data,
-    timestamp: Date.now()
-  });
-
-  safeLocalStorageSet(`doc_cache_${finalPath}`, JSON.stringify(data));
 }
 
 /**
