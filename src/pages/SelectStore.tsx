@@ -106,9 +106,10 @@ export default function SelectStore() {
         </div>
 
         {/* Dynamic Responsive Grid Layout themed for Bebelu */}
-        <div className={`grid gap-6 ${filteredStores.length === 1 ? 'max-w-md mx-auto grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+        <div className={`grid gap-6 sm:gap-8 ${filteredStores.length === 1 ? 'max-w-md mx-auto grid-cols-1' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
           {filteredStores.map((store, i) => {
             const isBebeluStore = store.brand === 'BEBELU' || store.code === 'ROOT';
+            const isB28 = store.code === 'B28' || store.id === '2';
             const accentBg = isBebeluStore ? '#FFCB05' : '#E63946';
             const textContrastValue = isBebeluStore ? '#7F300C' : '#FFFFFF';
 
@@ -119,66 +120,77 @@ export default function SelectStore() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
                 onClick={() => handleSelect(store)}
-                className="group relative p-8 rounded-3xl border border-slate-200/80 bg-white/90 hover:bg-white transition-all text-left flex flex-col items-start justify-between cursor-pointer min-h-[220px] shadow-sm hover:shadow-xl hover:border-amber-500/25 duration-300"
+                className={`group relative p-6 sm:p-7 md:p-8 rounded-[2rem] border transition-all text-left flex flex-col justify-between cursor-pointer min-h-[260px] shadow-sm hover:shadow-2xl duration-300 overflow-hidden ${
+                  isB28 
+                    ? 'border-amber-400/40 bg-linear-to-b from-amber-50/50 via-white to-white hover:border-amber-500' 
+                    : 'border-slate-200/80 bg-white hover:border-amber-500/30'
+                }`}
               >
-                {/* Subtle overlay on hover with Bebelu yellow */}
+                {/* Subtle ambient highlight on hover */}
                 <div 
-                  className="absolute inset-0 rounded-3xl opacity-0 group-hover:opacity-100 transition-all duration-500 pointer-events-none"
+                  className="absolute inset-0 rounded-[2rem] opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
                   style={{
-                    background: `radial-gradient(800px circle at var(--x, 50%) var(--y, 50%), ${accentBg}05, transparent 50%)`,
+                    background: `radial-gradient(600px circle at var(--x, 50%) var(--y, 50%), ${accentBg}08, transparent 60%)`,
                     boxShadow: `0 20px 40px -15px ${accentBg}1a`
                   }}
                 />
 
-                {/* Top Section of Card */}
-                <div className="w-full flex items-start justify-between mb-6 z-10">
-                  <div 
-                    className="w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-105"
-                    style={{ 
-                      backgroundColor: accentBg, 
-                      boxShadow: `0 8px 20px ${accentBg}33` 
-                    }}
-                  >
-                    {store.code ? (
-                      <span className="text-sm font-black italic tracking-tighter" style={{ color: textContrastValue }}>
-                        {store.code}
+                {/* Top Header: Badge, Code & Status */}
+                <div className="w-full flex items-start justify-between gap-4 mb-5 z-10">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105 shadow-md"
+                      style={{ 
+                        backgroundColor: accentBg, 
+                        boxShadow: `0 8px 20px ${accentBg}33` 
+                      }}
+                    >
+                      {store.code ? (
+                        <span className="text-base font-black italic tracking-tighter" style={{ color: textContrastValue }}>
+                          {store.code}
+                        </span>
+                      ) : (
+                        <StoreIcon className="w-6 h-6" style={{ color: textContrastValue }} />
+                      )}
+                    </div>
+
+                    <div>
+                      <span className="text-[10px] font-black uppercase tracking-widest text-[#7F300C] block">
+                        {store.code === 'ROOT' ? 'GLOBAL' : `UNIDADE ${store.code}`}
                       </span>
-                    ) : (
-                      <StoreIcon className="w-6 h-6" style={{ color: textContrastValue }} />
-                    )}
+                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider block">
+                        {store.brand === 'BEBELU' ? 'Bebelu Sanduíches' : store.brand === '4ESTYLOS' ? "4 Estylo's Pizzaria" : 'Grupo Azevedo'}
+                      </span>
+                    </div>
                   </div>
 
-                  {/* Operational Status Tag */}
-                  <span className="px-3 py-1 bg-[#FFCB05]/10 border border-[#FFCB05]/20 rounded-full text-[8.5px] font-black uppercase tracking-wider text-[#7F300C]">
-                    CONECTADO
-                  </span>
+                  {/* Operational Status Badge */}
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[9px] font-black uppercase tracking-wider text-emerald-700 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Conectado</span>
+                  </div>
                 </div>
 
                 {/* Middle Info Section */}
-                <div className="flex-1 w-full z-10">
-                  <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1.5 block">
-                    {store.code === 'ROOT' 
-                      ? 'Corporativo Grupo Azevedo' 
-                      : store.brand === 'BEBELU' 
-                        ? 'Franquia Bebelu Sanduíches' 
-                        : "Franquia 4 Estylo's Pizzaria - Mossoró"}
-                  </span>
-                  <h3 className="text-xl font-bold text-slate-950 leading-tight uppercase tracking-tight group-hover:text-[#7F300C] transition-colors mb-2">
+                <div className="w-full my-2 z-10 space-y-2">
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 leading-tight uppercase tracking-tight group-hover:text-[#7F300C] transition-colors">
                     {store.name}
                   </h3>
-                  <div className="flex items-center gap-1.5 text-slate-500 text-xs font-semibold">
-                    <MapPin className="w-3.5 h-3.5 text-[#7F300C]/70" />
+                  <div className="flex items-center gap-2 text-slate-500 text-xs font-semibold">
+                    <div className="p-1 rounded-md bg-slate-100 text-[#7F300C] shrink-0">
+                      <MapPin className="w-3.5 h-3.5" />
+                    </div>
                     <span className="truncate">{store.location}</span>
                   </div>
                 </div>
 
-                {/* Bottom Interactive Trigger */}
-                <div className="mt-8 w-full flex items-center justify-between border-t border-slate-100 pt-4 z-10 group-hover:border-amber-500/10 transition-colors">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#7F300C] font-display flex items-center gap-1">
-                    Conectar Terminal
+                {/* Bottom Interactive Action Bar */}
+                <div className="mt-6 w-full flex items-center justify-between border-t border-slate-100 pt-4 z-10 group-hover:border-amber-500/20 transition-colors">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-[#7F300C] flex items-center gap-1.5 font-display">
+                    Acessar Unidade
                   </span>
-                  <div className="p-1.5 px-3 bg-slate-100 border border-slate-200/60 rounded-full group-hover:bg-[#FFCB05] group-hover:border-[#FFCB05] transition-all duration-300">
-                    <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-[#7F300C] group-hover:stroke-[3px] transition-colors" />
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 border border-slate-200/80 group-hover:bg-[#FFCB05] group-hover:border-[#FFCB05] group-hover:shadow-md transition-all duration-300">
+                    <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-[#7F300C] group-hover:translate-x-0.5 transition-all" />
                   </div>
                 </div>
               </motion.button>
