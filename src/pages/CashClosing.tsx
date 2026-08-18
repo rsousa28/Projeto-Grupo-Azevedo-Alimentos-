@@ -73,6 +73,11 @@ export default function CashClosing() {
   const { success: toastSuccess, error: toastError } = useToast();
   const isAdmin = user?.role === 'ADMIN' || user?.username === 'adm';
   const isBebelu = currentStore.brand === 'BEBELU';
+  const isB28 = currentStore?.code === 'B28' || 
+                currentStore?.id === '2' || 
+                (currentStore?.name || '').toLowerCase().includes('riomar') || 
+                (currentStore?.name || '').toLowerCase().includes('papicu') ||
+                (currentStore?.name || '').toLowerCase().includes('b28');
   const themeButtonBg = brandColors.button;
   const themeTextContrast = isBebelu ? '#121212' : '#FFFFFF';
   const currentInitialDate = new Date();
@@ -268,6 +273,19 @@ export default function CashClosing() {
 
   // Calculations for the form
   const totalGeral = useMemo(() => {
+    if (isB28) {
+      return (
+        (formData.delivery || 0) +
+        (formData.creditCard || 0) +
+        (formData.debitCard || 0) +
+        (formData.pix || 0) +
+        (formData.refeicao || 0) + // mapped as VOUCHER in B28
+        (formData.lancheFuncionarios || 0) + // LANCHE FUNCIONÁRIO
+        (formData.valefuncionario || 0) + // VALE FUNCIONÁRIO
+        (formData.despesas || 0) +
+        (formData.sangria || 0)
+      );
+    }
     return (
       formData.delivery + 
       formData.creditCard + 
@@ -281,7 +299,7 @@ export default function CashClosing() {
       formData.despesas +
       formData.outros1 + formData.outros2 + formData.outros3 + formData.outros4
     );
-  }, [formData]);
+  }, [formData, isB28]);
 
   const diff = totalGeral - formData.totalSistema;
   const sobra = diff > 0 ? diff : 0;
@@ -436,10 +454,10 @@ export default function CashClosing() {
       };
     } else if (code === 'B28') {
       return {
-        title: `Planilha de Fechamento ${currentStore.brand}`,
-        location: 'Bebelu Rio Mar/CE - Unidade B28',
+        title: 'CAIXA B28',
+        location: 'RIO MAR FORTALEZA',
         brand: currentStore.brand,
-        logo: currentStore.brand.charAt(0)
+        logo: 'B'
       };
     } else if (code === '4E09') {
       return {
@@ -462,6 +480,45 @@ export default function CashClosing() {
     const doc = new jsPDF() as any;
     const pageWidth = doc.internal.pageSize.getWidth();
     
+    if (isB28) {
+      doc.setFontSize(22);
+      doc.setTextColor(20, 50, 120);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CAIXA B28', pageWidth / 2, 20, { align: 'center' });
+      
+      doc.setFontSize(14);
+      doc.setTextColor(30, 70, 160);
+      doc.setFont('helvetica', 'bolditalic');
+      doc.text('RIO MAR FORTALEZA', pageWidth / 2, 28, { align: 'center' });
+      
+      autoTable(doc, {
+        startY: 35,
+        head: [['CAMPO', 'VALOR INFORMADO']],
+        body: [
+          ['DATA', formData.date.split('-').reverse().join('/')],
+          ['OPERADOR', formData.operator || 'NÃO INFORMADO'],
+          ['IFOOD', formatCurrencyLocal(formData.delivery)],
+          ['CARTÃO DE CRÉDITO', formatCurrencyLocal(formData.creditCard)],
+          ['CARTÃO DE DÉBITO', formatCurrencyLocal(formData.debitCard)],
+          ['PIX', formatCurrencyLocal(formData.pix)],
+          ['VOUCHER', formatCurrencyLocal(formData.refeicao)],
+          ['LANCHE FUNCIONÁRIO', formatCurrencyLocal(formData.lancheFuncionarios)],
+          ['VALE FUNCIONÁRIO', formatCurrencyLocal(formData.valefuncionario)],
+          ['DESPESAS', formatCurrencyLocal(formData.despesas)],
+          ['SANGRIA', formatCurrencyLocal(formData.sangria)],
+          ['TOTAL GERAL', formatCurrencyLocal(totalGeral)],
+          ['TOTAL SISTEMA', formatCurrencyLocal(formData.totalSistema)],
+          ['SOBRA/ FALTA', diff >= 0 ? `+${formatCurrencyLocal(diff)} (Sobra)` : `${formatCurrencyLocal(diff)} (Falta)`],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [15, 23, 42], fontStyle: 'bold' } as any,
+        columnStyles: { 0: { fontStyle: 'bold' }, 1: { halign: 'right', fontStyle: 'bold' } } as any
+      });
+      
+      doc.save(`caixa-b28-${formData.date}.pdf`);
+      return;
+    }
+
     doc.setFontSize(20);
     doc.setTextColor(230, 57, 70);
     doc.text(storeInfo.brand.toUpperCase(), pageWidth / 2, 20, { align: 'center' });
@@ -791,26 +848,50 @@ export default function CashClosing() {
                 <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/10 rounded-xl text-white"><X /></button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-10 space-y-10">
+              <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8">
+                {/* Header Date & Operator */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase italic ml-2">Data</label>
-                    <input type="date" value={formData.date} onChange={(e) => handleInputChange('date', e.target.value)} className={`w-full px-6 py-4 rounded-2xl border font-black italic text-sm outline-none ${isDarkMode ? 'bg-black border-[#333] text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} />
+                    <label className="text-[10px] font-black text-slate-500 uppercase italic ml-2">Data do Fechamento</label>
+                    <input 
+                      type="date" 
+                      value={formData.date} 
+                      onChange={(e) => handleInputChange('date', e.target.value)} 
+                      className={`w-full px-6 py-4 rounded-2xl border font-black italic text-sm outline-none ${isDarkMode ? 'bg-black border-[#333] text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} 
+                    />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase italic ml-2">Operador</label>
-                    <input type="text" placeholder="Nome do responsável" value={formData.operator} onChange={(e) => handleInputChange('operator', e.target.value)} className={`w-full px-6 py-4 rounded-2xl border font-black italic text-sm outline-none ${isDarkMode ? 'bg-black border-[#333] text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} />
+                    <label className="text-[10px] font-black text-slate-500 uppercase italic ml-2">Operador Responsável</label>
+                    <input 
+                      type="text" 
+                      placeholder="Nome do responsável" 
+                      value={formData.operator} 
+                      onChange={(e) => handleInputChange('operator', e.target.value)} 
+                      className={`w-full px-6 py-4 rounded-2xl border font-black italic text-sm outline-none ${isDarkMode ? 'bg-black border-[#333] text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} 
+                    />
                   </div>
                 </div>
 
+                {/* 2-Column Form Layout matching Bebelu Design */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+                  {/* Left Column: Finalizadores de Venda */}
                   <div className="space-y-6">
                     <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${
                       storeInfo.brand?.toLowerCase().includes('bebelu') 
                         ? 'text-[#7F300C] border-[#7F300C]/20' 
                         : isDarkMode ? 'text-white border-white/20' : 'text-slate-900 border-slate-200'
-                    }`}>Finalizadores de Venda</h4>
-                    {[
+                    }`}>
+                      Finalizadores de Venda {isB28 ? '(B28)' : ''}
+                    </h4>
+
+                    {(isB28 ? [
+                      { label: 'IFOOD', field: 'delivery' as const },
+                      { label: 'CARTÃO CRÉDITO', field: 'creditCard' as const },
+                      { label: 'CARTÃO DÉBITO', field: 'debitCard' as const },
+                      { label: 'PIX', field: 'pix' as const },
+                      { label: 'VOUCHER', field: 'refeicao' as const },
+                      { label: 'SANGRIA', field: 'sangria' as const },
+                    ] : [
                       { label: 'DELIVERY', field: 'delivery' as const },
                       { label: 'CARTÃO CRÉDITO', field: 'creditCard' as const },
                       { label: 'CARTÃO DÉBITO', field: 'debitCard' as const },
@@ -818,25 +899,32 @@ export default function CashClosing() {
                       { label: 'PIX', field: 'pix' as const },
                       { label: 'TOTEM', field: 'totem' as const },
                       { label: 'SANGRIA', field: 'sangria' as const },
-                    ].map(item => (
+                    ]).map(item => (
                       <div key={item.field} className="flex items-center justify-between group">
                         <span className={`text-[11px] font-bold uppercase transition-colors ${
                           storeInfo.brand?.toLowerCase().includes('bebelu') 
                             ? 'text-[#7F300C]' 
                             : isDarkMode ? 'text-white group-hover:text-amber-500' : 'text-slate-900 group-hover:text-amber-500'
-                        }`}>{item.label}</span>
+                        }`}>
+                          {item.label}
+                        </span>
                         <input 
                           type="text" 
                           value={inputValues[item.field] !== undefined ? inputValues[item.field] : (formData[item.field] || '')} 
                           onChange={(e) => handleNumberChange(item.field, e.target.value)} 
-                          className={`w-36 px-4 py-2 text-right rounded-xl font-black italic outline-none border transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'}`}
+                          className={`w-36 px-4 py-2.5 text-right rounded-2xl font-black italic outline-none border transition-all text-sm ${
+                            isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'
+                          }`}
                           placeholder="0,00"
                         />
                       </div>
                     ))}
                     
+                    {/* Observations in left column bottom */}
                     <div className="space-y-2 pt-6">
-                      <label className={`text-[10px] font-black uppercase italic ml-2 ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-[#7F300C]' : (isDarkMode ? 'text-white' : 'text-slate-950')}`}>Observações / Notas</label>
+                      <label className={`text-[10px] font-black uppercase italic ml-2 ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-[#7F300C]' : (isDarkMode ? 'text-white' : 'text-slate-950')}`}>
+                        Observações / Notas
+                      </label>
                       <textarea 
                         value={formData.observations}
                         onChange={(e) => handleInputChange('observations', e.target.value)}
@@ -848,14 +936,22 @@ export default function CashClosing() {
                     </div>
                   </div>
 
+                  {/* Right Column: Outros / Justificativas & Totals */}
                   <div className="space-y-8">
                     <div className="space-y-4">
                       <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${
                         storeInfo.brand?.toLowerCase().includes('bebelu') 
                           ? 'text-[#7F300C] border-[#7F300C]/20' 
                           : isDarkMode ? 'text-white border-white/20' : 'text-slate-900 border-slate-200'
-                      }`}>Outros / Justificativas</h4>
-                      {[
+                      }`}>
+                        Outros / Justificativas {isB28 ? '(B28)' : ''}
+                      </h4>
+
+                      {(isB28 ? [
+                        { label: 'LANCHE FUNCIONÁRIO', field: 'lancheFuncionarios' as const, isFixed: true },
+                        { label: 'VALE FUNCIONÁRIO', field: 'valefuncionario' as const, isFixed: true },
+                        { label: 'DESPESAS', field: 'despesas' as const, isFixed: true },
+                      ] : [
                         { label: 'LANCHE', field: 'lancheFuncionarios' as const, isFixed: true },
                         { label: 'VALE FUNCIONÁRIO', field: 'valefuncionario' as const, isFixed: true },
                         { label: 'DESPESAS', field: 'despesas' as const, isFixed: true },
@@ -863,14 +959,16 @@ export default function CashClosing() {
                         { label: 'OUTROS 2', field: 'outros2' as const },
                         { label: 'OUTROS 3', field: 'outros3' as const },
                         { label: 'OUTROS 4', field: 'outros4' as const },
-                      ].map(item => (
+                      ]).map(item => (
                         <div key={item.field} className="flex items-center justify-between group gap-2">
-                          {item.isFixed ? (
+                          {(item as any).isFixed ? (
                             <span className={`text-[11px] font-bold uppercase transition-colors shrink-0 ${
                               storeInfo.brand?.toLowerCase().includes('bebelu') 
                                 ? 'text-[#7F300C]' 
                                 : isDarkMode ? 'text-white group-hover:text-amber-500' : 'text-slate-900 group-hover:text-amber-500'
-                            }`}>{item.label}</span>
+                            }`}>
+                              {item.label}
+                            </span>
                           ) : (
                             <input 
                               type="text" 
@@ -884,44 +982,65 @@ export default function CashClosing() {
                             type="text" 
                             value={inputValues[item.field] !== undefined ? inputValues[item.field] : (formData[item.field] || '')} 
                             onChange={(e) => handleNumberChange(item.field, e.target.value)} 
-                            className={`w-24 px-4 py-2 text-right rounded-xl font-black italic outline-none border transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'}`}
+                            className={`w-36 px-4 py-2.5 text-right rounded-2xl font-black italic outline-none border transition-all text-sm ${
+                              isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'
+                            }`}
                             placeholder="0,00"
                           />
                         </div>
                       ))}
                     </div>
 
-                    <div className="mt-10">
+                    {/* Totals and Calculation Box */}
+                    <div className="mt-8">
                       <div className="p-8 rounded-[2rem] bg-black border border-slate-800 space-y-6 shadow-2xl flex flex-col justify-center">
-                         <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black text-slate-500 uppercase italic">Total Geral Informado</span>
-                            <span className="text-2xl font-black text-white italic">{formatCurrencyLocal(totalGeral)}</span>
-                         </div>
-                         <div className="flex items-center justify-between border-t border-slate-800 pt-6">
-                            <span className="text-[10px] font-black text-slate-500 uppercase italic">Total Sistema</span>
-                            <input 
-                              type="text" 
-                              value={inputValues['totalSistema'] !== undefined ? inputValues['totalSistema'] : (formData.totalSistema || '')} 
-                              onChange={(e) => handleNumberChange('totalSistema', e.target.value)} 
-                              className="w-32 bg-transparent text-xl font-black text-amber-500 text-right outline-none underline underline-offset-4 decoration-amber-500/30"
-                              placeholder="0,00"
-                            />
-                         </div>
-                         <div className={`flex items-center justify-between border-t border-slate-800 pt-6 p-4 rounded-2xl ${diff >= 0 ? 'bg-green-500/10' : 'bg-red-700/10'}`}>
-                            <span className={`text-[10px] font-black uppercase italic ${diff >= 0 ? 'text-green-500' : 'text-red-700'}`}>{diff >= 0 ? 'SOBRA (+)' : 'FALTA (-)'}</span>
-                            <span className={`text-xl font-black italic ${diff >= 0 ? 'text-green-500' : 'text-red-700'}`}>{formatCurrencyLocal(Math.abs(diff))}</span>
-                         </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-slate-500 uppercase italic">Total Geral Informado</span>
+                          <span className="text-2xl font-black text-white italic">{formatCurrencyLocal(totalGeral)}</span>
+                        </div>
+                        <div className="flex items-center justify-between border-t border-slate-800 pt-6">
+                          <span className="text-[10px] font-black text-slate-500 uppercase italic">Total Sistema</span>
+                          <input 
+                            type="text" 
+                            value={inputValues['totalSistema'] !== undefined ? inputValues['totalSistema'] : (formData.totalSistema || '')} 
+                            onChange={(e) => handleNumberChange('totalSistema', e.target.value)} 
+                            className="w-36 bg-transparent text-xl font-black text-amber-500 text-right outline-none underline underline-offset-4 decoration-amber-500/30"
+                            placeholder="0,00"
+                          />
+                        </div>
+                        <div className={`flex items-center justify-between border-t border-slate-800 pt-6 p-4 rounded-2xl ${
+                          diff === 0 
+                            ? 'bg-slate-500/10 text-slate-300' 
+                            : diff > 0 
+                              ? 'bg-green-500/10 text-green-500' 
+                              : 'bg-red-700/10 text-red-700'
+                        }`}>
+                          <span className={`text-[10px] font-black uppercase italic ${
+                            diff === 0 ? 'text-slate-300' : diff > 0 ? 'text-green-500' : 'text-red-700'
+                          }`}>
+                            {diff === 0 ? 'SOBRA / FALTA' : diff > 0 ? 'SOBRA (+)' : 'FALTA (-)'}
+                          </span>
+                          <span className={`text-xl font-black italic ${
+                            diff === 0 ? 'text-slate-300' : diff > 0 ? 'text-green-500' : 'text-red-700'
+                          }`}>
+                            {diff === 0 ? 'R$ 0,00 (Batido)' : formatCurrencyLocal(Math.abs(diff))}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
+              </div>
 
               <div className="p-8 border-t dark:border-[#333] flex items-center justify-between bg-slate-900 rounded-b-[3rem]">
                 <div className="flex gap-2">
                    <button onClick={exportToPDF} className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
                      <FileDown className="w-4 h-4" /> PDF
                    </button>
-                   <button className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
+                   <button 
+                     onClick={() => window.print()} 
+                     className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                   >
                      <Printer className="w-4 h-4" /> IMPRIMIR
                    </button>
                 </div>
@@ -977,77 +1096,78 @@ export default function CashClosing() {
                   </button>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
+        )}
+      </AnimatePresence>
 
-      {confirmResetId && (
-        <motion.div 
-          key="cash-reset-modal-container"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-        >
+      <AnimatePresence>
+        {confirmResetId && (
           <motion.div 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            exit={{ opacity: 0 }} 
-            onClick={() => setConfirmResetId(null)} 
-            className="absolute inset-0 bg-black/85 backdrop-blur-md" 
-          />
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            className={`relative w-full max-w-md overflow-hidden rounded-[2.5rem] p-8 shadow-2xl flex flex-col space-y-6 z-10 ${isDarkMode ? 'bg-[#121212] border border-slate-800' : 'bg-white border border-slate-100'}`}
+            key="cash-reset-modal-container"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
           >
-            <div className="flex items-center gap-4 text-rose-500">
-              <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center shrink-0">
-                <RotateCcw className="w-6 h-6" />
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setConfirmResetId(null)} 
+              className="absolute inset-0 bg-black/85 backdrop-blur-md" 
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className={`relative w-full max-w-md overflow-hidden rounded-[2.5rem] p-8 shadow-2xl flex flex-col space-y-6 z-10 ${isDarkMode ? 'bg-[#121212]' : 'bg-white'}`}
+            >
+              <div className="flex items-center gap-4 text-rose-500">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center shrink-0">
+                  <RotateCcw className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className={`text-lg font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Zerar Caixa?</h3>
+                  <p className="text-xs text-slate-500">Esta ação é irreversível.</p>
+                </div>
               </div>
-              <div>
-                <h3 className={`text-lg font-black uppercase italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Zerar Caixa?</h3>
-                <p className="text-xs text-slate-500">Esta ação é irreversível.</p>
+
+              <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                Deseja realmente zerar todos os lançamentos informados para o dia <span className="font-extrabold text-amber-500">{confirmResetId.split('-').reverse().join('/')}</span>? O status do caixa voltará a ser Pendente.
+              </p>
+
+              <div className="flex gap-3 justify-end pt-2">
+                <button 
+                  onClick={() => setConfirmResetId(null)}
+                  className={`px-5 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors ${
+                    isDarkMode ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-600 hover:text-slate-950 hover:bg-slate-50'
+                  }`}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={async () => {
+                    const updated = { ...closingsData };
+                    delete updated[confirmResetId];
+                    setClosingsData(updated);
+                    localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
+                    
+                    try {
+                      const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
+                      await setDocCached(docRef, { data: updated }, currentStore.id, user);
+                    } catch (err) {
+                      console.error("Erro ao remover fechamento do Firestore:", err);
+                    }
+                    
+                    setConfirmResetId(null);
+                  }}
+                  className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-rose-500/20"
+                >
+                  Zerar Lançamentos
+                </button>
               </div>
-            </div>
-
-            <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
-              Deseja realmente zerar todos os lançamentos informados para o dia <span className="font-extrabold text-amber-500">{confirmResetId.split('-').reverse().join('/')}</span>? O status do caixa voltará a ser Pendente.
-            </p>
-
-            <div className="flex gap-3 justify-end pt-2">
-              <button 
-                onClick={() => setConfirmResetId(null)}
-                className={`px-5 py-3 rounded-xl font-black text-[10px] uppercase tracking-widest transition-colors ${
-                  isDarkMode ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-600 hover:text-slate-950 hover:bg-slate-50'
-                }`}
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={async () => {
-                  const updated = { ...closingsData };
-                  delete updated[confirmResetId];
-                  setClosingsData(updated);
-                  localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
-                  
-                  try {
-                    const docRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
-                    await setDocCached(docRef, { data: updated }, currentStore.id, user);
-                  } catch (err) {
-                    console.error("Erro ao remover fechamento do Firestore:", err);
-                  }
-                  
-                  setConfirmResetId(null);
-                }}
-                className="px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 shadow-lg shadow-rose-500/20"
-              >
-                Zerar Lançamentos
-              </button>
-            </div>
+            </motion.div>
           </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  </div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }

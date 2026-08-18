@@ -111,14 +111,19 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       try {
         const storedSubmissions = localStorage.getItem(`checklist_submissions_${currentStore.id}`);
         if (storedSubmissions) {
-          const subs = JSON.parse(storedSubmissions);
-          isChecklistCompleteToday = subs.some((s: any) => {
-            const dateStr = s.submittedAt ? s.submittedAt.split('T')[0] : '';
-            return dateStr === todayStr;
-          });
+          const parsed = JSON.parse(storedSubmissions);
+          const subs: any[] = Array.isArray(parsed)
+            ? parsed
+            : (parsed && typeof parsed === 'object' ? Object.values(parsed) : []);
+          if (Array.isArray(subs)) {
+            isChecklistCompleteToday = subs.some((s: any) => {
+              const dateStr = s?.submittedAt ? String(s.submittedAt).split('T')[0] : (s?.date ? String(s.date) : '');
+              return dateStr === todayStr;
+            });
+          }
         }
       } catch (e) {
-        console.error(e);
+        console.warn('Checklist routine check error:', e);
       }
 
       // Check if cash closed today
@@ -126,11 +131,15 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       try {
         const savedClosings = localStorage.getItem(`closings_data_${currentStore.id}`);
         if (savedClosings) {
-          const closings = JSON.parse(savedClosings);
-          isCashClosedToday = closings.some((c: any) => c.date === todayStr);
+          const parsed = JSON.parse(savedClosings);
+          if (Array.isArray(parsed)) {
+            isCashClosedToday = parsed.some((c: any) => c?.date === todayStr);
+          } else if (parsed && typeof parsed === 'object' && parsed !== null) {
+            isCashClosedToday = Boolean(parsed[todayStr]) || Object.values(parsed).some((c: any) => c?.date === todayStr);
+          }
         }
       } catch (e) {
-        console.error(e);
+        console.warn('Cash closing routine check error:', e);
       }
 
       NotificationService.checkRoutineReminders({
