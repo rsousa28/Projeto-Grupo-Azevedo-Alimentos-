@@ -53,3 +53,19 @@ export interface StoreBenchmark {
   margin: number;
   operationalStatus: string;
 }
+
+export interface InvestmentProject {
+  id: string;
+  projectName: string;
+  type: string; // Ex: 'Nova Unidade Física', 'Infraestrutura de Delivery', 'Tecnologia Operacional', 'Reforma & Ampliação'
+  stage: string; // Ex: 'Em Estudo / Viabilidade', 'Prospecção Imobiliária', 'Obras e Reformas', 'Implantação Piloto', 'Concluído / Inaugurado'
+  capexBudget: number; // Orçamento Total Capex
+  spentSoFar: number; // Aportado até o momento
+  projectedMonthlyRevenue: number; // Receita Mensal Projetada
+  expectedPaybackMonths: number; // Payback Estimado (meses)
+  projectedRoi: string; // Ex: '34% a.a.'
+  targetLaunch: string; // Previsão de Inauguração / Conclusão
+  responsible: string; // Responsável / Diretoria
+  notes?: string;
+  createdAt: string;
+}

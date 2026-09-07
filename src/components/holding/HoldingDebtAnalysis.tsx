@@ -24,12 +24,13 @@ import {
   Cell, 
   Tooltip 
 } from 'recharts';
-import { BankLoan, StoreLiability, StoreOnlyBinding } from '../../types/holding';
-import { HoldingStorage, STORE_BENCHMARKS, getUnitLabel } from '../../services/holdingStorage';
+import { BankLoan, StoreLiability, StoreOnlyBinding, StoreBenchmark } from '../../types/holding';
+import { HoldingStorage, DEFAULT_STORE_BENCHMARKS, getUnitLabel } from '../../services/holdingStorage';
 
 interface HoldingDebtAnalysisProps {
   loans: BankLoan[];
   liabilities: StoreLiability[];
+  storeBenchmarks?: Record<StoreOnlyBinding, StoreBenchmark>;
   onUpdate: () => void;
 }
 
@@ -57,7 +58,7 @@ const parseBRLToNumber = (val: string): number => {
   return Number(cleanDigits) / 100;
 };
 
-export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans, liabilities, onUpdate }) => {
+export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans, liabilities, storeBenchmarks, onUpdate }) => {
   const [selectedUnit, setSelectedUnit] = useState<string>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLiabilityId, setEditingLiabilityId] = useState<string | null>(null);
@@ -150,9 +151,10 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
   // 1. Cálculos consolidados e por loja
   const storeMetrics = useMemo(() => {
     const storeKeys: StoreOnlyBinding[] = ['B32', 'B28', 'VERO'];
+    const currentBenchmarks = storeBenchmarks || HoldingStorage.getStoreBenchmarks();
 
     const perStore = storeKeys.map(key => {
-      const benchmark = STORE_BENCHMARKS[key];
+      const benchmark = currentBenchmarks[key] || DEFAULT_STORE_BENCHMARKS[key];
       const storeLoans = loans.filter(l => l.unit === key);
       const storeLiabs = liabilities.filter(li => li.unit === key);
 
@@ -175,8 +177,15 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
 
       // Classificação visual de risco
       let healthStatus: 'Saudável' | 'Atenção' | 'Alto Risco' = 'Saudável';
-      if (cashCommitmentPercent > 20) healthStatus = 'Alto Risco';
-      else if (cashCommitmentPercent > 12) healthStatus = 'Atenção';
+      if (totalMonthlyService === 0) {
+        healthStatus = 'Saudável';
+      } else if (benchmark.monthlyRevenue === 0 && totalMonthlyService > 0) {
+        healthStatus = 'Atenção';
+      } else if (cashCommitmentPercent > 20) {
+        healthStatus = 'Alto Risco';
+      } else if (cashCommitmentPercent > 12) {
+        healthStatus = 'Atenção';
+      }
 
       return {
         key,
@@ -227,7 +236,7 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
         netProfit: consolidatedNetProfit
       }
     };
-  }, [loans, liabilities]);
+  }, [loans, liabilities, storeBenchmarks]);
 
   // 2. Dados da Rosca (Donut Chart) de Distribuição da Dívida
   const donutData = useMemo(() => {
@@ -444,7 +453,7 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
           className="px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all duration-200 shadow-lg shadow-amber-500/20 hover:shadow-amber-500/35 flex items-center justify-center gap-2 shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[3]" />
-          <span>+ Cadastrar Passivo / Dívida</span>
+          <span>Cadastrar Passivo / Dívida</span>
         </button>
       </div>
 
@@ -767,7 +776,7 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto thin-scrollbar pb-2">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-[#242428] text-slate-400 uppercase tracking-wider font-bold">

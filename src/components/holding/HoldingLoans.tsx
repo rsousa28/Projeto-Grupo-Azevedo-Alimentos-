@@ -354,7 +354,7 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
             </button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto thin-scrollbar pb-2">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="border-b border-[#242426] text-slate-400 uppercase tracking-wider font-bold">

@@ -76,7 +76,8 @@ export const OPERATIONAL_MENU_ITEMS: MenuItem[] = [
     path: '/finance',
     icon: BarChart3,
     type: 'STORE',
-    description: 'Demonstrativo de Resultados do Exercício'
+    description: 'Demonstrativo de Resultados do Exercício',
+    allowedRoles: ['ADMIN']
   },
   {
     id: 'marketing',
@@ -84,7 +85,8 @@ export const OPERATIONAL_MENU_ITEMS: MenuItem[] = [
     path: '/marketing',
     icon: Megaphone,
     type: 'STORE',
-    description: 'Campanhas, Promoções e Metas'
+    description: 'Campanhas, Promoções e Metas',
+    allowedRoles: ['ADMIN']
   },
   {
     id: 'daily-control',
@@ -182,8 +184,25 @@ export default function Sidebar({
     }
   };
 
-  // Determine current menu items dynamically based on unit type
-  const activeMenuItems = isHoldingActive ? HOLDING_MENU_ITEMS : OPERATIONAL_MENU_ITEMS;
+  // Check if current user has administrator privileges
+  const isUserAdmin = Boolean(
+    user && (
+      user.role === 'ADMIN' || 
+      user.username === 'adm' ||
+      (user.username || '').toLowerCase().includes('rennan') ||
+      (user.email || '').toLowerCase().includes('rennan')
+    )
+  );
+
+  // Determine current menu items dynamically based on unit type and role restrictions
+  const baseMenuItems = isHoldingActive ? HOLDING_MENU_ITEMS : OPERATIONAL_MENU_ITEMS;
+  const activeMenuItems = baseMenuItems.filter(item => {
+    // If the item is restricted to ADMIN (like Financeiro DRE and Marketing), only show to admin users
+    if (item.allowedRoles && item.allowedRoles.includes('ADMIN')) {
+      return isUserAdmin;
+    }
+    return true;
+  });
 
   return (
     <>
@@ -319,7 +338,7 @@ export default function Sidebar({
           })}
 
           {/* Admin Settings / Access */}
-          {user?.role === 'ADMIN' && (!collapsed || mobileMenuOpen) && (
+          {isUserAdmin && (!collapsed || mobileMenuOpen) && (
             <div className="pt-3 mt-3 border-t border-inherit">
               {GOVERNANCE_ITEMS.map((item) => {
                 const Icon = item.icon;

@@ -106,8 +106,9 @@ function RootAdminOnlyRoute({ children }: { children: React.ReactNode }) {
 
 function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const isRennan = Boolean(user && ((user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan')));
   const hasAccess =
-    user && (user.role === "ADMIN" || user.username === "adm");
+    user && (user.role === "ADMIN" || user.username === "adm" || isRennan);
   if (!hasAccess) {
     return (
       <UnauthorizedRedirect routeName="Demonstrativo DRE / Fluxo Financeiro" />
@@ -118,7 +119,8 @@ function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
 
 function MarketingAccessRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const hasAccess = user && user.username === "adm";
+  const isRennan = Boolean(user && ((user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan')));
+  const hasAccess = user && (user.role === "ADMIN" || user.username === "adm" || isRennan);
   if (!hasAccess) {
     return (
       <UnauthorizedRedirect routeName="Módulo de Marketing" />

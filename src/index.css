@@ -37,6 +37,53 @@
   overscroll-behavior-y: contain;
 }
 
+/* Global sleek scrollbar styling for Dark & Light modes */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+:is(.dark) ::-webkit-scrollbar-track {
+  background: #141416;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+:is(.dark) ::-webkit-scrollbar-thumb {
+  background: #2e2e34;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+:is(.dark) ::-webkit-scrollbar-thumb:hover {
+  background: #4a4a54;
+}
+
+/* Thin horizontal/vertical table scrollbar */
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #2e2e34 transparent;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.thin-scrollbar::-webkit-scrollbar-track {
+  background: #121214;
+  border-radius: 9999px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background: #2e2e36;
+  border-radius: 9999px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #f59e0b;
+}
+
 .markdown-body {
   @apply text-sm leading-relaxed;
 }

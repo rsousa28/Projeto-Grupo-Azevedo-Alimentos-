@@ -1,17 +1,17 @@
-import { BankLoan, StoreLiability, StoreBenchmark, UnitBinding, StoreOnlyBinding } from '../types/holding';
+import { BankLoan, StoreLiability, StoreBenchmark, UnitBinding, StoreOnlyBinding, InvestmentProject } from '../types/holding';
 
-export const STORE_BENCHMARKS: Record<StoreOnlyBinding, StoreBenchmark> = {
+export const DEFAULT_STORE_BENCHMARKS: Record<StoreOnlyBinding, StoreBenchmark> = {
   B32: {
     id: '1',
     code: 'B32',
     name: 'Bebelu Mossoró',
     brand: 'BEBELU SANDUÍCHES',
     location: 'Mossoró - RN',
-    monthlyRevenue: 284500,
-    ebitda: 45520,
-    cmv: 96730,
-    margin: 16.0,
-    operationalStatus: 'Operação Positiva'
+    monthlyRevenue: 0,
+    ebitda: 0,
+    cmv: 0,
+    margin: 0,
+    operationalStatus: 'Operação Ativa'
   },
   B28: {
     id: '2',
@@ -19,11 +19,11 @@ export const STORE_BENCHMARKS: Record<StoreOnlyBinding, StoreBenchmark> = {
     name: 'Bebelu Rio Mar',
     brand: 'BEBELU SANDUÍCHES',
     location: 'Fortaleza - CE (Shopping Rio Mar)',
-    monthlyRevenue: 241800,
-    ebitda: 36270,
-    cmv: 84630,
-    margin: 15.0,
-    operationalStatus: 'Operação Positiva'
+    monthlyRevenue: 0,
+    ebitda: 0,
+    cmv: 0,
+    margin: 0,
+    operationalStatus: 'Operação Ativa'
   },
   VERO: {
     id: '3',
@@ -31,165 +31,42 @@ export const STORE_BENCHMARKS: Record<StoreOnlyBinding, StoreBenchmark> = {
     name: 'Vero Pasta',
     brand: 'VERO PASTA ITALIANA',
     location: 'Fortaleza - CE (Aldeota)',
-    monthlyRevenue: 198400,
-    ebitda: 37690,
-    cmv: 59520,
-    margin: 19.0,
+    monthlyRevenue: 0,
+    ebitda: 0,
+    cmv: 0,
+    margin: 0,
     operationalStatus: 'Em Expansão'
   }
 };
 
-export const INITIAL_BANK_LOANS: BankLoan[] = [
-  {
-    id: 'LOAN-01',
-    bank: 'Santander Empresas',
-    modality: 'Capital de Giro Expansão',
-    principal: 450000,
-    currentBalance: 312000,
-    installmentsTotal: 36,
-    installmentsPaid: 11,
-    monthlyPayment: 15850,
-    rate: 'CDI + 2.8% a.a.',
-    dueDate: '2026-09-25',
-    unit: 'VERO',
-    status: 'Em Dia',
-    createdAt: '2025-10-15',
-    notes: 'Financiamento para estruturação da cozinha italiana e ampliação de salão'
-  },
-  {
-    id: 'LOAN-02',
-    bank: 'Banco do Brasil',
-    modality: 'PRONAMPE / FCO',
-    principal: 300000,
-    currentBalance: 245000,
-    installmentsTotal: 48,
-    installmentsPaid: 9,
-    monthlyPayment: 8920,
-    rate: 'Selic + 4.5% a.a.',
-    dueDate: '2026-09-18',
-    unit: 'B32',
-    status: 'Em Dia',
-    createdAt: '2025-12-01',
-    notes: 'Linha subsidiada de investimento para modernização da unidade Mossoró'
-  },
-  {
-    id: 'LOAN-03',
-    bank: 'Bradesco Corporate',
-    modality: 'Finame / Equipamentos',
-    principal: 280000,
-    currentBalance: 168000,
-    installmentsTotal: 24,
-    installmentsPaid: 10,
-    monthlyPayment: 13400,
-    rate: 'TJLP + 3.1% a.a.',
-    dueDate: '2026-09-30',
-    unit: 'B28',
-    status: 'Em Dia',
-    createdAt: '2025-11-20',
-    notes: 'Aquisição de fritadeiras industriais e câmara fria para Bebelu Rio Mar'
-  },
-  {
-    id: 'LOAN-04',
-    bank: 'Caixa Econômica',
-    modality: 'Giro Caixa Rápido',
-    principal: 150000,
-    currentBalance: 115000,
-    installmentsTotal: 24,
-    installmentsPaid: 6,
-    monthlyPayment: 7200,
-    rate: 'CDI + 3.2% a.a.',
-    dueDate: '2026-10-05',
-    unit: 'HOLDING',
-    status: 'Em Dia',
-    createdAt: '2026-03-10',
-    notes: 'Reserva central de liquidez e apoio aos mútuos da Holding'
-  }
-];
+export const STORE_BENCHMARKS: Record<StoreOnlyBinding, StoreBenchmark> = DEFAULT_STORE_BENCHMARKS;
 
-export const INITIAL_STORE_LIABILITIES: StoreLiability[] = [
-  {
-    id: 'LIAB-01',
-    unit: 'B32',
-    category: 'Tributos Parcelados (REFIS/Simples)',
-    creditor: 'Receita Federal / PGFN',
-    totalAmount: 94000,
-    monthlyPayment: 2600,
-    installmentsRemaining: 36,
-    status: 'Em Dia',
-    dueDate: '2026-09-20',
-    createdAt: '2026-01-15',
-    notes: 'Parcelamento especial Simples Nacional com amortização linear'
-  },
-  {
-    id: 'LIAB-02',
-    unit: 'B32',
-    category: 'Fornecedores Renegociados',
-    creditor: 'Distribuidora Carnes & Pães Nordeste',
-    totalAmount: 38000,
-    monthlyPayment: 4750,
-    installmentsRemaining: 8,
-    status: 'Em Dia',
-    dueDate: '2026-09-28',
-    createdAt: '2026-02-10',
-    notes: 'Renegociação de safra de proteína bovina em 8 parcelas'
-  },
-  {
-    id: 'LIAB-03',
-    unit: 'B28',
-    category: 'Aluguel / Condomínio Pendente',
-    creditor: 'Administradora Shopping Rio Mar',
-    totalAmount: 52000,
-    monthlyPayment: 6500,
-    installmentsRemaining: 8,
-    status: 'Em Negociação',
-    dueDate: '2026-09-22',
-    createdAt: '2026-03-01',
-    notes: 'Diferencial de ar-condicionado e taxa de condomínio em acordo'
-  },
-  {
-    id: 'LIAB-04',
-    unit: 'B28',
-    category: 'Tributos Parcelados (REFIS/Simples)',
-    creditor: 'SEFAZ / ICMS Parcelado',
-    totalAmount: 68000,
-    monthlyPayment: 3400,
-    installmentsRemaining: 20,
-    status: 'Em Dia',
-    dueDate: '2026-09-30',
-    createdAt: '2025-11-10',
-    notes: 'Parcelamento ordinário ICMS Substituição Tributária'
-  },
-  {
-    id: 'LIAB-05',
-    unit: 'VERO',
-    category: 'Fornecedores Renegociados',
-    creditor: 'Importadora Queijos & Vinhos Bella',
-    totalAmount: 42000,
-    monthlyPayment: 5250,
-    installmentsRemaining: 8,
-    status: 'Em Dia',
-    dueDate: '2026-09-15',
-    createdAt: '2026-04-05',
-    notes: 'Lote inicial de insumos importados para inauguração'
-  },
-  {
-    id: 'LIAB-06',
-    unit: 'VERO',
-    category: 'Passivo Trabalhista / Acordos',
-    creditor: 'Acordo Homologado 1ª Vara',
-    totalAmount: 18000,
-    monthlyPayment: 3000,
-    installmentsRemaining: 6,
-    status: 'Em Dia',
-    dueDate: '2026-09-10',
-    createdAt: '2026-05-12',
-    notes: 'Acordo conciliatório extrajudicial com quitação total'
-  }
-];
+// Listas iniciais zeradas para que o usuário inicie o preenchimento do zero
+export const INITIAL_BANK_LOANS: BankLoan[] = [];
+export const INITIAL_STORE_LIABILITIES: StoreLiability[] = [];
+export const INITIAL_INVESTMENTS: InvestmentProject[] = [];
 
-const LOANS_KEY = 'holding_bank_loans_v2';
+const LOANS_KEY = 'holding_bank_loans_v3';
 const LIABILITIES_KEY = 'holding_liabilities_v3';
 const CLOSED_STORES_KEY = 'holding_closed_stores_v1';
+const INVESTMENTS_KEY = 'holding_investments_v3';
+const STORES_BENCHMARKS_KEY = 'holding_benchmarks_v3';
+
+// Limpeza automática pontual de dados mock antigos em sessões do navegador
+if (typeof window !== 'undefined' && window.localStorage) {
+  try {
+    const legacyMigrated = localStorage.getItem('holding_migrated_to_zero_v3');
+    if (!legacyMigrated) {
+      localStorage.removeItem('holding_bank_loans_v2');
+      localStorage.removeItem('holding_investments_v2');
+      localStorage.removeItem('holding_closed_stores_v1');
+      localStorage.removeItem('holding_benchmarks_v2');
+      localStorage.setItem('holding_migrated_to_zero_v3', 'true');
+    }
+  } catch (e) {
+    // ignore
+  }
+}
 
 export const INITIAL_CLOSED_STORES: string[] = [];
 
@@ -371,10 +248,142 @@ export const HoldingStorage = {
     return updated;
   },
 
+  // Expansion & Investment Projects
+  getInvestments(): InvestmentProject[] {
+    try {
+      const stored = localStorage.getItem(INVESTMENTS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error('Error loading investment projects:', e);
+    }
+    return INITIAL_INVESTMENTS;
+  },
+
+  saveInvestments(investments: InvestmentProject[]) {
+    try {
+      localStorage.setItem(INVESTMENTS_KEY, JSON.stringify(investments));
+    } catch (e) {
+      console.error('Error saving investment projects:', e);
+    }
+  },
+
+  addInvestment(newInv: Omit<InvestmentProject, 'id' | 'createdAt'>): InvestmentProject {
+    const list = this.getInvestments();
+    const created: InvestmentProject = {
+      ...newInv,
+      id: `INV-${Date.now().toString().slice(-4)}`,
+      createdAt: new Date().toISOString()
+    };
+    const updated = [created, ...list];
+    this.saveInvestments(updated);
+    return created;
+  },
+
+  updateInvestment(id: string, updates: Partial<InvestmentProject>): InvestmentProject[] {
+    const list = this.getInvestments();
+    const updated = list.map(inv => (inv.id === id ? { ...inv, ...updates } : inv));
+    this.saveInvestments(updated);
+    return updated;
+  },
+
+  addContribution(id: string, additionalAmount: number): InvestmentProject[] {
+    const list = this.getInvestments();
+    const updated = list.map(inv => {
+      if (inv.id === id) {
+        const newSpent = Math.max(0, inv.spentSoFar + additionalAmount);
+        return {
+          ...inv,
+          spentSoFar: newSpent
+        };
+      }
+      return inv;
+    });
+    this.saveInvestments(updated);
+    return updated;
+  },
+
+  deleteInvestment(id: string): InvestmentProject[] {
+    const list = this.getInvestments();
+    const filtered = list.filter(inv => inv.id !== id);
+    this.saveInvestments(filtered);
+    return filtered;
+  },
+
+  // Store Benchmarks & Metas
+  getStoreBenchmarks(): Record<StoreOnlyBinding, StoreBenchmark> {
+    try {
+      const stored = localStorage.getItem(STORES_BENCHMARKS_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...DEFAULT_STORE_BENCHMARKS,
+            ...parsed
+          };
+        }
+      }
+    } catch (e) {
+      console.error('Error loading store benchmarks:', e);
+    }
+    return DEFAULT_STORE_BENCHMARKS;
+  },
+
+  saveStoreBenchmarks(benchmarks: Record<StoreOnlyBinding, StoreBenchmark>) {
+    try {
+      localStorage.setItem(STORES_BENCHMARKS_KEY, JSON.stringify(benchmarks));
+    } catch (e) {
+      console.error('Error saving store benchmarks:', e);
+    }
+  },
+
+  updateStoreBenchmark(code: StoreOnlyBinding, updates: Partial<StoreBenchmark>): Record<StoreOnlyBinding, StoreBenchmark> {
+    const current = this.getStoreBenchmarks();
+    const existing = current[code] || DEFAULT_STORE_BENCHMARKS[code];
+    const newRevenue = updates.monthlyRevenue !== undefined ? updates.monthlyRevenue : existing.monthlyRevenue;
+    const newEbitda = updates.ebitda !== undefined ? updates.ebitda : existing.ebitda;
+    const newCmv = updates.cmv !== undefined ? updates.cmv : existing.cmv;
+    const newMargin = newRevenue > 0 ? (newEbitda / newRevenue) * 100 : 0;
+
+    const updated: Record<StoreOnlyBinding, StoreBenchmark> = {
+      ...current,
+      [code]: {
+        ...existing,
+        ...updates,
+        monthlyRevenue: newRevenue,
+        ebitda: newEbitda,
+        cmv: newCmv,
+        margin: newMargin
+      }
+    };
+    this.saveStoreBenchmarks(updated);
+    return updated;
+  },
+
+  clearAllHoldingData() {
+    this.saveLoans([]);
+    this.saveLiabilities([]);
+    this.saveInvestments([]);
+    this.saveClosedStores([]);
+    this.saveStoreBenchmarks(DEFAULT_STORE_BENCHMARKS);
+    try {
+      localStorage.removeItem(LOANS_KEY);
+      localStorage.removeItem(LIABILITIES_KEY);
+      localStorage.removeItem(INVESTMENTS_KEY);
+      localStorage.removeItem(STORES_BENCHMARKS_KEY);
+      localStorage.removeItem('holding_bank_loans_v2');
+      localStorage.removeItem('holding_investments_v2');
+      localStorage.removeItem('holding_closed_stores_v1');
+      localStorage.removeItem('holding_benchmarks_v2');
+    } catch (e) {}
+  },
+
   resetToDefaults() {
-    this.saveLoans(INITIAL_BANK_LOANS);
-    this.saveLiabilities(INITIAL_STORE_LIABILITIES);
-    this.saveClosedStores(INITIAL_CLOSED_STORES);
+    this.clearAllHoldingData();
   }
 };
 
