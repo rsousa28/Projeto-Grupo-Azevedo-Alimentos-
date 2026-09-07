@@ -43,8 +43,7 @@ const DEFAULT_SYSTEM_USERS: { id: string; name: string; username: string; role: 
   { id: 'root-admin', name: 'Admin Geral Grupo AZ', username: 'adm', role: 'ADMIN', defaultPassword: '88028837' },
   { id: 'patricia-b28', name: 'Patrícia - Bebelu Papicu', username: 'patriciab28', role: 'MANAGER_BEBELU_RIOMAR_PAPICU', defaultPassword: 'b28' },
   { id: 'andressa-b32', name: 'Andressa - Bebelu Mossoró', username: 'andressab32', role: 'MANAGER_BEBELU_MOSSORO', defaultPassword: 'b32' },
-  { id: 'jef-4e09', name: 'Jefferson - 4 Estylos Mossoró', username: 'jef4e09', role: 'MANAGER_4ESTYLOS_MOSSORO', defaultPassword: 'jqc26' },
-  { id: 'michele-4e09', name: 'Michele - 4 Estylos Mossoró', username: 'michele4e09', role: 'MANAGER_4ESTYLOS_MOSSORO', defaultPassword: '4e09' }
+  { id: 'jef-mossoro', name: 'Jefferson - Bebelu Mossoró', username: 'jef4e09', role: 'MANAGER_BEBELU_MOSSORO', defaultPassword: 'jqc26' }
 ];
 
 export default function Team() {
@@ -258,12 +257,6 @@ export default function Team() {
         return (
           <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/10 text-red-500 text-[10px] font-black uppercase tracking-widest italic">
             <ShieldCheck className="w-3 h-3" /> Admin
-          </span>
-        );
-      case 'MANAGER_4ESTYLOS_MOSSORO':
-        return (
-          <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-[10px] font-black uppercase tracking-widest italic">
-            <Shield className="w-3 h-3" /> Ger. 4Est Mossoró
           </span>
         );
       case 'MANAGER_BEBELU_MOSSORO':
@@ -584,7 +577,7 @@ export default function Team() {
                   <div className="space-y-3">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Nível de Permissão</label>
                     <div className="grid grid-cols-2 gap-3">
-                      {(['ADMIN', 'FINANCIAL', 'MANAGER_4ESTYLOS_MOSSORO', 'MANAGER_BEBELU_MOSSORO', 'MANAGER_BEBELU_RIOMAR_PAPICU'] as User['role'][]).map(role => (
+                      {(['ADMIN', 'FINANCIAL', 'MANAGER_BEBELU_MOSSORO', 'MANAGER_BEBELU_RIOMAR_PAPICU'] as User['role'][]).map(role => (
                         <button
                           key={role}
                           type="button"
@@ -601,7 +594,6 @@ export default function Team() {
                           <span className="text-[9px] font-black uppercase tracking-tighter italic text-center">
                             {role === 'ADMIN' ? 'Administrador Raiz' : 
                              role === 'FINANCIAL' ? 'Financeiro Geral' :
-                             role === 'MANAGER_4ESTYLOS_MOSSORO' ? 'Gerente 4 Estylos Mossoró' :
                              role === 'MANAGER_BEBELU_MOSSORO' ? 'Gerente Bebelu Mossoró' :
                              'Gerente Bebelu Riomar Papicu'}
                           </span>

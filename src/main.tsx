@@ -80,21 +80,25 @@ if (typeof window !== 'undefined' && !(window as any).process) {
 }
 
 // Service Worker Registration for PWA Offline Support
-if ('serviceWorker' in navigator && process.env.NODE_ENV === 'production') {
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(
-      (registration) => {
-        console.log('PWA Service Worker registrado com sucesso:', registration.scope);
-      },
-      (err) => {
-        console.error('Falha ao registrar PWA Service Worker:', err);
+    navigator.serviceWorker.register('/sw.js').then((registration) => {
+      // Prompt SW update check on every page load
+      registration.update().catch(() => {});
+      if (registration.waiting) {
+        registration.waiting.postMessage({ type: 'SKIP_WAITING' });
       }
-    );
-  });
-} else if ('serviceWorker' in navigator) {
-  // Also register in dev mode for testing PWA installability
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      registration.onupdatefound = () => {
+        const installingWorker = registration.installing;
+        if (installingWorker) {
+          installingWorker.onstatechange = () => {
+            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              installingWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          };
+        }
+      };
+    }).catch((err) => {
       console.log('SW registration note:', err);
     });
   });

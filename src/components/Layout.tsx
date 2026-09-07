@@ -1,95 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useNavigate, Outlet, useLocation } from 'react-router-dom';
+import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { Logo } from './Logo';
 import { 
-  LayoutDashboard, 
-  BarChart3, 
-  Calculator, 
-  PieChart, 
-  Users, 
   Settings, 
-  LogOut, 
   Menu,
-  ChevronLeft,
-  ChevronRight,
   ChevronDown,
+  Building2,
   Store as StoreIcon,
-  Zap,
-  Banknote,
-  ClipboardCheck,
-  Receipt,
-  Shield,
-  Lock,
-  Database,
-  Activity,
-  Sun,
-  Moon,
-  Megaphone,
-  DollarSign
+  Sparkles,
+  LayoutGrid
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useStore, STORES } from '../contexts/StoreContext';
+import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
-import { User } from '../types';
 import NotificationCenter from './NotificationCenter';
 import BackupStatusIndicator from './BackupStatusIndicator';
-import OfflineSyncBadge from './OfflineSyncBadge';
 import SettingsModal from './SettingsModal';
+import Sidebar from './Sidebar';
+import UnitSelector from './UnitSelector';
 import { NotificationService } from '../services/NotificationService';
 import { BackupService } from '../services/BackupService';
 import { useToast } from '../contexts/ToastContext';
 
-interface NavItem {
-  icon: React.ElementType;
-  label: string;
-  path: string;
-  allowedRoles?: User['role'][];
-}
-
-const ALL_MANAGERS: User['role'][] = ['ADMIN', 'MANAGER', 'MANAGER_BEBELU_RIOMAR_PAPICU', 'MANAGER_BEBELU_MOSSORO', 'MANAGER_4ESTYLOS_MOSSORO'];
-const EXECUTIVE_MANAGERS: User['role'][] = ['ADMIN', 'MANAGER', 'MANAGER_BEBELU_MOSSORO', 'MANAGER_4ESTYLOS_MOSSORO'];
-
-const NAV_ITEMS: NavItem[] = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: ClipboardCheck, label: 'Checklists', path: '/checklist' },
-  { icon: Banknote, label: 'Caixa', path: '/cash-closing', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
-  { icon: BarChart3, label: 'Financeiro DRE', path: '/finance', allowedRoles: ['ADMIN'] },
-  { icon: Megaphone, label: 'Marketing', path: '/marketing', allowedRoles: ['ADMIN'] },
-  { icon: DollarSign, label: 'Despesas e Vales', path: '/daily-control', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
-  { icon: Receipt, label: 'Contas a Pagar', path: '/accounts-payable', allowedRoles: [...ALL_MANAGERS, 'FINANCIAL'] },
-  { icon: Users, label: 'Equipe', path: '/team', allowedRoles: ['ADMIN'] },
-  { icon: Shield, label: 'Logs de Acesso', path: '/audit-logs', allowedRoles: ['ADMIN'] },
-  { icon: Lock, label: 'Resumo de Segurança', path: '/security-summary', allowedRoles: ['ADMIN'] },
-  { icon: Database, label: 'Backups e Rollbacks', path: '/backups', allowedRoles: ['ADMIN'] },
-  { icon: Activity, label: 'Varredura e Integridade', path: '/diagnostics', allowedRoles: ['ADMIN'] },
-];
-
-const LOGO_URL = "/logo_azevedo.svg";
-
 export default function Layout({ children }: { children?: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [headerDropdownOpen, setHeaderDropdownOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { currentStore, setStore, isDarkMode, toggleDarkMode, brandColors } = useStore();
-  const { user, logout } = useAuth();
+  const [showUnitModal, setShowUnitModal] = useState(false);
+  const { currentStore, isDarkMode, brandColors } = useStore();
+  const { user } = useAuth();
   const { showToast } = useToast();
   const navigate = useNavigate();
-
   const location = useLocation();
 
-  const bgTextureClass = currentStore.brand === 'BEBELU' 
-    ? (isDarkMode 
-        ? "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent" 
-        : "bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-amber-400/5 via-transparent to-transparent")
-    : "";
-
+  // Dynamic route redirection to enforce isolation between holding and store operations
   React.useEffect(() => {
-    const allowedPathnames = ['/team', '/audit-logs', '/security-summary', '/backups', '/diagnostics'];
-    if (currentStore.code === 'ROOT' && !allowedPathnames.includes(location.pathname)) {
-      navigate('/team');
+    const isHolding = currentStore.type === 'HOLDING' || currentStore.code === 'ROOT';
+    const isHoldingRoute = location.pathname.startsWith('/holding');
+    const isGovernanceRoute = ['/team', '/audit-logs', '/security-summary', '/backups', '/diagnostics'].includes(location.pathname);
+
+    if (isHolding) {
+      // If holding is active and user tries to browse operational routes, smoothly redirect to holding consolidated
+      if (!isHoldingRoute && !isGovernanceRoute) {
+        navigate('/holding/consolidated', { replace: true });
+      }
+    } else {
+      // If a physical store is active and user tries to access holding routes, redirect to operational dashboard
+      if (isHoldingRoute) {
+        navigate('/dashboard', { replace: true });
+      }
     }
-  }, [currentStore.code, location.pathname, navigate]);
+  }, [currentStore.type, currentStore.code, location.pathname, navigate]);
 
   // Initialize cross-device real-time notification listener
   React.useEffect(() => {
@@ -182,253 +143,19 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     return () => window.removeEventListener('app_push_notification', handlePushEvent);
   }, [showToast]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
-  const filteredNavItems = NAV_ITEMS.filter(item => {
-    const isSpecialAdminPath = ['/team', '/audit-logs', '/security-summary', '/backups', '/diagnostics'].includes(item.path);
-    if (currentStore.code === 'ROOT') {
-      return item.path === '/team' || (isSpecialAdminPath && user?.username === 'adm');
-    }
-    if (isSpecialAdminPath) {
-      return false; // strictly restricted to consolidated ROOT view only
-    }
-    if (item.path === '/finance') {
-      return user?.role === 'ADMIN' || user?.username === 'adm';
-    }
-    if (item.path === '/marketing') {
-      return user?.username === 'adm' || user?.role === 'ADMIN';
-    }
-    if (item.path === '/accounts-payable') {
-      return user?.role === 'ADMIN' || user?.username === 'adm' || (!!user?.role && ALL_MANAGERS.includes(user.role)) || user?.role === 'FINANCIAL';
-    }
-    if (item.path === '/cmv') {
-      const isAndressaOrMichele = 
-        user?.username?.toLowerCase().includes('andressa') || 
-        user?.username?.toLowerCase().includes('michele');
-      if (isAndressaOrMichele) {
-        return false;
-      }
-    }
-    return !item.allowedRoles || (user && item.allowedRoles.includes(user.role));
-  });
-
-  const filteredStores = React.useMemo(() => {
-    if (!user) return [];
-    
-    const isRennan = (user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan');
-    if (isRennan) {
-      return STORES;
-    }
-
-    // Admin sees everything
-    if (user.role === 'ADMIN') {
-      return STORES;
-    }
-    
-    if (user.role === 'FINANCIAL') return STORES.filter(s => s.code !== 'ROOT');
-
-    // Filter by specific Manager roles
-    if (user.role === 'MANAGER_BEBELU_MOSSORO') {
-      return STORES.filter(s => s.code === 'B32');
-    }
-    if (user.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
-      return STORES.filter(s => s.code === 'B28');
-    }
-    if (user.role === 'MANAGER_4ESTYLOS_MOSSORO') {
-      if (user.username?.toLowerCase().includes('jef')) {
-        return STORES.filter(s => s.code === '4E09' || s.code === 'B32');
-      }
-      return STORES.filter(s => s.code === '4E09');
-    }
-    
-    return STORES.filter(s => s.code !== 'ROOT');
-  }, [user]);
-
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full overflow-y-auto overscroll-contain custom-scrollbar" style={{ WebkitOverflowScrolling: 'touch' }}>
-      <div className="p-6 flex flex-col gap-6 shrink-0">
-        <div className="flex items-center justify-between">
-          <AnimatePresence mode="wait">
-            {!collapsed || mobileMenuOpen ? (
-              <motion.div 
-                key="expanded-logo"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="flex items-center gap-3 overflow-visible font-display animate-fade-in"
-              >
-                <div className="shrink-0 transition-transform hover:scale-105 duration-300">
-                  <Logo className="h-9 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
-                </div>
-                <span className={`font-black text-xs italic tracking-tight whitespace-nowrap py-1.5 px-0.5 leading-normal select-none ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                  GRUPO AZEVEDO
-                </span>
-              </motion.div>
-            ) : (
-              <motion.div
-                key="collapsed-logo"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.8 }}
-                className="shrink-0"
-              >
-                <Logo className="h-8 w-auto" variant={isDarkMode ? 'light' : 'dark'} showSubtext={false} />
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <button 
-            onClick={() => collapsed ? setCollapsed(false) : setCollapsed(true)}
-            className="hidden lg:block p-2 hover:bg-slate-100 dark:hover:bg-[#1E1E1E] rounded-lg transition-colors"
-          >
-            <Menu className={`w-5 h-5 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* Store Selector */}
-      {(!collapsed || mobileMenuOpen) && (
-        <div className="px-4 mb-6 shrink-0">
-          <div className={`p-4 rounded-2xl border transition-all ${
-            isDarkMode 
-              ? 'bg-[#1E1E1E] border-[#333]' 
-              : 'bg-slate-50 border-slate-100'
-          }`}>
-            <div className="text-[9px] uppercase tracking-widest font-black text-amber-500/90 mb-2">Unidade Ativa</div>
-            <div className="flex items-center gap-3">
-              <div 
-                className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-500 shadow-md transform hover:scale-110"
-                style={{ 
-                  backgroundColor: brandColors.button,
-                  boxShadow: `0 4px 12px ${brandColors.button}33`
-                }}
-              >
-                {currentStore.code ? (
-                  <span className={`text-[11px] font-extrabold tracking-tighter ${currentStore.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'}`}>
-                    {currentStore.code}
-                  </span>
-                ) : (
-                  <StoreIcon className={`w-5 h-5 ${currentStore.brand === 'BEBELU' ? 'text-[#7F300C]' : 'text-white'}`} />
-                )}
-              </div>
-              <div className="flex-1 overflow-hidden">
-                <div className={`font-black text-sm truncate tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{currentStore.name}</div>
-                <div className="text-[11px] text-slate-400 font-medium truncate">{currentStore.location}</div>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2 mt-4">
-              {filteredStores.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => {
-                    setStore(s);
-                    if (mobileMenuOpen) setMobileMenuOpen(false);
-                  }}
-                  className={`text-[10px] font-bold py-1.5 rounded-lg border transition-all`}
-                  style={{ 
-                    borderColor: currentStore.id === s.id ? (s.brand === 'BEBELU' ? '#FFCB05' : '#E63946') : (isDarkMode ? '#333' : '#E2E8F0'),
-                    color: currentStore.id === s.id ? (s.brand === 'BEBELU' ? '#7F300C' : (s.brand === '4ESTYLOS' ? '#E63946' : '#0066FF')) : '#94A3B8',
-                    backgroundColor: currentStore.id === s.id ? (s.brand === 'BEBELU' ? '#FFCB0520' : (s.brand === '4ESTYLOS' ? '#E6394610' : '#0066FF10')) : 'transparent'
-                  }}
-                >
-                  {s.code || s.name.split(' ')[0]}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
-      <nav className="flex-1 px-4 space-y-1">
-        {filteredNavItems.map((item) => (
-          <NavLink
-            key={item.path}
-            to={item.path}
-            onClick={() => mobileMenuOpen && setMobileMenuOpen(false)}
-            style={({ isActive }) => isActive ? { 
-              backgroundColor: brandColors.button,
-              color: currentStore.brand === 'BEBELU' ? '#7F300C' : '#fff',
-              boxShadow: `0 10px 15px -3px ${brandColors.button}30`
-            } : {}}
-            className={({ isActive }) => `
-              flex items-center gap-4 px-4 py-3.5 rounded-xl font-medium transition-all group
-              ${!isActive 
-                ? (isDarkMode 
-                    ? 'text-slate-400 hover:bg-[#1E1E1E] hover:text-white' 
-                    : `text-slate-600 hover:bg-slate-50 ${currentStore.brand === 'BEBELU' ? 'hover:text-[#7F300C]' : 'hover:text-[#E63946]'}`)
-                : ''}
-            `}
-          >
-            <item.icon className="w-5 h-5 transition-transform group-hover:scale-110 shrink-0" />
-            {(!collapsed || mobileMenuOpen) && <span>{item.label}</span>}
-          </NavLink>
-        ))}
-      </nav>
-
-      <div className="p-4 border-t dark:border-[#1E1E1E] shrink-0">
-        <button 
-          onClick={handleLogout}
-          className="flex items-center gap-4 w-full px-4 py-3 rounded-xl text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all group"
-        >
-          <LogOut className="w-5 h-5 group-hover:-translate-x-1 transition-transform shrink-0" />
-          {(!collapsed || mobileMenuOpen) && <span className="font-medium">Sair do Sistema</span>}
-        </button>
-      </div>
-    </div>
-  );
-
   return (
     <div className={`flex min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden font-sans ${currentStore.brand === 'BEBELU' || currentStore.code === 'ROOT' ? 'selection:bg-amber-200 selection:text-[#7F300C]' : 'selection:bg-red-200 selection:text-red-950'} ${isDarkMode ? 'dark' : ''}`}>
-      {/* Mobile Backdrop */}
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
-          />
-        )}
-      </AnimatePresence>
+      {/* Dynamic Conditional Sidebar (Operational for Stores, Holding for Gestão Grupo AZ) */}
+      <Sidebar
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+        mobileMenuOpen={mobileMenuOpen}
+        setMobileMenuOpen={setMobileMenuOpen}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
 
-      {/* Sidebar for Desktop */}
-      <motion.aside 
-        initial={false}
-        animate={{ width: collapsed ? 80 : 280 }}
-        className={`hidden lg:flex relative flex-col border-r transition-colors duration-500 ${
-          isDarkMode 
-            ? 'bg-[#0F0F0F] border-[#1E1E1E]' 
-            : 'bg-white border-slate-200 shadow-xl shadow-slate-200/50'
-        }`}
-      >
-        {SidebarContent()}
-      </motion.aside>
-
-      {/* Sidebar for Mobile */}
-      <motion.aside 
-        initial={{ x: '-100%' }}
-        animate={{ x: mobileMenuOpen ? '0%' : '-100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className={`fixed top-0 left-0 h-[100dvh] w-[280px] max-w-[85dvw] z-50 flex flex-col border-r transition-colors duration-500 lg:hidden ${
-          isDarkMode 
-            ? 'bg-[#0F0F0F] border-[#1E1E1E]' 
-            : 'bg-white border-slate-200 shadow-xl shadow-slate-200/50'
-        }`}
-        style={{
-          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 0.5rem)',
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 1rem)',
-          paddingLeft: 'env(safe-area-inset-left, 0px)'
-        }}
-      >
-        {SidebarContent()}
-      </motion.aside>
-
-      {/* Main Content */}
-      <main className={`flex-1 flex flex-col h-[100dvh] w-full max-w-full overflow-x-hidden min-w-0 transition-colors duration-500 ${isDarkMode ? 'bg-[#0F0F0F]' : 'bg-[#F8FAFC]'}`}>
+      {/* Main Content Area */}
+      <main className={`flex-1 flex flex-col h-[100dvh] w-full max-w-full overflow-x-hidden min-w-0 transition-all duration-300 ${collapsed ? 'lg:pl-20' : 'lg:pl-72'} ${isDarkMode ? 'bg-[#0F0F0F]' : 'bg-[#F8FAFC]'}`}>
         <header 
           className={`flex flex-col border-b transition-colors duration-500 shrink-0 ${isDarkMode ? 'bg-[#0F0F0F] border-[#1E1E1E]' : 'bg-white border-slate-200'}`}
           style={{
@@ -445,24 +172,49 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
               >
                 <Menu className={`w-6 h-6 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`} />
               </button>
-              <div className="hidden sm:flex items-center gap-2">
-                <OfflineSyncBadge />
-              </div>
-              <div className="sm:hidden flex items-center gap-2">
+              <div className="hidden xs:flex sm:hidden items-center gap-2">
                  <div className="shrink-0">
-                    <Logo className="h-7 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
+                    <Logo className="h-6 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
                  </div>
               </div>
+
+              {/* Active Unit Fast Selector Badge */}
+              <button
+                id="header-unit-selector-btn"
+                onClick={() => setShowUnitModal(true)}
+                className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-xl border transition-all cursor-pointer font-bold text-xs ${
+                  currentStore.type === 'HOLDING' || currentStore.code === 'ROOT'
+                    ? 'bg-amber-500/15 border-amber-500/40 text-amber-300 hover:bg-amber-500/25 shadow-xs'
+                    : isDarkMode
+                      ? 'bg-[#1C1C1E] border-[#2E2E32] text-slate-200 hover:bg-[#252528]'
+                      : 'bg-slate-100 border-slate-200 text-slate-800 hover:bg-slate-200'
+                }`}
+                title="Clique para alternar entre as 4 unidades (B32, B28, Vero Pasta, Gestão Grupo AZ)"
+              >
+                <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-black shrink-0 ${
+                  currentStore.type === 'HOLDING' || currentStore.code === 'ROOT'
+                    ? 'bg-amber-500 text-slate-950'
+                    : currentStore.brand === 'VERO PASTA'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-[#FFCB05] text-[#7F300C]'
+                }`}>
+                  {currentStore.code === 'ROOT' ? 'AZ' : currentStore.code || 'LJ'}
+                </div>
+                <div className="flex flex-col text-left min-w-0">
+                  <span className="text-[9px] uppercase tracking-wider text-slate-400 font-extrabold leading-none hidden sm:block">
+                    {currentStore.type === 'HOLDING' ? 'Holding' : 'Unidade'}
+                  </span>
+                  <span className="truncate max-w-[75px] xs:max-w-[110px] sm:max-w-[180px] leading-tight">
+                    {currentStore.name}
+                  </span>
+                </div>
+                <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-0.5" />
+              </button>
             </div>
 
-            <div className="flex items-center gap-1 sm:gap-3 lg:gap-4 shrink-0 min-w-0">
-              {/* Local-First IndexedDB Network & Sync Indicator for Mobile/All */}
-              <div className="sm:hidden shrink-0">
-                <OfflineSyncBadge />
-              </div>
-
-              {/* Admin Backup Status & Alert Indicator */}
-              <div className="shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-3 lg:gap-4 shrink-0 min-w-0">
+              {/* Admin Backup Status & Alert Indicator (Desktop/Tablet) */}
+              <div className="hidden sm:flex shrink-0">
                 <BackupStatusIndicator />
               </div>
 
@@ -515,6 +267,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
           </div>
         </div>
       </main>
+
+      {/* Unit Selector Modal (Quick Switch between B32, B28, Vero Pasta, Gestão Grupo AZ) */}
+      <UnitSelector 
+        variant="modal"
+        isOpen={showUnitModal}
+        onClose={() => setShowUnitModal(false)}
+      />
 
       {/* User Settings & Biometrics Modal */}
       <SettingsModal 

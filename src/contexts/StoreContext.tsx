@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Store, Metric, DREData } from '../types';
+import { Store, Unit, Metric, DREData } from '../types';
 import { useToast } from './ToastContext';
 import { mockMetrics, dreTimeline as mockDreTimeline, metaVsRealizado as mockMetaVsRealizado, topProducts as mockTopProducts, deliveryChannels as mockDeliveryChannels, salesByHour as mockSalesByHour, salesByDay as mockSalesByDay } from '../lib/mockData';
 import { db, handleFirestoreError, OperationType, authReadyPromise } from '../lib/firebase';
@@ -53,11 +53,46 @@ interface StoreContextType {
 }
 
 export const STORES: Store[] = [
-  { id: '1', name: 'Bebelu Mossoró', brand: 'BEBELU', location: 'Espaço Fan', code: 'B32' },
-  { id: '2', name: 'Bebelu Riomar Papicu', brand: 'BEBELU', location: 'Rio Mar Shopping', code: 'B28' },
-  { id: '3', name: '4 Estylos Mossoró', brand: '4ESTYLOS', location: 'Espaço Fan', code: '4E09' },
-  { id: 'admin-global', name: 'Admin Geral Grupo AZ', brand: 'GRUPO AZEVEDO', location: 'Todas as Lojas', code: 'ROOT' },
+  { 
+    id: '1', 
+    name: 'B32 (Mossoró)', 
+    brand: 'BEBELU', 
+    location: 'Mossoró - Espaço Fan', 
+    code: 'B32',
+    type: 'STORE',
+    subtitle: 'Loja Física Operacional'
+  },
+  { 
+    id: '2', 
+    name: 'B28 (Bebelu Rio Mar)', 
+    brand: 'BEBELU', 
+    location: 'Rio Mar Shopping - Fortaleza', 
+    code: 'B28',
+    type: 'STORE',
+    subtitle: 'Loja Física Operacional'
+  },
+  { 
+    id: '3', 
+    name: 'Vero Pasta', 
+    brand: 'VERO PASTA', 
+    location: 'Gastronomia & Cozinha Italiana', 
+    code: 'VERO',
+    type: 'STORE',
+    subtitle: 'Loja Física Operacional'
+  },
+  { 
+    id: 'admin-global', 
+    name: 'Gestão Grupo AZ', 
+    brand: 'GRUPO AZEVEDO', 
+    location: 'Holding Financeira / Corporativo', 
+    code: 'ROOT',
+    type: 'HOLDING',
+    subtitle: 'Holding & Visão Executiva',
+    isCorporate: true
+  },
 ];
+
+export const UNITS = STORES;
 
 const PRODUCT_CATEGORY_MAP: Record<string, string> = {
   // HotDog
@@ -288,7 +323,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [currentStore, setCurrentStore] = useState<Store>(() => {
     const saved = localStorage.getItem('active_store_id');
     if (saved) {
-      const found = STORES.find(s => s.id === saved);
+      const found = STORES.find(s => s.id === saved || s.code === saved);
       if (found) return found;
     }
     
@@ -300,20 +335,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (u && u.role) {
           const isRennan = (u.username || '').toLowerCase().includes('rennan') || (u.email || '').toLowerCase().includes('rennan');
           if (u.role === 'ADMIN' || isRennan) {
-            return STORES.find(s => s.code === 'ROOT') || STORES[3];
-          } else if (u.role === 'MANAGER_BEBELU_MOSSORO') {
-            return STORES.find(s => s.code === 'B32') || STORES[3];
+            return STORES.find(s => s.code === 'ROOT') || STORES[0];
+          } else if (u.role === 'MANAGER_BEBELU_MOSSORO' || (u.username || '').toLowerCase().includes('jef')) {
+            return STORES.find(s => s.code === 'B32') || STORES[0];
           } else if (u.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
-            return STORES.find(s => s.code === 'B28') || STORES[3];
-          } else if (u.role === 'MANAGER_4ESTYLOS_MOSSORO') {
-            return STORES.find(s => s.code === '4E09') || STORES[3];
+            return STORES.find(s => s.code === 'B28') || STORES[0];
+          } else if (u.role === 'MANAGER_VERO_PASTA') {
+            return STORES.find(s => s.code === 'VERO') || STORES[0];
           }
         }
       } catch (e) {
         console.error("Error reading role for initial store:", e);
       }
     }
-    return STORES[3]; // Admin consolidated global by default
+    return STORES.find(s => s.code === 'ROOT') || STORES[0]; // Admin consolidated global by default
   });
 
   const { user } = useAuth();
@@ -332,8 +367,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setInventoryItems([]);
     setClosingsData({});
     setMetaVsRealizado([
-      { name: 'Meta', valor: 0, color: store.brand === 'BEBELU' ? '#7F300C' : '#8884d8' },
-      { name: 'Realizado', valor: 0, color: store.brand === 'BEBELU' ? '#FFCB05' : '#0066FF' },
+      { name: 'Meta', valor: 0, color: store.brand === 'BEBELU' ? '#7F300C' : store.brand === 'VERO PASTA' ? '#064E3B' : '#8884d8' },
+      { name: 'Realizado', valor: 0, color: store.brand === 'BEBELU' ? '#FFCB05' : store.brand === 'VERO PASTA' ? '#10B981' : '#F59E0B' },
     ]);
   };
 
@@ -347,17 +382,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (user.role === 'ADMIN' || isRennan) {
         allowed = STORES;
       } else if (user.role === 'FINANCIAL') {
-        allowed = STORES.filter(s => s.code !== 'ROOT');
-      } else if (user.role === 'MANAGER_BEBELU_MOSSORO') {
+        allowed = STORES;
+      } else if (user.role === 'MANAGER_BEBELU_MOSSORO' || (user.username || '').toLowerCase().includes('jef')) {
         allowed = STORES.filter(s => s.code === 'B32');
       } else if (user.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
         allowed = STORES.filter(s => s.code === 'B28');
-      } else if (user.role === 'MANAGER_4ESTYLOS_MOSSORO') {
-        if (user.username?.toLowerCase().includes('jef')) {
-          allowed = STORES.filter(s => s.code === '4E09' || s.code === 'B32');
-        } else {
-          allowed = STORES.filter(s => s.code === '4E09');
-        }
+      } else if (user.role === 'MANAGER_VERO_PASTA') {
+        allowed = STORES.filter(s => s.code === 'VERO' || s.id === '3');
       } else {
         allowed = STORES.filter(s => s.code !== 'ROOT');
       }
@@ -372,7 +403,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user, currentStore.id]);
 
-  // 4E09 and ROOT remain exactly the same as they were with dark layouts, while Bebelu (B32 & B28) uses a clean white background.
+  // ROOT uses dark layout, while Bebelu (B32 & B28) uses a clean white background.
   const [localDarkTheme, setLocalDarkTheme] = useState<boolean | null>(() => {
     const saved = localStorage.getItem('theme_preference_dark');
     if (saved === 'true') return true;
@@ -490,10 +521,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
 
   const brandColors = {
-    primary: currentStore.brand === 'BEBELU' ? '#FFCB05' : '#E63946',
-    secondary: currentStore.brand === 'BEBELU' ? '#7F300C' : '#312E81',
-    accent: currentStore.brand === 'BEBELU' ? '#7F300C' : '#10B981',
-    button: currentStore.brand === 'BEBELU' ? '#FFCB05' : (isDarkMode ? '#E63946' : '#0066FF')
+    primary: currentStore.brand === 'BEBELU' ? '#FFCB05' : currentStore.brand === 'VERO PASTA' ? '#10B981' : '#F59E0B',
+    secondary: currentStore.brand === 'BEBELU' ? '#7F300C' : currentStore.brand === 'VERO PASTA' ? '#064E3B' : '#1E293B',
+    accent: currentStore.brand === 'BEBELU' ? '#7F300C' : currentStore.brand === 'VERO PASTA' ? '#059669' : '#D97706',
+    button: currentStore.brand === 'BEBELU' ? '#FFCB05' : currentStore.brand === 'VERO PASTA' ? '#10B981' : (isDarkMode ? '#F59E0B' : '#0066FF')
   };
 
   const clearAllData = () => {

@@ -67,16 +67,12 @@ export function getPermittedStoreIdsForUser(user: any): string[] {
     return ['1', '2', '3', 'admin-global'];
   } else if (role === 'FINANCIAL') {
     return ['1', '2', '3'];
-  } else if (role === 'MANAGER_BEBELU_MOSSORO') {
+  } else if (role === 'MANAGER_BEBELU_MOSSORO' || (user.username || '').toLowerCase().includes('jef')) {
     return ['1'];
   } else if (role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
     return ['2'];
-  } else if (role === 'MANAGER_4ESTYLOS_MOSSORO') {
-    if (user.username?.toLowerCase().includes('jef')) {
-      return ['3', '1']; // Jef gets 4E09 and B32 (stores '3' and '1')
-    } else {
-      return ['3'];
-    }
+  } else if (role === 'MANAGER_VERO_PASTA') {
+    return ['3'];
   } else {
     // Other users / default fallback: standard stores except ROOT
     return ['1', '2', '3'];

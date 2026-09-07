@@ -1,6 +1,6 @@
 {
   "name": "Gestão Grupo Azevedo",
-  "description": "Sistema de gestão financeira, fechamento de caixa e análise de CMV para o Grupo Azevedo (Bebelu e 4Estylos).",
+  "description": "Sistema de gestão financeira, fechamento de caixa e análise de CMV para o Grupo Azevedo (Bebelu).",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

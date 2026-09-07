@@ -2,24 +2,20 @@ import React from 'react';
 
 interface LogoProps extends React.SVGProps<SVGSVGElement> {
   className?: string;
-  variant?: 'auto' | 'dark' | 'light' | 'gold';
+  variant?: 'auto' | 'dark' | 'light' | 'gold' | 'white';
   showSubtext?: boolean;
 }
 
 export const Logo: React.FC<LogoProps> = ({ 
   className = 'h-8 w-auto', 
-  variant = 'auto',
+  variant = 'white',
   showSubtext = true,
   ...props 
 }) => {
   const colorClass = 
     variant === 'dark' 
       ? 'text-[#16120b]' 
-      : variant === 'light' 
-      ? 'text-white' 
-      : variant === 'gold'
-      ? 'text-[#FFCB05]'
-      : 'text-current';
+      : 'text-white';
 
   return (
     <svg 

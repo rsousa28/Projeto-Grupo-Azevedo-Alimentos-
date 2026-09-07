@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '../types';
 import { db, authReadyPromise } from '../lib/firebase';
-import { collection, query, where, getDocs, limit, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit, doc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { AuditService } from '../services/AuditService';
 import { sha256 } from '../utils/crypto';
 import { useToast } from './ToastContext';
@@ -46,10 +46,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             usernameLower === 'victordiretor' || 
             usernameLower === 'paloma' ||
             nameLower.includes('paloma') ||
-            nameLower.includes('victor')
+            nameLower.includes('victor') ||
+            usernameLower.includes('michele') ||
+            nameLower.includes('michele') ||
+            docSnap.id === 'michele-4e09' ||
+            (!usernameLower.includes('jef') && usernameLower.includes('4e09'))
           ) {
             console.log(`Auto-deleting restricted user: ${uData.name} (@${uData.username})`);
             await deleteDoc(doc(db, 'users', docSnap.id));
+          } else if (usernameLower.includes('jef') || nameLower.includes('jefferson')) {
+            if (uData.role === 'MANAGER_4ESTYLOS_MOSSORO' || uData.name?.includes('4 Estylos')) {
+              await updateDoc(doc(db, 'users', docSnap.id), {
+                name: 'Jefferson - Bebelu Mossoró',
+                role: 'MANAGER_BEBELU_MOSSORO'
+              });
+            }
           }
         });
       } catch (err) {
@@ -261,10 +272,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if ((u === 'jef' || u === 'jef4e09') && p === 'jqc26') {
         const jefUser: User = { 
-          id: 'jef-4e09', 
-          name: 'Jefferson - 4 Estylos Mossoró', 
+          id: 'jef-mossoro', 
+          name: 'Jefferson - Bebelu Mossoró', 
           username: 'jef4e09', 
-          role: 'MANAGER_4ESTYLOS_MOSSORO' 
+          role: 'MANAGER_BEBELU_MOSSORO' 
         };
         setUser(jefUser);
         localStorage.setItem('auth_user', JSON.stringify(jefUser));
@@ -274,27 +285,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           userName: jefUser.name,
           userRole: jefUser.role,
           action: 'LOGIN_SUCCESS',
-          description: `Login realizado com sucesso como Gerente de 4 Estylos Mossoró.`
-        });
-        return;
-      }
-
-      if ((u === 'michele' || u === 'michele4e09') && p === '4e09') {
-        const micheleUser: User = { 
-          id: 'michele-4e09', 
-          name: 'Michele - 4 Estylos Mossoró', 
-          username: 'michele4e09', 
-          role: 'MANAGER_4ESTYLOS_MOSSORO' 
-        };
-        setUser(micheleUser);
-        localStorage.setItem('auth_user', JSON.stringify(micheleUser));
-        localStorage.setItem('last_activity_timestamp', Date.now().toString());
-        await AuditService.logAction({
-          userId: micheleUser.id,
-          userName: micheleUser.name,
-          userRole: micheleUser.role,
-          action: 'LOGIN_SUCCESS',
-          description: `Login realizado com sucesso como Gerente de 4 Estylos Mossoró.`
+          description: `Login realizado com sucesso como Gerente de Bebelu Mossoró.`
         });
         return;
       }

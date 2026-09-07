@@ -170,8 +170,8 @@ const INITIAL_MOCK_ACCOUNTS: AccountPayable[] = [
   },
   {
     id: 'ap-6',
-    storeId: '3', // 4 Estylos Mossoró
-    storeName: '4 Estylos Mossoró',
+    storeId: '1', // Bebelu Mossoró
+    storeName: 'Bebelu Mossoró',
     supplier: 'Agência Flash Creative',
     description: 'Assessoria de Marketing e Posts Sociais',
     category: 'Marketing & Propaganda',
@@ -2209,8 +2209,7 @@ export default function AccountsPayable() {
     user.role?.startsWith('MANAGER_') ||
     user.username === 'patriciab28' || 
     user.username?.toLowerCase().includes('andressa') ||
-    user.username?.toLowerCase().includes('jef') ||
-    user.username?.toLowerCase().includes('michele')
+    user.username?.toLowerCase().includes('jef')
   ) && user.username !== 'adm' && user.username !== 'victordiretor';
 
   if (isManagerUser) {

@@ -4,17 +4,36 @@ export interface User {
   name: string;
   username: string;
   email?: string;
-  role: 'ADMIN' | 'MANAGER' | 'FINANCIAL' | 'MANAGER_4ESTYLOS_MOSSORO' | 'MANAGER_BEBELU_MOSSORO' | 'MANAGER_BEBELU_RIOMAR_PAPICU';
+  role: 'ADMIN' | 'MANAGER' | 'FINANCIAL' | 'MANAGER_BEBELU_MOSSORO' | 'MANAGER_BEBELU_RIOMAR_PAPICU' | 'MANAGER_VERO_PASTA';
   password?: string;
   biometricEnabled?: boolean;
 }
 
-export interface Store {
+export type UnitType = 'STORE' | 'HOLDING';
+
+export interface Unit {
   id: string;
   name: string;
-  brand: '4ESTYLOS' | 'BEBELU' | 'GRUPO AZEVEDO';
+  code: string;
+  brand: 'BEBELU' | 'VERO PASTA' | 'GRUPO AZEVEDO' | string;
   location: string;
-  code?: string;
+  type: UnitType;
+  subtitle?: string;
+  isCorporate?: boolean;
+}
+
+// Store alias to preserve full backward compatibility across the entire system
+export type Store = Unit;
+
+export interface MenuItem {
+  id: string;
+  label: string;
+  path: string;
+  icon: React.ElementType;
+  badge?: string;
+  allowedRoles?: User['role'][];
+  description?: string;
+  type?: UnitType;
 }
 
 export interface Metric {

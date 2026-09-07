@@ -167,11 +167,11 @@ export default function Dashboard() {
     if (isRoot) {
       const fetchAllStoresData = async () => {
         setLoadingConsolidation(true);
-        const storeIds = ['1', '2', '3'];
+        const storeIds = ['1', '2'];
         const monthsList = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'];
         const yearsToLoad = [selectedYear, (parseInt(selectedYear) - 1).toString(), (parseInt(selectedYear) - 2).toString()];
         
-        const tempDreData: { [storeId: string]: DREData[] } = { '1': [], '2': [], '3': [] };
+        const tempDreData: { [storeId: string]: DREData[] } = { '1': [], '2': [] };
 
         try {
           const { doc } = await import('firebase/firestore');
@@ -434,16 +434,14 @@ export default function Dashboard() {
   const storesPerformance = React.useMemo(() => {
     if (!isRoot) return [];
     
-    const storeIds = ['1', '2', '3'];
+    const storeIds = ['1', '2'];
     const storeNames: Record<string, string> = {
       '1': 'Bebelu Mossoró',
-      '2': 'Bebelu Riomar Papicu',
-      '3': '4 Estylos Mossoró'
+      '2': 'Bebelu Riomar Papicu'
     };
     const storeColors: Record<string, string> = {
       '1': '#E63946',
-      '2': '#FFCB05',
-      '3': '#4f46e5'
+      '2': '#FFCB05'
     };
     
     return storeIds.map(sId => {
@@ -706,8 +704,7 @@ export default function Dashboard() {
     user?.role === 'MANAGER' ||
     user?.role?.startsWith('MANAGER_') ||
     user?.username === 'patriciab28' || 
-    user?.username?.toLowerCase().includes('andressa') ||
-    user?.username?.toLowerCase().includes('michele');
+    user?.username?.toLowerCase().includes('andressa');
 
   const displayMetrics = [
     { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: faturamentoChange.trend, change: faturamentoChange.pct.toFixed(1) },

@@ -32,6 +32,7 @@ import AccountsPayable from "./pages/AccountsPayable";
 import AuditLogs from "./pages/AuditLogs";
 import Marketing from "./pages/Marketing";
 import DailyControl from "./pages/DailyControl";
+import HoldingManagement from "./pages/HoldingManagement";
 
 /**
  * Detects if the current environment is a preview/proxy environment.
@@ -126,6 +127,18 @@ function MarketingAccessRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function HoldingAccessRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const isRennan = user && ((user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan'));
+  const hasAccess = user && (user.role === "ADMIN" || user.username === "adm" || user.role === "FINANCIAL" || isRennan);
+  if (!hasAccess) {
+    return (
+      <UnauthorizedRedirect routeName="Gestão Grupo AZ (Holding)" />
+    );
+  }
+  return <>{children}</>;
+}
+
 function AppRoutes() {
   const { user } = useAuth();
 
@@ -157,6 +170,48 @@ function AppRoutes() {
           <Route path="/cash-closing" element={<CashClosing />} />
           <Route path="/data-entry" element={<DataEntry />} />
           <Route path="/daily-control" element={<DailyControl />} />
+
+          {/* Holding / Corporate Management Routes */}
+          <Route
+            path="/holding/consolidated"
+            element={
+              <HoldingAccessRoute>
+                <HoldingManagement initialTab="consolidated" />
+              </HoldingAccessRoute>
+            }
+          />
+          <Route
+            path="/holding/debt"
+            element={
+              <HoldingAccessRoute>
+                <HoldingManagement initialTab="debt" />
+              </HoldingAccessRoute>
+            }
+          />
+          <Route
+            path="/holding/loans"
+            element={
+              <HoldingAccessRoute>
+                <HoldingManagement initialTab="loans" />
+              </HoldingAccessRoute>
+            }
+          />
+          <Route
+            path="/holding/investments"
+            element={
+              <HoldingAccessRoute>
+                <HoldingManagement initialTab="investments" />
+              </HoldingAccessRoute>
+            }
+          />
+          <Route
+            path="/holding/cash-flow"
+            element={
+              <HoldingAccessRoute>
+                <HoldingManagement initialTab="cash-flow" />
+              </HoldingAccessRoute>
+            }
+          />
           <Route
             path="/finance"
             element={

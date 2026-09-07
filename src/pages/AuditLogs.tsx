@@ -336,7 +336,7 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
 
         results.push({
           storeId: sId,
-          storeName: sId === '1' ? 'Bebelu Mossoró' : sId === '2' ? 'Bebelu Riomar Papicu' : '4 Estylos Mossoró',
+          storeName: sId === '1' ? 'Bebelu Mossoró' : 'Bebelu Riomar Papicu',
           periodsStatus
         });
       }
@@ -361,7 +361,7 @@ export default function AuditLogs({ forcedTab }: AuditLogsProps = {}) {
               backupDate: bkpBrief.timestamp,
               createdBy: bkpBrief.createdBy,
               storeId,
-              storeName: storeId === '1' ? 'Bebelu Mossoró' : storeId === '2' ? 'Bebelu Riomar Papicu' : '4 Estylos Mossoró',
+              storeName: storeId === '1' ? 'Bebelu Mossoró' : 'Bebelu Riomar Papicu',
               periodId,
               faturamento: matchedBackupDRE.faturamento,
               payload: matchedBackupDRE

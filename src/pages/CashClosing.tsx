@@ -459,13 +459,6 @@ export default function CashClosing() {
         brand: currentStore.brand,
         logo: 'B'
       };
-    } else if (code === '4E09') {
-      return {
-        title: 'Planilha de Fechamento 4 Estylos',
-        location: 'Mossoro/RN - UNIDADE 4E09',
-        brand: '4 Estylos',
-        logo: '4'
-      };
     }
     
     return {

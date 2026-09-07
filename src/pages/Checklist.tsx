@@ -165,8 +165,8 @@ export default function Checklist() {
       return [{
         id: 'mock_plan_1',
         submissionId: 'mock_sub_2',
-        storeId: storeId !== 'admin-global' ? storeId : '4E09',
-        storeName: storeId !== 'admin-global' ? currentStore.name : '4Estylos Mossoró',
+        storeId: storeId !== 'admin-global' ? storeId : '1',
+        storeName: storeId !== 'admin-global' ? currentStore.name : 'Bebelu Mossoró',
         category: 'Segurança alimentar',
         questionText: 'O freezer vertical de congelados está abaixo de -18ºC?',
         triggerAnswer: '-12 ºC',

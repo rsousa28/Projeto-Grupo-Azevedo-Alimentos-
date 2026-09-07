@@ -41,7 +41,7 @@ try {
   console.warn('[SW] Firebase messaging import in Service Worker warning:', e);
 }
 
-const CACHE_NAME = 'grupo-azevedo-v10';
+const CACHE_NAME = 'grupo-azevedo-v12';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -61,6 +61,13 @@ const PRECACHE_ASSETS = [
   '/apple-touch-icon-57x57.png',
   '/apple-touch-icon-precomposed.png'
 ];
+
+// Allow clients to trigger skipWaiting
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
 
 // Install Event - Pre-cache core shell & critical brand assets
 self.addEventListener('install', (event) => {
@@ -103,7 +110,7 @@ function isStaticAsset(url) {
   );
 }
 
-// Fetch Event - Aggressive Cache-First Strategy for static assets & Instant UI Shell
+// Fetch Event - Network-First for Navigation (HTML) & Stale-While-Revalidate for Assets
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
@@ -119,24 +126,21 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy for Navigation requests (HTML pages / routes): Cache-First with Background Network Update
+  // Strategy for Navigation requests (HTML pages / routes): Network-First with Cache Fallback
   if (request.mode === 'navigate') {
     event.respondWith(
-      caches.match('/index.html', { ignoreSearch: true }).then((cachedHtml) => {
-        const fetchPromise = fetch(request)
-          .then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              const responseToCache = networkResponse.clone();
-              caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseToCache));
-            }
-            return networkResponse;
-          })
-          .catch(() => {
-            // Offline - network failed, return cached index.html
-          });
-
-        return cachedHtml || fetchPromise;
-      })
+      fetch(request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => {
+          // Offline fallback
+          return caches.match('/index.html', { ignoreSearch: true });
+        })
     );
     return;
   }
