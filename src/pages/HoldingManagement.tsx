@@ -274,42 +274,6 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
       {/* 1. Visão Geral (Dashboard Consolidado) */}
       {activeTab === 'consolidated' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          
-          {/* Informative Guidance Banner when all is zero */}
-          {totalRevenue === 0 && totalConsolidatedDebt === 0 && investments.length === 0 && (
-            <div className="p-5 rounded-2xl border border-dashed border-amber-500/40 bg-amber-500/5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
-                  <Check className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-tight">
-                    Módulo Holding Pronto e Zerado
-                  </h3>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5 max-w-2xl">
-                    Todos os dados e gráficos estão zerados para o seu preenchimento. Você pode definir os faturamentos das 3 unidades e cadastrar seus empréstimos bancários, passivos e investimentos.
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 shrink-0">
-                <button
-                  onClick={openBenchmarksModal}
-                  className="px-3.5 py-2 rounded-xl bg-amber-500 text-slate-950 font-black text-xs hover:bg-amber-400 transition-all flex items-center gap-1.5 shadow-sm"
-                >
-                  <SlidersHorizontal className="w-3.5 h-3.5" />
-                  <span>Preencher Faturamentos</span>
-                </button>
-                <button
-                  onClick={() => navigate('/holding/loans')}
-                  className="px-3.5 py-2 rounded-xl bg-[#1E1E22] text-slate-200 border border-[#303036] hover:border-amber-500/40 font-bold text-xs transition-all flex items-center gap-1.5"
-                >
-                  <Landmark className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Novo Empréstimo</span>
-                </button>
-              </div>
-            </div>
-          )}
-
           {/* Top 4 Financial KPI Cards (Visible ONLY in Visão Geral) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Card 1: Faturamento Consolidado */}
