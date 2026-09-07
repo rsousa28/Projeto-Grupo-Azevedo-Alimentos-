@@ -31,7 +31,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import { Logo } from './Logo';
-import { useStore, STORES } from '../contexts/StoreContext';
+import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { MenuItem, Unit } from '../types';
 import UnitSelector from './UnitSelector';
@@ -116,27 +116,27 @@ export const HOLDING_MENU_ITEMS: MenuItem[] = [
   },
   {
     id: 'holding-loans',
-    label: 'Empréstimos & Dívidas',
+    label: 'Empréstimos Bancários',
     path: '/holding/loans',
     icon: Landmark,
     type: 'HOLDING',
-    description: 'Contratos Bancários e Passivo Total'
+    description: 'Contratos, parcelas, bancos e cronogramas'
+  },
+  {
+    id: 'holding-debt',
+    label: 'Endividamento & Passivos',
+    path: '/holding/debt',
+    icon: Scale,
+    type: 'HOLDING',
+    description: 'Dívidas por loja, tributos, fornecedores atrasados'
   },
   {
     id: 'holding-investments',
-    label: 'Novos Negócios / Investimentos',
+    label: 'Novos Negócios & Investimentos',
     path: '/holding/investments',
     icon: Briefcase,
     type: 'HOLDING',
-    description: 'Pipeline de Expansão e Novas Unidades'
-  },
-  {
-    id: 'holding-cash-flow',
-    label: 'Contas a Pagar Matriz',
-    path: '/holding/cash-flow',
-    icon: Wallet,
-    type: 'HOLDING',
-    description: 'Tesouraria Central e Mútuos Intercompany'
+    description: 'Projetos e expansão'
   },
 ];
 
@@ -211,7 +211,7 @@ export default function Sidebar({
             {(!collapsed || mobileMenuOpen) && (
               <div className="overflow-hidden">
                 <span className={`font-black text-xs italic tracking-tight uppercase block truncate ${
-                  isHoldingActive || isDarkMode ? 'text-white' : 'text-slate-900'
+                  isHoldingActive ? 'text-amber-400' : isDarkMode ? 'text-white' : 'text-slate-900'
                 }`}>
                   GRUPO AZEVEDO
                 </span>
@@ -230,61 +230,6 @@ export default function Sidebar({
             <Menu className="w-4 h-4" />
           </button>
         </div>
-
-        {/* Simplified Unit Selector Section */}
-        {(!collapsed || mobileMenuOpen) && (
-          <div className="px-4 py-3 shrink-0">
-            <div className={`p-3 rounded-2xl border transition-all ${
-              isHoldingActive
-                ? 'bg-amber-500/5 border-amber-500/20'
-                : isDarkMode
-                  ? 'bg-[#18181A] border-[#262628]'
-                  : 'bg-slate-50 border-slate-200/80'
-            }`}>
-              <div className="flex items-center justify-between mb-2 px-0.5">
-                <span className="text-[10px] uppercase tracking-wider font-extrabold text-slate-400">
-                  Unidade Selecionada
-                </span>
-                <span className={`text-[11px] font-black uppercase tracking-tight ${
-                  isHoldingActive ? 'text-amber-400' : 'text-slate-300'
-                }`}>
-                  {currentStore.code === 'ROOT' ? 'Holding AZ' : currentStore.code}
-                </span>
-              </div>
-
-              {/* 4 Direct Selector Buttons: B32, B28, VERO, HOLDING */}
-              <div className="grid grid-cols-2 gap-1.5">
-                {STORES.map((s) => {
-                  const isSelected = currentStore.id === s.id;
-                  const isStoreHolding = s.type === 'HOLDING' || s.code === 'ROOT';
-                  const label = isStoreHolding ? 'HOLDING' : s.code;
-
-                  return (
-                    <button
-                      key={s.id}
-                      id={`sidebar-quick-${s.code.toLowerCase()}`}
-                      onClick={() => handleUnitSelect(s)}
-                      title={`${s.name} - ${s.location}`}
-                      className={`text-xs font-black py-2 px-2.5 rounded-xl border transition-all truncate flex items-center justify-center cursor-pointer ${
-                        isSelected
-                          ? isStoreHolding
-                            ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-xs'
-                            : 'bg-amber-400 text-slate-950 border-amber-400 shadow-xs'
-                          : isStoreHolding
-                            ? 'bg-amber-950/20 border-amber-500/30 text-amber-300 hover:border-amber-400 hover:bg-amber-500/10'
-                            : isDarkMode
-                              ? 'bg-[#141416] border-[#2A2A2E] text-slate-400 hover:border-slate-600 hover:text-white'
-                              : 'bg-white border-slate-200 text-slate-700 hover:border-slate-300'
-                      }`}
-                    >
-                      <span>{label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Collapsed Store Icon Switcher */}
         {collapsed && !mobileMenuOpen && (
@@ -435,6 +380,7 @@ export default function Sidebar({
         variant="modal"
         isOpen={showUnitModal}
         onClose={() => setShowUnitModal(false)}
+        onSelect={handleUnitSelect}
       />
     </>
   );

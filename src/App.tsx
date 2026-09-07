@@ -206,11 +206,7 @@ function AppRoutes() {
           />
           <Route
             path="/holding/cash-flow"
-            element={
-              <HoldingAccessRoute>
-                <HoldingManagement initialTab="cash-flow" />
-              </HoldingAccessRoute>
-            }
+            element={<Navigate to="/holding/consolidated" replace />}
           />
           <Route
             path="/finance"

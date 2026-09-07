@@ -51,6 +51,7 @@ import { chatWithConsultant } from "../services/geminiService";
 import { DREData } from "../types";
 import { getDocCached, setDocCached } from "../lib/firestoreQueryCache";
 import { sanitizeForFirestore } from "../utils/firestoreSanitizer";
+import { formatCleanYAxisCurrency } from "../utils/formatters";
 
 const monthsGlobal = [
   { value: "01", label: "Janeiro" },
@@ -72,7 +73,12 @@ const formatCurrency = (val: number) =>
     val,
   );
 
-const getVarianceColor = (val: number, isExpense: boolean, isBadge?: boolean): string => {
+const getVarianceColor = (val: number | null, isExpense: boolean, isBadge?: boolean): string => {
+  if (val === null) {
+    return isBadge 
+      ? "bg-slate-100 dark:bg-zinc-800 text-slate-400 dark:text-zinc-500 border-slate-200 dark:border-zinc-700" 
+      : "text-slate-400 dark:text-slate-500 font-medium";
+  }
   if (Math.abs(val) < 0.001) {
     return isBadge 
       ? "bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200" 
@@ -2057,52 +2063,60 @@ export default function Finance() {
               </div>
             </div>
             <div className="h-[250px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={yearlyComparisonData}
-                  margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
-                  barSize={60}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    vertical={false}
-                    stroke={isDarkMode ? "#333" : "#f0f0f0"}
-                  />
-                  <XAxis
-                    dataKey="year"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#888", fontSize: 11, fontWeight: 800 }}
-                    dy={10}
-                  />
-                  <YAxis
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fill: "#888", fontSize: 11, fontWeight: 800 }}
-                    tickFormatter={(val) => `R$ ${val / 1000}k`}
-                  />
-                  <Tooltip
-                    cursor={{ fill: isDarkMode ? "#ffffff05" : "#00000005" }}
-                    contentStyle={{
-                      borderRadius: "16px",
-                      border: "none",
-                      backgroundColor: isDarkMode ? "#1E1E1E" : "#fff",
-                      boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
-                      fontSize: "11px",
-                      fontWeight: "bold",
-                    }}
-                    formatter={(val: number) => [
-                      formatCurrency(val),
-                      "Faturamento",
-                    ]}
-                  />
-                  <Bar dataKey="faturamento" radius={[12, 12, 0, 0]}>
-                    {yearlyComparisonData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {yearlyComparisonData.some(d => d.faturamento > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={yearlyComparisonData}
+                    margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+                    barSize={60}
+                  >
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      vertical={false}
+                      stroke={isDarkMode ? "#333" : "#f0f0f0"}
+                    />
+                    <XAxis
+                      dataKey="year"
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "#888", fontSize: 11, fontWeight: 800 }}
+                      dy={10}
+                    />
+                    <YAxis
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fill: "#888", fontSize: 11, fontWeight: 800 }}
+                      tickFormatter={formatCleanYAxisCurrency}
+                    />
+                    <Tooltip
+                      cursor={{ fill: isDarkMode ? "#ffffff05" : "#00000005" }}
+                      contentStyle={{
+                        borderRadius: "16px",
+                        border: "none",
+                        backgroundColor: isDarkMode ? "#1E1E1E" : "#fff",
+                        boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
+                        fontSize: "11px",
+                        fontWeight: "bold",
+                      }}
+                      formatter={(val: number) => [
+                        formatCurrency(val),
+                        "Faturamento",
+                      ]}
+                    />
+                    <Bar dataKey="faturamento" radius={[12, 12, 0, 0]}>
+                      {yearlyComparisonData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-slate-50/50 dark:bg-black/10 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800">
+                  <Calendar className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-2" />
+                  <span className="text-xs font-bold text-slate-500">Sem lançamentos para este mês no histórico</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Alimente o sistema com faturamento para comparar os anos</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -2221,8 +2235,8 @@ export default function Finance() {
                           const compMonthLabel = monthsGlobal.find(m => m.value === selectedMonth)?.label || "";
                           const matchCurr = activeDreTimeline.find(d => d.month === compMonthLabel && d.year === selectedYear);
                           const valCurr = getActualRowValue(matchCurr, row.id);
-                          const fatCurr = getActualRowValue(matchCurr, "faturamento") || 1;
-                          const avCurr = row.id === "faturamento" ? 100 : (Math.abs(valCurr) / fatCurr) * 100;
+                          const fatCurr = getActualRowValue(matchCurr, "faturamento") || 0;
+                          const avCurr = fatCurr > 0 ? (row.id === "faturamento" ? 100 : (Math.abs(valCurr) / fatCurr) * 100) : null;
                           const isTotalRow = row.type === "total";
 
                           const rowGroup = dreGroups.find(g => g.id === row.mapGroupId);
@@ -2281,13 +2295,13 @@ export default function Finance() {
                                                 : "bg-rose-500"
                                               : "bg-slate-400 dark:bg-zinc-650"
                                         }`}
-                                        style={{ width: `${Math.min(100, avCurr)}%` }}
+                                        style={{ width: `${avCurr !== null ? Math.min(100, avCurr) : 0}%` }}
                                       />
                                     </div>
                                     
                                     {/* High Contrast Color Coded Percentage Badge */}
                                     <span className="text-xs font-bold font-mono px-2.5 py-0.5 rounded shadow-sm select-all inline-block min-w-[55px] text-center border transition-all bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
-                                      {avCurr.toFixed(1)}%
+                                      {avCurr !== null ? `${avCurr.toFixed(1)}%` : "--"}
                                     </span>
                                   </div>
                                 </td>
@@ -2297,7 +2311,7 @@ export default function Finance() {
                                 {expandedGroups.includes(row.mapGroupId) && hasDetails && (
                                   rowGroup.items.map((item) => {
                                     const detCurr = getActualDetailValue(matchCurr, row.mapGroupId, item.label);
-                                    const detAV = ((Math.abs(detCurr) / fatCurr) * 100);
+                                    const detAV = fatCurr > 0 ? ((Math.abs(detCurr) / fatCurr) * 100) : null;
                                     
                                     return (
                                       <tr
@@ -2317,11 +2331,11 @@ export default function Finance() {
                                             <div className="w-16 h-1 bg-slate-200/50 dark:bg-zinc-850 rounded-full overflow-hidden">
                                               <div 
                                                 className="h-full bg-slate-450 dark:bg-zinc-650 rounded-full"
-                                                style={{ width: `${Math.min(100, detAV)}%` }}
+                                                style={{ width: `${detAV !== null ? Math.min(100, detAV) : 0}%` }}
                                               />
                                             </div>
                                             <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded border min-w-[50px] text-center bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
-                                              {detAV.toFixed(1)}%
+                                              {detAV !== null ? `${detAV.toFixed(1)}%` : "--"}
                                             </span>
                                           </div>
                                         </td>
@@ -2366,8 +2380,13 @@ export default function Finance() {
                     )}
                   </div>
 
-                  <div className="p-4 overflow-x-auto select-none">
-                    <table className="w-full text-left border-collapse min-w-[1050px]">
+                  <div className="lg:hidden px-4 py-2.5 bg-amber-500/10 text-amber-800 dark:text-amber-400 text-[11px] font-bold flex items-center justify-between border-b border-amber-500/20">
+                    <span>Arraste para o lado para visualizar todas as colunas comparativas</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-amber-500 animate-pulse shrink-0 ml-2" />
+                  </div>
+
+                  <div className="p-4 overflow-x-auto select-none scrollbar-thin scroll-smooth">
+                    <table className="w-full text-left border-collapse min-w-[1150px]">
                       <thead>
                         <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] font-black tracking-wider text-slate-400 dark:text-zinc-500 font-display">
                           <th className="py-4 px-3 w-[22%] border-r border-slate-100 dark:border-zinc-800/20">
@@ -2424,28 +2443,30 @@ export default function Finance() {
 
                           const matchPrev = activeDreTimeline.find(d => d.month === compMonthLabel && d.year === prevYearStr);
                           const valPrev = getActualRowValue(matchPrev, row.id);
-                          const fatPrev = getActualRowValue(matchPrev, "faturamento") || 1;
-                          const avPrev = row.id === "faturamento" ? 100 : (Math.abs(valPrev) / fatPrev) * 100;
+                          const fatPrev = getActualRowValue(matchPrev, "faturamento") || 0;
+                          const avPrev = (matchPrev && fatPrev > 0) ? (row.id === "faturamento" ? 100 : (Math.abs(valPrev) / fatPrev) * 100) : null;
 
                           const monthlyBudgetObj = yearlyBudgets[selectedYear]?.[selectedMonth] || {};
                           const valBudget = row.type === "total" 
                             ? calculateRowValue(monthlyBudgetObj, row.id) 
                             : (monthlyBudgetObj[row.id] || 0);
-                          const fatBudget = (yearlyBudgets[selectedYear]?.[selectedMonth]?.["faturamento"]) || 1;
-                          const avBudget = row.id === "faturamento" ? 100 : (Math.abs(valBudget) / fatBudget) * 100;
+                          const fatBudget = (yearlyBudgets[selectedYear]?.[selectedMonth]?.["faturamento"]) || 0;
+                          const avBudget = fatBudget > 0 ? (row.id === "faturamento" ? 100 : (Math.abs(valBudget) / fatBudget) * 100) : null;
 
                           const matchCurr = activeDreTimeline.find(d => d.month === compMonthLabel && d.year === selectedYear);
                           const valCurr = getActualRowValue(matchCurr, row.id);
-                          const fatCurr = getActualRowValue(matchCurr, "faturamento") || 1;
-                          const avCurr = row.id === "faturamento" ? 100 : (Math.abs(valCurr) / fatCurr) * 100;
+                          const fatCurr = getActualRowValue(matchCurr, "faturamento") || 0;
+                          const avCurr = (matchCurr && fatCurr > 0) ? (row.id === "faturamento" ? 100 : (Math.abs(valCurr) / fatCurr) * 100) : null;
 
-                          // Variance vs Budget: Real - Budget (Variance of Expenses uses custom style where negative is good saving)
-                          const varBudVal = valCurr - valBudget;
-                          const varBudAH = valBudget !== 0 ? (varBudVal / Math.abs(valBudget)) * 100 : 0;
+                          // Variance vs Budget: Real - Budget
+                          const hasBudget = valBudget !== 0 || fatBudget > 0;
+                          const varBudVal = hasBudget ? (valCurr - valBudget) : 0;
+                          const varBudAH = (hasBudget && valBudget !== 0) ? ((valCurr - valBudget) / Math.abs(valBudget)) * 100 : null;
 
                           // Variance YoY: Real Curr - Real Prev
-                          const varYoYVal = valCurr - valPrev;
-                          const varYoYAH = valPrev !== 0 ? (varYoYVal / Math.abs(valPrev)) * 100 : 0;
+                          const hasPrevHistory = !!matchPrev && valPrev !== 0;
+                          const varYoYVal = matchPrev ? (valCurr - valPrev) : 0;
+                          const varYoYAH = hasPrevHistory ? ((valCurr - valPrev) / Math.abs(valPrev)) * 100 : null;
 
                           const isExpenseRow = row.type === "expense";
                           const isTotalRow = row.type === "total";
@@ -2487,7 +2508,7 @@ export default function Finance() {
                                 </td>
                                 <td className="py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20">
                                   <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
-                                    {avPrev.toFixed(1)}%
+                                    {avPrev !== null ? `${avPrev.toFixed(1)}%` : "--"}
                                   </span>
                                 </td>
                                 {/* ORÇADO CURR */}
@@ -2496,7 +2517,7 @@ export default function Finance() {
                                 </td>
                                 <td className="py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20">
                                   <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
-                                    {avBudget.toFixed(1)}%
+                                    {avBudget !== null ? `${avBudget.toFixed(1)}%` : "--"}
                                   </span>
                                 </td>
                                 {/* REAL CURR */}
@@ -2505,26 +2526,34 @@ export default function Finance() {
                                 </td>
                                 <td className={`py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20 ${isTotalRow ? "bg-slate-50/10 dark:bg-zinc-950/10" : "bg-slate-50/30 dark:bg-zinc-950/5"}`}>
                                   <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
-                                    {avCurr.toFixed(1)}%
+                                    {avCurr !== null ? `${avCurr.toFixed(1)}%` : "--"}
                                   </span>
                                 </td>
                                 {/* VAR vs BUDGET */}
-                                <td className={`py-3 px-2 text-right font-bold font-mono text-xs ${getVarianceColor(varBudVal, isExpenseRow)}`}>
-                                  {varBudVal > 0 ? "+" : ""}{formatCurrency(varBudVal)}
+                                <td className={`py-3 px-2 text-right font-bold font-mono text-xs ${hasBudget ? getVarianceColor(varBudVal, isExpenseRow) : "text-slate-400 dark:text-slate-500 font-medium"}`}>
+                                  {hasBudget ? `${varBudVal > 0 ? "+" : ""}${formatCurrency(varBudVal)}` : "--"}
                                 </td>
                                 <td className={`py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20`}>
-                                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${getVarianceColor(varBudAH, isExpenseRow, true)}`}>
-                                    {varBudAH > 0 ? "+" : ""}{varBudAH.toFixed(1)}%
-                                  </span>
+                                  {varBudAH !== null ? (
+                                    <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${getVarianceColor(varBudAH, isExpenseRow, true)}`}>
+                                      {varBudAH > 0 ? "+" : ""}{varBudAH.toFixed(1)}%
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 dark:text-slate-500 text-[10px] font-mono">--</span>
+                                  )}
                                 </td>
                                 {/* VAR YOY */}
-                                <td className={`py-3 px-2 text-right font-bold font-mono text-xs ${getVarianceColor(varYoYVal, isExpenseRow)}`}>
-                                  {varYoYVal > 0 ? "+" : ""}{formatCurrency(varYoYVal)}
+                                <td className={`py-3 px-2 text-right font-bold font-mono text-xs ${matchPrev ? getVarianceColor(varYoYVal, isExpenseRow) : "text-slate-400 dark:text-slate-500 font-medium"}`}>
+                                  {matchPrev ? `${varYoYVal > 0 ? "+" : ""}${formatCurrency(varYoYVal)}` : "--"}
                                 </td>
                                 <td className="py-3 px-2 text-right">
-                                  <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${getVarianceColor(varYoYAH, isExpenseRow, true)}`}>
-                                    {varYoYAH > 0 ? "+" : ""}{varYoYAH.toFixed(1)}%
-                                  </span>
+                                  {varYoYAH !== null ? (
+                                    <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${getVarianceColor(varYoYAH, isExpenseRow, true)}`}>
+                                      {varYoYAH > 0 ? "+" : ""}{varYoYAH.toFixed(1)}%
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-400 dark:text-slate-500 text-[10px] font-mono">--</span>
+                                  )}
                                 </td>
                               </tr>
 
@@ -2534,9 +2563,11 @@ export default function Finance() {
                                   rowGroup.items.map((item) => {
                                     const detPrev = getActualDetailValue(matchPrev, row.mapGroupId, item.label);
                                     const detCurr = getActualDetailValue(matchCurr, row.mapGroupId, item.label);
+                                    const detPrevAV = (matchPrev && fatPrev > 0) ? ((Math.abs(detPrev) / fatPrev) * 100) : null;
+                                    const detCurrAV = (matchCurr && fatCurr > 0) ? ((Math.abs(detCurr) / fatCurr) * 100) : null;
                                     
-                                    const detVar = detCurr - detPrev;
-                                    const detVarPct = detPrev !== 0 ? (detVar / Math.abs(detPrev)) * 105 : 0;
+                                    const detVar = matchPrev ? (detCurr - detPrev) : 0;
+                                    const detVarPct = (matchPrev && detPrev !== 0) ? (detVar / Math.abs(detPrev)) * 100 : null;
 
                                     return (
                                       <tr
@@ -2552,7 +2583,7 @@ export default function Finance() {
                                         </td>
                                         <td className="py-2.5 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20">
                                           <span className="font-mono text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
-                                            {((Math.abs(detPrev) / fatPrev) * 100).toFixed(1)}%
+                                            {detPrevAV !== null ? `${detPrevAV.toFixed(1)}%` : "--"}
                                           </span>
                                         </td>
                                         {/* METAS ORÇADO (NOT SPECIFIED AT ACCOUNT LEVEL) */}
@@ -2567,12 +2598,8 @@ export default function Finance() {
                                           {formatCurrency(detCurr)}
                                         </td>
                                         <td className="py-2.5 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20 bg-slate-50/15 dark:bg-zinc-950/5">
-                                          <span className={`font-mono text-[9px] font-black px-1.5 py-0.5 rounded border ${
-                                            isBebelu 
-                                              ? "bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200" 
-                                              : "bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200"
-                                          }`}>
-                                            {((Math.abs(detCurr) / fatCurr) * 100).toFixed(1)}%
+                                          <span className="font-mono text-[9px] font-black px-1.5 py-0.5 rounded border bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                            {detCurrAV !== null ? `${detCurrAV.toFixed(1)}%` : "--"}
                                           </span>
                                         </td>
                                         {/* COMPAR BUDGET (NOT ENTERED AT DETAIL LEVEL) */}
@@ -2583,13 +2610,17 @@ export default function Finance() {
                                           —
                                         </td>
                                         {/* VAR YOY DET */}
-                                        <td className={`py-2.5 px-2 text-right font-mono font-semibold text-[10px] ${getVarianceColor(detVar, isExpenseRow)}`}>
-                                          {detVar > 0 ? "+" : ""}{formatCurrency(detVar)}
+                                        <td className={`py-2.5 px-2 text-right font-mono font-semibold text-[10px] ${matchPrev ? getVarianceColor(detVar, isExpenseRow) : "text-slate-400 dark:text-slate-500"}`}>
+                                          {matchPrev ? `${detVar > 0 ? "+" : ""}${formatCurrency(detVar)}` : "--"}
                                         </td>
                                         <td className="py-2.5 px-2 text-right">
-                                          <span className={`font-mono text-[9px] font-black px-1.5 py-0.5 rounded border shadow-sm ${getVarianceColor(detVarPct, isExpenseRow, true)}`}>
-                                            {detVarPct > 0 ? "+" : ""}{detVarPct.toFixed(1)}%
-                                          </span>
+                                          {detVarPct !== null ? (
+                                            <span className={`font-mono text-[9px] font-black px-1.5 py-0.5 rounded border shadow-sm ${getVarianceColor(detVarPct, isExpenseRow, true)}`}>
+                                              {detVarPct > 0 ? "+" : ""}{detVarPct.toFixed(1)}%
+                                            </span>
+                                          ) : (
+                                            <span className="text-slate-400 dark:text-slate-500 text-[10px] font-mono">--</span>
+                                          )}
                                         </td>
                                       </tr>
                                     );
@@ -2640,7 +2671,12 @@ export default function Finance() {
                     </div>
                   </div>
 
-                  <div className="p-4 overflow-x-auto select-none">
+                  <div className="lg:hidden px-4 py-2 bg-slate-100 dark:bg-zinc-850 text-slate-500 dark:text-zinc-400 text-[11px] font-bold flex items-center justify-between border-b border-slate-200 dark:border-zinc-800">
+                    <span>Arraste para o lado para visualizar todos os meses do ano</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-indigo-500 animate-pulse shrink-0 ml-2" />
+                  </div>
+
+                  <div className="p-4 overflow-x-auto select-none scrollbar-thin scroll-smooth">
                     <table className="w-full text-left border-collapse min-w-[1280px]">
                       <thead>
                         <tr className="border-b-2 border-slate-200 dark:border-zinc-800 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider font-display">
@@ -2801,7 +2837,12 @@ export default function Finance() {
                     </div>
                   </div>
 
-                  <div className="p-4 overflow-x-auto select-none">
+                  <div className="lg:hidden px-4 py-2 bg-slate-100 dark:bg-zinc-850 text-slate-500 dark:text-zinc-400 text-[11px] font-bold flex items-center justify-between border-b border-slate-200 dark:border-zinc-800">
+                    <span>Arraste para o lado para planejar todos os meses do orçamento</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-emerald-500 animate-pulse shrink-0 ml-2" />
+                  </div>
+
+                  <div className="p-4 overflow-x-auto select-none scrollbar-thin scroll-smooth">
                     <table className="w-full text-left border-collapse min-w-[1280px]">
                       <thead>
                         <tr className="border-b-2 border-slate-200 dark:border-zinc-800 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider font-display">

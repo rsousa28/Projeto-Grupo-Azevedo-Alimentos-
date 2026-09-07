@@ -1580,21 +1580,26 @@ export default function DailyControl() {
           </p>
         </div>
 
-        {/* Category Breakdown Card */}
-        <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm flex flex-col justify-between`}>
+        {/* Category Breakdown Card - Expanded for superior readability */}
+        <div className={`p-4 md:p-5 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm flex flex-col justify-between lg:col-span-2`}>
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-3">
               <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
                 {activeTab === 'expenses' ? 'Análise por Categoria' : 'Análise por Funcionário'}
               </span>
-              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">
-                {activeTab === 'expenses' ? 'Despesas' : 'Vales'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-500/10 text-amber-500">
+                  {activeTab === 'expenses' ? 'Despesas' : 'Vales'}
+                </span>
+                <span className="text-[10px] font-bold text-slate-400">
+                  Total: R$ {expensesByCategory.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
             </div>
             
-            <div className="space-y-2 max-h-[120px] overflow-y-auto pr-1 scrollbar-thin">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2 max-h-[140px] overflow-y-auto pr-2 scrollbar-thin">
               {expensesByCategory.distribution.length === 0 ? (
-                <div className="text-center py-6 text-[11px] text-slate-400">
+                <div className="col-span-2 text-center py-6 text-[11px] text-slate-400">
                   Nenhum lançamento no filtro atual
                 </div>
               ) : (
@@ -1602,36 +1607,39 @@ export default function DailyControl() {
                   <div 
                     key={category} 
                     onClick={() => setSelectedCategory(prev => prev === category ? 'all' : category)}
-                    className={`group p-1.5 rounded-lg cursor-pointer transition-all border ${
+                    className={`group p-2 rounded-xl cursor-pointer transition-all border ${
                       selectedCategory === category 
                         ? (isDarkMode ? 'bg-amber-500/10 border-amber-500/40 text-amber-400' : 'bg-amber-50 border-amber-300 text-amber-700') 
-                        : (isDarkMode ? 'bg-transparent border-transparent hover:bg-white/5' : 'bg-transparent border-transparent hover:bg-slate-50')
+                        : (isDarkMode ? 'bg-[#161616] border-[#2A2A2A] hover:bg-white/5' : 'bg-slate-50 border-slate-100 hover:bg-slate-100/70')
                     }`}
                   >
                     <div className="flex items-center justify-between text-[11px] font-bold mb-1">
-                      <span className="truncate max-w-[120px]" style={{ color: selectedCategory === category ? brandColors.button : undefined }}>
+                      <span className="truncate max-w-[140px]" title={category} style={{ color: selectedCategory === category ? brandColors.button : undefined }}>
                         {category}
                       </span>
-                      <span className={isDarkMode ? 'text-white' : 'text-slate-800'}>
+                      <span className={`font-mono text-[11px] ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
                         R$ {value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                       </span>
                     </div>
-                    <div className="w-full bg-slate-100 dark:bg-white/10 h-1 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-200 dark:bg-white/10 h-1.5 rounded-full overflow-hidden">
                       <div 
-                        className="h-full transition-all duration-500" 
+                        className="h-full transition-all duration-500 rounded-full" 
                         style={{ 
                           width: `${percentage}%`,
                           backgroundColor: brandColors.button || '#F59E0B'
                         }}
                       />
                     </div>
-                    <div className="flex items-center justify-end text-[11px] font-black text-slate-500 dark:text-slate-350 mt-1">
-                      <span>{percentage.toFixed(1)}%</span>
-                      {selectedCategory === category && (
-                        <span className="ml-1.5 text-[8px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded uppercase font-black tracking-widest leading-none">
-                          Ativo
-                        </span>
-                      )}
+                    <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-400 dark:text-slate-400 mt-1">
+                      <span>Participação</span>
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono">{percentage.toFixed(1)}%</span>
+                        {selectedCategory === category && (
+                          <span className="text-[8px] bg-amber-500/20 text-amber-500 px-1 py-0.2 rounded uppercase font-black tracking-widest leading-none">
+                            Ativo
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -1644,127 +1652,9 @@ export default function DailyControl() {
               onClick={() => setSelectedCategory('all')}
               className="mt-2 text-center text-[10px] font-bold text-amber-500 hover:text-amber-600 transition-colors pt-2 border-t border-slate-100 dark:border-white/5 w-full"
             >
-              Exibir todas
+              Exibir todas as categorias
             </button>
           )}
-        </div>
-
-        {/* Category Donut Chart Card */}
-        <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-white border-slate-100'} shadow-sm flex flex-col justify-between`}>
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Distribuição Visual</span>
-              <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500">Gráfico</span>
-            </div>
-
-            {expensesByCategory.distribution.length === 0 ? (
-              <div className="text-center py-10 text-[11px] text-slate-400 italic">
-                Nenhum lançamento no filtro atual
-              </div>
-            ) : (
-              <div className="h-[120px] w-full flex items-center justify-center relative">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={expensesByCategory.distribution.map((item, index) => ({
-                        name: item.category,
-                        value: item.value,
-                        percentage: item.percentage,
-                        index
-                      }))}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={35}
-                      outerRadius={48}
-                      paddingAngle={2}
-                      dataKey="value"
-                      onClick={(data) => {
-                        if (data && data.name) {
-                          setSelectedCategory(prev => prev === data.name ? 'all' : data.name);
-                        }
-                      }}
-                    >
-                      {expensesByCategory.distribution.map((entry, index) => {
-                        const isSelected = selectedCategory === entry.category;
-                        const cellColor = CHART_COLORS[index % CHART_COLORS.length];
-                        return (
-                          <Cell 
-                            key={`cell-${index}`} 
-                            fill={cellColor} 
-                            stroke={isDarkMode ? '#1E1E1E' : '#FFFFFF'}
-                            strokeWidth={isSelected ? 3 : 1}
-                            style={{ 
-                              cursor: 'pointer',
-                              filter: isSelected ? 'drop-shadow(0px 0px 4px rgba(245, 158, 11, 0.5))' : 'none',
-                              opacity: selectedCategory === 'all' || isSelected ? 1 : 0.4
-                            }}
-                            onMouseEnter={() => {
-                              setActiveHovered({
-                                category: entry.category,
-                                value: entry.value,
-                                percentage: entry.percentage
-                              });
-                            }}
-                            onMouseLeave={() => {
-                              setActiveHovered(null);
-                            }}
-                          />
-                        );
-                      })}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                
-                {/* Center text indicating total or active hovered category */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center px-4">
-                  {activeHovered ? (
-                    <>
-                      <span className="text-[7px] font-black uppercase tracking-wider text-amber-500 truncate max-w-[65px]" title={activeHovered.category}>
-                        {activeHovered.category}
-                      </span>
-                      <span className="text-[9px] font-extrabold text-slate-800 dark:text-slate-100 leading-tight">
-                        R$ {activeHovered.value.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                      </span>
-                      <span className="text-[7px] font-bold text-slate-400 mt-0.5 leading-none">
-                        {activeHovered.percentage.toFixed(1)}%
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="text-[8px] font-black uppercase text-slate-400 leading-none">Total</span>
-                      <span className="text-[10px] font-black text-slate-500 dark:text-slate-200 leading-tight mt-0.5">
-                        R$ {expensesByCategory.total > 1000 ? `${(expensesByCategory.total / 1000).toFixed(1)}k` : expensesByCategory.total.toFixed(0)}
-                      </span>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 mt-1 pt-1 border-t border-slate-100 dark:border-white/5">
-            {expensesByCategory.distribution.slice(0, 4).map((entry, index) => {
-              const isSelected = selectedCategory === entry.category;
-              const color = CHART_COLORS[index % CHART_COLORS.length];
-              return (
-                <div 
-                  key={entry.category} 
-                  onClick={() => setSelectedCategory(prev => prev === entry.category ? 'all' : entry.category)}
-                  className="flex items-center gap-1 cursor-pointer select-none"
-                >
-                  <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                  <span className={`text-[8px] font-extrabold truncate max-w-[50px] uppercase tracking-wider ${
-                    isSelected ? 'text-amber-500' : 'text-slate-400 hover:text-slate-300'
-                  }`}>
-                    {entry.category}
-                  </span>
-                </div>
-              );
-            })}
-            {expensesByCategory.distribution.length > 4 && (
-              <span className="text-[8px] font-extrabold text-slate-500 uppercase tracking-wider">+{expensesByCategory.distribution.length - 4}</span>
-            )}
-          </div>
         </div>
       </div>
 
@@ -1798,7 +1688,7 @@ export default function DailyControl() {
       <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1A1A1A] border-[#2E2E2E]' : 'bg-slate-50 border-slate-100'} grid grid-cols-1 md:grid-cols-12 gap-3 items-center shadow-sm`}>
         {/* Search */}
         <div className={`${
-          isRoot ? 'md:col-span-6' : 'md:col-span-9'
+          isRoot && currentStore.id === 'admin-global' ? 'md:col-span-6' : 'md:col-span-9'
         } relative`}>
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -1851,8 +1741,8 @@ export default function DailyControl() {
           </div>
         )}
 
-        {/* Store ID (Show only if ROOT) */}
-        {isRoot && (
+        {/* Store ID (Show only if ROOT and no fixed store selected) */}
+        {isRoot && currentStore.id === 'admin-global' && (
           <div className="md:col-span-3">
             <select
               value={selectedStoreId}

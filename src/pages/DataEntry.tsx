@@ -1466,7 +1466,7 @@ export default function DataEntry() {
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Retorno p/ Real (ROAS)</span>
                     <div className="flex items-center gap-2 pt-1 flex-wrap">
                       <span className={`text-2xl font-black font-mono ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                        R${mktRoas.toFixed(2).replace('.', ',')}
+                        {mktRoas.toFixed(2).replace('.', ',')}x
                       </span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded font-black tracking-widest uppercase border ${roasColor}`}>
                         {roasStatus}

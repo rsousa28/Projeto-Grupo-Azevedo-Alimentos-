@@ -23,7 +23,6 @@ import { AuditService } from '../services/AuditService';
 import { IndexedDBService } from '../services/IndexedDBService';
 import { OfflineSyncManager } from '../services/OfflineSyncManager';
 import { NotificationService } from '../services/NotificationService';
-import OfflineSyncBadge from '../components/OfflineSyncBadge';
 import { db } from '../lib/firebase';
 import { doc, onSnapshot, setDoc, collection, deleteDoc, getDoc } from 'firebase/firestore';
 import { getDocCached, setDocCached } from '../lib/firestoreQueryCache';
@@ -731,17 +730,12 @@ export default function Checklist() {
                     </p>
                   </div>
                   
-                  <div className="flex items-center gap-3 shrink-0">
-                    <OfflineSyncBadge />
-
+                  <div className="flex flex-wrap items-center gap-3 shrink-0">
                     <button
-                      onClick={() => {
-                        window.location.reload();
-                      }}
-                      className="flex items-center gap-1.5 bg-slate-200/50 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 px-4 py-2 rounded-2xl border border-slate-300/30 dark:border-zinc-700 font-black text-[10px] uppercase tracking-wider text-slate-600 dark:text-zinc-300 transition-all active:scale-95 cursor-pointer"
-                      title="Sincronizar com Banco de Dados"
+                      onClick={() => setActiveTab('config')}
+                      className="flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white px-4 py-2.5 rounded-2xl font-black text-xs uppercase tracking-wider shadow-md shadow-amber-500/20 active:scale-95 transition-all cursor-pointer"
                     >
-                      <RefreshCw className="w-3.5 h-3.5" /> Sincronizar
+                      <Plus className="w-4 h-4" /> Novo Modelo
                     </button>
 
                     <div className="flex items-center gap-1.5 bg-[#FFCB05]/10 px-4 py-2 rounded-2xl border border-[#FFCB05]/20 text-[#FFCB05] font-black text-[10px] uppercase tracking-wider">
@@ -898,35 +892,6 @@ export default function Checklist() {
                       <p className="text-[10px] text-slate-500 max-w-[200px] mt-1.5 leading-normal">Configure uma nova área de checagem e perguntas customizadas.</p>
                     </div>
                   )}
-                </div>
-
-                {/* Checklist Categories Quick reference info */}
-                <div className="space-y-4">
-                  <h3 className={`text-xs font-black uppercase italic tracking-widest ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Áreas de Supervisão Padrão</h3>
-                  <div className="grid grid-cols-1 min-[370px]:grid-cols-2 sm:grid-cols-5 gap-3">
-                    {[
-                      { l: 'Abertura da loja', count: templates.filter(t => t.category === 'Abertura da loja').length },
-                      { l: 'Fechamento', count: templates.filter(t => t.category === 'Fechamento').length },
-                      { l: 'Limpeza', count: templates.filter(t => t.category === 'Limpeza').length },
-                      { l: 'Produção', count: templates.filter(t => t.category === 'Produção').length },
-                      { l: 'Estoque', count: templates.filter(t => t.category === 'Estoque').length },
-                      { l: 'Segurança alimentar', count: templates.filter(t => t.category === 'Segurança alimentar').length },
-                      { l: 'Caixa', count: templates.filter(t => t.category === 'Caixa').length },
-                      { l: 'Equipamentos', count: templates.filter(t => t.category === 'Equipamentos').length },
-                      { l: 'Delivery', count: templates.filter(t => t.category === 'Delivery').length },
-                      { l: 'Manutenção', count: templates.filter(t => t.category === 'Manutenção').length },
-                    ].map(it => (
-                      <div 
-                        key={it.l}
-                        className={`p-4 rounded-2xl border text-center ${
-                          isDarkMode ? 'bg-zinc-950 border-zinc-900' : 'bg-white border-slate-100 shadow-sm'
-                        }`}
-                      >
-                        <span className={`text-[10px] font-black uppercase block leading-tight truncate ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>{it.l}</span>
-                        <span className="text-[9px] font-bold text-slate-500 mt-1 block">({it.count} modelos)</span>
-                      </div>
-                    ))}
-                  </div>
                 </div>
               </div>
             )}

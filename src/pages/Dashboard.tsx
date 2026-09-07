@@ -23,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { DREData } from '../types';
 import DataEntrySection from '../components/DataEntrySection';
 import { getDocCached } from '../lib/firestoreQueryCache';
+import { formatCleanYAxisCurrency } from '../utils/formatters';
 
 
 const formatCurrency = (val: number) => 
@@ -471,7 +472,7 @@ export default function Dashboard() {
   const expenseDistribution = React.useMemo(() => {
     if (isRoot) return [];
     
-    const faturamentoBase = currentMonthData.faturamento || 1;
+    const faturamentoBase = currentMonthData.faturamento || 0;
     const cmvVal = currentMonthData.cmv || 0;
     const personnelVal = currentMonthData.payroll || 0;
     const taxesVal = (currentMonthData.details?.deducoes?.darfSimples || currentMonthData.taxes || 0);
@@ -483,12 +484,12 @@ export default function Dashboard() {
     const otherCosts = Math.max(0, (currentMonthData.faturamento || 0) - (currentMonthData.netProfit || 0) - (cmvVal + personnelVal + taxesVal + rentVal + marketingVal + royaltiesVal + operationalVal));
 
     return [
-      { name: 'Pessoal (Salários/Encargos)', value: personnelVal, pct: (personnelVal / faturamentoBase) * 100, color: '#0066FF' },
-      { name: 'Impostos e Deduções', value: taxesVal, pct: (taxesVal / faturamentoBase) * 100, color: '#6B7280' },
-      { name: 'Ocupação (Aluguel/Energia)', value: rentVal, pct: (rentVal / faturamentoBase) * 100, color: '#FFB800' },
-      { name: 'Marketing / Comercial', value: marketingVal, pct: (marketingVal / faturamentoBase) * 100, color: '#EC4899' },
-      { name: 'Royalties / Franquia', value: royaltiesVal, pct: (royaltiesVal / faturamentoBase) * 100, color: '#8B5CF6' },
-      { name: 'Outras Operacionais', value: operationalVal + otherCosts, pct: ((operationalVal + otherCosts) / faturamentoBase) * 100, color: '#10B981' }
+      { name: 'Pessoal (Salários/Encargos)', value: personnelVal, pct: faturamentoBase > 0 ? (personnelVal / faturamentoBase) * 100 : 0, color: '#0066FF' },
+      { name: 'Impostos e Deduções', value: taxesVal, pct: faturamentoBase > 0 ? (taxesVal / faturamentoBase) * 100 : 0, color: '#6B7280' },
+      { name: 'Ocupação (Aluguel/Energia)', value: rentVal, pct: faturamentoBase > 0 ? (rentVal / faturamentoBase) * 100 : 0, color: '#FFB800' },
+      { name: 'Marketing / Comercial', value: marketingVal, pct: faturamentoBase > 0 ? (marketingVal / faturamentoBase) * 100 : 0, color: '#EC4899' },
+      { name: 'Royalties / Franquia', value: royaltiesVal, pct: faturamentoBase > 0 ? (royaltiesVal / faturamentoBase) * 100 : 0, color: '#8B5CF6' },
+      { name: 'Outras Operacionais', value: operationalVal + otherCosts, pct: faturamentoBase > 0 ? ((operationalVal + otherCosts) / faturamentoBase) * 100 : 0, color: '#10B981' }
     ].filter(item => item.value > 0);
   }, [currentMonthData, isRoot]);
 
@@ -553,30 +554,87 @@ export default function Dashboard() {
 
   const featuredInsight = getFeaturedInsight();
 
-  // Derived operational metrics based on selected month/year data
+  // Derived operational metrics based on selected month/year data with reactive thresholds
   const derivedOperationalMetrics = React.useMemo(() => {
     const tempoMedioVal = currentMonthData?.tempoMedio !== undefined ? currentMonthData.tempoMedio : 25;
     const avaliacaoIfoodVal = currentMonthData?.avaliacaoIfood !== undefined ? currentMonthData.avaliacaoIfood : 4.8;
 
-    const tempoPercent = Math.max(0, Math.min(100, (20 / (tempoMedioVal || 1)) * 100));
+    // Tempo de Produção: Meta <= 20 min (Verde: <=20min, Amarelo: 21-25min, Vermelho: >25min)
+    const tempoStatus = tempoMedioVal <= 20 
+      ? 'ok' 
+      : tempoMedioVal <= 25 
+        ? 'warning' 
+        : 'danger';
+
+    const tempoColor = tempoStatus === 'ok' 
+      ? '#10B981' 
+      : tempoStatus === 'warning' 
+        ? '#F59E0B' 
+        : '#EF4444';
+
+    const tempoBadgeClass = tempoStatus === 'ok'
+      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+      : tempoStatus === 'warning'
+        ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+        : 'bg-rose-500/10 text-rose-500 border border-rose-500/20';
+
+    const tempoStatusText = tempoStatus === 'ok'
+      ? 'Meta Batida'
+      : tempoStatus === 'warning'
+        ? 'Atenção (Gargalo)'
+        : 'Desvio Operacional';
+
+    const tempoPercent = Math.max(10, Math.min(100, (20 / (tempoMedioVal || 1)) * 100));
+
+    // Avaliação iFood: Meta >= 4.8 (Verde: >=4.8, Amarelo: 4.5-4.7, Vermelho: <4.5)
+    const ifoodStatus = avaliacaoIfoodVal >= 4.8 
+      ? 'ok' 
+      : avaliacaoIfoodVal >= 4.5 
+        ? 'warning' 
+        : 'danger';
+
+    const ifoodColor = ifoodStatus === 'ok' 
+      ? '#10B981' 
+      : ifoodStatus === 'warning' 
+        ? '#F59E0B' 
+        : '#EF4444';
+
+    const ifoodBadgeClass = ifoodStatus === 'ok'
+      ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+      : ifoodStatus === 'warning'
+        ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+        : 'bg-rose-500/10 text-rose-500 border border-rose-500/20';
+
+    const ifoodStatusText = ifoodStatus === 'ok'
+      ? 'Meta Batida'
+      : ifoodStatus === 'warning'
+        ? 'Atenção'
+        : 'Desvio Operacional';
+
     const avaliacaoPercent = (avaliacaoIfoodVal / 5) * 100;
 
     return [
       { 
         label: 'Tempo de Produção', 
         valor: `${tempoMedioVal} min`, 
-        target: '20 min', 
+        target: 'Meta: ≤ 20 min', 
         percent: tempoPercent, 
         icon: 'Clock',
-        critical: tempoMedioVal > 20
+        status: tempoStatus,
+        color: tempoColor,
+        badgeClass: tempoBadgeClass,
+        statusText: tempoStatusText
       },
       { 
         label: 'Avaliação iFood', 
         valor: `${avaliacaoIfoodVal.toFixed(1)} / 5.0`, 
-        target: '4.8', 
+        target: 'Meta: ≥ 4.8', 
         percent: avaliacaoPercent, 
         icon: 'Star',
-        critical: avaliacaoIfoodVal < 4.8 
+        status: ifoodStatus,
+        color: ifoodColor,
+        badgeClass: ifoodBadgeClass,
+        statusText: ifoodStatusText
       }
     ];
   }, [currentMonthData]);
@@ -655,7 +713,7 @@ export default function Dashboard() {
 
   const faturamentoChange = React.useMemo(() => {
     const prevFat = previousMonthData ? (previousMonthData.faturamento || 0) : 0;
-    if (prevFat <= 0) return { pct: 0, trend: 'up' as const };
+    if (!previousMonthData || prevFat <= 0) return { pct: null, trend: null };
     const pct = ((faturamento - prevFat) / prevFat) * 100;
     return {
       pct: Math.abs(pct),
@@ -665,8 +723,7 @@ export default function Dashboard() {
 
   const netProfitChange = React.useMemo(() => {
     const prevProfit = previousMonthData ? (previousMonthData.netProfit || 0) : 0;
-    if (prevProfit === 0) return { pct: 0, trend: 'up' as const };
-    const pct = ((netProfit - prevProfit) / Math.abs(prevProfit)) * 15.2; // scaling factor to reflect reasonable delta patterns
+    if (!previousMonthData || prevProfit === 0) return { pct: null, trend: null };
     const boundedPct = ((netProfit - prevProfit) / Math.abs(prevProfit)) * 100;
     return {
       pct: Math.abs(boundedPct),
@@ -678,8 +735,8 @@ export default function Dashboard() {
     const prevFat = previousMonthData ? (previousMonthData.faturamento || 0) : 0;
     const prevCmv = previousMonthData ? (previousMonthData.cmv || 0) : 0;
     const prevCmvRate = prevFat > 0 ? (prevCmv / prevFat) * 100 : 0;
-    if (prevCmvRate <= 0) {
-      return { pct: 0, trend: 'down' as const };
+    if (!previousMonthData || prevFat <= 0 || prevCmvRate <= 0) {
+      return { pct: null, trend: null };
     }
     const diff = cmvRate - prevCmvRate; // Absolute difference in percentage points
     return {
@@ -692,7 +749,7 @@ export default function Dashboard() {
     const prevFat = previousMonthData ? (previousMonthData.faturamento || 0) : 0;
     const prevEbitda = previousMonthData ? (previousMonthData.ebitda || 0) : 0;
     const prevMargem = prevFat > 0 ? (prevEbitda / prevFat) * 100 : 0;
-    if (prevMargem === 0) return { pct: 0, trend: 'up' as const };
+    if (!previousMonthData || prevFat <= 0) return { pct: null, trend: null };
     const diff = margemOperacional - prevMargem; // Absolute difference in percentage points
     return {
       pct: Math.abs(diff),
@@ -707,10 +764,38 @@ export default function Dashboard() {
     user?.username?.toLowerCase().includes('andressa');
 
   const displayMetrics = [
-    { label: 'Faturamento Total', valor: faturamento, format: 'currency', trend: faturamentoChange.trend, change: faturamentoChange.pct.toFixed(1) },
-    ...(!isPatriciab ? [{ label: 'Lucro Líquido', valor: netProfit, format: 'currency', trend: netProfitChange.trend, change: netProfitChange.pct.toFixed(1) }] : []),
-    { label: 'CMV Médio', valor: cmvRate, format: 'percent', trend: cmvChange.trend, change: cmvChange.pct.toFixed(1) },
-    ...(!isPatriciab ? [{ label: 'Margem Operac.', valor: margemOperacional, format: 'percent', trend: margemChange.trend, change: margemChange.pct.toFixed(1) }] : []),
+    { 
+      label: 'Faturamento Total', 
+      valor: faturamento, 
+      format: 'currency', 
+      trend: faturamentoChange.trend, 
+      change: faturamentoChange.pct !== null ? faturamentoChange.pct.toFixed(1) : '--',
+      hasHistory: faturamentoChange.pct !== null 
+    },
+    ...(!isPatriciab ? [{ 
+      label: 'Lucro Líquido', 
+      valor: netProfit, 
+      format: 'currency', 
+      trend: netProfitChange.trend, 
+      change: netProfitChange.pct !== null ? netProfitChange.pct.toFixed(1) : '--',
+      hasHistory: netProfitChange.pct !== null 
+    }] : []),
+    { 
+      label: 'CMV Médio', 
+      valor: cmvRate, 
+      format: 'percent', 
+      trend: cmvChange.trend, 
+      change: cmvChange.pct !== null ? cmvChange.pct.toFixed(1) : '--',
+      hasHistory: cmvChange.pct !== null 
+    },
+    ...(!isPatriciab ? [{ 
+      label: 'Margem Operac.', 
+      valor: margemOperacional, 
+      format: 'percent', 
+      trend: margemChange.trend, 
+      change: margemChange.pct !== null ? margemChange.pct.toFixed(1) : '--',
+      hasHistory: margemChange.pct !== null 
+    }] : []),
   ];
 
   const exportDashboardPDF = async () => {
@@ -1273,27 +1358,27 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Período de Trabalho (Active Period Selection) */}
-      <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-amber-500/5 border-amber-500/20'} flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm`}>
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 shrink-0">
-            <Calendar className="w-5 h-5 text-amber-500" />
+      {/* Período de Trabalho (Compact Header) */}
+      <div className={`py-2 px-3.5 sm:px-4 rounded-xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#2E2E2E]' : 'bg-amber-500/5 border-amber-500/20'} flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-sm`}>
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-amber-500/10 text-amber-500 shrink-0">
+            <Calendar className="w-4 h-4 text-amber-500" />
           </div>
-          <div>
-            <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>
-              Período Ativo do Dashboard
+          <div className="flex items-center gap-2 flex-wrap">
+            <h3 className={`text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+              Período Ativo:
             </h3>
-            <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-              Defina o período para visualizar, cadastrar e exportar lançamentos do respectivo mês.
-            </p>
+            <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+              {months.find(m => m.value === selectedMonth)?.label} / {selectedYear}
+            </span>
           </div>
         </div>
         
-        <div className="flex items-center gap-2 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
           <select
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(e.target.value)}
-            className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
+            className={`flex-1 sm:flex-initial text-xs font-bold px-2.5 py-1.5 rounded-lg border ${
               isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
             } outline-none cursor-pointer`}
           >
@@ -1305,7 +1390,7 @@ export default function Dashboard() {
           <select
             value={selectedYear}
             onChange={(e) => setSelectedYear(e.target.value)}
-            className={`flex-1 md:flex-initial text-xs font-bold px-3 py-2.5 rounded-xl border ${
+            className={`flex-1 sm:flex-initial text-xs font-bold px-2.5 py-1.5 rounded-lg border ${
               isDarkMode ? 'bg-[#252525] border-[#3C3C3C] text-white focus:border-amber-500' : 'bg-white border-slate-200 focus:border-amber-500'
             } outline-none cursor-pointer`}
           >
@@ -1371,14 +1456,20 @@ export default function Dashboard() {
             >
               <div className="flex items-center justify-between mb-2">
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>{metric.label}</span>
-                <div className={`flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor}`}>
-                  {metric.trend === 'up' ? (
-                    <ArrowUpRight className="w-2.5 h-2.5" />
-                  ) : (
-                    <ArrowDownRight className="w-2.5 h-2.5" />
-                  )}
-                  {metric.change}%
-                </div>
+                {metric.hasHistory ? (
+                  <div className={`flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${statusColor}`}>
+                    {metric.trend === 'up' ? (
+                      <ArrowUpRight className="w-2.5 h-2.5" />
+                    ) : (
+                      <ArrowDownRight className="w-2.5 h-2.5" />
+                    )}
+                    {metric.change}%
+                  </div>
+                ) : (
+                  <div className="text-[10px] font-bold px-1.5 py-0.5 rounded-full text-slate-400 bg-slate-100 dark:bg-zinc-800">
+                    --
+                  </div>
+                )}
               </div>
               <div className={`text-lg font-black break-all leading-tight flex items-center gap-1.5 ${
                 isLossOrNegativeMargin 
@@ -1426,7 +1517,12 @@ export default function Dashboard() {
               <AreaChart data={sortedChartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{fill: '#888', fontSize: 11}}
+                  tickFormatter={formatCleanYAxisCurrency}
+                />
                 <Tooltip 
                   formatter={(value: any) => [formatCurrency(Number(value)), 'Faturamento']}
                   labelStyle={{ color: '#888' }}
@@ -1445,53 +1541,154 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Meta vs Realizado */}
-        <div id="chart-meta-realizado" className={`p-6 rounded-3xl border ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
-          <h3 className={`text-lg font-bold mb-6 ${isDarkMode ? 'text-white' : 'text-black'}`}>Meta vs. Realizado</h3>
-          <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dynamicMetaVsRealizado}>
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 11}} />
-                <Tooltip 
-                  formatter={(value: any) => [formatCurrency(Number(value)), 'Valor']}
-                  labelStyle={{ color: '#888' }}
-                  contentStyle={{ 
-                    borderRadius: '12px', 
-                    border: 'none', 
-                    backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
-                    boxShadow: '0 10px 20px rgba(0,0,0,0.1)',
-                    fontSize: '11px',
-                    fontWeight: 'bold'
-                  }}
-                />
-                <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
-                  {dynamicMetaVsRealizado.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="mt-6 p-4 rounded-xl bg-slate-50 dark:bg-black/20 text-center">
-            <div className="text-xs text-slate-500 uppercase font-bold tracking-widest mb-1">Atingimento</div>
-            <div className={`text-3xl font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-              {(dynamicMetaVsRealizado[0].valor > 0) ? (
-                `${((dynamicMetaVsRealizado[1].valor / dynamicMetaVsRealizado[0].valor) * 100).toFixed(1)}%`
-              ) : (
-                '0.0%'
-              )}
+        {/* Meta vs Realizado - Horizontal Progress Bar & Run-Rate */}
+        {(() => {
+          const totalDaysInMonth = new Date(parseInt(selectedYear), parseInt(selectedMonth), 0).getDate();
+          const currentCalendarDate = new Date();
+          const isSelectedPeriodCurrentMonth = currentCalendarDate.getFullYear().toString() === selectedYear && 
+            (currentCalendarDate.getMonth() + 1).toString().padStart(2, '0') === selectedMonth;
+          const isSelectedPeriodPast = parseInt(selectedYear) < currentCalendarDate.getFullYear() || 
+            (parseInt(selectedYear) === currentCalendarDate.getFullYear() && parseInt(selectedMonth) < (currentCalendarDate.getMonth() + 1));
+          
+          const daysPassedInPeriod = isSelectedPeriodPast 
+            ? totalDaysInMonth 
+            : isSelectedPeriodCurrentMonth 
+              ? Math.max(1, Math.min(currentCalendarDate.getDate(), totalDaysInMonth))
+              : 1;
+
+          const attainmentPct = activeMeta > 0 ? (activeRealizado / activeMeta) * 100 : 0;
+          const dailyRunRate = daysPassedInPeriod > 0 ? (activeRealizado / daysPassedInPeriod) : 0;
+          const projectedClosing = isSelectedPeriodPast ? activeRealizado : dailyRunRate * totalDaysInMonth;
+          const projectedPct = activeMeta > 0 ? (projectedClosing / activeMeta) * 100 : 0;
+          const deltaValue = activeRealizado - activeMeta;
+          const isMetaHit = deltaValue >= 0;
+
+          return (
+            <div id="chart-meta-realizado" className={`p-6 rounded-3xl border flex flex-col justify-between transition-colors duration-500 ${isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'}`}>
+              <div>
+                <div className="flex items-center justify-between mb-5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                      <Target className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <div>
+                      <h3 className={`text-sm font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        Meta vs. Realizado
+                      </h3>
+                      <p className="text-[10px] text-slate-400 font-medium">
+                        {currentMonthLabel} / {selectedYear}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className={`px-2.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                    attainmentPct >= 100
+                      ? 'bg-emerald-500/15 text-emerald-500'
+                      : attainmentPct >= 80
+                        ? 'bg-amber-500/15 text-amber-500'
+                        : 'bg-indigo-500/15 text-indigo-500'
+                  }`}>
+                    {activeMeta > 0 ? `${attainmentPct.toFixed(1)}% atingido` : '--'}
+                  </div>
+                </div>
+
+                {/* Core Values Comparison */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className={`p-3 rounded-2xl border ${
+                    isDarkMode ? 'bg-black/20 border-zinc-800/80' : 'bg-slate-50/80 border-slate-100'
+                  }`}>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Realizado</span>
+                    <div className={`text-base sm:text-lg font-black tracking-tight ${
+                      isMetaHit ? 'text-emerald-500' : (isDarkMode ? 'text-white' : 'text-slate-900')
+                    }`}>
+                      {formatCurrency(activeRealizado)}
+                    </div>
+                  </div>
+
+                  <div className={`p-3 rounded-2xl border ${
+                    isDarkMode ? 'bg-black/20 border-zinc-800/80' : 'bg-slate-50/80 border-slate-100'
+                  }`}>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase block mb-0.5">Meta Alvo</span>
+                    <div className={`text-base sm:text-lg font-black tracking-tight ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                      {formatCurrency(activeMeta)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Horizontal Progress Bar */}
+                <div className="space-y-1.5 mb-5">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className={isMetaHit ? 'text-emerald-500' : 'text-slate-500'}>
+                      {isMetaHit ? `Meta batida! +${formatCurrency(deltaValue)}` : `Faltam ${formatCurrency(Math.abs(deltaValue))}`}
+                    </span>
+                    <span className="text-slate-400 font-bold">Alvo 100%</span>
+                  </div>
+
+                  <div className="h-3 w-full bg-slate-100 dark:bg-zinc-800/80 rounded-full overflow-hidden relative">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${Math.min(100, Math.max(0, attainmentPct))}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                      className={`h-full rounded-full ${
+                        attainmentPct >= 100
+                          ? 'bg-gradient-to-r from-emerald-500 to-teal-400 shadow-sm shadow-emerald-500/20'
+                          : attainmentPct >= 80
+                            ? 'bg-gradient-to-r from-amber-500 to-yellow-400'
+                            : currentStore.brand === 'BEBELU'
+                              ? 'bg-gradient-to-r from-amber-600 to-amber-500'
+                              : 'bg-gradient-to-r from-indigo-500 to-blue-500'
+                      }`}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Run-Rate & Closing Projection */}
+              <div className={`p-3.5 rounded-2xl border ${
+                isDarkMode ? 'bg-black/30 border-[#2E2E2E]' : 'bg-slate-50 border-slate-100'
+              }`}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      Projeção de Fechamento (Run-Rate)
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {daysPassedInPeriod}/{totalDaysInMonth} dias
+                  </span>
+                </div>
+
+                <div className="flex items-baseline justify-between">
+                  <div>
+                    <span className="text-base sm:text-lg font-black tracking-tight text-slate-900 dark:text-white">
+                      {formatCurrency(projectedClosing)}
+                    </span>
+                    <span className={`text-[11px] font-black ml-1.5 ${
+                      projectedPct >= 100 ? 'text-emerald-500' : 'text-amber-500'
+                    }`}>
+                      ({projectedPct.toFixed(1)}% da meta)
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[9px] text-slate-400 block font-medium">Ritmo Médio</span>
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      {formatCurrency(dailyRunRate)}/dia
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-[10px] text-slate-400 font-medium mt-2 pt-2 border-t border-slate-200/50 dark:border-zinc-800">
+                  {isSelectedPeriodPast
+                    ? "Mês encerrado com valores definitivos consolidados."
+                    : projectedClosing >= activeMeta
+                      ? "✓ No ritmo atual, a projeção ultrapassa a meta estipulada."
+                      : "⚠ Ritmo atual abaixo da média diária necessária para bater a meta."}
+                </p>
+              </div>
             </div>
-            {dynamicMetaVsRealizado[1].valor < dynamicMetaVsRealizado[0].valor ? (
-              <p className="text-[10px] text-red-700 font-bold mt-1">
-                Faltam {formatCurrency(dynamicMetaVsRealizado[0].valor - dynamicMetaVsRealizado[1].valor)} para a meta
-              </p>
-            ) : (
-              <p className="text-[10px] text-green-500 font-bold mt-1">
-                Meta batida! {formatCurrency(dynamicMetaVsRealizado[1].valor - dynamicMetaVsRealizado[0].valor)} acima do esperado
-              </p>
-            )}
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* Hourly & Daily Sales replaced with dynamic Unit Performance / Expenses Distribution */}
@@ -1600,40 +1797,48 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={yearlyComparisonData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }} barSize={50}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
-                <XAxis 
-                  dataKey="year" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fill: '#888', fontSize: 11, fontWeight: 700}} 
-                  dy={10}
-                />
-                <YAxis 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fill: '#888', fontSize: 11, fontWeight: 700}}
-                  tickFormatter={(val) => `R$ ${val/1000}k`}
-                />
-                <Tooltip 
-                  contentStyle={{ 
-                    borderRadius: '16px', 
-                    border: 'none', 
-                    backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
-                    boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
-                    fontSize: '11px',
-                    fontWeight: 'bold'
-                  }}
-                  formatter={(val: number) => [formatCurrency(val), 'Faturamento']}
-                />
-                <Bar dataKey="faturamento" radius={[12, 12, 0, 0]}>
-                  {yearlyComparisonData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            {yearlyComparisonData.some(d => d.faturamento > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={yearlyComparisonData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }} barSize={50}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
+                  <XAxis 
+                    dataKey="year" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#888', fontSize: 11, fontWeight: 700}} 
+                    dy={10}
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{fill: '#888', fontSize: 11, fontWeight: 700}}
+                    tickFormatter={formatCleanYAxisCurrency}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      borderRadius: '16px', 
+                      border: 'none', 
+                      backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
+                      boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                      fontSize: '11px',
+                      fontWeight: 'bold'
+                    }}
+                    formatter={(val: number) => [formatCurrency(val), 'Faturamento']}
+                  />
+                  <Bar dataKey="faturamento" radius={[12, 12, 0, 0]}>
+                    {yearlyComparisonData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-slate-50/50 dark:bg-black/10 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800">
+                <Calendar className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-2" />
+                <span className="text-xs font-bold text-slate-500">Sem lançamentos para este mês no histórico</span>
+                <span className="text-[10px] text-slate-400 mt-0.5">Alimente o sistema com lançamentos em {currentMonthLabel} para comparar os anos</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1693,91 +1898,99 @@ export default function Dashboard() {
           {/* Channel Chart View */}
           <div className="lg:col-span-2 space-y-4">
             <div className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                {chartViewMode === 'area' ? (
-                  <AreaChart data={deliveryVsBalcaoAnnualData} onClick={(data: any) => {
-                    if (data && data.activePayload && data.activePayload[0]) {
-                      const payload = data.activePayload[0].payload;
-                      setSelectedChartMonthCode(payload.monthCode);
-                    }
-                  }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 10}} />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{fill: '#888', fontSize: 10}} 
-                      tickFormatter={(val) => `R$ ${val/1000}k`}
-                    />
-                    <Tooltip
-                      labelStyle={{ color: '#888', fontWeight: 'bold' }}
-                      contentStyle={{
-                        borderRadius: '16px',
-                        border: 'none',
-                        backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
-                        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
-                        fontSize: '11px',
-                        fontWeight: 'bold'
-                      }}
-                      formatter={(val: number) => [formatCurrency(val)]}
-                    />
-                    <defs>
-                      <linearGradient id="colorBalcao" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={isDarkMode ? '#64748b' : '#FFB800'} stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor={isDarkMode ? '#64748b' : '#FFB800'} stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorDelivery" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4}/>
-                        <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <Area type="monotone" name="Balcão" dataKey="balcao" stroke={isDarkMode ? '#64748b' : '#FFB800'} strokeWidth={3} fillOpacity={1} fill="url(#colorBalcao)" />
-                    <Area type="monotone" name="Delivery" dataKey="delivery" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorDelivery)" />
-                  </AreaChart>
-                ) : (
-                  <BarChart data={deliveryVsBalcaoAnnualData} onClick={(data: any) => {
-                    if (data && data.activePayload && data.activePayload[0]) {
-                      const payload = data.activePayload[0].payload;
-                      setSelectedChartMonthCode(payload.monthCode);
-                    }
-                  }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
-                    <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 10}} />
-                    <YAxis 
-                      axisLine={false} 
-                      tickLine={false} 
-                      tick={{fill: '#888', fontSize: 10}} 
-                      tickFormatter={(val) => `R$ ${val/1000}k`}
-                    />
-                    <Tooltip
-                      labelStyle={{ color: '#888', fontWeight: 'bold' }}
-                      contentStyle={{
-                        borderRadius: '16px',
-                        border: 'none',
-                        backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
-                        boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
-                        fontSize: '11px',
-                        fontWeight: 'bold'
-                      }}
-                      formatter={(val: number) => [formatCurrency(val)]}
-                    />
-                    <Bar 
-                      name="Balcão" 
-                      dataKey="balcao" 
-                      stackId={chartViewMode === 'stacked' ? 'a' : undefined} 
-                      fill={isDarkMode ? '#64748b' : '#FFB800'} 
-                      radius={chartViewMode === 'stacked' ? [0, 0, 0, 0] : [6, 6, 0, 0]}
-                    />
-                    <Bar 
-                      name="Delivery" 
-                      dataKey="delivery" 
-                      stackId={chartViewMode === 'stacked' ? 'a' : undefined} 
-                      fill="#4f46e5" 
-                      radius={[6, 6, 0, 0]}
-                    />
-                  </BarChart>
-                )}
-              </ResponsiveContainer>
+              {deliveryVsBalcaoAnnualData.some(d => d.total > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  {chartViewMode === 'area' ? (
+                    <AreaChart data={deliveryVsBalcaoAnnualData} onClick={(data: any) => {
+                      if (data && data.activePayload && data.activePayload[0]) {
+                        const payload = data.activePayload[0].payload;
+                        setSelectedChartMonthCode(payload.monthCode);
+                      }
+                    }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
+                      <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 10}} />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fill: '#888', fontSize: 10}} 
+                        tickFormatter={formatCleanYAxisCurrency}
+                      />
+                      <Tooltip
+                        labelStyle={{ color: '#888', fontWeight: 'bold' }}
+                        contentStyle={{
+                          borderRadius: '16px',
+                          border: 'none',
+                          backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
+                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                          fontSize: '11px',
+                          fontWeight: 'bold'
+                        }}
+                        formatter={(val: number) => [formatCurrency(val)]}
+                      />
+                      <defs>
+                        <linearGradient id="colorBalcao" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={isDarkMode ? '#64748b' : '#FFB800'} stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor={isDarkMode ? '#64748b' : '#FFB800'} stopOpacity={0}/>
+                        </linearGradient>
+                        <linearGradient id="colorDelivery" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.4}/>
+                          <stop offset="95%" stopColor="#4f46e5" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" name="Balcão" dataKey="balcao" stroke={isDarkMode ? '#64748b' : '#FFB800'} strokeWidth={3} fillOpacity={1} fill="url(#colorBalcao)" />
+                      <Area type="monotone" name="Delivery" dataKey="delivery" stroke="#4f46e5" strokeWidth={3} fillOpacity={1} fill="url(#colorDelivery)" />
+                    </AreaChart>
+                  ) : (
+                    <BarChart data={deliveryVsBalcaoAnnualData} onClick={(data: any) => {
+                      if (data && data.activePayload && data.activePayload[0]) {
+                        const payload = data.activePayload[0].payload;
+                        setSelectedChartMonthCode(payload.monthCode);
+                      }
+                    }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? "#333" : "#f0f0f0"} />
+                      <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{fill: '#888', fontSize: 10}} />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{fill: '#888', fontSize: 10}} 
+                        tickFormatter={formatCleanYAxisCurrency}
+                      />
+                      <Tooltip
+                        labelStyle={{ color: '#888', fontWeight: 'bold' }}
+                        contentStyle={{
+                          borderRadius: '16px',
+                          border: 'none',
+                          backgroundColor: isDarkMode ? '#1E1E1E' : '#fff',
+                          boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+                          fontSize: '11px',
+                          fontWeight: 'bold'
+                        }}
+                        formatter={(val: number) => [formatCurrency(val)]}
+                      />
+                      <Bar 
+                        name="Balcão" 
+                        dataKey="balcao" 
+                        stackId={chartViewMode === 'stacked' ? 'a' : undefined} 
+                        fill={isDarkMode ? '#64748b' : '#FFB800'} 
+                        radius={chartViewMode === 'stacked' ? [0, 0, 0, 0] : [6, 6, 0, 0]}
+                      />
+                      <Bar 
+                        name="Delivery" 
+                        dataKey="delivery" 
+                        stackId={chartViewMode === 'stacked' ? 'a' : undefined} 
+                        fill="#4f46e5" 
+                        radius={[6, 6, 0, 0]}
+                      />
+                    </BarChart>
+                  )}
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-center p-6 bg-slate-50/50 dark:bg-black/10 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800">
+                  <ShoppingBag className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-2" />
+                  <span className="text-xs font-bold text-slate-500">Sem lançamentos de canais em {selectedYear}</span>
+                  <span className="text-[10px] text-slate-400 mt-0.5">Lance os valores por canal para visualizar a distribuição</span>
+                </div>
+              )}
             </div>
 
             {/* Custom Interactive Legends */}
@@ -1961,20 +2174,33 @@ export default function Dashboard() {
             {derivedOperationalMetrics.map((op) => {
               const Icon = op.icon === 'Clock' ? Clock : op.icon === 'Star' ? Star : op.icon === 'ShoppingBag' ? ShoppingBag : Target;
               return (
-                <div key={op.label}>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <Icon className="w-4 h-4 text-slate-400" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{op.label}</span>
+                <div key={op.label} className="p-4 rounded-2xl border border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-black/20">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-slate-200/50 dark:bg-zinc-800 text-slate-600 dark:text-slate-300">
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black uppercase tracking-tight text-slate-900 dark:text-white">{op.label}</span>
+                          <span className="text-[10px] font-semibold text-slate-400">({op.target})</span>
+                        </div>
+                        <span className={`inline-block mt-0.5 text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${op.badgeClass}`}>
+                          {op.statusText}
+                        </span>
+                      </div>
                     </div>
-                    <span className={`text-sm font-black ${isDarkMode ? 'dark:text-white' : 'text-slate-900'}`}>{op.valor}</span>
+                    <div className="text-left sm:text-right">
+                      <span className={`text-base font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{op.valor}</span>
+                    </div>
                   </div>
-                  <div className="h-1.5 bg-slate-100 dark:bg-[#333] rounded-full overflow-hidden">
+                  <div className="h-2.5 bg-slate-200/60 dark:bg-zinc-800 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: `${op.percent}%` }}
-                      className={`h-full rounded-full transition-colors duration-500`}
-                      style={{ backgroundColor: op.critical ? '#991B1B' : brandColors.button }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ backgroundColor: op.color }}
                     />
                   </div>
                 </div>

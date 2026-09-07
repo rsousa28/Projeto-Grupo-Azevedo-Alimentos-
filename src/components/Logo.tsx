@@ -15,6 +15,8 @@ export const Logo: React.FC<LogoProps> = ({
   const colorClass = 
     variant === 'dark' 
       ? 'text-[#16120b]' 
+      : variant === 'gold'
+      ? 'text-[#FFCB05]'
       : 'text-white';
 
   return (

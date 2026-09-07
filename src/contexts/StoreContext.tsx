@@ -55,7 +55,7 @@ interface StoreContextType {
 export const STORES: Store[] = [
   { 
     id: '1', 
-    name: 'B32 (Mossoró)', 
+    name: 'B32 (MOSSORÓ)', 
     brand: 'BEBELU', 
     location: 'Mossoró - Espaço Fan', 
     code: 'B32',
@@ -64,7 +64,7 @@ export const STORES: Store[] = [
   },
   { 
     id: '2', 
-    name: 'B28 (Bebelu Rio Mar)', 
+    name: 'B28 (BEBELU RIO MAR)', 
     brand: 'BEBELU', 
     location: 'Rio Mar Shopping - Fortaleza', 
     code: 'B28',
@@ -73,18 +73,18 @@ export const STORES: Store[] = [
   },
   { 
     id: '3', 
-    name: 'Vero Pasta', 
+    name: 'VERO PASTA', 
     brand: 'VERO PASTA', 
-    location: 'Gastronomia & Cozinha Italiana', 
+    location: 'Fortaleza - CE', 
     code: 'VERO',
     type: 'STORE',
     subtitle: 'Loja Física Operacional'
   },
   { 
     id: 'admin-global', 
-    name: 'Gestão Grupo AZ', 
+    name: 'GESTÃO GRUPO AZ', 
     brand: 'GRUPO AZEVEDO', 
-    location: 'Holding Financeira / Corporativo', 
+    location: 'Governança Corporativa', 
     code: 'ROOT',
     type: 'HOLDING',
     subtitle: 'Holding & Visão Executiva',

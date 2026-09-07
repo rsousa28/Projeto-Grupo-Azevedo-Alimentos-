@@ -36,7 +36,8 @@ import {
   RotateCcw,
   Mail,
   CheckCircle2,
-  Cloud
+  Cloud,
+  UploadCloud
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -546,6 +547,12 @@ export default function AccountsPayable() {
   const [attachedFileBase64, setAttachedFileBase64] = useState<string | null>(null);
   const [attachedNFBase64, setAttachedNFBase64] = useState<string | null>(null);
 
+  // Drag & Drop Zone and auto-fill states
+  const dropZoneInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [uploadSuccessFeedback, setUploadSuccessFeedback] = useState<string | null>(null);
+  const [isProcessingFile, setIsProcessingFile] = useState(false);
+
   // Auto-Save status tracking for Accounts Payable form
   const [apSaveStatus, setApSaveStatus] = useState<'IDLE' | 'SAVING' | 'SAVED'>('IDLE');
   const [apLastSavedTime, setApLastSavedTime] = useState<string | null>(null);
@@ -964,6 +971,162 @@ export default function AccountsPayable() {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
   };
 
+  // Bank code identification mapping for Brazilian banking slips
+  const BANK_CODES_MAP: Record<string, string> = {
+    '001': 'Banco do Brasil',
+    '033': 'Santander',
+    '104': 'Caixa Econômica Federal',
+    '237': 'Bradesco',
+    '341': 'Itaú',
+    '260': 'Nubank',
+    '077': 'Banco Inter',
+    '748': 'Sicredi',
+    '756': 'Sicoob',
+    '422': 'Banco Safra',
+    '655': 'Banco Votorantim',
+    '212': 'Banco Original',
+    '041': 'Banrisul',
+    '389': 'Banco Mercantil',
+    '070': 'BRB',
+    '136': 'Unicred',
+    '208': 'BTG Pactual',
+    '336': 'C6 Bank'
+  };
+
+  // Parser for NF-e XML invoices
+  const parseNFeXML = (xmlString: string) => {
+    try {
+      const parser = new DOMParser();
+      const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+
+      // Fornecedor: <emit><xNome> ou <emit><xFant>
+      const emitNode = xmlDoc.querySelector('emit');
+      const xNome = emitNode?.querySelector('xNome')?.textContent?.trim() || 
+                    emitNode?.querySelector('xFant')?.textContent?.trim() || '';
+
+      // Número NF: <ide><nNF>
+      const ideNode = xmlDoc.querySelector('ide');
+      const nNF = ideNode?.querySelector('nNF')?.textContent?.trim() || '';
+
+      // Data Emissão: <ide><dhEmi> (extrair YYYY-MM-DD)
+      const rawDhEmi = ideNode?.querySelector('dhEmi')?.textContent?.trim() || 
+                       ideNode?.querySelector('dEmi')?.textContent?.trim() || '';
+      const issueDate = rawDhEmi ? rawDhEmi.substring(0, 10) : '';
+
+      // Valor: <cobr><dup><vDup> ou <total><ICMSTot><vNF>
+      const vDup = xmlDoc.querySelector('cobr dup vDup')?.textContent?.trim();
+      const vNF = xmlDoc.querySelector('total ICMSTot vNF')?.textContent?.trim() ||
+                  xmlDoc.querySelector('ICMSTot vNF')?.textContent?.trim();
+      const rawVal = vDup || vNF || '';
+      const parsedVal = rawVal ? parseFloat(rawVal.replace(',', '.')) : 0;
+
+      // Vencimento: <cobr><dup><dVenc>
+      const rawDVenc = xmlDoc.querySelector('cobr dup dVenc')?.textContent?.trim();
+      const dueDate = rawDVenc ? rawDVenc.substring(0, 10) : '';
+
+      // Descrição: Compra referente a NF ${nNF} - ${xNome}
+      const description = nNF ? `Compra referente a NF ${nNF}${xNome ? ` - ${xNome}` : ''}` : (xNome ? `Compra referente a NF - ${xNome}` : '');
+
+      return {
+        supplier: xNome,
+        value: !isNaN(parsedVal) && parsedVal > 0 ? parsedVal : 0,
+        documentNumber: nNF ? `NF-${nNF}` : '',
+        issueDate,
+        dueDate,
+        description,
+        category: 'Insumos/Mercadorias'
+      };
+    } catch (e) {
+      console.error('Error parsing NF-e XML:', e);
+      return {
+        supplier: '',
+        value: 0,
+        documentNumber: '',
+        issueDate: '',
+        dueDate: '',
+        description: '',
+        category: 'Insumos/Mercadorias'
+      };
+    }
+  };
+
+  // Parser for Boleto Linha Digitável
+  const parseBoletoLinhaDigitavel = (rawText: string) => {
+    if (!rawText) return null;
+
+    // Formatted match or raw consecutive digits (47 or 48)
+    const match47 = rawText.match(/\b\d{5}[\.\s]?\d{5}\s*\d{5}[\.\s]?\d{6}\s*\d{5}[\.\s]?\d{6}\s*\d\s*\d{14}\b/);
+    const match48 = rawText.match(/\b\d{11,12}[-\s]?\d{1}\s*\d{11,12}[-\s]?\d{1}\s*\d{11,12}[-\s]?\d{1}\s*\d{11,12}[-\s]?\d{1}\b/);
+    
+    let linha = '';
+    if (match47) {
+      linha = match47[0].replace(/[^\d]/g, '');
+    } else if (match48) {
+      linha = match48[0].replace(/[^\d]/g, '');
+    } else {
+      const cleaned = rawText.replace(/[^\d]/g, '');
+      const pureMatch = cleaned.match(/\d{47,48}/);
+      if (pureMatch) {
+        linha = pureMatch[0];
+      }
+    }
+
+    if (!linha || (linha.length !== 47 && linha.length !== 48)) {
+      return null;
+    }
+
+    // Identify bank from first 3 digits
+    const bankCode = linha.substring(0, 3);
+    const bankName = BANK_CODES_MAP[bankCode] || (bankCode === '001' ? 'Banco do Brasil' : `Banco (${bankCode})`);
+
+    let value: number | null = null;
+    let dueDate: string | null = null;
+    let formattedBarcode = linha;
+
+    if (linha.length === 47) {
+      // Format: AAABC.CCCCX DDDDD.DDDDDY EEEEE.EEEEEZ K UUUUVVVVVVVVVV
+      formattedBarcode = `${linha.slice(0, 5)}.${linha.slice(5, 10)} ${linha.slice(10, 15)}.${linha.slice(15, 21)} ${linha.slice(21, 26)}.${linha.slice(26, 32)} ${linha.slice(32, 33)} ${linha.slice(33)}`;
+
+      // Last 14 digits: 4 digits factor, 10 digits value in cents
+      const factorStr = linha.slice(33, 37);
+      const valueStr = linha.slice(37, 47);
+      const cents = parseInt(valueStr, 10);
+      if (!isNaN(cents) && cents > 0) {
+        value = cents / 100;
+      }
+
+      const factor = parseInt(factorStr, 10);
+      if (!isNaN(factor) && factor >= 1000) {
+        // Base date: 1997-10-07. For factors >= 1000 and < 9999 or post 2025:
+        const baseDate = factor < 3000 ? new Date(2025, 1, 22) : new Date(1997, 9, 7);
+        const daysToAdd = factor < 3000 ? (factor - 1000) : factor;
+        const targetDate = new Date(baseDate.getTime() + daysToAdd * 24 * 60 * 60 * 1000);
+        if (!isNaN(targetDate.getTime())) {
+          const y = targetDate.getFullYear();
+          const m = String(targetDate.getMonth() + 1).padStart(2, '0');
+          const d = String(targetDate.getDate()).padStart(2, '0');
+          dueDate = `${y}-${m}-${d}`;
+        }
+      }
+    } else if (linha.length === 48) {
+      formattedBarcode = `${linha.slice(0, 12)} ${linha.slice(12, 24)} ${linha.slice(24, 36)} ${linha.slice(36, 48)}`;
+      const valueStr = linha.slice(4, 15);
+      const cents = parseInt(valueStr, 10);
+      if (!isNaN(cents) && cents > 0) {
+        value = cents / 100;
+      }
+    }
+
+    return {
+      linhaDigitavel: formattedBarcode,
+      rawDigits: linha,
+      bankCode,
+      bank: bankName,
+      value,
+      dueDate
+    };
+  };
+
   // Core Deterministic Offline OCR Parser (Saves API bandwidth and operates 100% locally with high precision)
   const extractInvoiceInfoFromBase64 = async (filename: string, base64: string): Promise<{
     supplier: string;
@@ -1166,6 +1329,99 @@ export default function AccountsPayable() {
       }
     };
     reader.readAsDataURL(file);
+  };
+
+  // Upload e processamento por Drag & Drop no modal de Novo Lançamento
+  const processDroppedOrUploadedFile = async (file: File) => {
+    if (!file) return;
+    setIsProcessingFile(true);
+
+    try {
+      const isXML = file.name.toLowerCase().endsWith('.xml') || file.type.includes('xml');
+
+      // Converter arquivo para Base64 para visualização e persistência
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+      const base64 = await base64Promise;
+
+      if (isXML) {
+        const text = await file.text();
+        const nfeData = parseNFeXML(text);
+
+        if (nfeData.supplier) setFormSupplier(nfeData.supplier);
+        if (nfeData.value > 0) setFormValue(nfeData.value.toFixed(2));
+        if (nfeData.documentNumber) setFormDocumentNumber(nfeData.documentNumber);
+        if (nfeData.issueDate) setFormIssueDate(nfeData.issueDate);
+        if (nfeData.dueDate) setFormDueDate(nfeData.dueDate);
+        if (nfeData.description) setFormDescription(nfeData.description);
+        if (nfeData.category) setFormCategory(nfeData.category);
+
+        setAttachedNFBase64(base64);
+        setUploadSuccessFeedback(`Dados extraídos com sucesso do arquivo ${file.name}!`);
+        setTimeout(() => setUploadSuccessFeedback(null), 5000);
+      } else {
+        // PDF do boleto ou imagem
+        let textContent = '';
+        try {
+          textContent = await file.text();
+        } catch (err) {
+          console.warn('Could not read file as text:', err);
+        }
+
+        const boletoInfo = parseBoletoLinhaDigitavel(textContent);
+        if (boletoInfo) {
+          setFormBarcode(boletoInfo.linhaDigitavel);
+          setFormBank(boletoInfo.bank);
+          if (boletoInfo.value && boletoInfo.value > 0) {
+            setFormValue(boletoInfo.value.toFixed(2));
+          }
+          if (boletoInfo.dueDate) {
+            setFormDueDate(boletoInfo.dueDate);
+          }
+        }
+
+        // Executar extração heurística inteligente para campos restantes (ou se o PDF for escaneado)
+        const heuristic = await extractInvoiceInfoFromBase64(file.name, base64);
+        if (!formSupplier || formSupplier.trim() === '') {
+          setFormSupplier(heuristic.supplier);
+        }
+        if ((!boletoInfo?.value || boletoInfo.value === 0) && heuristic.value > 0) {
+          setFormValue(heuristic.value.toFixed(2));
+        }
+        if ((!boletoInfo?.dueDate || !boletoInfo.dueDate) && heuristic.dueDate) {
+          setFormDueDate(heuristic.dueDate);
+        }
+        if (!boletoInfo && heuristic.barcode) {
+          setFormBarcode(heuristic.barcode);
+        }
+        if (!boletoInfo && heuristic.bank) {
+          setFormBank(heuristic.bank);
+        }
+        if (!formDescription || formDescription.trim() === '') {
+          setFormDescription(heuristic.description);
+        }
+        if (!formDocumentNumber || formDocumentNumber.trim() === '') {
+          setFormDocumentNumber(heuristic.documentNumber);
+        }
+        if (heuristic.category) {
+          setFormCategory(heuristic.category);
+        }
+
+        setAttachedFileBase64(base64);
+        setUploadSuccessFeedback(`Dados extraídos com sucesso do arquivo ${file.name}!`);
+        setTimeout(() => setUploadSuccessFeedback(null), 5000);
+      }
+    } catch (error) {
+      console.error('Error processing uploaded file:', error);
+      setUploadSuccessFeedback(`Arquivo processado: ${file.name}`);
+      setTimeout(() => setUploadSuccessFeedback(null), 4000);
+    } finally {
+      setIsProcessingFile(false);
+      setIsDraggingFile(false);
+    }
   };
 
   // Importação de Lote de Boletos com processamento local avançado (Sem IA)
@@ -3181,49 +3437,6 @@ export default function AccountsPayable() {
         </div>
       </div>
 
-      {/* ALERT AND BADGES BANNER */}
-      <div className="mb-6 flex flex-col md:flex-row flex-wrap items-stretch md:items-center gap-3.5">
-        {dueTodayCount > 0 && (
-          <div className="flex items-center gap-3.5 p-3.5 px-4.5 rounded-2xl border bg-amber-500/[0.03] border-amber-500/15 text-amber-805 dark:text-amber-300 dark:bg-amber-500/[0.02] dark:border-amber-500/12 text-xs shadow-sm w-full md:w-auto transition-all hover:bg-amber-500/[0.05] hover:border-amber-500/25">
-            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 shrink-0 shadow-sm">
-              <AlertCircle className="w-4 h-4 animate-pulse text-amber-555 dark:text-amber-400" />
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9.5px] font-extrabold tracking-widest text-amber-600 dark:text-amber-450 uppercase font-sans">Vencimento Hoje</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200">
-                {dueTodayCount} {dueTodayCount === 1 ? 'conta vence' : 'contas vencem'} hoje ({todayStr.split('-').reverse().join('/')})
-              </span>
-            </div>
-          </div>
-        )}
-        {dueTomorrowCount > 0 && (
-          <div className="flex items-center gap-3.5 p-3.5 px-4.5 rounded-2xl border bg-orange-500/[0.03] border-orange-500/15 text-orange-805 dark:text-orange-300 dark:bg-orange-500/[0.02] dark:border-orange-500/12 text-xs shadow-sm w-full md:w-auto transition-all hover:bg-orange-500/[0.05] hover:border-orange-500/25">
-            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-orange-500/10 text-orange-600 dark:text-orange-400 shrink-0 shadow-sm">
-              <Clock className="w-4 h-4 text-orange-555 dark:text-orange-450" />
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9.5px] font-extrabold tracking-widest text-orange-600 dark:text-orange-450 uppercase font-sans">Prazo Próximo</span>
-              <span className="font-bold text-slate-800 dark:text-slate-200">
-                {dueTomorrowCount} {dueTomorrowCount === 1 ? 'conta vence' : 'contas vencem'} amanhã
-              </span>
-            </div>
-          </div>
-        )}
-        {overdueCount > 0 && (
-          <div className="flex items-center gap-3.5 p-3.5 px-4.5 rounded-2xl border bg-red-500/[0.03] border-red-500/15 text-red-805 dark:text-red-300 dark:bg-red-500/[0.02] dark:border-red-500/12 text-xs shadow-sm w-full md:w-auto transition-all hover:bg-red-500/[0.05] hover:border-red-500/25">
-            <div className="flex items-center justify-center w-7 h-7 rounded-xl bg-red-500/10 text-red-605 dark:text-red-400 shrink-0 shadow-sm animate-pulse">
-              <AlertTriangle className="w-4 h-4 text-red-555 dark:text-red-400" />
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[9.5px] font-extrabold tracking-widest text-red-650 dark:text-red-450 uppercase font-sans font-sans">Atraso Crítico</span>
-              <span className="font-bold text-slate-850 dark:text-slate-150">
-                {overdueCount} {overdueCount === 1 ? 'conta está vencida' : 'contas estão vencidas'} no sistema
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* METRIC PILLS & KPI BENTO GRID */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         
@@ -3240,9 +3453,18 @@ export default function AccountsPayable() {
           <div className="text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
             {formatValueBrl(bentoTodayVal)}
           </div>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5">
-            Ref. {todayStr.split('-').reverse().slice(0,2).join('/')}
-          </p>
+          <div className="mt-2.5 flex items-center justify-between gap-1 flex-wrap">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">
+              Ref. {todayStr.split('-').reverse().slice(0,2).join('/')}
+            </span>
+            {dueTodayCount > 0 ? (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse">
+                {dueTodayCount} {dueTodayCount === 1 ? 'vence hoje' : 'vencem hoje'}
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Em dia</span>
+            )}
+          </div>
         </div>
 
         {/* KPI 2 - Vencidos */}
@@ -3262,9 +3484,19 @@ export default function AccountsPayable() {
           <div className="text-2xl font-display font-extrabold tracking-tight text-red-600 dark:text-red-400 leading-none">
             {formatValueBrl(bentoOverdueVal)}
           </div>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5 flex items-center gap-1">
-            Prioridade de Quitação Fina <span className="text-red-550 dark:text-red-400 font-mono font-bold">({overdueAccounts.length})</span>
-          </p>
+          <div className="mt-2.5 flex items-center justify-between gap-1 flex-wrap">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">
+              Prioridade Quitação
+            </span>
+            {overdueCount > 0 ? (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-600 dark:text-red-400 border border-red-500/25 flex items-center gap-1 animate-pulse">
+                <AlertTriangle className="w-3 h-3 text-red-500" />
+                {overdueCount} {overdueCount === 1 ? 'atraso crítico' : 'atrasos críticos'}
+              </span>
+            ) : (
+              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400">Sem atrasos</span>
+            )}
+          </div>
         </div>
 
         {/* KPI 3 - Pagos no Mês */}
@@ -3286,9 +3518,14 @@ export default function AccountsPayable() {
           <div className="text-2xl font-display font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
             {formatValueBrl(bentoPaidMonthVal)}
           </div>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5 flex items-center gap-1">
-            Volume em {months.find(m => m.value === selectedMonth)?.label || 'este mês'} <span className="text-emerald-600 dark:text-emerald-400 font-mono font-bold">({rawPaidMonthAccounts.length})</span>
-          </p>
+          <div className="mt-2.5 flex items-center justify-between gap-1 flex-wrap">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest truncate max-w-[120px]">
+              {months.find(m => m.value === selectedMonth)?.label || 'Este mês'}
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              {rawPaidMonthAccounts.length} quitadas
+            </span>
+          </div>
         </div>
 
         {/* KPI 4 - Próximos Vencimentos */}
@@ -3311,9 +3548,21 @@ export default function AccountsPayable() {
           <div className="text-2xl font-display font-extrabold tracking-tight leading-none" style={{ color: themeButtonBg }}>
             {formatValueBrl(bentoUpcomingVal)}
           </div>
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest mt-2.5 flex items-center gap-1">
-            Destaques de Provisão <span className="font-mono font-bold" style={{ color: themeButtonBg }}>({rawUpcomingAccounts.length})</span>
-          </p>
+          <div className="mt-2.5 flex items-center justify-between gap-1 flex-wrap">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">
+              Provisão
+            </span>
+            {dueTomorrowCount > 0 ? (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400 border border-orange-500/25 flex items-center gap-1">
+                <Clock className="w-3 h-3 text-orange-500" />
+                {dueTomorrowCount} amanhã
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-500/10 text-slate-500 dark:text-slate-400">
+                {rawUpcomingAccounts.length} provisões
+              </span>
+            )}
+          </div>
         </div>
 
       </div>
@@ -3717,9 +3966,9 @@ export default function AccountsPayable() {
                         <div className={`flex flex-col gap-0.5 font-semibold ${dueDateColor}`}>
                           <span className="text-xs font-mono">{dueFormatted}</span>
                           {overdueDaysLabel}
-                          {isPaid && ac.paymentDate && (
-                            <span className="text-[9px] text-[#5D811D] dark:text-[#a3d943] font-medium leading-none">
-                              Pago: {ac.paymentDate.split(' ')[0]}
+                          {isPaid && Boolean(ac.paymentDate) && (
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold leading-none bg-emerald-500/15 px-2 py-0.5 rounded inline-block mt-0.5 border border-emerald-500/20">
+                              Pago: {ac.paymentDate.split(' ')[0].split('-').reverse().join('/')}
                             </span>
                           )}
                         </div>
@@ -3729,12 +3978,12 @@ export default function AccountsPayable() {
                           <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
                             {formatValueBrl(ac.value)}
                           </span>
-                          {isPartial && ac.partialAmountPaid && (
+                          {isPartial && Boolean(ac.partialAmountPaid) && (
                             <span className="text-[9.5px] text-amber-500 font-bold leading-none mt-0.5">
-                              Pago R$ {ac.partialAmountPaid}
+                              Pago {formatValueBrl(ac.partialAmountPaid || 0)}
                             </span>
                           )}
-                          {ac.status === 'Pago' && (ac.fine || ac.interest) && (
+                          {ac.status === 'Pago' && Boolean(((ac.fine || 0) > 0) || ((ac.interest || 0) > 0)) && (
                             <span className="text-[9.5px] text-emerald-500 font-bold leading-none mt-0.5">
                               Quit.: {formatValueBrl(ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0))}
                             </span>
@@ -3788,7 +4037,7 @@ export default function AccountsPayable() {
                                 setPaymentDateVal(getTodayStr());
                                 setShowPaymentModal(true);
                               }}
-                              className="px-3 py-1.5 text-xs font-black rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 hover:text-emerald-700 transition-all cursor-pointer"
+                              className="px-3 py-1.5 text-xs font-black rounded-lg bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25 border border-emerald-500/25 transition-all cursor-pointer shadow-2xs"
                             >
                               Pagar
                             </button>
@@ -3804,17 +4053,17 @@ export default function AccountsPayable() {
                               setEditAttachedFile(ac.attachedFile || null);
                               setEditAttachedNF(ac.taxInvoiceFile || null);
                             }}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/10 transition-all cursor-pointer"
+                            className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#222] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-500/15 border border-slate-200/60 dark:border-[#333] transition-all cursor-pointer shadow-2xs"
                             title="Editar Dados do Boleto"
                           >
-                            <Pencil className="w-4.5 h-4.5" />
+                            <Pencil className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDeleteSingle(ac.id, ac.supplier)}
-                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer"
+                            className="p-1.5 rounded-lg text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 hover:text-red-700 dark:hover:text-red-300 border border-red-500/20 transition-all cursor-pointer shadow-2xs"
                             title="Excluir Lançamento"
                           >
-                            <Trash2 className="w-4.5 h-4.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>
@@ -3949,6 +4198,11 @@ export default function AccountsPayable() {
                             {dueFormatted}
                           </span>
                           {overdueDaysLabel}
+                          {isPaid && Boolean(ac.paymentDate) && (
+                            <span className="text-[10px] text-emerald-700 dark:text-emerald-300 font-bold leading-none bg-emerald-500/15 px-2 py-0.5 rounded inline-block mt-0.5 border border-emerald-500/20">
+                              Pago: {ac.paymentDate.split(' ')[0].split('-').reverse().join('/')}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -3958,12 +4212,12 @@ export default function AccountsPayable() {
                       <span className="text-[13px] font-bold text-slate-900 dark:text-white font-mono mt-0.5">
                         {formatValueBrl(ac.value)}
                       </span>
-                      {isPartial && ac.partialAmountPaid && (
+                      {isPartial && Boolean(ac.partialAmountPaid) && (
                         <span className="text-[9.5px] text-amber-500 font-bold leading-none mt-0.5">
-                          Pago R$ {ac.partialAmountPaid}
+                          Pago {formatValueBrl(ac.partialAmountPaid || 0)}
                         </span>
                       )}
-                      {ac.status === 'Pago' && (ac.fine || ac.interest) && (
+                      {ac.status === 'Pago' && Boolean(((ac.fine || 0) > 0) || ((ac.interest || 0) > 0)) && (
                         <span className="text-[9.5px] text-emerald-500 font-bold leading-none mt-0.5">
                           Quit.: {formatValueBrl(ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0))}
                         </span>
@@ -4036,7 +4290,7 @@ export default function AccountsPayable() {
                           setEditAttachedFile(ac.attachedFile || null);
                           setEditAttachedNF(ac.taxInvoiceFile || null);
                         }}
-                        className="p-2 rounded-xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/10 active:scale-95 transition-all cursor-pointer w-10 h-10 flex items-center justify-center border border-slate-100 dark:border-zinc-800"
+                        className="p-2 rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#222] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-500/15 active:scale-95 transition-all cursor-pointer w-10 h-10 flex items-center justify-center border border-slate-200/60 dark:border-zinc-800 shadow-2xs"
                         title="Editar"
                       >
                         <Pencil className="w-4 h-4" />
@@ -4044,7 +4298,7 @@ export default function AccountsPayable() {
                       <button
                         type="button"
                         onClick={() => handleDeleteSingle(ac.id, ac.supplier)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-500/10 active:scale-95 transition-all cursor-pointer w-10 h-10 flex items-center justify-center border border-slate-100 dark:border-zinc-800"
+                        className="p-2 rounded-xl text-red-600 dark:text-red-400 bg-red-500/10 hover:bg-red-500/20 active:scale-95 transition-all cursor-pointer w-10 h-10 flex items-center justify-center border border-red-500/20 shadow-2xs"
                         title="Excluir"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -4452,6 +4706,88 @@ export default function AccountsPayable() {
 
               {/* MAIN RECORD FORM */}
               <form onSubmit={handleSubmitAccount} className="flex-1 flex flex-col gap-4">
+
+                {/* DRAG & DROP ZONE FOR NFE XML & BOLETO PDF */}
+                <div className="flex flex-col gap-2">
+                  <input
+                    type="file"
+                    ref={dropZoneInputRef}
+                    accept=".xml,.pdf,image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        processDroppedOrUploadedFile(file);
+                        e.target.value = '';
+                      }
+                    }}
+                  />
+
+                  <div
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(false);
+                      const file = e.dataTransfer.files?.[0];
+                      if (file) {
+                        processDroppedOrUploadedFile(file);
+                      }
+                    }}
+                    onClick={() => dropZoneInputRef.current?.click()}
+                    className={`relative border-2 border-dashed rounded-2xl p-5 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-2 group ${
+                      isDraggingFile 
+                        ? 'border-amber-500 bg-amber-500/10 scale-[1.01]' 
+                        : isDarkMode 
+                          ? 'border-zinc-700 hover:border-amber-500/60 bg-[#141414] hover:bg-[#181818]' 
+                          : 'border-slate-300 hover:border-amber-500/60 bg-slate-50/70 hover:bg-amber-50/30'
+                    }`}
+                  >
+                    {isProcessingFile ? (
+                      <div className="flex flex-col items-center gap-2 py-2">
+                        <RefreshCw className="w-8 h-8 text-amber-500 animate-spin" />
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          Processando e extraindo dados do arquivo...
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          Lendo XML / PDF e preenchendo os campos automaticamente
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center group-hover:scale-110 transition-transform shadow-xs">
+                          <UploadCloud className="w-6 h-6" />
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
+                            Arraste ou clique para enviar <span className="underline decoration-amber-500/50">XML de NF-e</span> ou <span className="underline decoration-amber-500/50">PDF de Boleto</span>
+                          </span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                            Auto-preenchimento instantâneo de fornecedor, valor, datas, documento e código de barras
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* SUCCESS FEEDBACK BADGE */}
+                  {uploadSuccessFeedback && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 text-xs font-bold shadow-2xs"
+                    >
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="flex-1">{uploadSuccessFeedback}</span>
+                    </motion.div>
+                  )}
+                </div>
                 
                 {currentStore.code === 'ROOT' && (
                   <div className="flex flex-col gap-1">

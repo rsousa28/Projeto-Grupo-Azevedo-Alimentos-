@@ -436,6 +436,7 @@ export default function DataEntrySection({
   const mktRoas = mktInvestidoLoja > 0 ? mktVendasValor / mktInvestidoLoja : 0;
   const prevRoas = (prevMkt?.investidoLoja || 0) > 0 ? (prevMkt?.vendasValor || 0) / (prevMkt?.investidoLoja || 0) : 0;
   const trendRoas = calculateTrend(mktRoas, prevRoas);
+  const mktCac = mktPedidosPromocao > 0 ? (mktInvestidoLoja / mktPedidosPromocao) : 0;
 
   // ROAS classification
   let roasStatus = 'Regular';
@@ -1331,7 +1332,7 @@ export default function DataEntrySection({
                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">Retorno p/ Real (ROAS)</span>
                     <div className="flex items-center gap-2 pt-1 flex-wrap">
                       <span className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                        R${mktRoas.toFixed(2).replace('.', ',')}
+                        {mktRoas.toFixed(2).replace('.', ',')}x
                       </span>
                       <span className={`text-[10px] px-1.5 py-0.5 rounded font-black tracking-widest uppercase border ${roasColor}`}>
                         {roasStatus}
@@ -1441,7 +1442,7 @@ export default function DataEntrySection({
                   <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Parâmetros da Campanha de Marketing</h4>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[#7D7D7D] dark:text-slate-400">Valor Total de Vendas das campanhas</label>
                     <div className="relative">
@@ -1471,6 +1472,21 @@ export default function DataEntrySection({
                       />
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-[#7D7D7D] dark:text-slate-400">Total de Pedidos Rastreados</label>
+                    <div className="relative">
+                      <input 
+                        type="number"
+                        placeholder="0"
+                        value={mktPedidosPromocao || ''}
+                        onPaste={(e) => handleNumericPaste(e, setMktPedidosPromocao)}
+                        onChange={(e) => setMktPedidosPromocao(e.target.value === '' ? 0 : Number(e.target.value))}
+                        onBlur={() => handleSave(true)}
+                        className={`w-full px-4 py-3 rounded-xl border outline-none font-bold focus:ring-2 focus:ring-[#E63946] transition-all ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-[#E63946]' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-[#E63946]'}`}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1492,12 +1508,50 @@ export default function DataEntrySection({
         <div className="space-y-6">
           {activeTab === 'marketing' ? (
             <>
-              {/* Marketing Specific tips */}
-              <div className={`p-8 rounded-[2rem] border transition-all ${
+              {/* Marketing Lateral Metrics */}
+              <div className={`p-6 md:p-8 rounded-[2rem] border transition-all ${
                 isDarkMode ? 'bg-[#1E1E1E] border-[#333]' : 'bg-white border-slate-100 shadow-sm'
               }`}>
-                <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-6 italic">Métricas de Otimização</h4>
-                <div className="space-y-6">
+                <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-5 italic">Performance de Aquisição</h4>
+
+                <div className="space-y-4 mb-6">
+                  {/* CAC / CPA Estimado */}
+                  <div className={`p-4 rounded-2xl border transition-all ${
+                    isDarkMode ? 'bg-[#141414] border-[#2A2A2A]' : 'bg-slate-50/80 border-slate-150'
+                  }`}>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                      Custo por Pedido (CAC / CPA estimado)
+                    </span>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className={`text-xl font-black font-mono tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        {mktCac > 0 ? formatCurrency(mktCac) : 'R$ 0,00'}
+                      </span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                        {mktPedidosPromocao > 0 ? `${mktPedidosPromocao} pedidos` : 'Sem pedidos'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Total de Pedidos Rastreados */}
+                  <div className={`p-4 rounded-2xl border transition-all ${
+                    isDarkMode ? 'bg-[#141414] border-[#2A2A2A]' : 'bg-slate-50/80 border-slate-150'
+                  }`}>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1">
+                      Total de Pedidos Rastreados
+                    </span>
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className={`text-xl font-black font-mono tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        {mktPedidosPromocao}
+                      </span>
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                        Rastreados
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <h4 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400 mb-4 italic">Métricas de Otimização</h4>
+                <div className="space-y-4">
                   {[
                     { icon: Sparkles, text: 'ROAS ideal para campanhas de marketing deve ser acima de 5,0x (Retorno excelente).', color: 'text-rose-500' },
                     { icon: AlertCircle, text: 'Monitore o investimento total em relação ao faturamento para evitar estouro de verba.', color: 'text-amber-500' },
