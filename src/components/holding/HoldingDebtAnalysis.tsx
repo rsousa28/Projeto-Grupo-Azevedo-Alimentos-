@@ -5,7 +5,6 @@ import {
   Plus, 
   DollarSign, 
   CheckCircle2, 
-  TrendingUp, 
   Percent, 
   X, 
   Receipt, 
@@ -13,7 +12,6 @@ import {
   Trash2,
   Pencil,
   PieChart as PieChartIcon,
-  Wallet,
   Calendar,
   AlertCircle
 } from 'lucide-react';
@@ -457,49 +455,9 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
         </button>
       </div>
 
-      {/* 1. Limpeza e Humanização dos Cards do Topo (4 Cards Principais) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Card 1: Faturamento do Mês */}
-        <div className="p-6 rounded-2xl border border-[#232328] bg-[#141416] flex flex-col justify-between shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Faturamento do Mês
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
-              <TrendingUp className="w-4.5 h-4.5" />
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl lg:text-3xl font-black text-white tracking-tight">
-              {formatCurrency(storeMetrics.consolidated.revenue)}
-            </div>
-            <div className="text-xs text-slate-400 font-medium mt-1">
-              Soma das vendas das 3 lojas
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: Lucro Operacional Líquido */}
-        <div className="p-6 rounded-2xl border border-[#232328] bg-[#141416] flex flex-col justify-between shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-              Lucro Operacional Líquido
-            </span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
-              <Wallet className="w-4.5 h-4.5" />
-            </div>
-          </div>
-          <div>
-            <div className="text-2xl lg:text-3xl font-black text-emerald-400 tracking-tight">
-              {formatCurrency(storeMetrics.consolidated.netProfit)}
-            </div>
-            <div className="text-xs text-slate-400 font-medium mt-1">
-              Geração de caixa limpa do grupo
-            </div>
-          </div>
-        </div>
-
-        {/* Card 3: Dívida Total em Aberto */}
+      {/* 1. Cards de Resumo do Endividamento Consolidado */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        {/* Card: Dívida Total em Aberto */}
         <div className="p-6 rounded-2xl border border-[#232328] bg-[#141416] flex flex-col justify-between shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -519,7 +477,7 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
           </div>
         </div>
 
-        {/* Card 4: Parcelas Deste Mês */}
+        {/* Card: Parcelas Deste Mês */}
         <div className="p-6 rounded-2xl border border-[#232328] bg-[#141416] flex flex-col justify-between shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
