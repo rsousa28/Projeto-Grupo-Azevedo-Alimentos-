@@ -54,6 +54,39 @@ export interface StoreBenchmark {
   operationalStatus: string;
 }
 
+export interface ViabilityPlanilha {
+  // Parâmetros de Entrada
+  monthlyRevenue: number; // Faturamento mensal (ex: 75000)
+  cmvPercent: number; // CMV % (ex: 35)
+  fixedExpenses: number; // Despesas Fixas mensais adicionadas (ex: 35000)
+  marketingPercent: number; // Despesas variáveis com Fundo de Marketing % (ex: 1)
+  royaltiesPercent: number; // Despesas variáveis com Royalties % (ex: 3)
+  cardFeesPercent: number; // Despesas variáveis com Taxas de cartão e pix % (ex: 4)
+  creditSalesPercent: number; // Peso da venda a prazo nas vendas totais % (ex: 65)
+  clientTermDays: number; // Prazo médio clientes em dias (ex: 2)
+  creditPurchasesPercent: number; // Peso das compras a prazo nas vendas totais % (ex: 100)
+  supplierTermDays: number; // Prazo médio do fornecedor em dias (ex: 15)
+  stockDays: number; // Estoque em dias (ex: 15)
+  capex: number; // Capex (bens de capital) para 12 meses (ex: 280000)
+
+  // Indicadores Calculados
+  monthlyPurchases: number; // Compras mensais (Premissa: CMV = Reposição de Estoque) (ex: 26250)
+  grossProfit: number; // Lucro bruto total mensal adicionado mensal (ex: 48750)
+  grossMarginPercent: number; // Margem bruta% (ex: 65)
+  marketingExpense: number; // Despesas variáveis com Fundo de Marketing (ex: 750)
+  royaltiesExpense: number; // Despesas variáveis com Royalties (ex: 2250)
+  cardFeesExpense: number; // Despesas variáveis com Taxas de cartão e pix (ex: 3000)
+  ebitdaMonthly: number; // EBITDA mensal adicionado (ex: 7750)
+  ebitdaMarginPercent: number; // Margem EBITDA% (ex: 10.33)
+  receivablesInvestment: number; // Investimento em Contas a Receber mensal (ex: 3217.50)
+  supplierFinancing: number; // Financiamento de Fornecedores mensal (ex: 13125)
+  stockInvestment: number; // Investimento em Estoque mensal (ex: 13125)
+  ncgMonthly: number; // Necessidade de Capital de Giro (NCG) mensal (ex: 3217.50)
+  totalInvestment: number; // Investimento (CAPEX + NCG x 12 meses) (ex: 283217.50)
+  paybackMonths: number; // Payback em Meses (ex: 36.54)
+  breakEvenMonthly: number; // PONTO DE EQUILÍBRIO (ex: 53846.15)
+}
+
 export interface InvestmentProject {
   id: string;
   projectName: string;
@@ -68,4 +101,5 @@ export interface InvestmentProject {
   responsible: string; // Responsável / Diretoria
   notes?: string;
   createdAt: string;
+  viability?: ViabilityPlanilha; // Planilha completa de viabilidade financeira
 }
