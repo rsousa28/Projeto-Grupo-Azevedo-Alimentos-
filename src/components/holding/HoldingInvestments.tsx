@@ -91,6 +91,25 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
   const [responsible, setResponsible] = useState('Diretoria de Expansão');
   const [notes, setNotes] = useState('');
 
+  // Auto-calculate payback when Capex or Projected Revenue changes
+  const handleCapexChange = (val: string) => {
+    setCapexBudget(val);
+    const numCapex = parseFloat(val.replace(/[^0-9.]/g, '')) || 0;
+    const numRev = parseFloat(projectedMonthlyRevenue.replace(/[^0-9.]/g, '')) || 0;
+    if (numRev > 0 && numCapex > 0) {
+      setExpectedPaybackMonths(Math.round(numCapex / numRev).toString());
+    }
+  };
+
+  const handleRevenueChange = (val: string) => {
+    setProjectedMonthlyRevenue(val);
+    const numCapex = parseFloat(capexBudget.replace(/[^0-9.]/g, '')) || 0;
+    const numRev = parseFloat(val.replace(/[^0-9.]/g, '')) || 0;
+    if (numRev > 0 && numCapex > 0) {
+      setExpectedPaybackMonths(Math.round(numCapex / numRev).toString());
+    }
+  };
+
   // Open Create Form
   const handleOpenCreate = () => {
     setEditingProject(null);
@@ -100,7 +119,7 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
     setCapexBudget('');
     setSpentSoFar('0');
     setProjectedMonthlyRevenue('');
-    setExpectedPaybackMonths('18');
+    setExpectedPaybackMonths('');
     setProjectedRoi('35% a.a.');
     setTargetLaunch('');
     setResponsible('Diretoria de Expansão');
@@ -117,7 +136,10 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
     setCapexBudget(inv.capexBudget.toString());
     setSpentSoFar(inv.spentSoFar.toString());
     setProjectedMonthlyRevenue(inv.projectedMonthlyRevenue.toString());
-    setExpectedPaybackMonths(inv.expectedPaybackMonths.toString());
+    const initialPayback = inv.projectedMonthlyRevenue > 0 && inv.capexBudget > 0
+      ? Math.round(inv.capexBudget / inv.projectedMonthlyRevenue).toString()
+      : (inv.expectedPaybackMonths ? inv.expectedPaybackMonths.toString() : '');
+    setExpectedPaybackMonths(initialPayback);
     setProjectedRoi(inv.projectedRoi);
     setTargetLaunch(inv.targetLaunch);
     setResponsible(inv.responsible);
@@ -133,7 +155,11 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
     const parsedCapex = parseFloat(capexBudget.replace(/[^0-9.]/g, '')) || 0;
     const parsedSpent = parseFloat(spentSoFar.replace(/[^0-9.]/g, '')) || 0;
     const parsedRevenue = parseFloat(projectedMonthlyRevenue.replace(/[^0-9.]/g, '')) || 0;
-    const parsedPayback = parseInt(expectedPaybackMonths.replace(/[^0-9]/g, ''), 10) || 12;
+    
+    // Payback calculado rigorosamente de acordo com a receita projetada mensal (Capex / Receita Projetada)
+    const parsedPayback = parsedRevenue > 0 && parsedCapex > 0
+      ? Math.round(parsedCapex / parsedRevenue)
+      : parseInt(expectedPaybackMonths.replace(/[^0-9]/g, ''), 10) || 0;
 
     if (editingProject) {
       HoldingStorage.updateInvestment(editingProject.id, {
@@ -211,10 +237,19 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
   const totalSpentSoFar = investments.reduce((acc, inv) => acc + inv.spentSoFar, 0);
   const executionPercentage = totalCapexBudget > 0 ? (totalSpentSoFar / totalCapexBudget) * 100 : 0;
   const totalProjectedRevenue = investments.reduce((acc, inv) => acc + inv.projectedMonthlyRevenue, 0);
-  const averagePayback =
-    investments.length > 0
-      ? Math.round(investments.reduce((acc, inv) => acc + inv.expectedPaybackMonths, 0) / investments.length)
-      : 0;
+
+  // Payback médio calculado rigorosamente de acordo com a receita mensal projetada (Capex Total ÷ Receita Projetada Total)
+  const averagePayback = useMemo(() => {
+    if (totalProjectedRevenue > 0 && totalCapexBudget > 0) {
+      return Math.round(totalCapexBudget / totalProjectedRevenue);
+    }
+    const projectsWithCalc = investments.filter((inv) => inv.projectedMonthlyRevenue > 0 && inv.capexBudget > 0);
+    if (projectsWithCalc.length > 0) {
+      const sum = projectsWithCalc.reduce((acc, inv) => acc + (inv.capexBudget / inv.projectedMonthlyRevenue), 0);
+      return Math.round(sum / projectsWithCalc.length);
+    }
+    return 0;
+  }, [totalCapexBudget, totalProjectedRevenue, investments]);
 
   // Chart data
   const chartData = investments.map((inv) => ({
@@ -335,7 +370,7 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
           </div>
         </div>
 
-        {/* Card 4: Payback Médio Ponderado */}
+        {/* Card 4: Payback Médio Estimado (Calculado com base na receita projetada) */}
         <div className="p-5 rounded-2xl border border-[#242426] bg-[#141416] space-y-3 shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -347,16 +382,40 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
           </div>
           <div>
             <div className="text-2xl sm:text-3xl font-black text-purple-300 tracking-tight">
-              {averagePayback}{' '}
+              {averagePayback > 0 ? averagePayback : 0}{' '}
               <span className="text-base font-bold text-slate-400">meses</span>
             </div>
             <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-300 font-semibold">
-              <span>Retorno acelerado de capital</span>
+              <span>
+                {totalProjectedRevenue > 0
+                  ? averagePayback <= 18
+                    ? 'Retorno acelerado de capital'
+                    : averagePayback <= 30
+                    ? 'Retorno sustentável de capital'
+                    : 'Retorno de maturação estendida'
+                  : 'Aguardando projeção de receita'}
+              </span>
             </div>
           </div>
           <div className="text-[11px] text-slate-400 border-t border-[#202022] pt-2 flex items-center justify-between">
             <span>Viabilidade média:</span>
-            <span className="text-emerald-400 font-bold">Excelente</span>
+            <span className={
+              averagePayback > 0 && averagePayback <= 24
+                ? 'text-emerald-400 font-bold'
+                : averagePayback > 0 && averagePayback <= 36
+                ? 'text-amber-400 font-bold'
+                : 'text-slate-400 font-bold'
+            }>
+              {averagePayback > 0
+                ? averagePayback <= 18
+                  ? 'Excelente'
+                  : averagePayback <= 28
+                  ? 'Muito Boa'
+                  : averagePayback <= 36
+                  ? 'Regular'
+                  : 'Longo Prazo'
+                : 'Aguardando receita'}
+            </span>
           </div>
         </div>
       </div>
@@ -559,7 +618,13 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">Payback Estimado:</span>
-                    <span className="text-slate-200 font-semibold">{inv.expectedPaybackMonths} meses</span>
+                    <span className="text-slate-200 font-semibold">
+                      {inv.projectedMonthlyRevenue > 0 && inv.capexBudget > 0
+                        ? `${Math.round(inv.capexBudget / inv.projectedMonthlyRevenue)} meses`
+                        : inv.expectedPaybackMonths > 0
+                        ? `${inv.expectedPaybackMonths} meses`
+                        : 'Aguardando receita'}
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">ROI Projetado:</span>
@@ -719,7 +784,7 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                       step="any"
                       placeholder="Ex: 350000"
                       value={capexBudget}
-                      onChange={(e) => setCapexBudget(e.target.value)}
+                      onChange={(e) => handleCapexChange(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl bg-[#202024] border border-[#2C2C32] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
                     />
                   </div>
@@ -746,19 +811,28 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                       type="number"
                       min="0"
                       step="any"
-                      placeholder="Ex: 140000"
+                      placeholder="Ex: 14000"
                       value={projectedMonthlyRevenue}
-                      onChange={(e) => setProjectedMonthlyRevenue(e.target.value)}
+                      onChange={(e) => handleRevenueChange(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl bg-[#202024] border border-[#2C2C32] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
                     />
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-300">Payback Estimado (meses)</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-300">Payback Estimado (meses)</label>
+                      {parseFloat(projectedMonthlyRevenue) > 0 && parseFloat(capexBudget) > 0 && (
+                        <span className="text-[10px] text-amber-400 font-bold">Auto (Capex ÷ Receita)</span>
+                      )}
+                    </div>
                     <input
                       type="number"
                       min="1"
-                      placeholder="Ex: 16"
+                      placeholder={
+                        parseFloat(projectedMonthlyRevenue) > 0 && parseFloat(capexBudget) > 0
+                          ? `${Math.round(parseFloat(capexBudget) / parseFloat(projectedMonthlyRevenue))}`
+                          : "Ex: 24"
+                      }
                       value={expectedPaybackMonths}
                       onChange={(e) => setExpectedPaybackMonths(e.target.value)}
                       className="w-full px-4 py-2.5 rounded-xl bg-[#202024] border border-[#2C2C32] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
