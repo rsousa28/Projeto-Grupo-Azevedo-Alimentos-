@@ -7,6 +7,7 @@ import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firest
 import { getDocCached, setDocCached, clearQueryCache } from '../lib/firestoreQueryCache';
 import { useAuth } from './AuthContext';
 import { AuditService } from '../services/AuditService';
+import { syncStoreDREToHolding } from '../services/storeDashboardSync';
 
 interface StoreContextType {
   currentStore: Store;
@@ -628,6 +629,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         updatedAtLocal: new Date().toISOString()
       };
       localStorage.setItem(`g_azevedo_dre_backup_${currentStore.id}_${year}_${month}`, JSON.stringify(backupData));
+      
+      // Sincroniza faturamento e resultados com a Holding em tempo real
+      syncStoreDREToHolding(currentStore.id, month, year, dreData);
       
       // 2. Clear/Update memory cache so the UI gets the new data instantly
       cachedDreData.current[cacheKey] = dreData;

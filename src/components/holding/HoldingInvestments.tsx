@@ -22,7 +22,8 @@ import {
   FileSpreadsheet,
   Calculator,
   SlidersHorizontal,
-  Info
+  Info,
+  AlertCircle
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -88,8 +89,8 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
   const [simCapex, setSimCapex] = useState('280000');
   const [simCmv, setSimCmv] = useState('35');
   const [simFixed, setSimFixed] = useState('35000');
-  const [simMkt, setSimMkt] = useState('1');
-  const [simRoy, setSimRoy] = useState('3');
+  const [simMkt, setSimMkt] = useState('0');
+  const [simRoy, setSimRoy] = useState('0');
   const [simCard, setSimCard] = useState('4');
   const [simCreditSales, setSimCreditSales] = useState('65');
   const [simClientDays, setSimClientDays] = useState('2');
@@ -104,8 +105,8 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
       capex: parseFloat(simCapex) || 0,
       cmvPercent: parseFloat(simCmv) || 35,
       fixedExpenses: parseFloat(simFixed) || 35000,
-      marketingPercent: parseFloat(simMkt) || 1,
-      royaltiesPercent: parseFloat(simRoy) || 3,
+      marketingPercent: parseFloat(simMkt) || 0,
+      royaltiesPercent: parseFloat(simRoy) || 0,
       cardFeesPercent: parseFloat(simCard) || 4,
       creditSalesPercent: parseFloat(simCreditSales) || 65,
       clientTermDays: parseFloat(simClientDays) || 2,
@@ -146,6 +147,13 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
 
   // Form Fields State
   const [projectName, setProjectName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
   const [type, setType] = useState(INVESTMENT_TYPES[0]);
   const [stage, setStage] = useState(INVESTMENT_STAGES[0]);
   const [capexBudget, setCapexBudget] = useState('280000');
@@ -159,8 +167,8 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
   // Viability spreadsheet parameters for project form
   const [cmvPercent, setCmvPercent] = useState('35');
   const [fixedExpenses, setFixedExpenses] = useState('35000');
-  const [marketingPercent, setMarketingPercent] = useState('1');
-  const [royaltiesPercent, setRoyaltiesPercent] = useState('3');
+  const [marketingPercent, setMarketingPercent] = useState('0');
+  const [royaltiesPercent, setRoyaltiesPercent] = useState('0');
   const [cardFeesPercent, setCardFeesPercent] = useState('4');
   const [creditSalesPercent, setCreditSalesPercent] = useState('65');
   const [clientTermDays, setClientTermDays] = useState('2');
@@ -177,8 +185,8 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
       capex: numCapex,
       cmvPercent: parseFloat(cmvPercent) || 35,
       fixedExpenses: parseFloat(fixedExpenses) || 35000,
-      marketingPercent: parseFloat(marketingPercent) || 1,
-      royaltiesPercent: parseFloat(royaltiesPercent) || 3,
+      marketingPercent: parseFloat(marketingPercent) || 0,
+      royaltiesPercent: parseFloat(royaltiesPercent) || 0,
       cardFeesPercent: parseFloat(cardFeesPercent) || 4,
       creditSalesPercent: parseFloat(creditSalesPercent) || 65,
       clientTermDays: parseFloat(clientTermDays) || 2,
@@ -205,6 +213,7 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
   const handleOpenCreate = () => {
     setEditingProject(null);
     setProjectName('');
+    setNameError(null);
     setType(INVESTMENT_TYPES[0]);
     setStage(INVESTMENT_STAGES[0]);
     setCapexBudget('280000');
@@ -212,8 +221,8 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
     setProjectedMonthlyRevenue('75000');
     setCmvPercent('35');
     setFixedExpenses('35000');
-    setMarketingPercent('1');
-    setRoyaltiesPercent('3');
+    setMarketingPercent('0');
+    setRoyaltiesPercent('0');
     setCardFeesPercent('4');
     setCreditSalesPercent('65');
     setClientTermDays('2');
@@ -233,6 +242,7 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
     const viab = getProjectViability(inv);
     setEditingProject(inv);
     setProjectName(inv.projectName);
+    setNameError(null);
     setType(inv.type);
     setStage(inv.stage);
     setCapexBudget(inv.capexBudget.toString());
@@ -240,8 +250,8 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
     setProjectedMonthlyRevenue(inv.projectedMonthlyRevenue.toString());
     setCmvPercent((viab.cmvPercent ?? 35).toString());
     setFixedExpenses((viab.fixedExpenses ?? 35000).toString());
-    setMarketingPercent((viab.marketingPercent ?? 1).toString());
-    setRoyaltiesPercent((viab.royaltiesPercent ?? 3).toString());
+    setMarketingPercent((viab.marketingPercent ?? 0).toString());
+    setRoyaltiesPercent((viab.royaltiesPercent ?? 0).toString());
     setCardFeesPercent((viab.cardFeesPercent ?? 4).toString());
     setCreditSalesPercent((viab.creditSalesPercent ?? 65).toString());
     setClientTermDays((viab.clientTermDays ?? 2).toString());
@@ -259,7 +269,12 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
   // Save Project (Create / Update)
   const handleSaveProject = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectName.trim()) return;
+    if (!projectName.trim()) {
+      setNameError('Por favor, informe o Nome do Projeto para cadastrar.');
+      showToast('Por favor, informe o Nome do Projeto antes de cadastrar.');
+      return;
+    }
+    setNameError(null);
 
     const parsedSpent = parseFloat(spentSoFar.replace(/[^0-9.]/g, '')) || 0;
 
@@ -280,8 +295,10 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
 
     if (editingProject) {
       HoldingStorage.updateInvestment(editingProject.id, projectPayload);
+      showToast('Projeto de investimento atualizado com sucesso!');
     } else {
       HoldingStorage.addInvestment(projectPayload);
+      showToast('Projeto de investimento cadastrado com sucesso!');
     }
 
     setIsFormModalOpen(false);
@@ -292,6 +309,7 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
   const handleApplySimulatorToCreate = () => {
     setEditingProject(null);
     setProjectName('');
+    setNameError(null);
     setType(INVESTMENT_TYPES[0]);
     setStage(INVESTMENT_STAGES[0]);
     setCapexBudget(simViability.capex.toString());
@@ -387,6 +405,21 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
 
   return (
     <div className="space-y-6">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toastMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed top-6 right-6 z-50 px-4 py-3 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs shadow-2xl flex items-center gap-2 border border-emerald-400"
+          >
+            <CheckCircle2 className="w-4 h-4 text-slate-950 shrink-0" />
+            <span>{toastMessage}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header with Title and Primary Action Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -885,43 +918,108 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                 </button>
               </div>
 
-              {/* Tab Navigation */}
-              <div className="flex items-center gap-2 p-1 rounded-xl bg-[#131315] border border-[#242428]">
-                <button
-                  type="button"
-                  onClick={() => setFormActiveTab('PLANILHA')}
-                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                    formActiveTab === 'PLANILHA'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm'
-                      : 'text-slate-400 hover:text-white hover:bg-[#1c1c20]'
-                  }`}
-                >
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                  <span>1. Planilha de Viabilidade (Payback & Receita)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setFormActiveTab('BASIC')}
-                  className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                    formActiveTab === 'BASIC'
-                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm'
-                      : 'text-slate-400 hover:text-white hover:bg-[#1c1c20]'
-                  }`}
-                >
-                  <Briefcase className="w-4 h-4 text-amber-400" />
-                  <span>2. Dados Gerais & Cronograma</span>
-                </button>
-              </div>
-
               <form onSubmit={handleSaveProject} className="space-y-5">
+                {/* Bloco Fixo no Topo: Identificação Obrigatória do Projeto */}
+                <div className="p-4 rounded-2xl bg-[#1B1B1F] border border-[#28282E] space-y-3">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1">
+                        <span>Nome do Projeto / Nova Operação</span>
+                        <span className="text-amber-400">*</span>
+                      </label>
+                      {nameError ? (
+                        <span className="text-xs font-bold text-red-400 flex items-center gap-1 animate-pulse">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          {nameError}
+                        </span>
+                      ) : (
+                        <span className="text-[11px] text-slate-400">Identificador do investimento</span>
+                      )}
+                    </div>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Ex: Expansão Vero Pasta - Nova Loja Sul"
+                      value={projectName}
+                      onChange={(e) => {
+                        setProjectName(e.target.value);
+                        if (nameError) setNameError(null);
+                      }}
+                      className={`w-full px-4 py-2.5 rounded-xl bg-[#24242A] border text-xs text-white placeholder-slate-500 focus:outline-none transition-colors font-medium ${
+                        nameError ? 'border-red-500 focus:border-red-400' : 'border-[#33333C] focus:border-amber-500'
+                      }`}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-300">Tipo de Investimento</label>
+                      <select
+                        value={type}
+                        onChange={(e) => setType(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#24242A] border border-[#33333C] text-xs text-white focus:outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        {INVESTMENT_TYPES.map((tp) => (
+                          <option key={tp} value={tp}>
+                            {tp}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[11px] font-bold text-slate-300">Estágio Atual</label>
+                      <select
+                        value={stage}
+                        onChange={(e) => setStage(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl bg-[#24242A] border border-[#33333C] text-xs text-white focus:outline-none focus:border-amber-500 cursor-pointer"
+                      >
+                        {INVESTMENT_STAGES.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tab Navigation */}
+                <div className="flex items-center gap-2 p-1 rounded-xl bg-[#131315] border border-[#242428]">
+                  <button
+                    type="button"
+                    onClick={() => setFormActiveTab('PLANILHA')}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                      formActiveTab === 'PLANILHA'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm'
+                        : 'text-slate-400 hover:text-white hover:bg-[#1c1c20]'
+                    }`}
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                    <span>1. Planilha de Viabilidade (Payback & Receita)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setFormActiveTab('BASIC')}
+                    className={`flex-1 py-2.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                      formActiveTab === 'BASIC'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm'
+                        : 'text-slate-400 hover:text-white hover:bg-[#1c1c20]'
+                    }`}
+                  >
+                    <Briefcase className="w-4 h-4 text-amber-400" />
+                    <span>2. Dados Gerais & Cronograma</span>
+                  </button>
+                </div>
+
                 {/* TAB 1: Planilha de Viabilidade */}
                 {formActiveTab === 'PLANILHA' && (
                   <div className="space-y-4">
                     <div className="p-3.5 rounded-xl bg-[#1b2b17] border border-[#2e4726] text-xs text-emerald-200 flex items-start gap-2.5">
                       <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
                       <p className="leading-relaxed">
-                        <strong>Metodologia da Planilha Oficial:</strong> O Payback em meses é calculado considerando Faturamento, Margem Bruta, CMV (35%), Despesas Fixas (invariáveis ao volume), Despesas Variáveis (Mkt 1%, Roy 3%, Taxas 4%), e a Necessidade de Capital de Giro (NCG).
+                        <strong>Metodologia da Planilha Oficial:</strong> O Payback em meses é calculado considerando Faturamento, Margem Bruta, CMV (35%), Despesas Fixas, Despesas Variáveis (Taxas Cartão/Pix 4%), e a Necessidade de Capital de Giro (NCG).
                       </p>
                     </div>
 
@@ -1003,57 +1101,31 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
 
                     {/* Bloco 3: Despesas Variáveis */}
                     <div className="p-4 rounded-2xl bg-[#1B1B1F] border border-[#28282E] space-y-3">
-                      <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
-                        Despesas Variáveis (% do Faturamento)
-                      </span>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div className="space-y-1">
-                          <label className="text-[11px] text-slate-400 font-semibold">Fundo de Marketing</label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="any"
-                              value={marketingPercent}
-                              onChange={(e) => setMarketingPercent(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl bg-[#24242A] border border-[#33333C] text-xs text-white focus:outline-none focus:border-amber-500 pr-7"
-                            />
-                            <span className="absolute right-2.5 top-2 text-xs text-slate-400">%</span>
-                          </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                          Despesas Variáveis (% do Faturamento)
+                        </span>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-bold text-slate-300 flex items-center justify-between">
+                          <span>Taxas de Cartão e Pix</span>
+                          <span className="text-amber-400 font-bold">Padrão 4%</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="any"
+                            value={cardFeesPercent}
+                            onChange={(e) => setCardFeesPercent(e.target.value)}
+                            className="w-full px-4 py-2.5 rounded-xl bg-[#24242A] border border-[#33333C] text-xs text-white focus:outline-none focus:border-amber-500 pr-8 font-bold"
+                          />
+                          <span className="absolute right-3 top-2.5 text-xs text-slate-400">%</span>
                         </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[11px] text-slate-400 font-semibold">Royalties</label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="any"
-                              value={royaltiesPercent}
-                              onChange={(e) => setRoyaltiesPercent(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl bg-[#24242A] border border-[#33333C] text-xs text-white focus:outline-none focus:border-amber-500 pr-7"
-                            />
-                            <span className="absolute right-2.5 top-2 text-xs text-slate-400">%</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[11px] text-slate-400 font-semibold">Taxas Cartão e Pix</label>
-                          <div className="relative">
-                            <input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="any"
-                              value={cardFeesPercent}
-                              onChange={(e) => setCardFeesPercent(e.target.value)}
-                              className="w-full px-3 py-2 rounded-xl bg-[#24242A] border border-[#33333C] text-xs text-white focus:outline-none focus:border-amber-500 pr-7"
-                            />
-                            <span className="absolute right-2.5 top-2 text-xs text-slate-400">%</span>
-                          </div>
-                        </div>
+                        <p className="text-[10px] text-slate-400">
+                          Incidência sobre as transações de cartão de crédito, débito e Pix.
+                        </p>
                       </div>
                     </div>
 
@@ -1189,54 +1261,6 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                 {/* TAB 2: Dados Gerais & Cronograma */}
                 {formActiveTab === 'BASIC' && (
                   <div className="space-y-4">
-                    {/* Nome do Projeto */}
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-300">
-                        Nome do Projeto / Nova Operação <span className="text-amber-400">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Ex: Expansão Vero Pasta - Loja 02 (Sul)"
-                        value={projectName}
-                        onChange={(e) => setProjectName(e.target.value)}
-                        className="w-full px-4 py-2.5 rounded-xl bg-[#202024] border border-[#2C2C32] text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
-                      />
-                    </div>
-
-                    {/* Tipo e Estágio */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-300">Tipo de Investimento</label>
-                        <select
-                          value={type}
-                          onChange={(e) => setType(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#202024] border border-[#2C2C32] text-xs text-white focus:outline-none focus:border-amber-500 cursor-pointer"
-                        >
-                          {INVESTMENT_TYPES.map((tp) => (
-                            <option key={tp} value={tp}>
-                              {tp}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-300">Etapa Atual</label>
-                        <select
-                          value={stage}
-                          onChange={(e) => setStage(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#202024] border border-[#2C2C32] text-xs text-white focus:outline-none focus:border-amber-500 cursor-pointer"
-                        >
-                          {INVESTMENT_STAGES.map((st) => (
-                            <option key={st} value={st}>
-                              {st}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-
                     {/* Aportado até o Momento e ROI */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-1.5">
@@ -1608,36 +1632,24 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                     </div>
 
                     <div className="pt-2 border-t border-[#26262c] space-y-2">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                        Despesas Variáveis (% Faturamento)
-                      </span>
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-0.5">
-                          <label className="text-[10px] text-slate-400">Mkt (%)</label>
-                          <input
-                            type="number"
-                            value={simMkt}
-                            onChange={(e) => setSimMkt(e.target.value)}
-                            className="w-full px-2 py-1.5 rounded-lg bg-[#24242A] border border-[#33333C] text-xs text-white"
-                          />
-                        </div>
-                        <div className="space-y-0.5">
-                          <label className="text-[10px] text-slate-400">Roy (%)</label>
-                          <input
-                            type="number"
-                            value={simRoy}
-                            onChange={(e) => setSimRoy(e.target.value)}
-                            className="w-full px-2 py-1.5 rounded-lg bg-[#24242A] border border-[#33333C] text-xs text-white"
-                          />
-                        </div>
-                        <div className="space-y-0.5">
-                          <label className="text-[10px] text-slate-400">Taxas (%)</label>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                          Despesas Variáveis (% Faturamento)
+                        </span>
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] text-slate-300 font-semibold flex items-center justify-between">
+                          <span>Taxas Cartão e Pix (%)</span>
+                          <span className="text-amber-400 font-bold">Padrão 4%</span>
+                        </label>
+                        <div className="relative">
                           <input
                             type="number"
                             value={simCard}
                             onChange={(e) => setSimCard(e.target.value)}
-                            className="w-full px-2 py-1.5 rounded-lg bg-[#24242A] border border-[#33333C] text-xs text-white"
+                            className="w-full px-2 py-1.5 rounded-lg bg-[#24242A] border border-[#33333C] text-xs text-white pr-6 font-bold"
                           />
+                          <span className="absolute right-2 top-1.5 text-[11px] text-slate-400">%</span>
                         </div>
                       </div>
                     </div>
@@ -1714,8 +1726,8 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                     setSimCapex('280000');
                     setSimCmv('35');
                     setSimFixed('35000');
-                    setSimMkt('1');
-                    setSimRoy('3');
+                    setSimMkt('0');
+                    setSimRoy('0');
                     setSimCard('4');
                     setSimCreditSales('65');
                     setSimClientDays('2');

@@ -135,7 +135,7 @@ export function ViabilityPlanilhaView({ viability, compact = false }: ViabilityP
             {/* 10. EBITDA mensal adicionado */}
             <tr className="hover:bg-white/5 transition-colors bg-white/[0.03]">
               <td className="py-1.5 px-4 font-extrabold text-white">
-                EBITDA mensl adicionado
+                EBITDA mensal adicionado
               </td>
               <td className="py-1.5 px-4 text-right font-black text-white">
                 {formatMoney(viability.ebitdaMonthly)}

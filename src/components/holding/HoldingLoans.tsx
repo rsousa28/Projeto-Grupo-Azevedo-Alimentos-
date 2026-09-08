@@ -72,6 +72,81 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
   const totalMonthlyCost = useMemo(() => 
     loans.filter(l => l.status !== 'Liquidado').reduce((acc, l) => acc + l.monthlyPayment, 0), [loans]);
 
+  // Custo Médio de Juros Calculado Dinamicamente por saldo devedor
+  const averageInterestRateInfo = useMemo(() => {
+    const activeLoans = loans.filter(l => l.status !== 'Liquidado' && l.currentBalance > 0);
+    if (activeLoans.length === 0) {
+      return {
+        display: '0,0% a.a.',
+        subtitle: 'Nenhum contrato ativo cadastrado',
+        indexers: 'Sem contratos ativos'
+      };
+    }
+
+    let totalCdiSpreadWeighted = 0;
+    let totalCdiBalance = 0;
+    let totalFixedRateWeighted = 0;
+    let totalFixedBalance = 0;
+    const indexerSet = new Set<string>();
+
+    activeLoans.forEach(loan => {
+      const balance = loan.currentBalance;
+      const rateStr = loan.rate || '';
+
+      const cdiMatch = rateStr.match(/cdi\s*\+?\s*([0-9.,]+)%?/i);
+      if (cdiMatch) {
+        indexerSet.add('CDI');
+        const spread = parseFloat(cdiMatch[1].replace(',', '.')) || 0;
+        totalCdiSpreadWeighted += spread * balance;
+        totalCdiBalance += balance;
+      } else {
+        const numMatch = rateStr.match(/([0-9.,]+)%?/);
+        if (numMatch) {
+          let val = parseFloat(numMatch[1].replace(',', '.')) || 0;
+          if (rateStr.toLowerCase().includes('a.m') || (!rateStr.toLowerCase().includes('a.a') && val < 6)) {
+            val = val * 12;
+            indexerSet.add('Pré (a.m.)');
+          } else {
+            indexerSet.add('Pré (a.a.)');
+          }
+          totalFixedRateWeighted += val * balance;
+          totalFixedBalance += balance;
+        } else if (loan.principal > 0 && loan.installmentsTotal > 0 && loan.monthlyPayment > 0) {
+          const totalPaidEstim = loan.monthlyPayment * loan.installmentsTotal;
+          const totalInterest = Math.max(0, totalPaidEstim - loan.principal);
+          const years = Math.max(0.5, loan.installmentsTotal / 12);
+          const approxAnnualRate = (totalInterest / loan.principal / years) * 100;
+          totalFixedRateWeighted += approxAnnualRate * balance;
+          totalFixedBalance += balance;
+          indexerSet.add('CET Implícito');
+        }
+      }
+    });
+
+    if (totalCdiBalance > 0 && totalCdiBalance >= totalFixedBalance) {
+      const avgSpread = totalCdiSpreadWeighted / totalCdiBalance;
+      return {
+        display: `CDI + ${avgSpread.toFixed(2)}% a.a.`,
+        subtitle: `Ponderado por ${formatCurrency(totalCdiBalance)} em saldo`,
+        indexers: Array.from(indexerSet).join(', ') || 'CDI'
+      };
+    } else if (totalFixedBalance > 0) {
+      const avgRate = totalFixedRateWeighted / totalFixedBalance;
+      const monthlyEquivalent = avgRate / 12;
+      return {
+        display: `${avgRate.toFixed(2)}% a.a.`,
+        subtitle: `Equivalente a ${monthlyEquivalent.toFixed(2)}% a.m. (ponderado)`,
+        indexers: Array.from(indexerSet).join(', ') || 'Taxa Fixa'
+      };
+    } else {
+      return {
+        display: 'CDI + 2.8% a.a.',
+        subtitle: 'Taxa ponderada ativa',
+        indexers: 'CDI'
+      };
+    }
+  }, [loans]);
+
   // Progress of global amortization
   const globalAmortizedPercent = totalPrincipal > 0 
     ? ((totalPrincipal - totalBalance) / totalPrincipal) * 100 
@@ -272,15 +347,17 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
           </div>
           <div>
             <div className="text-2xl font-black text-emerald-400 tracking-tight">
-              CDI + 2.9% a.a.
+              {averageInterestRateInfo.display}
             </div>
-            <div className="text-xs text-slate-400 font-medium mt-0.5">
-              Spread bancário médio ponderado
+            <div className="text-xs text-slate-400 font-medium mt-0.5 truncate" title={averageInterestRateInfo.subtitle}>
+              {averageInterestRateInfo.subtitle}
             </div>
           </div>
           <div className="text-[11px] text-slate-400 border-t border-[#202022] pt-2 flex items-center justify-between">
             <span>Indexadores:</span>
-            <span className="text-slate-300 font-semibold">CDI, Selic e TJLP</span>
+            <span className="text-slate-300 font-semibold truncate max-w-[140px] text-right" title={averageInterestRateInfo.indexers}>
+              {averageInterestRateInfo.indexers}
+            </span>
           </div>
         </div>
       </div>

@@ -24,6 +24,7 @@ import {
 } from 'recharts';
 import { BankLoan, StoreLiability, StoreOnlyBinding, StoreBenchmark } from '../../types/holding';
 import { HoldingStorage, DEFAULT_STORE_BENCHMARKS, getUnitLabel } from '../../services/holdingStorage';
+import { getPreviousMonthInfo } from '../../services/storeDashboardSync';
 
 interface HoldingDebtAnalysisProps {
   loans: BankLoan[];
@@ -57,6 +58,7 @@ const parseBRLToNumber = (val: string): number => {
 };
 
 export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans, liabilities, storeBenchmarks, onUpdate }) => {
+  const periodInfo = useMemo(() => getPreviousMonthInfo(), []);
   const [selectedUnit, setSelectedUnit] = useState<string>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLiabilityId, setEditingLiabilityId] = useState<string | null>(null);
@@ -547,6 +549,10 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-medium">Faturamento Mensal:</span>
                     <strong className="text-sm font-bold text-white">{formatCurrency(s.benchmark.monthlyRevenue)}</strong>
+                  </div>
+                  <div className="text-[10px] text-emerald-400/90 font-medium flex items-center justify-between">
+                    <span>Mês Base:</span>
+                    <span className="font-bold">{periodInfo.periodLabel} (Dashboard)</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400 font-medium">Parcela Mensal de Dívida:</span>

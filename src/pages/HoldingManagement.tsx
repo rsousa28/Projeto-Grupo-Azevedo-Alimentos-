@@ -24,9 +24,7 @@ import {
   ArrowDownRight,
   Layers,
   Coins,
-  SlidersHorizontal,
-  X,
-  Save,
+  RefreshCw,
   Check
 } from 'lucide-react';
 import { 
@@ -45,6 +43,11 @@ import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { BankLoan, StoreLiability, InvestmentProject, StoreOnlyBinding, StoreBenchmark } from '../types/holding';
 import { HoldingStorage, DEFAULT_STORE_BENCHMARKS } from '../services/holdingStorage';
+import { 
+  getPreviousMonthStoreMetrics, 
+  getPreviousMonthInfo, 
+  syncPreviousMonthFromFirestore 
+} from '../services/storeDashboardSync';
 import { HoldingLoans } from '../components/holding/HoldingLoans';
 import { HoldingDebtAnalysis } from '../components/holding/HoldingDebtAnalysis';
 import { HoldingInvestments } from '../components/holding/HoldingInvestments';
@@ -58,23 +61,6 @@ const formatCurrency = (val: number) =>
 
 const formatPercent = (val: number) => 
   new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(val) + '%';
-
-// Formata valor digitado em Real brasileiro (BRL)
-const formatBRLInput = (value: string): string => {
-  const cleanDigits = value.replace(/\D/g, '');
-  if (!cleanDigits) return '';
-  const numValue = Number(cleanDigits) / 100;
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(numValue);
-};
-
-const parseBRLToNumber = (val: string): number => {
-  const cleanDigits = val.replace(/\D/g, '');
-  if (!cleanDigits) return 0;
-  return Number(cleanDigits) / 100;
-};
 
 export default function HoldingManagement({ initialTab }: HoldingManagementProps) {
   const location = useLocation();
@@ -90,33 +76,35 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
     HoldingStorage.getStoreBenchmarks()
   );
 
-  // Modals state
-  const [isBenchmarksModalOpen, setIsBenchmarksModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Form state for benchmarks editing
-  const [b32Revenue, setB32Revenue] = useState('');
-  const [b32Cmv, setB32Cmv] = useState('');
-  const [b32Ebitda, setB32Ebitda] = useState('');
-
-  const [b28Revenue, setB28Revenue] = useState('');
-  const [b28Cmv, setB28Cmv] = useState('');
-  const [b28Ebitda, setB28Ebitda] = useState('');
-
-  const [veroRevenue, setVeroRevenue] = useState('');
-  const [veroCmv, setVeroCmv] = useState('');
-  const [veroEbitda, setVeroEbitda] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  const periodInfo = useMemo(() => getPreviousMonthInfo(), []);
+
   const refreshData = useCallback(() => {
+    // Sincroniza fechamento do mês anterior do dashboard
+    getPreviousMonthStoreMetrics();
     setLoans(HoldingStorage.getLoans());
     setLiabilities(HoldingStorage.getLiabilities());
     setInvestments(HoldingStorage.getInvestments());
     setStoreBenchmarks(HoldingStorage.getStoreBenchmarks());
+  }, []);
+
+  // Sincronização automática inicial com os DREs preenchidos no Dashboard
+  useEffect(() => {
+    // 1. Sincroniza dados locais imediatamente
+    getPreviousMonthStoreMetrics();
+    setStoreBenchmarks(HoldingStorage.getStoreBenchmarks());
+
+    // 2. Busca também do Firestore assincronamente
+    syncPreviousMonthFromFirestore().then(() => {
+      setStoreBenchmarks(HoldingStorage.getStoreBenchmarks());
+    });
   }, []);
 
   // Determine active tab from URL or props
@@ -170,68 +158,19 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
   const annualEbitda = totalEbitda * 12;
   const leverageRatio = annualEbitda > 0 ? (totalConsolidatedDebt / annualEbitda) : 0;
 
-  // Open Benchmarks Modal with current values
-  const openBenchmarksModal = () => {
-    const b32 = storeBenchmarks.B32 || DEFAULT_STORE_BENCHMARKS.B32;
-    const b28 = storeBenchmarks.B28 || DEFAULT_STORE_BENCHMARKS.B28;
-    const vero = storeBenchmarks.VERO || DEFAULT_STORE_BENCHMARKS.VERO;
-
-    setB32Revenue(b32.monthlyRevenue > 0 ? formatCurrency(b32.monthlyRevenue) : '');
-    setB32Cmv(b32.cmv > 0 ? formatCurrency(b32.cmv) : '');
-    setB32Ebitda(b32.ebitda > 0 ? formatCurrency(b32.ebitda) : '');
-
-    setB28Revenue(b28.monthlyRevenue > 0 ? formatCurrency(b28.monthlyRevenue) : '');
-    setB28Cmv(b28.cmv > 0 ? formatCurrency(b28.cmv) : '');
-    setB28Ebitda(b28.ebitda > 0 ? formatCurrency(b28.ebitda) : '');
-
-    setVeroRevenue(vero.monthlyRevenue > 0 ? formatCurrency(vero.monthlyRevenue) : '');
-    setVeroCmv(vero.cmv > 0 ? formatCurrency(vero.cmv) : '');
-    setVeroEbitda(vero.ebitda > 0 ? formatCurrency(vero.ebitda) : '');
-
-    setIsBenchmarksModalOpen(true);
-  };
-
-  const handleSaveBenchmarks = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    const current = HoldingStorage.getStoreBenchmarks();
-
-    const b32Rev = parseBRLToNumber(b32Revenue);
-    const b32C = parseBRLToNumber(b32Cmv);
-    const b32E = parseBRLToNumber(b32Ebitda);
-
-    const b28Rev = parseBRLToNumber(b28Revenue);
-    const b28C = parseBRLToNumber(b28Cmv);
-    const b28E = parseBRLToNumber(b28Ebitda);
-
-    const veroRev = parseBRLToNumber(veroRevenue);
-    const veroC = parseBRLToNumber(veroCmv);
-    const veroE = parseBRLToNumber(veroEbitda);
-
-    HoldingStorage.updateStoreBenchmark('B32', {
-      monthlyRevenue: b32Rev,
-      cmv: b32C,
-      ebitda: b32E,
-      margin: b32Rev > 0 ? (b32E / b32Rev) * 100 : 0
-    });
-
-    HoldingStorage.updateStoreBenchmark('B28', {
-      monthlyRevenue: b28Rev,
-      cmv: b28C,
-      ebitda: b28E,
-      margin: b28Rev > 0 ? (b28E / b28Rev) * 100 : 0
-    });
-
-    HoldingStorage.updateStoreBenchmark('VERO', {
-      monthlyRevenue: veroRev,
-      cmv: veroC,
-      ebitda: veroE,
-      margin: veroRev > 0 ? (veroE / veroRev) * 100 : 0
-    });
-
-    refreshData();
-    setIsBenchmarksModalOpen(false);
-    showToast('Faturamentos e metas das unidades salvos com sucesso!');
+  // Sincronização manual com os dados do dashboard
+  const handleManualSync = async () => {
+    setIsSyncing(true);
+    try {
+      getPreviousMonthStoreMetrics();
+      await syncPreviousMonthFromFirestore();
+      refreshData();
+      showToast(`Dados atualizados com sucesso a partir do fechamento de ${periodInfo.periodLabel} do Dashboard!`);
+    } catch {
+      showToast('Dados sincronizados com o fechamento do Dashboard.');
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   return (
@@ -258,15 +197,16 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
           </p>
         </div>
 
-        {/* Global Controls: Edit Benchmarks */}
+        {/* Global Controls: Sync DRE */}
         <div className="flex items-center gap-2.5">
           <button
-            onClick={openBenchmarksModal}
-            className="px-3.5 py-2 rounded-xl bg-[#1C1C20] hover:bg-[#25252A] text-slate-200 border border-[#2A2A30] hover:border-amber-500/40 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm"
-            title="Preencher ou editar receitas e metas das lojas"
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="px-3.5 py-2 rounded-xl bg-[#1C1C20] hover:bg-[#25252A] text-slate-200 border border-[#2A2A30] hover:border-amber-500/40 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-60"
+            title="Sincronizar com os fechamentos do Dashboard"
           >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-400" />
-            <span>Editar Metas das Lojas</span>
+            <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar DREs'}</span>
           </button>
         </div>
       </div>
@@ -380,22 +320,24 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-amber-400" />
                 <span>Desempenho Operacional Consolidado das Lojas</span>
               </h2>
               <p className="text-xs text-slate-400 font-medium">
-                Resumo individual de faturamento, margem e EBITDA operacional das 3 unidades físicas.
+                Alimentado automaticamente pelos DREs do mês anterior ({periodInfo.periodLabel}) de cada unidade.
               </p>
             </div>
             <button
-              onClick={openBenchmarksModal}
-              className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1.5 cursor-pointer"
+              onClick={handleManualSync}
+              disabled={isSyncing}
+              className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] hover:border-amber-400/50 transition-all cursor-pointer disabled:opacity-60 shrink-0 self-start sm:self-auto shadow-sm"
+              title="Recarregar faturamento e indicadores dos DREs das lojas"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5" />
-              <span>Editar Valores</span>
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : ''}`} />
+              <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar com DREs'}</span>
             </button>
           </div>
 
@@ -427,6 +369,10 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">Faturamento:</span>
                     <strong className="text-sm font-black text-white">{formatCurrency(s.faturamento)}</strong>
+                  </div>
+                  <div className="text-[10px] text-emerald-400/90 font-medium flex items-center justify-between">
+                    <span>Mês Base:</span>
+                    <span className="font-bold">{periodInfo.periodLabel} (Dashboard)</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-400">CMV Alvo:</span>
@@ -471,12 +417,14 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
             {totalRevenue === 0 && totalEbitda === 0 ? (
               <div className="py-12 text-center border border-dashed border-[#26262B] rounded-2xl space-y-2">
                 <Building2 className="w-8 h-8 text-slate-600 mx-auto" />
-                <p className="text-xs font-bold text-slate-400">Nenhum faturamento registrado para exibição no gráfico.</p>
+                <p className="text-xs font-bold text-slate-400">Nenhum faturamento registrado no fechamento de {periodInfo.periodLabel}.</p>
                 <button
-                  onClick={openBenchmarksModal}
-                  className="px-3.5 py-1.5 rounded-xl bg-amber-500/15 text-amber-400 text-xs font-bold hover:bg-amber-500/25 transition-all cursor-pointer"
+                  onClick={handleManualSync}
+                  disabled={isSyncing}
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-500/15 text-amber-400 text-xs font-bold hover:bg-amber-500/25 transition-all cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-60"
                 >
-                  Preencher Faturamentos das Unidades
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                  <span>Sincronizar com DREs das Lojas</span>
                 </button>
               </div>
             ) : (
@@ -521,186 +469,6 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
           <HoldingInvestments investments={investments} onUpdate={refreshData} />
         </motion.div>
       )}
-
-      {/* MODAL: Editar Metas & Faturamento das Unidades */}
-      <AnimatePresence>
-        {isBenchmarksModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-[#141416] border border-[#28282C] rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto thin-scrollbar shadow-2xl p-6 space-y-6"
-            >
-              <div className="flex items-center justify-between pb-3 border-b border-[#242426]">
-                <div>
-                  <h3 className="text-lg font-black text-white uppercase tracking-tight flex items-center gap-2">
-                    <SlidersHorizontal className="w-5 h-5 text-amber-400" />
-                    <span>Faturamentos & Metas Operacionais</span>
-                  </h3>
-                  <p className="text-xs text-slate-400 font-medium">
-                    Preencha o faturamento, CMV e EBITDA projetados ou reais de cada unidade para alimentar os gráficos.
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsBenchmarksModalOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#202024] transition-all cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSaveBenchmarks} className="space-y-6">
-                {/* 1. B32 Bebelu Mossoró */}
-                <div className="p-4 rounded-xl border border-[#242428] bg-[#18181C] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-black text-xs">B32</span>
-                      <strong className="text-sm text-white">Bebelu Mossoró - RN</strong>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">Faturamento Mensal</label>
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        value={b32Revenue}
-                        onChange={(e) => setB32Revenue(formatBRLInput(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#2A2A30] text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">CMV Alvo</label>
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        value={b32Cmv}
-                        onChange={(e) => setB32Cmv(formatBRLInput(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#2A2A30] text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">EBITDA / Lucro</label>
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        value={b32Ebitda}
-                        onChange={(e) => setB32Ebitda(formatBRLInput(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#2A2A30] text-xs font-bold text-emerald-400 focus:border-amber-400 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. B28 Bebelu Rio Mar */}
-                <div className="p-4 rounded-xl border border-[#242428] bg-[#18181C] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-400 font-black text-xs">B28</span>
-                      <strong className="text-sm text-white">Bebelu Rio Mar - CE</strong>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">Faturamento Mensal</label>
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        value={b28Revenue}
-                        onChange={(e) => setB28Revenue(formatBRLInput(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#2A2A30] text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">CMV Alvo</label>
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        value={b28Cmv}
-                        onChange={(e) => setB28Cmv(formatBRLInput(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#2A2A30] text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">EBITDA / Lucro</label>
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        value={b28Ebitda}
-                        onChange={(e) => setB28Ebitda(formatBRLInput(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#2A2A30] text-xs font-bold text-emerald-400 focus:border-amber-400 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. VERO Vero Pasta */}
-                <div className="p-4 rounded-xl border border-[#242428] bg-[#18181C] space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 font-black text-xs">VERO</span>
-                      <strong className="text-sm text-white">Vero Pasta Italiana - CE</strong>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">Faturamento Mensal</label>
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        value={veroRevenue}
-                        onChange={(e) => setVeroRevenue(formatBRLInput(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#2A2A30] text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">CMV Alvo</label>
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        value={veroCmv}
-                        onChange={(e) => setVeroCmv(formatBRLInput(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#2A2A30] text-xs font-bold text-white focus:border-amber-400 focus:outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-400 uppercase mb-1">EBITDA / Lucro</label>
-                      <input
-                        type="text"
-                        placeholder="R$ 0,00"
-                        value={veroEbitda}
-                        onChange={(e) => setVeroEbitda(formatBRLInput(e.target.value))}
-                        className="w-full px-3 py-2 rounded-lg bg-[#121214] border border-[#2A2A30] text-xs font-bold text-emerald-400 focus:border-amber-400 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#242426]">
-                  <button
-                    type="button"
-                    onClick={() => setIsBenchmarksModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-[#202024] transition-all cursor-pointer"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all flex items-center gap-2 cursor-pointer shadow-sm"
-                  >
-                    <Save className="w-4 h-4" />
-                    <span>Salvar Alterações</span>
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
