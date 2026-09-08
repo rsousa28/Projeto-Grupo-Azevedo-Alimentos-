@@ -682,7 +682,6 @@ export default function Finance() {
   const [showChat, setShowChat] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showConfirmReset, setShowConfirmReset] = useState(false);
-  const [isHoverExport, setIsHoverExport] = useState(false);
 
   // Professional DRE System States
   const [activeDRETab, setActiveDRETab] = useState<"unico_mes" | "comparativo" | "base_real" | "base_orcado">("comparativo");
@@ -1913,8 +1912,6 @@ export default function Finance() {
     return insights;
   };
 
-  const currentInsights = getInsights();
-
   const handleSendMessage = async () => {
     if (!currentMessage.trim() || isChatLoading) return;
 
@@ -2355,62 +2352,60 @@ export default function Finance() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main DRE Table */}
-            <div className="lg:col-span-2 space-y-8">
-              {/* Tab Selector Segment */}
-              <div
-                className={`p-1 flex flex-col md:flex-row gap-1.5 rounded-2xl border shadow-sm ${
-                  isBebelu
-                    ? isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-amber-500/5 border-amber-500/20"
-                    : (isDarkMode ? "bg-zinc-900 border-[#333]" : "bg-slate-100/90 border-slate-200")
-                }`}
-              >
-                {[
-                  { id: "unico_mes", label: "DRE Realizado Mês", desc: "Apenas o realizado", icon: DollarSign },
-                  { id: "comparativo", label: "Comparativo DRE", desc: "Real x Orçado x YoY", icon: BarChart3 },
-                  { id: "base_real", label: "Planilha Real Mensal", desc: "Histórico Realizado", icon: Calendar },
-                  { id: "base_orcado", label: "Orçamento Anual", desc: "Metas e Planejado", icon: FileText },
-                ].map((t) => {
-                  const IconComp = t.icon;
-                  const isActive = activeDRETab === t.id;
-                  return (
-                    <button
-                      key={t.id}
-                      onClick={() => setActiveDRETab(t.id as any)}
-                      className={`flex-1 py-1.5 px-3 rounded-xl flex items-center gap-3.5 transition-all cursor-pointer ${
-                        isActive
-                          ? isDarkMode
-                            ? "bg-zinc-800 text-amber-500 border border-zinc-700/60 shadow-md"
-                            : isBebelu
-                              ? "bg-[#FFCB05] text-amber-950 shadow-sm border border-amber-400 font-extrabold"
-                              : "bg-white text-indigo-600 shadow-sm border border-slate-200"
-                          : "text-slate-500 hover:text-slate-800 dark:text-zinc-505 dark:hover:text-zinc-100"
-                      }`}
-                    >
-                      <div className={`p-1.5 rounded-lg shrink-0 transition-colors ${
-                        isActive 
-                          ? isDarkMode 
-                            ? "bg-black/30" 
-                            : isBebelu 
-                              ? "bg-amber-950/10 text-amber-900" 
-                              : "bg-indigo-50/70" 
-                          : "bg-transparent"
-                      }`}>
-                        <IconComp className="w-4 h-4 shrink-0 text-current" />
+          <div className="w-full space-y-6">
+            {/* Header Controls: Full-Width Tab Selector */}
+            <div
+              className={`p-1 w-full flex flex-col sm:flex-row flex-wrap xl:flex-nowrap gap-1.5 rounded-2xl border shadow-sm ${
+                isBebelu
+                  ? isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-amber-500/5 border-amber-500/20"
+                  : (isDarkMode ? "bg-zinc-900 border-[#333]" : "bg-slate-100/90 border-slate-200")
+              }`}
+            >
+              {[
+                { id: "unico_mes", label: "DRE Realizado Mês", desc: "Apenas o realizado", icon: DollarSign },
+                { id: "comparativo", label: "Comparativo DRE", desc: "Real x Orçado x YoY", icon: BarChart3 },
+                { id: "base_real", label: "Planilha Real Mensal", desc: "Histórico Realizado", icon: Calendar },
+                { id: "base_orcado", label: "Orçamento Anual", desc: "Metas e Planejado", icon: FileText },
+              ].map((t) => {
+                const IconComp = t.icon;
+                const isActive = activeDRETab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setActiveDRETab(t.id as any)}
+                    className={`flex-1 py-1.5 px-3 rounded-xl flex items-center gap-3.5 transition-all cursor-pointer ${
+                      isActive
+                        ? isDarkMode
+                          ? "bg-zinc-800 text-amber-500 border border-zinc-700/60 shadow-md"
+                          : isBebelu
+                            ? "bg-[#FFCB05] text-amber-950 shadow-sm border border-amber-400 font-extrabold"
+                            : "bg-white text-indigo-600 shadow-sm border border-slate-200"
+                        : "text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-100"
+                    }`}
+                  >
+                    <div className={`p-1.5 rounded-lg shrink-0 transition-colors ${
+                      isActive 
+                        ? isDarkMode 
+                          ? "bg-black/30" 
+                          : isBebelu 
+                            ? "bg-amber-950/10 text-amber-900" 
+                            : "bg-indigo-50/70" 
+                        : "bg-transparent"
+                    }`}>
+                      <IconComp className="w-4 h-4 shrink-0 text-current" />
+                    </div>
+                    <div className="text-left leading-none">
+                      <div className="text-[11px] font-black uppercase tracking-tight mb-0.5">
+                        {t.label}
                       </div>
-                      <div className="text-left leading-none">
-                        <div className="text-[11px] font-black uppercase tracking-tight mb-0.5">
-                          {t.label}
-                        </div>
-                        <div className={`text-[8.5px] font-medium ${isActive ? (isBebelu ? "text-amber-900/80" : "text-slate-500") : "text-slate-400"}`}>
-                          {t.desc}
-                        </div>
+                      <div className={`text-[8.5px] font-medium ${isActive ? (isBebelu ? "text-amber-900/80" : "text-slate-500") : "text-slate-400"}`}>
+                        {t.desc}
                       </div>
-                    </button>
-                  );
-                })}
-              </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
 
               {activeDRETab === "unico_mes" && (
                 <div
@@ -3355,68 +3350,6 @@ export default function Finance() {
                 </div>
               )}
 
-
-            </div>
-
-            {/* Action Sidebar */}
-            <div className="space-y-6">
-              <div
-                className={`p-8 rounded-[2.5rem] border ${isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"}`}
-              >
-                <h4
-                  className={`text-[10px] font-black uppercase tracking-[0.2em] mb-6 italic ${isDarkMode ? "text-slate-400" : "text-black"}`}
-                >
-                  Insights Operacionais
-                </h4>
-                <div className="space-y-6">
-                  {currentInsights.map((insight, idx) => (
-                    <div key={idx} className="flex gap-4">
-                      <div className={`p-2 rounded-xl ${insight.color}`}>
-                        {insight.icon}
-                      </div>
-                      <div>
-                        <div
-                          className={`text-xs font-black mb-1 uppercase tracking-tighter ${isDarkMode ? "dark:text-white" : "text-black"}`}
-                        >
-                          {insight.title}
-                        </div>
-                        <p
-                          className={`text-[10px] italic leading-relaxed ${isDarkMode ? "text-slate-500" : "text-black"}`}
-                        >
-                          {insight.desc}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div
-                  onClick={handleExportPDF}
-                  onMouseEnter={() => setIsHoverExport(true)}
-                  onMouseLeave={() => setIsHoverExport(false)}
-                  style={isHoverExport ? {
-                    backgroundColor: brandColors.button,
-                    borderColor: brandColors.button,
-                    color: currentStore.brand === "BEBELU" ? "#121212" : "#FFFFFF"
-                  } : {}}
-                  className={`mt-10 p-5 rounded-3xl border flex items-center justify-between group cursor-pointer active:scale-95 transition-all ${
-                    isDarkMode
-                      ? "bg-black/20 border-white/5"
-                      : "bg-slate-50 border-slate-100"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <FileText className={`w-5 h-5 transition-colors ${isHoverExport ? (currentStore.brand === "BEBELU" ? "text-amber-950" : "text-white") : "text-amber-500"}`} />
-                    <span
-                      className={`text-[10px] font-black uppercase tracking-widest transition-colors ${isHoverExport ? (currentStore.brand === "BEBELU" ? "text-amber-950" : "text-white") : (isDarkMode ? "dark:text-white" : "text-slate-900")}`}
-                    >
-                      Exportar DRE PDF
-                    </span>
-                  </div>
-                  <ArrowRight className={`w-4 h-4 transition-colors ${isHoverExport ? (currentStore.brand === "BEBELU" ? "text-amber-950" : "text-white") : "text-slate-400"}`} />
-                </div>
-              </div>
-            </div>
           </div>
         </>
       )}
