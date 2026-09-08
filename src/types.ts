@@ -73,6 +73,9 @@ export interface DREData {
   // Sub-totals for the detailed model
   despesasVariaveis?: number;
   resultadoFinanceiro?: number;
+  entradasNaoOperacionais?: number | Record<string, number>;
+  saidasNaoOperacionais?: number | Record<string, number>;
+  resultadoFinalCaixa?: number;
   
   // Detailed breakdown
   details?: {
@@ -85,6 +88,8 @@ export interface DREData {
     comerciais?: Record<string, number>;
     administrativas?: Record<string, number>;
     resultadoFinanceiro?: Record<string, number>;
+    entradasNaoOperacionais?: Record<string, number>;
+    saidasNaoOperacionais?: Record<string, number>;
     griFinal?: number;
     salesByHour?: Record<string, number>;
     marketingCampaigns?: {

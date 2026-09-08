@@ -267,10 +267,22 @@ export default function DataEntry() {
   });
 
   const [resultadoFinanceiro, setResultadoFinanceiro] = useState<Record<string, number>>({
+    taxasCartao: 0,
     taxasIfood: 0,
     tarifasBancarias: 0,
     taxasBancarias: 0,
     jurosRecebidos: 0
+  });
+
+  const [entradasNaoOperacionais, setEntradasNaoOperacionais] = useState<Record<string, number>>({
+    vendaAtivos: 0,
+    investimentoExpansao: 0
+  });
+
+  const [saidasNaoOperacionais, setSaidasNaoOperacionais] = useState<Record<string, number>>({
+    retiradaLucros: 0,
+    investimentoNovaUnidade: 0,
+    amortizacaoEndividamento: 0
   });
 
   const [griFinal, setGriFinal] = useState(0);
@@ -401,6 +413,16 @@ export default function DataEntry() {
           if (monthData.details.comerciais) setComerciais(monthData.details.comerciais);
           if (monthData.details.administrativas) setAdministrativas(monthData.details.administrativas);
           if (monthData.details.resultadoFinanceiro) setResultadoFinanceiro(monthData.details.resultadoFinanceiro);
+          if (monthData.details.entradasNaoOperacionais) {
+            setEntradasNaoOperacionais(monthData.details.entradasNaoOperacionais);
+          } else if (typeof monthData.entradasNaoOperacionais === 'object' && monthData.entradasNaoOperacionais !== null) {
+            setEntradasNaoOperacionais(monthData.entradasNaoOperacionais as Record<string, number>);
+          }
+          if (monthData.details.saidasNaoOperacionais) {
+            setSaidasNaoOperacionais(monthData.details.saidasNaoOperacionais);
+          } else if (typeof monthData.saidasNaoOperacionais === 'object' && monthData.saidasNaoOperacionais !== null) {
+            setSaidasNaoOperacionais(monthData.saidasNaoOperacionais as Record<string, number>);
+          }
           if (monthData.details.griFinal !== undefined) setGriFinal(monthData.details.griFinal);
           if (monthData.details.salesByHour) setSalesByHourData(monthData.details.salesByHour);
           if (monthData.details.marketingCampaigns) {
@@ -541,6 +563,20 @@ export default function DataEntry() {
         if (monthData.details.comerciais) setComerciais(monthData.details.comerciais);
         if (monthData.details.administrativas) setAdministrativas(monthData.details.administrativas);
         if (monthData.details.resultadoFinanceiro) setResultadoFinanceiro(monthData.details.resultadoFinanceiro);
+        if (monthData.details.entradasNaoOperacionais) {
+          setEntradasNaoOperacionais(monthData.details.entradasNaoOperacionais);
+        } else if (typeof monthData.entradasNaoOperacionais === 'object' && monthData.entradasNaoOperacionais !== null) {
+          setEntradasNaoOperacionais(monthData.entradasNaoOperacionais as Record<string, number>);
+        } else {
+          setEntradasNaoOperacionais({ vendaAtivos: 0, investimentoExpansao: 0 });
+        }
+        if (monthData.details.saidasNaoOperacionais) {
+          setSaidasNaoOperacionais(monthData.details.saidasNaoOperacionais);
+        } else if (typeof monthData.saidasNaoOperacionais === 'object' && monthData.saidasNaoOperacionais !== null) {
+          setSaidasNaoOperacionais(monthData.saidasNaoOperacionais as Record<string, number>);
+        } else {
+          setSaidasNaoOperacionais({ retiradaLucros: 0, investimentoNovaUnidade: 0, amortizacaoEndividamento: 0 });
+        }
         if (monthData.details.griFinal !== undefined) setGriFinal(monthData.details.griFinal);
         if (monthData.details.salesByHour) setSalesByHourData(monthData.details.salesByHour);
         if (monthData.details.marketingCampaigns) {
@@ -594,7 +630,9 @@ export default function DataEntry() {
         sindicato: 0, limpeza: 0, taxaCallCenter: 0, sistemaBERP: 0, consultoria: 0, contabilidade: 0, premiacao: 0, dedetizacao: 0, certificado: 0,
         fretesDiversos: 0, utensilios: 0, materialConsumo: 0, materialEscritorio: 0, materialLimpeza: 0, combustiveis: 0, ronyXimenes: 0, seguros: 0, taxaAlvara: 0, despesasOperacionais: 0, despesasGerais: 0
       });
-      setResultadoFinanceiro({ taxasIfood: 0, tarifasBancarias: 0, taxasBancarias: 0, jurosRecebidos: 0 });
+      setResultadoFinanceiro({ taxasCartao: 0, taxasIfood: 0, tarifasBancarias: 0, taxasBancarias: 0, jurosRecebidos: 0 });
+      setEntradasNaoOperacionais({ vendaAtivos: 0, investimentoExpansao: 0 });
+      setSaidasNaoOperacionais({ retiradaLucros: 0, investimentoNovaUnidade: 0, amortizacaoEndividamento: 0 });
       setGriFinal(0);
       setMktPedidosPromocao(0);
       setMktPedidosMaisDeUmaPromo(0);
@@ -685,6 +723,7 @@ export default function DataEntry() {
     
     // Subtract jurosRecebidos because it is revenue; sum the other financial expenses.
     const totalFinanc = 
+      (Number(resultadoFinanceiro.taxasCartao) || 0) +
       (Number(resultadoFinanceiro.taxasIfood) || 0) +
       (Number(resultadoFinanceiro.tarifasBancarias) || 0) +
       (Number(resultadoFinanceiro.taxasBancarias) || 0) -
@@ -716,6 +755,11 @@ export default function DataEntry() {
     const finalGRI = Number(despesasVariaveis.griSecretaria) || 0;
     const resultadoAntesGRI = ebitda - totalFinanc;
     const netProfit = resultadoAntesGRI - finalGRI;
+
+    const finalResultadoCaixa = isBebeluRioMar
+      ? (netProfit + (Number(entradasNaoOperacionais.vendaAtivos) || 0) + (Number(entradasNaoOperacionais.investimentoExpansao) || 0)) -
+        ((Number(saidasNaoOperacionais.retiradaLucros) || 0) + (Number(saidasNaoOperacionais.investimentoNovaUnidade) || 0) + (Number(saidasNaoOperacionais.amortizacaoEndividamento) || 0))
+      : undefined;
     
     const newDRE: DREData = {
       month: currentMonthLabel || '',
@@ -742,6 +786,11 @@ export default function DataEntry() {
       resultadoFinanceiro: totalFinanc,
       ebitda,
       netProfit,
+      ...(isBebeluRioMar ? {
+        entradasNaoOperacionais,
+        saidasNaoOperacionais,
+        resultadoFinalCaixa: finalResultadoCaixa,
+      } : {}),
       details: {
         deducoes,
         despesasVariaveis,
@@ -751,6 +800,11 @@ export default function DataEntry() {
         comerciais,
         administrativas,
         resultadoFinanceiro,
+        ...(isBebeluRioMar ? {
+          entradasNaoOperacionais,
+          saidasNaoOperacionais,
+          resultadoFinalCaixa: finalResultadoCaixa,
+        } : {}),
         griFinal: finalGRI,
         salesByHour: salesByHourLocal,
         marketingCampaigns: {
@@ -1202,13 +1256,14 @@ export default function DataEntry() {
               <section className="space-y-6">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1.5 h-6 bg-yellow-400 rounded-full" />
-                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Apuração Resultado Financeiro</h4>
+                  <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>6. Despesas Financeiras & Taxas</h4>
                 </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                    {[
+                     { label: 'Taxas Cartão / Maquininha', key: 'taxasCartao' },
                      { label: 'Taxas Ifood', key: 'taxasIfood' },
                      { label: 'Tarifas Bancárias', key: 'tarifasBancarias' },
-                     { label: 'Taxas Bancarias', key: 'taxasBancarias' },
+                     { label: 'Taxas Bancarias / Juros', key: 'taxasBancarias' },
                      { label: 'Juros Recebidos (-)', key: 'jurosRecebidos' },
                    ].map(item => (
                      <div key={item.key}>
@@ -1244,6 +1299,155 @@ export default function DataEntry() {
                    </div>
                 </div>
               </section>
+
+              {/* B28 ESPECÍFICO: FLUXO NÃO OPERACIONAL E GERAÇÃO LÍQUIDA DE CAIXA */}
+              {isBebeluRioMar && (
+                <>
+                  {/* 7. ENTRADAS NÃO OPERACIONAIS */}
+                  <section className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-1.5 h-6 bg-emerald-500 rounded-full" />
+                      <div className="flex items-center gap-2">
+                        <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                          7. Entradas Não Operacionais
+                        </h4>
+                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                          B28 Rio Mar
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {[
+                        { label: 'Venda de Ativos', key: 'vendaAtivos', desc: 'Desinvestimentos, alienação de máquinas ou móveis' },
+                        { label: 'Investimento e Expansão na Unidade', key: 'investimentoExpansao', desc: 'Aporte para reformas, retrofit ou novos equipamentos' }
+                      ].map(item => (
+                        <div key={item.key} className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">{item.label}</label>
+                          <span className="text-[9px] text-slate-400 italic block">{item.desc}</span>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
+                            <input 
+                              type="number" 
+                              onPaste={(e) => handleNumericPaste(e, (val) => setEntradasNaoOperacionais({...entradasNaoOperacionais, [item.key]: val}))}
+                              value={(entradasNaoOperacionais as any)[item.key]} 
+                              onChange={(e) => setEntradasNaoOperacionais({...entradasNaoOperacionais, [item.key]: Number(e.target.value)})} 
+                              onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
+                              className={`w-full pl-10 pr-3 py-2.5 rounded-xl border outline-none font-bold text-xs ${isDarkMode ? 'bg-[#121212] border-[#333] text-emerald-400' : 'bg-slate-50 border-slate-100 text-emerald-700'}`} 
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* 8. SAÍDAS NÃO OPERACIONAIS */}
+                  <section className="space-y-6 pt-4 border-t border-slate-100 dark:border-white/5">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-1.5 h-6 bg-rose-500 rounded-full" />
+                      <div className="flex items-center gap-2">
+                        <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>
+                          8. Saídas Não Operacionais
+                        </h4>
+                        <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20">
+                          B28 Rio Mar
+                        </span>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {[
+                        { label: 'Retirada de Lucros', key: 'retiradaLucros', desc: 'Distribuição de dividendos aos sócios' },
+                        { label: 'Investimento em Nova Unidade', key: 'investimentoNovaUnidade', desc: 'Transferência de capital para abertura de novas lojas' },
+                        { label: 'Amortização Endividamento', key: 'amortizacaoEndividamento', desc: 'Pagamento de parcelas de empréstimos / financiamentos' }
+                      ].map(item => (
+                        <div key={item.key} className="space-y-1">
+                          <label className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">{item.label}</label>
+                          <span className="text-[9px] text-slate-400 italic block">{item.desc}</span>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">R$</span>
+                            <input 
+                              type="number" 
+                              onPaste={(e) => handleNumericPaste(e, (val) => setSaidasNaoOperacionais({...saidasNaoOperacionais, [item.key]: val}))}
+                              value={(saidasNaoOperacionais as any)[item.key]} 
+                              onChange={(e) => setSaidasNaoOperacionais({...saidasNaoOperacionais, [item.key]: Number(e.target.value)})} 
+                              onFocus={(e) => Number(e.target.value) === 0 && (e.target.value = '')}
+                              className={`w-full pl-10 pr-3 py-2.5 rounded-xl border outline-none font-bold text-xs ${isDarkMode ? 'bg-[#121212] border-[#333] text-rose-400' : 'bg-slate-50 border-slate-100 text-rose-700'}`} 
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* RESUMO DE FLUXO E RESULTADO FINAL B28 */}
+                  {(() => {
+                    const totalEntradasNaoOp = (Number(entradasNaoOperacionais.vendaAtivos) || 0) + (Number(entradasNaoOperacionais.investimentoExpansao) || 0);
+                    const totalSaidasNaoOp = (Number(saidasNaoOperacionais.retiradaLucros) || 0) + (Number(saidasNaoOperacionais.investimentoNovaUnidade) || 0) + (Number(saidasNaoOperacionais.amortizacaoEndividamento) || 0);
+                    const totalTaxesEst = deducoes.darfSimples || 0;
+                    const totalVarEst = (Object.values(despesasVariaveis) as number[]).reduce((a, b) => a + (Number(b) || 0), 0);
+                    const totalFixEst = (Object.values(colaboradores) as number[]).reduce((a, b) => a + (Number(b) || 0), 0) +
+                                       (Object.values(funcionamento) as number[]).reduce((a, b) => a + (Number(b) || 0), 0) +
+                                       (Object.values(manutencao) as number[]).reduce((a, b) => a + (Number(b) || 0), 0) +
+                                       (Object.values(comerciais) as number[]).reduce((a, b) => a + (Number(b) || 0), 0) +
+                                       (Object.values(administrativas) as number[]).reduce((a, b) => a + (Number(b) || 0), 0);
+                    const totalFinEst = (Number(resultadoFinanceiro.taxasCartao) || 0) +
+                                       (Number(resultadoFinanceiro.taxasIfood) || 0) +
+                                       (Number(resultadoFinanceiro.tarifasBancarias) || 0) +
+                                       (Number(resultadoFinanceiro.taxasBancarias) || 0) -
+                                       (Number(resultadoFinanceiro.jurosRecebidos) || 0);
+                    const ebitdaEst = revenue - totalTaxesEst - cmvTotal - totalVarEst - totalFixEst;
+                    const netProfitEst = ebitdaEst - totalFinEst - (Number(despesasVariaveis.griSecretaria) || griFinal || 0);
+                    const resultadoFinalCaixaEst = netProfitEst + totalEntradasNaoOp - totalSaidasNaoOp;
+                    const isPositive = resultadoFinalCaixaEst >= 0;
+
+                    return (
+                      <div className={`p-5 rounded-2xl border ${isDarkMode ? 'bg-black/30 border-white/10' : 'bg-slate-50 border-slate-200'} space-y-4`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-black uppercase tracking-wider text-slate-500">
+                            Simulação em Tempo Real - Fluxo & Caixa B28
+                          </span>
+                          <span className={`px-3 py-1 rounded-full text-xs font-black ${
+                            isPositive 
+                              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30' 
+                              : 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30'
+                          }`}>
+                            {isPositive ? 'CAIXA POSITIVO' : 'DEFICIT DE CAIXA'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
+                          <div className="p-3 rounded-xl bg-white dark:bg-[#1E1E1E] border border-slate-100 dark:border-white/5">
+                            <span className="text-[9px] font-bold uppercase text-slate-400 block">Lucro Líquido (DRE)</span>
+                            <span className={`text-sm font-black ${netProfitEst >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                              {formatCurrency(netProfitEst)}
+                            </span>
+                          </div>
+                          <div className="p-3 rounded-xl bg-white dark:bg-[#1E1E1E] border border-slate-100 dark:border-white/5">
+                            <span className="text-[9px] font-bold uppercase text-slate-400 block">(+) Entradas Não Op.</span>
+                            <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                              +{formatCurrency(totalEntradasNaoOp)}
+                            </span>
+                          </div>
+                          <div className="p-3 rounded-xl bg-white dark:bg-[#1E1E1E] border border-slate-100 dark:border-white/5">
+                            <span className="text-[9px] font-bold uppercase text-slate-400 block">(-) Saídas Não Op.</span>
+                            <span className="text-sm font-black text-rose-600 dark:text-rose-400">
+                              -{formatCurrency(totalSaidasNaoOp)}
+                            </span>
+                          </div>
+                          <div className={`p-3 rounded-xl border ${
+                            isPositive 
+                              ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-300' 
+                              : 'bg-rose-500/10 border-rose-500/30 text-rose-700 dark:text-rose-300'
+                          }`}>
+                            <span className="text-[9px] font-black uppercase block tracking-wider">(=) Geração Líquida Caixa</span>
+                            <span className="text-base font-black tracking-tight">
+                              {formatCurrency(resultadoFinalCaixaEst)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
             </motion.div>
           )}
 

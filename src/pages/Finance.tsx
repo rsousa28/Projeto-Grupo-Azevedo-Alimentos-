@@ -99,12 +99,14 @@ const calculateRowValue = (budgetObj: Record<string, number> | undefined, rowId:
   if (!budgetObj) return 0;
   const fat = budgetObj.faturamento || 0;
   const ded = budgetObj.deducoes || 0;
+  const recLiq = fat - ded;
   const cmv = budgetObj.cmv || 0;
   const desV = budgetObj.despesas_var || 0;
   
-  const mc = fat - ded - cmv - desV;
-  
+  const mc = recLiq - cmv - desV;
   const col = budgetObj.colaboradores || 0;
+  const primeCost = cmv + col;
+
   const func = budgetObj.funcionamento || 0;
   const man = budgetObj.manutencao || 0;
   const com = budgetObj.comerciais || 0;
@@ -114,10 +116,18 @@ const calculateRowValue = (budgetObj: Record<string, number> | undefined, rowId:
   
   const fin = budgetObj.financeiro || 0;
   const net = ebitda - fin;
+  const ent = budgetObj.entradas_nao_operacionais || 0;
+  const sai = budgetObj.saidas_nao_operacionais || 0;
+  const finalCaixa = net + ent - sai;
   
+  if (rowId === "receita_liquida") return recLiq;
+  if (rowId === "prime_cost") return primeCost;
   if (rowId === "margem_contrib") return mc;
   if (rowId === "ebitda") return ebitda;
   if (rowId === "net_profit") return net;
+  if (rowId === "entradas_nao_operacionais") return ent;
+  if (rowId === "saidas_nao_operacionais") return sai;
+  if (rowId === "resultado_final_caixa") return finalCaixa;
   return 0;
 };
 
@@ -127,17 +137,27 @@ const getActualRowValue = (data: any, rowId: string): number => {
     case "faturamento":
       return data.faturamento || 0;
     case "deducoes":
-      return Math.abs(data.details?.deducoes?.darfSimples || data.taxes || 0);
+      return Math.abs(data.details?.deducoes?.darfSimples || data.taxes || 0) + Math.abs(data.details?.deducoes?.taxasCambio || 0);
+    case "receita_liquida": {
+      const fat = data.faturamento || 0;
+      const ded = Math.abs(data.details?.deducoes?.darfSimples || data.taxes || 0) + Math.abs(data.details?.deducoes?.taxasCambio || 0);
+      return fat - ded;
+    }
     case "cmv":
       return Math.abs(data.cmv || 0);
     case "despesas_var":
       return Math.abs(data.despesasVariaveis || 0);
     case "margem_contrib": {
       const fat = data.faturamento || 0;
-      const ded = Math.abs(data.details?.deducoes?.darfSimples || data.taxes || 0);
+      const ded = Math.abs(data.details?.deducoes?.darfSimples || data.taxes || 0) + Math.abs(data.details?.deducoes?.taxasCambio || 0);
       const cmv = Math.abs(data.cmv || 0);
       const desV = Math.abs(data.despesasVariaveis || 0);
       return fat - ded - cmv - desV;
+    }
+    case "prime_cost": {
+      const cmv = Math.abs(data.cmv || 0);
+      const col = Math.abs(data.payroll || 0);
+      return cmv + col;
     }
     case "colaboradores":
       return Math.abs(data.payroll || 0);
@@ -188,7 +208,26 @@ const getActualRowValue = (data: any, rowId: string): number => {
       return resFin + griStr;
     }
     case "net_profit":
-      return data.netProfit || 0;
+      return data.netProfit !== undefined 
+        ? data.netProfit 
+        : (getActualRowValue(data, "ebitda") - getActualRowValue(data, "financeiro"));
+    case "entradas_nao_operacionais": {
+      const ent = data.details?.entradasNaoOperacionais || {};
+      return (Number(ent.vendaAtivos) || 0) + (Number(ent.investimentoExpansao) || 0);
+    }
+    case "saidas_nao_operacionais": {
+      const sai = data.details?.saidasNaoOperacionais || {};
+      return (Number(sai.retiradaLucros) || 0) + 
+             (Number(sai.investimentoNovaUnidade) || 0) + 
+             (Number(sai.amortizacaoEndividamento) || 0);
+    }
+    case "resultado_final_caixa": {
+      if (data.resultadoFinalCaixa !== undefined) return data.resultadoFinalCaixa;
+      const base = data.ebitda !== undefined ? data.ebitda : getActualRowValue(data, "ebitda");
+      const ent = getActualRowValue(data, "entradas_nao_operacionais");
+      const sai = getActualRowValue(data, "saidas_nao_operacionais");
+      return base + ent - sai;
+    }
     default:
       return 0;
   }
@@ -200,12 +239,20 @@ const getActualDetailValue = (data: any, groupId: string, itemLabel: string): nu
   const label = itemLabel.trim();
   
   if (groupId === "receita") {
-    if (label.includes("Balcão") || label.includes("Balção")) {
+    if (label.includes("Balcão") || label.includes("Balção") || label.includes("Física")) {
       return data.receitaBalcao || details.receitaDetailed?.balcao || 0;
     }
-    if (label.includes("Delivery")) {
+    if (label.includes("Delivery") || label.includes("Apps")) {
       return data.receitaDelivery || details.receitaDetailed?.delivery || 0;
     }
+  }
+  if (groupId === "receita_liquida") {
+    if (label.includes("Bruta")) return data.faturamento || 0;
+    if (label.includes("Deduções")) return -(Math.abs(details.deducoes?.darfSimples || data.taxes || 0) + Math.abs(details.deducoes?.taxasCambio || 0));
+  }
+  if (groupId === "prime_cost") {
+    if (label.includes("CMV") || label.includes("Mercadorias")) return -(data.cmv || 0);
+    if (label.includes("CMO") || label.includes("Pessoal")) return -(data.payroll || 0);
   }
   if (groupId === "cmv") {
     if (label.includes("Balcão") || label.includes("Balção")) {
@@ -214,26 +261,32 @@ const getActualDetailValue = (data: any, groupId: string, itemLabel: string): nu
     if (label.includes("Delivery")) {
       return -(details.cmvDetailed?.delivery || (data.cmv || 0) * 0.6);
     }
+    if (label.includes("Insumos")) {
+      return -(details.cmvDetailed?.insumos || (data.cmv || 0) * 0.85);
+    }
+    if (label.includes("Embalagens")) {
+      return -(details.cmvDetailed?.embalagens || (data.cmv || 0) * 0.15);
+    }
   }
   if (groupId === "deducoes") {
     if (label.includes("Simples Nacional") || label.includes("Simples") || label.includes("DARF/SIMPLES") || label.includes("DARF")) {
       return -(details.deducoes?.darfSimples || data.taxes || 0);
     }
-    if (label.includes("Taxa Câmbio")) {
+    if (label.includes("Taxa Câmbio") || label.includes("Cancelamentos")) {
       return -(details.deducoes?.taxasCambio || 0);
     }
   }
   if (groupId === "despesas_variaveis") {
-    if (label.includes("Cartão") || label.includes("Cartao")) {
+    if (label.includes("iFood") || label.includes("Ifood") || label.includes("Delivery")) {
+      return -((details.despesasVariaveis?.taxaIfood || 0) + (details.despesasVariaveis?.despesasIfood || 0));
+    }
+    if (label.includes("Cartão") || label.includes("Cartao") || label.includes("Adquirência") || label.includes("Meios de Pagamento")) {
       return -(details.despesasVariaveis?.taxaCartao || details.despesasVariaveis?.taxasCartao || 0);
     }
-    if (label.includes("Motoqueiro")) {
-      return -(details.despesasVariaveis?.taxaMotoqueiro || 0);
+    if (label.includes("Motoqueiro") || label.includes("Logística") || label.includes("Entregadores")) {
+      return -((details.despesasVariaveis?.taxaMotoqueiro || 0) + (details.despesasVariaveis?.freteCompras || 0));
     }
-    if (label.includes("Taxa Ifood")) {
-      return -(details.despesasVariaveis?.taxaIfood || 0);
-    }
-    if (label.includes("Frete Compras")) {
+    if (label.includes("Frete Compras") || label.includes("Frete")) {
       return -(details.despesasVariaveis?.freteCompras || 0);
     }
     if (label.includes("Fundo de Marketing") || label.includes("Fundo de Promoção") || label.includes("Marketing")) {
@@ -331,13 +384,71 @@ const getActualDetailValue = (data: any, groupId: string, itemLabel: string): nu
   }
   if (groupId === "apuracao_financeira") {
     const fin = details.resultadoFinanceiro || {};
+    if (label.includes("Adquirência") || label.includes("Maquininha") || label.includes("Cartão") || label.includes("Cartao")) {
+      return -(fin.taxasCartao || details.despesasVariaveis?.taxaCartao || details.despesasVariaveis?.taxasCartao || 0);
+    }
+    if (label.includes("Antecipações") || label.includes("Antecipação") || label.includes("Tarifas")) {
+      return -(fin.tarifasBancarias || fin.antecipacoes || 0);
+    }
+    if (label.includes("Taxas Bancárias") || label.includes("Juros de Financiamento") || label.includes("Financiamento") || label.includes("Juros Banco")) {
+      return -(fin.taxasBancarias || details.despesasVariaveis?.taxaBancariaJuros || 0);
+    }
+    if (label.includes("Juros Recebidos") || label.includes("Rendimentos")) return (fin.jurosRecebidos || 0);
     if (label.includes("Ifood")) return -(fin.taxasIfood || 0);
-    if (label.includes("Tarifas")) return -(fin.tarifasBancarias || 0);
-    if (label.includes("Taxas Bancárias")) return -(fin.taxasBancarias || 0);
-    if (label.includes("Juros")) return (fin.jurosRecebidos || 0);
     if (label.includes("GRI")) return -(details.griFinal || details.despesasVariaveis?.griSecretaria || 0);
   }
+  if (groupId === "entradas_nao_operacionais") {
+    const ent = details.entradasNaoOperacionais || {};
+    if (label.includes("Ativos")) return Number(ent.vendaAtivos) || 0;
+    if (label.includes("Expansão") || label.includes("Expansao")) return Number(ent.investimentoExpansao) || 0;
+  }
+  if (groupId === "saidas_nao_operacionais") {
+    const sai = details.saidasNaoOperacionais || {};
+    if (label.includes("Lucros")) return -(Number(sai.retiradaLucros) || 0);
+    if (label.includes("Nova Unidade")) return -(Number(sai.investimentoNovaUnidade) || 0);
+    if (label.includes("Amortização") || label.includes("Endividamento") || label.includes("Empréstimos")) {
+      return -(Number(sai.amortizacaoEndividamento) || 0);
+    }
+  }
   return 0;
+};
+
+const getDreRows = (isB28: boolean) => {
+  if (isB28) {
+    return [
+      { id: "faturamento", label: "1. RECEITA BRUTA OPERACIONAL", type: "income", mapGroupId: "receita" },
+      { id: "deducoes", label: "2. DEDUÇÕES DA RECEITA", type: "expense", mapGroupId: "deducoes" },
+      { id: "receita_liquida", label: "3. (=) RECEITA OPERACIONAL LÍQUIDA", type: "total", mapGroupId: "receita_liquida" },
+      { id: "cmv", label: "4. CUSTOS VARIÁVEIS / CMV", type: "expense", mapGroupId: "cmv" },
+      { id: "despesas_var", label: "5. DESPESAS VARIÁVEIS (CANAIS & TAXAS)", type: "expense", mapGroupId: "despesas_variaveis" },
+      { id: "margem_contrib", label: "6. (=) MARGEM DE CONTRIBUIÇÃO", type: "total", mapGroupId: "margem_contribuicao" },
+      { id: "prime_cost", label: "★ PRIME COST (CMV + CMO) [BENCHMARK]", type: "kpi", mapGroupId: "prime_cost" },
+      { id: "colaboradores", label: "7.1 DESPESAS COM PESSOAL (CMO)", type: "expense", mapGroupId: "despesas_fixas_5" },
+      { id: "funcionamento", label: "7.2 CUSTOS DE FUNCIONAMENTO (OCUPAÇÃO)", type: "expense", mapGroupId: "despesas_fixas_6" },
+      { id: "manutencao", label: "7.3 MANUTENÇÃO E REFORMAS", type: "expense", mapGroupId: "despesas_fixas_7" },
+      { id: "comerciais", label: "7.4 DESPESAS COMERCIAIS / MKT", type: "expense", mapGroupId: "despesas_fixas_8" },
+      { id: "administrativas", label: "7.5 DESPESAS ADMINISTRATIVAS", type: "expense", mapGroupId: "despesas_fixas_9" },
+      { id: "ebitda", label: "8. (=) EBITDA - RESULTADO OPERACIONAL", type: "total", mapGroupId: "resultado_operacional_financeiro" },
+      { id: "entradas_nao_operacionais", label: "9. ENTRADAS NÃO OPERACIONAIS", type: "income", mapGroupId: "entradas_nao_operacionais" },
+      { id: "saidas_nao_operacionais", label: "10. SAÍDAS NÃO OPERACIONAIS", type: "expense", mapGroupId: "saidas_nao_operacionais" },
+      { id: "resultado_final_caixa", label: "11. (=) GERAÇÃO LÍQUIDA DE CAIXA / RESULTADO FINAL", type: "total", mapGroupId: "resultado_final_caixa" },
+    ];
+  }
+  return [
+    { id: "faturamento", label: "RECEITA BRUTA", type: "income", mapGroupId: "receita" },
+    { id: "deducoes", label: "DEDUÇÕES DA RECEITA", type: "expense", mapGroupId: "deducoes" },
+    { id: "cmv", label: "CUSTOS VARIÁVEIS", type: "expense", mapGroupId: "cmv" },
+    { id: "despesas_var", label: "DESPESAS VARIÁVEIS", type: "expense", mapGroupId: "despesas_variaveis" },
+    { id: "margem_contrib", label: "Margem de Contribuição", type: "total", mapGroupId: "margem_contribuicao" },
+    { id: "colaboradores", label: "DESPESAS COM PESSOAL", type: "expense", mapGroupId: "despesas_fixas_5" },
+    { id: "funcionamento", label: "CUSTOS DE FUNCIONAMENTO", type: "expense", mapGroupId: "despesas_fixas_6" },
+    { id: "manutencao", label: "MANUTENÇÃO E TÉCNICA", type: "expense", mapGroupId: "despesas_fixas_7" },
+    { id: "comerciais", label: "DESPESAS COMERCIAIS / MKT", type: "expense", mapGroupId: "despesas_fixas_8" },
+    { id: "administrativas", label: "DESPESAS ADM / GERAIS", type: "expense", mapGroupId: "despesas_fixas_9" },
+    { id: "ebitda", label: "EBITDA - Resultado Operacional", type: "total", mapGroupId: "resultado_operacional_financeiro" },
+    { id: "financeiro", label: "Result. Financeiro & Impostos", type: "expense", mapGroupId: "apuracao_financeira" },
+    { id: "net_profit", label: "Resultado Líquido do Exercício", type: "total", mapGroupId: "resultado_liquido" },
+  ];
 };
 
 export default function Finance() {
@@ -772,16 +883,21 @@ export default function Finance() {
       }).catch((err) => console.error(err));
     }
   }, [selectedMonth, selectedYear, currentStore.id]);
+  const [comparativoViewMode, setComparativoViewMode] = useState<"ah_yoy" | "full_budget">("ah_yoy");
   const [expandedGroups, setExpandedGroups] = useState<string[]>([
     "receita",
     "deducoes",
+    "receita_liquida",
     "cmv",
+    "despesas_variaveis",
     "despesas_var",
+    "prime_cost",
     "despesas_fixas_5",
     "despesas_fixas_6",
     "despesas_fixas_7",
     "despesas_fixas_8",
     "despesas_fixas_9",
+    "apuracao_financeira",
     "financeiro",
   ]);
 
@@ -839,12 +955,12 @@ export default function Finance() {
   const dreGroups = [
     {
       id: "receita",
-      label: "1. RECEITA BRUTA",
+      label: "1. RECEITA BRUTA OPERACIONAL",
       isTotal: false,
       items: [
-        { label: "Venda Balção", valor: currentMonthData.receitaBalcao || 0 },
+        { label: "Venda Balcão / Loja Física", valor: currentMonthData.receitaBalcao || 0 },
         {
-          label: "Venda Delivery",
+          label: "Venda Delivery (Canais & Apps)",
           valor: currentMonthData.receitaDelivery || 0,
         },
       ],
@@ -856,32 +972,47 @@ export default function Finance() {
       isTotal: false,
       items: [
         {
-          label: "DARF/SIMPLES",
+          label: "DARF / SIMPLES NACIONAL",
           valor: -(
             currentMonthData.details?.deducoes?.darfSimples ||
             currentMonthData.taxes
           ),
         },
+        {
+          label: "Taxas Câmbio / Cancelamentos",
+          valor: -(currentMonthData.details?.deducoes?.taxasCambio || 0),
+        },
       ],
       total: -(
-        currentMonthData.details?.deducoes?.darfSimples ||
-        currentMonthData.taxes
+        (currentMonthData.details?.deducoes?.darfSimples || currentMonthData.taxes) +
+        (currentMonthData.details?.deducoes?.taxasCambio || 0)
       ),
     },
     {
+      id: "receita_liquida",
+      label: "3. (=) RECEITA OPERACIONAL LÍQUIDA",
+      isTotal: true,
+      highlight: true,
+      color: "text-blue-600 dark:text-blue-400",
+      total:
+        (currentMonthData.faturamento || 0) -
+        (currentMonthData.details?.deducoes?.darfSimples || currentMonthData.taxes || 0) -
+        (currentMonthData.details?.deducoes?.taxasCambio || 0),
+    },
+    {
       id: "cmv",
-      label: "3. CUSTOS VARIÁVEIS DAS MERCADORIAS",
+      label: "4. CUSTOS VARIÁVEIS / CMV (INSUMOS E EMBALAGENS)",
       isTotal: false,
       items: [
         {
-          label: "CMV - Balcão",
+          label: "CMV - Balcão (Insumos & Mercadorias)",
           valor: -(
             currentMonthData.details?.cmvDetailed?.balcao ||
             currentMonthData.cmv * 0.4
           ),
         },
         {
-          label: "CMV - Delivery",
+          label: "CMV - Delivery (Insumos & Embalagens)",
           valor: -(
             currentMonthData.details?.cmvDetailed?.delivery ||
             currentMonthData.cmv * 0.6
@@ -892,29 +1023,28 @@ export default function Finance() {
     },
     {
       id: "despesas_variaveis",
-      label: "4. DESPESAS VARIÁVEIS",
+      label: "5. DESPESAS VARIÁVEIS (CANAIS, TAXAS & ENTREGAS)",
       isTotal: false,
       items: [
         {
-          label: "Taxas de Cartão de Créditos e Débitos",
+          label: "Comissões iFood & Plataformas de Delivery",
           valor: -(
-            currentMonthData.details?.despesasVariaveis?.taxaCartao || 0
+            (currentMonthData.details?.despesasVariaveis?.taxaIfood || 0) +
+            (currentMonthData.details?.despesasVariaveis?.despesasIfood || 0)
           ),
         },
         {
-          label: "Taxa Motoqueiro",
+          label: "Taxas de Cartão & Meios de Pagamento (Adquirência)",
           valor: -(
-            currentMonthData.details?.despesasVariaveis?.taxaMotoqueiro || 0
+            (currentMonthData.details?.despesasVariaveis?.taxaCartao || 0) +
+            (currentMonthData.details?.despesasVariaveis?.taxaPix || 0)
           ),
         },
         {
-          label: "Taxa Ifood",
-          valor: -(currentMonthData.details?.despesasVariaveis?.taxaIfood || 0),
-        },
-        {
-          label: "Frete Compras",
+          label: "Logística & Entregadores (Taxa Motoqueiro)",
           valor: -(
-            currentMonthData.details?.despesasVariaveis?.freteCompras || 0
+            (currentMonthData.details?.despesasVariaveis?.taxaMotoqueiro || 0) +
+            (currentMonthData.details?.despesasVariaveis?.freteCompras || 0)
           ),
         },
         {
@@ -924,7 +1054,7 @@ export default function Finance() {
           ),
         },
         {
-          label: "Royaltis - Franquia",
+          label: "Royalties - Franquia",
           valor: -(currentMonthData.details?.despesasVariaveis?.royalties || 0),
         },
         {
@@ -936,10 +1066,6 @@ export default function Finance() {
           ),
         },
         {
-          label: isBebeluRioMar ? "Taxas Conta Garantida" : "Taxas PIX",
-          valor: -(currentMonthData.details?.despesasVariaveis?.taxaPix || 0),
-        },
-        {
           label: "Bonificações ou Comissões para Colaboradores",
           valor: -(
             currentMonthData.details?.despesasVariaveis?.bonificacoes || 0
@@ -949,28 +1075,33 @@ export default function Finance() {
           label: "Descontos Concedidos para Clientes - Cortesia",
           valor: -(currentMonthData.details?.despesasVariaveis?.descontos || 0),
         },
-        {
-          label: "Despesas Ifood",
-          valor: -(
-            currentMonthData.details?.despesasVariaveis?.despesasIfood || 0
-          ),
-        },
       ],
       total: -(currentMonthData.despesasVariaveis || 0),
     },
     {
       id: "margem_contribuicao",
-      label: "(=) MARGEM DE CONTRIBUIÇÃO",
+      label: "6. (=) MARGEM DE CONTRIBUIÇÃO",
       isTotal: true,
       total:
-        currentMonthData.faturamento -
-        (currentMonthData.details?.deducoes?.darfSimples ||
-          currentMonthData.taxes) -
+        (currentMonthData.faturamento || 0) -
+        (currentMonthData.details?.deducoes?.darfSimples || currentMonthData.taxes || 0) -
+        (currentMonthData.details?.deducoes?.taxasCambio || 0) -
         currentMonthData.cmv -
         (currentMonthData.despesasVariaveis || 0),
       highlight: true,
       color:
-        currentStore.brand === "BEBELU" ? "text-amber-600" : "text-blue-600",
+        currentStore.brand === "BEBELU" ? "text-amber-600" : "text-emerald-600",
+    },
+    {
+      id: "prime_cost",
+      label: "★ PRIME COST (CMV + CMO PESSOAL) [KPI FOOD SERVICE]",
+      isTotal: false,
+      isKpi: true,
+      items: [
+        { label: "CMV (Custo de Mercadorias e Insumos)", valor: -currentMonthData.cmv },
+        { label: "CMO (Despesas com Pessoal e Encargos)", valor: -currentMonthData.payroll },
+      ],
+      total: -(currentMonthData.cmv + currentMonthData.payroll),
     },
     {
       id: "despesas_fixas_5",
@@ -1281,68 +1412,141 @@ export default function Finance() {
     },
     {
       id: "resultado_operacional_financeiro",
-      label: "(=) EBITDA - RESULTADO OPERACIONAL",
+      label: "8. (=) EBITDA - RESULTADO OPERACIONAL",
       isTotal: true,
       total: currentMonthData.ebitda,
       color:
-        currentStore.brand === "BEBELU" ? "text-amber-600" : "text-indigo-600",
+        currentMonthData.ebitda < 0
+          ? "text-rose-600 dark:text-rose-400 font-black"
+          : currentStore.brand === "BEBELU" ? "text-amber-600" : "text-indigo-600",
     },
-    {
-      id: "apuracao_financeira",
-      label: "10. APURAÇÃO DO RESULTADO FINANCEIRO E IMPOSTOS/GRI",
-      isTotal: false,
-      items: [
-        {
-          label: "Taxas Ifood",
-          valor: -(
-            currentMonthData.details?.resultadoFinanceiro?.taxasIfood || 0
-          ),
-        },
-        {
-          label: "Tarifas Bancárias",
-          valor: -(
-            currentMonthData.details?.resultadoFinanceiro?.tarifasBancarias || 0
-          ),
-        },
-        {
-          label: "Taxas Bancárias",
-          valor: -(
-            currentMonthData.details?.resultadoFinanceiro?.taxasBancarias || 0
-          ),
-        },
-        {
-          label: "Juros Recebidos",
-          valor:
-            currentMonthData.details?.resultadoFinanceiro?.jurosRecebidos || 0,
-        },
-        {
-          label: "GRI - Secretaria de Estado da Tributação",
-          valor: -(
-            currentMonthData.details?.griFinal ||
+    ...(isBebeluRioMar ? [
+      {
+        id: "entradas_nao_operacionais",
+        label: "9. ENTRADAS NÃO OPERACIONAIS",
+        isTotal: false,
+        items: [
+          {
+            label: "Venda de Ativos",
+            valor: Number(currentMonthData.details?.entradasNaoOperacionais?.vendaAtivos) || 0,
+          },
+          {
+            label: "Investimento e Expansão na Unidade",
+            valor: Number(currentMonthData.details?.entradasNaoOperacionais?.investimentoExpansao) || 0,
+          },
+        ],
+        total: (Number(currentMonthData.details?.entradasNaoOperacionais?.vendaAtivos) || 0) +
+               (Number(currentMonthData.details?.entradasNaoOperacionais?.investimentoExpansao) || 0),
+        color: "text-emerald-600 dark:text-emerald-400 font-bold",
+      },
+      {
+        id: "saidas_nao_operacionais",
+        label: "10. SAÍDAS NÃO OPERACIONAIS",
+        isTotal: false,
+        items: [
+          {
+            label: "Retirada de Lucros",
+            valor: -(Number(currentMonthData.details?.saidasNaoOperacionais?.retiradaLucros) || 0),
+          },
+          {
+            label: "Investimento em Nova Unidade",
+            valor: -(Number(currentMonthData.details?.saidasNaoOperacionais?.investimentoNovaUnidade) || 0),
+          },
+          {
+            label: "Amortização de Endividamento (Empréstimos e Financiamentos)",
+            valor: -(Number(currentMonthData.details?.saidasNaoOperacionais?.amortizacaoEndividamento) || 0),
+          },
+        ],
+        total: -(
+          (Number(currentMonthData.details?.saidasNaoOperacionais?.retiradaLucros) || 0) +
+          (Number(currentMonthData.details?.saidasNaoOperacionais?.investimentoNovaUnidade) || 0) +
+          (Number(currentMonthData.details?.saidasNaoOperacionais?.amortizacaoEndividamento) || 0)
+        ),
+        color: "text-rose-600 dark:text-rose-400 font-bold",
+      },
+      {
+        id: "resultado_final_caixa",
+        label: "11. (=) GERAÇÃO LÍQUIDA DE CAIXA / RESULTADO FINAL",
+        isTotal: true,
+        highlight: true,
+        border: true,
+        total: (currentMonthData.ebitda || 0) +
+               ((Number(currentMonthData.details?.entradasNaoOperacionais?.vendaAtivos) || 0) +
+                (Number(currentMonthData.details?.entradasNaoOperacionais?.investimentoExpansao) || 0)) -
+               ((Number(currentMonthData.details?.saidasNaoOperacionais?.retiradaLucros) || 0) +
+                (Number(currentMonthData.details?.saidasNaoOperacionais?.investimentoNovaUnidade) || 0) +
+                (Number(currentMonthData.details?.saidasNaoOperacionais?.amortizacaoEndividamento) || 0)),
+        color: ((currentMonthData.ebitda || 0) +
+               ((Number(currentMonthData.details?.entradasNaoOperacionais?.vendaAtivos) || 0) +
+                (Number(currentMonthData.details?.entradasNaoOperacionais?.investimentoExpansao) || 0)) -
+               ((Number(currentMonthData.details?.saidasNaoOperacionais?.retiradaLucros) || 0) +
+                (Number(currentMonthData.details?.saidasNaoOperacionais?.investimentoNovaUnidade) || 0) +
+                (Number(currentMonthData.details?.saidasNaoOperacionais?.amortizacaoEndividamento) || 0))) < 0
+          ? "text-rose-600 dark:text-rose-400 font-black"
+          : "text-emerald-600 dark:text-emerald-400 font-black",
+      },
+    ] : [
+      {
+        id: "apuracao_financeira",
+        label: "9. DESPESAS FINANCEIRAS & TAXAS DE MEIOS DE PAGAMENTO",
+        isTotal: false,
+        items: [
+          {
+            label: "Taxas de Adquirência & Maquininha de Cartão",
+            valor: -(
+              currentMonthData.details?.resultadoFinanceiro?.taxasCartao ||
+              currentMonthData.details?.despesasVariaveis?.taxaCartao ||
+              0
+            ),
+          },
+          {
+            label: "Antecipações & Tarifas Bancárias",
+            valor: -(
+              currentMonthData.details?.resultadoFinanceiro?.tarifasBancarias || 0
+            ),
+          },
+          {
+            label: "Taxas Bancárias & Juros de Financiamento",
+            valor: -(
+              currentMonthData.details?.resultadoFinanceiro?.taxasBancarias ||
+              currentMonthData.details?.despesasVariaveis?.taxaBancariaJuros ||
+              0
+            ),
+          },
+          {
+            label: "Juros Recebidos (Rendimentos)",
+            valor:
+              currentMonthData.details?.resultadoFinanceiro?.jurosRecebidos || 0,
+          },
+          {
+            label: "GRI - Secretaria de Estado da Tributação",
+            valor: -(
+              currentMonthData.details?.griFinal ||
+              currentMonthData.details?.despesasVariaveis?.griSecretaria ||
+              0
+            ),
+          },
+        ],
+        total: -(
+          (currentMonthData.resultadoFinanceiro || 0) +
+          (currentMonthData.details?.griFinal ||
             currentMonthData.details?.despesasVariaveis?.griSecretaria ||
-            0
-          ),
-        },
-      ],
-      total: -(
-        (currentMonthData.resultadoFinanceiro || 0) +
-        (currentMonthData.details?.griFinal ||
-          currentMonthData.details?.despesasVariaveis?.griSecretaria ||
-          0)
-      ),
-    },
-    {
-      id: "resultado_liquido",
-      label: "(=) RESULTADO LÍQUIDO FINANCEIRO",
-      isTotal: true,
-      total: currentMonthData.netProfit,
-      highlight: true,
-      color:
-        currentMonthData.netProfit < 0
-          ? "text-red-600 dark:text-red-400"
-          : "text-green-600",
-      border: true,
-    },
+            0)
+        ),
+      },
+      {
+        id: "resultado_liquido",
+        label: "10. (=) RESULTADO LÍQUIDO DO EXERCÍCIO",
+        isTotal: true,
+        total: currentMonthData.netProfit,
+        highlight: true,
+        color:
+          currentMonthData.netProfit < 0
+            ? "text-rose-600 dark:text-rose-400 font-black"
+            : "text-emerald-600 dark:text-emerald-400",
+        border: true,
+      },
+    ]),
   ];
 
   const faturamentoVal = currentMonthData.faturamento || 0;
@@ -1373,6 +1577,17 @@ export default function Finance() {
     : totalPayroll + (currentMonthData.operational || 0);
 
   const pontoEquilibrio = mcPercent > 0 ? fixedExpenses / mcPercent : 0;
+  const breakEvenDiff = faturamentoVal - pontoEquilibrio;
+  const breakEvenDistanceText = pontoEquilibrio > 0 && faturamentoVal > 0
+    ? breakEvenDiff >= 0
+      ? `Margem de segurança de ${formatCurrency(breakEvenDiff)} acima do equilíbrio`
+      : `Déficit operacional de ${formatCurrency(Math.abs(breakEvenDiff))} para atingir o equilíbrio (Risco)`
+    : pontoEquilibrio > 0 && faturamentoVal === 0
+      ? `Déficit operacional de ${formatCurrency(pontoEquilibrio)} para atingir o equilíbrio (Risco)`
+      : "Ponto de equilíbrio indisponível";
+  const breakEvenStatusType = pontoEquilibrio > 0 && faturamentoVal > 0
+    ? breakEvenDiff >= 0 ? "safe" : "danger"
+    : "neutral";
   const ticketMedio =
     currentMonthData.quantidadePedidos > 0
       ? currentMonthData.faturamento / currentMonthData.quantidadePedidos
@@ -1971,59 +2186,79 @@ export default function Finance() {
                 color: "text-green-500",
               },
               {
-                label: "Ponto Equilíbrio",
+                label: "Ponto de Equilíbrio",
                 value:
                   pontoEquilibrio > 0 ? formatCurrency(pontoEquilibrio) : "---",
                 trend:
                   pontoEquilibrio > 0
-                    ? pontoEquilibrio > (currentMonthData.faturamento || 0)
-                      ? "Crítico"
-                      : "Saudável"
-                    : "MC Negativa",
+                    ? breakEvenDiff >= 0
+                      ? "Superavitário"
+                      : "Déficit Operacional"
+                    : "MC Insuficiente",
                 trendColor:
                   pontoEquilibrio > 0
-                    ? pontoEquilibrio > (currentMonthData.faturamento || 0)
-                      ? "bg-red-500/10 text-red-500"
-                      : "bg-green-500/10 text-green-500"
-                    : "bg-red-500/10 text-red-500",
+                    ? breakEvenDiff >= 0
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold"
+                      : "bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold"
+                    : "bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold",
                 color: "text-amber-500",
+                subtext: breakEvenDistanceText,
+                subtextType: breakEvenStatusType,
               },
               {
-                label: "CMV + CMO",
+                label: "PRIME COST (CMV + CMO)",
                 value:
                   faturamentoVal > 0 ? `${cmvCmoPercent.toFixed(1)}%` : "---",
                 trend:
                   cmvCmoPercent > 0
-                    ? cmvCmoPercent <= 52
-                      ? "Saudável"
-                      : "Elevado"
+                    ? cmvCmoPercent <= 55
+                      ? "Benchmark Ideal"
+                      : "Atenção (>55%)"
                     : "---",
                 trendColor:
                   cmvCmoPercent > 0
-                    ? cmvCmoPercent <= 52
-                      ? "bg-green-500/10 text-green-500"
-                      : "bg-red-500/10 text-red-500"
+                    ? cmvCmoPercent <= 55
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold"
+                      : "bg-rose-500/10 text-rose-600 dark:text-rose-400 font-bold"
                     : "bg-slate-500/10 text-slate-400",
                 color: "text-blue-500",
+                subtext: faturamentoVal > 0 ? "Meta de Food Service: ≤ 55% da Receita" : undefined,
+                subtextType: cmvCmoPercent <= 55 ? "safe" : "danger",
               },
-            ].map((stat) => (
+            ].map((stat: any) => (
               <div
                 key={stat.label}
-                className={`p-5 rounded-3xl border ${isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"}`}
+                className={`p-5 rounded-3xl border flex flex-col justify-between ${isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"}`}
               >
-                <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
-                  {stat.label}
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className={`text-2xl font-black ${stat.color}`}>
-                    {stat.value}
+                <div>
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    {stat.label}
                   </div>
-                  <div
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${(stat as any).trendColor ? (stat as any).trendColor : stat.trend.startsWith("+") ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}
-                  >
-                    {stat.trend}
+                  <div className="flex items-center justify-between">
+                    <div className={`text-2xl font-black ${stat.color}`}>
+                      {stat.value}
+                    </div>
+                    <div
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${stat.trendColor ? stat.trendColor : stat.trend.startsWith("+") ? "bg-green-500/10 text-green-500" : "bg-red-500/10 text-red-500"}`}
+                    >
+                      {stat.trend}
+                    </div>
                   </div>
                 </div>
+                {stat.subtext && (
+                  <div className={`mt-3 pt-2 border-t text-[10.5px] font-semibold leading-snug flex items-center gap-1.5 ${
+                    stat.subtextType === "safe"
+                      ? "border-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                      : stat.subtextType === "danger"
+                        ? "border-rose-500/20 text-rose-600 dark:text-rose-400"
+                        : isDarkMode ? "border-zinc-800 text-zinc-400" : "border-slate-100 text-slate-500"
+                  }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                      stat.subtextType === "safe" ? "bg-emerald-500" : stat.subtextType === "danger" ? "bg-rose-500" : "bg-slate-400"
+                    }`} />
+                    <span>{stat.subtext}</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -2217,27 +2452,16 @@ export default function Finance() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/30">
-                        {[
-                          { id: "faturamento", label: "RECEITA BRUTA", type: "income", mapGroupId: "receita" },
-                          { id: "deducoes", label: "DEDUÇÕES DA RECEITA", type: "expense", mapGroupId: "deducoes" },
-                          { id: "cmv", label: "CUSTOS VARIÁVEIS", type: "expense", mapGroupId: "cmv" },
-                          { id: "despesas_var", label: "DESPESAS VARIÁVEIS", type: "expense", mapGroupId: "despesas_variaveis" },
-                          { id: "margem_contrib", label: "Margem de Contribuição", type: "total", mapGroupId: "margem_contribuicao" },
-                          { id: "colaboradores", label: "DESPESAS COM PESSOAL", type: "expense", mapGroupId: "despesas_fixas_5" },
-                          { id: "funcionamento", label: "CUSTOS DE FUNCIONAMENTO", type: "expense", mapGroupId: "despesas_fixas_6" },
-                          { id: "manutencao", label: "MANUTENÇÃO E TÉCNICA", type: "expense", mapGroupId: "despesas_fixas_7" },
-                          { id: "comerciais", label: "DESPESAS COMERCIAIS / MKT", type: "expense", mapGroupId: "despesas_fixas_8" },
-                          { id: "administrativas", label: "DESPESAS ADM / GERAIS", type: "expense", mapGroupId: "despesas_fixas_9" },
-                          { id: "ebitda", label: "EBITDA - Resultado Operacional", type: "total", mapGroupId: "resultado_operacional_financeiro" },
-                          { id: "financeiro", label: "Result. Financeiro & Impostos", type: "expense", mapGroupId: "apuracao_financeira" },
-                          { id: "net_profit", label: "Resultado Líquido do Exercício", type: "total", mapGroupId: "resultado_liquido" },
-                        ].map((row) => {
+                        {getDreRows(isBebeluRioMar).map((row) => {
                           const compMonthLabel = monthsGlobal.find(m => m.value === selectedMonth)?.label || "";
                           const matchCurr = activeDreTimeline.find(d => d.month === compMonthLabel && d.year === selectedYear);
                           const valCurr = getActualRowValue(matchCurr, row.id);
                           const fatCurr = getActualRowValue(matchCurr, "faturamento") || 0;
                           const avCurr = fatCurr > 0 ? (row.id === "faturamento" ? 100 : (Math.abs(valCurr) / fatCurr) * 100) : null;
                           const isTotalRow = row.type === "total";
+                          const isKpiRow = row.type === "kpi";
+                          const isBottomLine = row.id === "ebitda" || row.id === "net_profit" || row.id === "resultado_final_caixa";
+                          const isLoss = isBottomLine && valCurr < 0;
 
                           const rowGroup = dreGroups.find(g => g.id === row.mapGroupId);
                           const hasDetails = rowGroup && rowGroup.items && rowGroup.items.length > 0;
@@ -2251,7 +2475,11 @@ export default function Finance() {
                                     ? isDarkMode
                                       ? "bg-zinc-900 border-y border-zinc-800 font-extrabold"
                                       : "bg-slate-50/80 border-y border-slate-200 font-extrabold"
-                                    : ""
+                                    : isKpiRow
+                                      ? isDarkMode
+                                        ? "bg-indigo-950/20 border-y border-indigo-900/30"
+                                        : "bg-indigo-50/40 border-y border-indigo-100"
+                                      : ""
                                 }`}
                               >
                                 <td className="py-4 px-4 flex items-center gap-2 border-r border-slate-100 dark:border-zinc-800/20">
@@ -2265,18 +2493,24 @@ export default function Finance() {
                                   <span className={`text-xs uppercase tracking-tight ${
                                     isTotalRow 
                                       ? "text-slate-900 dark:text-slate-100 font-black font-display" 
-                                      : isDarkMode ? "text-slate-300 font-semibold" : "text-slate-700 font-semibold"
+                                      : isKpiRow
+                                        ? "text-indigo-700 dark:text-indigo-400 font-black font-display"
+                                        : isDarkMode ? "text-slate-300 font-semibold" : "text-slate-700 font-semibold"
                                   }`}>
                                     {row.label}
                                   </span>
                                 </td>
                                 {/* VALUE */}
                                 <td className={`py-4 px-4 text-right font-bold font-mono text-xs md:text-sm border-r border-slate-100 dark:border-zinc-800/20 ${
-                                  isTotalRow 
-                                    ? valCurr >= 0 
-                                      ? "text-emerald-600 dark:text-emerald-400 font-black bg-emerald-500/[0.02] dark:bg-emerald-500/[0.01]" 
-                                      : "text-rose-600 dark:text-rose-450 font-black bg-rose-500/[0.02] dark:bg-rose-500/[0.01]"
-                                    : isDarkMode ? "text-slate-200 font-medium" : "text-slate-700 font-medium"
+                                  isBottomLine
+                                    ? isLoss
+                                      ? "text-rose-600 dark:text-rose-450 font-black bg-rose-500/[0.04]"
+                                      : "text-emerald-600 dark:text-emerald-400 font-black bg-emerald-500/[0.04]"
+                                    : isTotalRow 
+                                      ? "text-slate-900 dark:text-white font-black"
+                                      : isKpiRow
+                                        ? "text-indigo-600 dark:text-indigo-400 font-black"
+                                        : isDarkMode ? "text-slate-200 font-medium" : "text-slate-700 font-medium"
                                 }`}>
                                   {formatCurrency(valCurr)}
                                 </td>
@@ -2289,20 +2523,40 @@ export default function Finance() {
                                         className={`h-full rounded-full transition-all duration-700 ease-out ${
                                           row.id === "faturamento"
                                             ? "bg-slate-400 dark:bg-zinc-500"
-                                            : row.type === "total"
-                                              ? valCurr >= 0
-                                                ? "bg-emerald-500"
-                                                : "bg-rose-500"
-                                              : "bg-slate-400 dark:bg-zinc-650"
+                                            : isBottomLine
+                                              ? isLoss
+                                                ? "bg-rose-500"
+                                                : "bg-emerald-500"
+                                              : isKpiRow
+                                                ? "bg-indigo-500"
+                                                : isTotalRow
+                                                  ? "bg-blue-500"
+                                                  : "bg-slate-400 dark:bg-zinc-650"
                                         }`}
                                         style={{ width: `${avCurr !== null ? Math.min(100, avCurr) : 0}%` }}
                                       />
                                     </div>
                                     
                                     {/* High Contrast Color Coded Percentage Badge */}
-                                    <span className="text-xs font-bold font-mono px-2.5 py-0.5 rounded shadow-sm select-all inline-block min-w-[55px] text-center border transition-all bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
-                                      {avCurr !== null ? `${avCurr.toFixed(1)}%` : "--"}
-                                    </span>
+                                    {isBottomLine ? (
+                                      isLoss ? (
+                                        <span className="text-xs font-black font-mono px-2.5 py-0.5 rounded shadow-sm inline-block min-w-[65px] text-center border transition-all bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30 ring-1 ring-rose-500/20">
+                                          {avCurr !== null ? `-${avCurr.toFixed(1)}%` : "--"}
+                                        </span>
+                                      ) : (
+                                        <span className="text-xs font-black font-mono px-2.5 py-0.5 rounded shadow-sm inline-block min-w-[65px] text-center border transition-all bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 ring-1 ring-emerald-500/20">
+                                          {avCurr !== null ? `+${avCurr.toFixed(1)}%` : "--"}
+                                        </span>
+                                      )
+                                    ) : isKpiRow ? (
+                                      <span className="text-xs font-bold font-mono px-2.5 py-0.5 rounded shadow-sm inline-block min-w-[55px] text-center border transition-all bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border-indigo-500/30">
+                                        {avCurr !== null ? `${avCurr.toFixed(1)}%` : "--"}
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs font-bold font-mono px-2.5 py-0.5 rounded shadow-sm select-all inline-block min-w-[55px] text-center border transition-all bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                        {avCurr !== null ? `${avCurr.toFixed(1)}%` : "--"}
+                                      </span>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -2366,18 +2620,53 @@ export default function Finance() {
                   >
                     <div>
                       <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${isBebelu ? "text-amber-600 dark:text-amber-500" : "text-indigo-600 dark:text-indigo-500"} italic block mb-1 font-display`}>
-                        Painel Analítico de DRE Comparativa • Análise Horizontal & Vertical
+                        Demonstrativo DRE Comparativo • Análise Horizontal (YoY) & Vertical (AV)
                       </span>
                       <h3 className={`text-xl font-black uppercase tracking-tight italic font-display ${isDarkMode ? "text-white" : "text-slate-800"}`}>
-                        Análise de {monthsGlobal.find(m => m.value === selectedMonth)?.label} - {selectedYear} x {parseInt(selectedYear) - 1}
+                        Análise de {monthsGlobal.find(m => m.value === selectedMonth)?.label} • {parseInt(selectedYear) - 1} x {selectedYear}
                       </h3>
                     </div>
-                    {isLoadingAllMonths && (
-                      <span className={`text-[10px] ${isBebelu ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-indigo-500/15 text-indigo-500"} font-bold px-3.5 py-1.5 rounded-full animate-pulse flex items-center gap-1.5 shrink-0 self-start md:self-auto`}>
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Sincronizando Histórico...
-                      </span>
-                    )}
+                    <div className="flex items-center gap-3 self-start md:self-auto flex-wrap">
+                      {isLoadingAllMonths && (
+                        <span className={`text-[10px] ${isBebelu ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-indigo-500/15 text-indigo-500"} font-bold px-3.5 py-1.5 rounded-full animate-pulse flex items-center gap-1.5 shrink-0`}>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Sincronizando Histórico...
+                        </span>
+                      )}
+                      {/* View mode toggle */}
+                      <div className={`p-1 rounded-xl border flex items-center gap-1 text-[11px] font-bold ${isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-slate-100/80 border-slate-200"}`}>
+                        <button
+                          type="button"
+                          onClick={() => setComparativoViewMode("ah_yoy")}
+                          className={`px-3 py-1.5 rounded-lg transition-all ${
+                            comparativoViewMode === "ah_yoy"
+                              ? isDarkMode
+                                ? "bg-amber-500 text-zinc-950 font-black shadow-sm"
+                                : isBebelu
+                                  ? "bg-[#FFCB05] text-amber-950 font-black shadow-sm"
+                                  : "bg-indigo-600 text-white font-black shadow-sm"
+                              : "text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                          }`}
+                        >
+                          Análise Horizontal (YoY)
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setComparativoViewMode("full_budget")}
+                          className={`px-3 py-1.5 rounded-lg transition-all ${
+                            comparativoViewMode === "full_budget"
+                              ? isDarkMode
+                                ? "bg-amber-500 text-zinc-950 font-black shadow-sm"
+                                : isBebelu
+                                  ? "bg-[#FFCB05] text-amber-950 font-black shadow-sm"
+                                  : "bg-indigo-600 text-white font-black shadow-sm"
+                              : "text-slate-500 hover:text-slate-800 dark:text-zinc-400 dark:hover:text-zinc-200"
+                          }`}
+                        >
+                          Visão Matriz com Orçado
+                        </button>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="lg:hidden px-4 py-2.5 bg-amber-500/10 text-amber-800 dark:text-amber-400 text-[11px] font-bold flex items-center justify-between border-b border-amber-500/20">
@@ -2386,58 +2675,77 @@ export default function Finance() {
                   </div>
 
                   <div className="p-4 overflow-x-auto select-none scrollbar-thin scroll-smooth">
-                    <table className="w-full text-left border-collapse min-w-[1150px]">
+                    <table className="w-full text-left border-collapse min-w-[980px]">
                       <thead>
-                        <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] font-black tracking-wider text-slate-400 dark:text-zinc-500 font-display">
-                          <th className="py-4 px-3 w-[22%] border-r border-slate-100 dark:border-zinc-800/20">
-                            Conta DRE
-                          </th>
-                          <th className="py-4 px-3 text-center w-[14%] bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-100 dark:border-zinc-800/20 uppercase" colSpan={2}>
-                            REAL {parseInt(selectedYear) - 1}
-                          </th>
-                          <th className="py-4 px-3 text-center w-[14%] bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20 text-slate-500 dark:text-zinc-400 uppercase font-bold" colSpan={2}>
-                            ORÇADO {selectedYear}
-                          </th>
-                          <th className="py-4 px-3 text-center w-[14%] bg-slate-50/60 dark:bg-zinc-950/20 border-r border-slate-100 dark:border-zinc-800/20 text-slate-700 dark:text-zinc-300 uppercase font-extrabold" colSpan={2}>
-                            REAL {selectedYear}
-                          </th>
-                          <th className="py-4 px-3 text-center w-[18%] bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20 text-slate-500 dark:text-zinc-400 font-bold uppercase" colSpan={2}>
-                            Divergência (Real x Orc)
-                          </th>
-                          <th className="py-4 px-3 text-center w-[18%] bg-slate-50/30 dark:bg-zinc-900/10 text-slate-500 dark:text-zinc-400 font-bold uppercase" colSpan={2}>
-                            Crescimento YoY
-                          </th>
-                        </tr>
-                        <tr className="border-b border-slate-100 dark:border-zinc-800/20 text-[9px] font-black text-slate-400 dark:text-zinc-500 tracking-wider">
-                          <th className="py-2.5 px-3 border-r border-slate-100 dark:border-zinc-800/20">CONCEITO / COMPONENTES</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30">VALOR (R$)</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-100 dark:border-zinc-800/20">% Part.</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">VALOR (R$)</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20">% Part.</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-950/20 font-bold text-slate-700 dark:text-zinc-300">VALOR (R$)</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-950/20 border-r border-slate-100 dark:border-zinc-800/20 font-bold text-slate-700 dark:text-zinc-300">% Part.</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">VALOR (R$)</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20">% Dif.</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">HISTATIV (R$)</th>
-                          <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">% YoY</th>
-                        </tr>
+                        {comparativoViewMode === "ah_yoy" ? (
+                          <>
+                            <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] font-black tracking-wider text-slate-400 dark:text-zinc-500 font-display">
+                              <th className="py-4 px-4 w-[28%] border-r border-slate-100 dark:border-zinc-800/20">
+                                CONTA DRE
+                              </th>
+                              <th className="py-4 px-3 text-center w-[18%] bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-100 dark:border-zinc-800/20 uppercase" colSpan={2}>
+                                REAL {parseInt(selectedYear) - 1}
+                              </th>
+                              <th className="py-4 px-3 text-center w-[18%] bg-slate-50/70 dark:bg-zinc-950/25 border-r border-slate-100 dark:border-zinc-800/20 uppercase font-black" colSpan={2}>
+                                REAL {selectedYear}
+                              </th>
+                              <th className="py-4 px-3 text-right w-[18%] bg-slate-50/40 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20 uppercase font-bold">
+                                VARIAÇÃO (R$)
+                              </th>
+                              <th className="py-4 px-3 text-center w-[18%] bg-slate-50/40 dark:bg-zinc-900/10 uppercase font-bold">
+                                VARIAÇÃO % (YoY / AH)
+                              </th>
+                            </tr>
+                            <tr className="border-b border-slate-100 dark:border-zinc-800/20 text-[9px] font-black text-slate-400 dark:text-zinc-500 tracking-wider">
+                              <th className="py-2.5 px-4 border-r border-slate-100 dark:border-zinc-800/20">CONCEITO / COMPONENTES</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30">VALOR (R$)</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-100 dark:border-zinc-800/20">% Part. (AV)</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/70 dark:bg-zinc-950/25 font-bold text-slate-700 dark:text-zinc-300">VALOR (R$)</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/70 dark:bg-zinc-950/25 border-r border-slate-100 dark:border-zinc-800/20 font-bold text-slate-700 dark:text-zinc-300">% Part. (AV)</th>
+                              <th className="py-2.5 px-3 text-right bg-slate-50/40 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20 font-bold">DIFERENÇA (R$)</th>
+                              <th className="py-2.5 px-3 text-center bg-slate-50/40 dark:bg-zinc-900/10 font-bold">ANÁLISE HORIZONTAL %</th>
+                            </tr>
+                          </>
+                        ) : (
+                          <>
+                            <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] font-black tracking-wider text-slate-400 dark:text-zinc-500 font-display">
+                              <th className="py-4 px-3 w-[22%] border-r border-slate-100 dark:border-zinc-800/20">
+                                CONTA DRE
+                              </th>
+                              <th className="py-4 px-3 text-center w-[14%] bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-100 dark:border-zinc-800/20 uppercase" colSpan={2}>
+                                REAL {parseInt(selectedYear) - 1}
+                              </th>
+                              <th className="py-4 px-3 text-center w-[14%] bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20 text-slate-500 dark:text-zinc-400 uppercase font-bold" colSpan={2}>
+                                ORÇADO {selectedYear}
+                              </th>
+                              <th className="py-4 px-3 text-center w-[14%] bg-slate-50/60 dark:bg-zinc-950/20 border-r border-slate-100 dark:border-zinc-800/20 text-slate-700 dark:text-zinc-300 uppercase font-extrabold" colSpan={2}>
+                                REAL {selectedYear}
+                              </th>
+                              <th className="py-4 px-3 text-center w-[18%] bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20 text-slate-500 dark:text-zinc-400 font-bold uppercase" colSpan={2}>
+                                Divergência (Real x Orc)
+                              </th>
+                              <th className="py-4 px-3 text-center w-[18%] bg-slate-50/30 dark:bg-zinc-900/10 text-slate-500 dark:text-zinc-400 font-bold uppercase" colSpan={2}>
+                                Crescimento YoY
+                              </th>
+                            </tr>
+                            <tr className="border-b border-slate-100 dark:border-zinc-800/20 text-[9px] font-black text-slate-400 dark:text-zinc-500 tracking-wider">
+                              <th className="py-2.5 px-3 border-r border-slate-100 dark:border-zinc-800/20">CONCEITO / COMPONENTES</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30">VALOR (R$)</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-900/30 border-r border-slate-100 dark:border-zinc-800/20">% Part.</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">VALOR (R$)</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20">% Part.</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-950/20 font-bold text-slate-700 dark:text-zinc-300">VALOR (R$)</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/50 dark:bg-zinc-950/20 border-r border-slate-100 dark:border-zinc-800/20 font-bold text-slate-700 dark:text-zinc-300">% Part.</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">VALOR (R$)</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10 border-r border-slate-100 dark:border-zinc-800/20">% Dif.</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">VAR (R$)</th>
+                              <th className="py-2.5 px-2 text-right bg-slate-50/30 dark:bg-zinc-900/10">% YoY</th>
+                            </tr>
+                          </>
+                        )}
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/30">
-                        {[
-                          { id: "faturamento", label: "RECEITA BRUTA", type: "income", mapGroupId: "receita" },
-                          { id: "deducoes", label: "DEDUÇÕES DA RECEITA", type: "expense", mapGroupId: "deducoes" },
-                          { id: "cmv", label: "CUSTOS VARIÁVEIS", type: "expense", mapGroupId: "cmv" },
-                          { id: "despesas_var", label: "DESPESAS VARIÁVEIS", type: "expense", mapGroupId: "despesas_variaveis" },
-                          { id: "margem_contrib", label: "Margem de Contribuição", type: "total", mapGroupId: "margem_contribuicao" },
-                          { id: "colaboradores", label: "DESPESAS COM PESSOAL", type: "expense", mapGroupId: "despesas_fixas_5" },
-                          { id: "funcionamento", label: "CUSTOS DE FUNCIONAMENTO", type: "expense", mapGroupId: "despesas_fixas_6" },
-                          { id: "manutencao", label: "MANUTENÇÃO E TÉCNICA", type: "expense", mapGroupId: "despesas_fixas_7" },
-                          { id: "comerciais", label: "DESPESAS COMERCIAIS / MKT", type: "expense", mapGroupId: "despesas_fixas_8" },
-                          { id: "administrativas", label: "DESPESAS ADM / GERAIS", type: "expense", mapGroupId: "despesas_fixas_9" },
-                          { id: "ebitda", label: "EBITDA - Resultado Operacional", type: "total", mapGroupId: "resultado_operacional_financeiro" },
-                          { id: "financeiro", label: "Result. Financeiro & Impostos", type: "expense", mapGroupId: "apuracao_financeira" },
-                          { id: "net_profit", label: "Resultado Líquido do Exercício", type: "total", mapGroupId: "resultado_liquido" },
-                        ].map((row) => {
+                        {getDreRows(isBebeluRioMar).map((row) => {
                           const prevYearStr = (parseInt(selectedYear) - 1).toString();
                           const compMonthLabel = monthsGlobal.find(m => m.value === selectedMonth)?.label || "";
 
@@ -2470,6 +2778,27 @@ export default function Finance() {
 
                           const isExpenseRow = row.type === "expense";
                           const isTotalRow = row.type === "total";
+                          const isKpiRow = row.type === "kpi";
+                          const isBottomLine = row.id === "ebitda" || row.id === "net_profit" || row.id === "resultado_final_caixa";
+                          const isLossCurr = isBottomLine && valCurr < 0;
+                          const isLossPrev = isBottomLine && valPrev < 0;
+
+                          // Dynamic Colors for Horizontal Analysis:
+                          // For Expenses: cost reduction (varYoYVal < 0) is GREEN, cost explosion (varYoYVal > 0) is RED
+                          // For Income & Totals: increase (varYoYVal > 0) is GREEN, decrease (varYoYVal < 0) is RED
+                          const getYoYColorClass = (val: number, isBadge = false) => {
+                            if (val === 0) return isBadge ? "bg-slate-500/10 text-slate-500 border-slate-500/20" : "text-slate-400 dark:text-slate-500";
+                            const isPositiveGood = !isExpenseRow;
+                            const isGood = isPositiveGood ? val > 0 : val < 0;
+                            if (isBadge) {
+                              return isGood
+                                ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30"
+                                : "bg-rose-500/15 text-rose-700 dark:text-rose-400 border border-rose-500/30";
+                            }
+                            return isGood
+                              ? "text-emerald-600 dark:text-emerald-400 font-bold"
+                              : "text-rose-600 dark:text-rose-400 font-bold";
+                          };
 
                           const rowGroup = dreGroups.find(g => g.id === row.mapGroupId);
                           const hasDetails = rowGroup && rowGroup.items && rowGroup.items.length > 0;
@@ -2483,10 +2812,14 @@ export default function Finance() {
                                     ? isDarkMode
                                       ? "bg-zinc-900 border-y border-zinc-800 font-extrabold"
                                       : "bg-slate-50/80 border-y border-slate-200 font-extrabold"
-                                    : ""
+                                    : isKpiRow
+                                      ? isDarkMode
+                                        ? "bg-indigo-950/20 border-y border-indigo-900/30 font-bold"
+                                        : "bg-indigo-50/50 border-y border-indigo-100 font-bold"
+                                      : ""
                                 }`}
                               >
-                                <td className="py-3 px-3 flex items-center gap-2 border-r border-slate-100 dark:border-zinc-800/20">
+                                <td className="py-3.5 px-4 flex items-center gap-2 border-r border-slate-100 dark:border-zinc-800/20">
                                   {hasDetails && (
                                     <ChevronDown
                                       className={`w-3.5 h-3.5 text-slate-450 shrink-0 transition-transform ${
@@ -2494,61 +2827,124 @@ export default function Finance() {
                                       }`}
                                     />
                                   )}
-                                  <span className={`text-[11px] uppercase tracking-tight ${
+                                  <span className={`text-[11.5px] uppercase tracking-tight ${
                                     isTotalRow 
                                       ? "text-slate-900 dark:text-slate-105 font-black font-display leading-none" 
-                                      : isDarkMode ? "text-slate-300 font-bold" : "text-slate-700 font-bold"
+                                      : isKpiRow
+                                        ? "text-indigo-700 dark:text-indigo-400 font-black font-display"
+                                        : isDarkMode ? "text-slate-300 font-bold" : "text-slate-700 font-bold"
                                   }`}>
                                     {row.label}
                                   </span>
                                 </td>
+
                                 {/* REAL PREV */}
-                                <td className={`py-3 px-2 text-right font-medium font-mono text-xs ${isTotalRow ? "font-bold text-slate-900 dark:text-slate-100" : "text-slate-700 dark:text-zinc-300"}`}>
+                                <td className={`py-3.5 px-2 text-right font-medium font-mono text-xs ${
+                                  isBottomLine && isLossPrev
+                                    ? "text-rose-600 dark:text-rose-400 font-black"
+                                    : isTotalRow ? "font-bold text-slate-900 dark:text-slate-100" : "text-slate-700 dark:text-zinc-300"
+                                }`}>
                                   {formatCurrency(valPrev)}
                                 </td>
-                                <td className="py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20">
-                                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
-                                    {avPrev !== null ? `${avPrev.toFixed(1)}%` : "--"}
-                                  </span>
-                                </td>
-                                {/* ORÇADO CURR */}
-                                <td className={`py-3 px-2 text-right font-medium font-mono text-xs ${isTotalRow ? "font-bold text-slate-800 dark:text-slate-205" : "text-slate-600 dark:text-zinc-400"}`}>
-                                  {formatCurrency(valBudget)}
-                                </td>
-                                <td className="py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20">
-                                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
-                                    {avBudget !== null ? `${avBudget.toFixed(1)}%` : "--"}
-                                  </span>
-                                </td>
-                                {/* REAL CURR */}
-                                <td className={`py-3 px-2 text-right font-bold font-mono text-xs ${isTotalRow ? "text-slate-900 dark:text-white text-sm bg-slate-50/10 dark:bg-zinc-950/10" : "text-slate-800 dark:text-slate-200 bg-slate-50/30 dark:bg-zinc-950/5"}`}>
-                                  {formatCurrency(valCurr)}
-                                </td>
-                                <td className={`py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20 ${isTotalRow ? "bg-slate-50/10 dark:bg-zinc-950/10" : "bg-slate-50/30 dark:bg-zinc-950/5"}`}>
-                                  <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
-                                    {avCurr !== null ? `${avCurr.toFixed(1)}%` : "--"}
-                                  </span>
-                                </td>
-                                {/* VAR vs BUDGET */}
-                                <td className={`py-3 px-2 text-right font-bold font-mono text-xs ${hasBudget ? getVarianceColor(varBudVal, isExpenseRow) : "text-slate-400 dark:text-slate-500 font-medium"}`}>
-                                  {hasBudget ? `${varBudVal > 0 ? "+" : ""}${formatCurrency(varBudVal)}` : "--"}
-                                </td>
-                                <td className={`py-3 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20`}>
-                                  {varBudAH !== null ? (
-                                    <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${getVarianceColor(varBudAH, isExpenseRow, true)}`}>
-                                      {varBudAH > 0 ? "+" : ""}{varBudAH.toFixed(1)}%
+                                <td className="py-3.5 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20">
+                                  {isBottomLine ? (
+                                    isLossPrev ? (
+                                      <span className="font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30">
+                                        {avPrev !== null ? `-${avPrev.toFixed(1)}%` : "--"}
+                                      </span>
+                                    ) : (
+                                      <span className="font-mono text-[10px] font-black px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">
+                                        {avPrev !== null ? `+${avPrev.toFixed(1)}%` : "--"}
+                                      </span>
+                                    )
+                                  ) : isKpiRow ? (
+                                    <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20">
+                                      {avPrev !== null ? `${avPrev.toFixed(1)}%` : "--"}
                                     </span>
                                   ) : (
-                                    <span className="text-slate-400 dark:text-slate-500 text-[10px] font-mono">--</span>
+                                    <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                      {avPrev !== null ? `${avPrev.toFixed(1)}%` : "--"}
+                                    </span>
                                   )}
                                 </td>
-                                {/* VAR YOY */}
-                                <td className={`py-3 px-2 text-right font-bold font-mono text-xs ${matchPrev ? getVarianceColor(varYoYVal, isExpenseRow) : "text-slate-400 dark:text-slate-500 font-medium"}`}>
+
+                                {comparativoViewMode === "full_budget" && (
+                                  <>
+                                    {/* ORÇADO CURR */}
+                                    <td className={`py-3.5 px-2 text-right font-medium font-mono text-xs ${isTotalRow ? "font-bold text-slate-800 dark:text-slate-205" : "text-slate-600 dark:text-zinc-400"}`}>
+                                      {formatCurrency(valBudget)}
+                                    </td>
+                                    <td className="py-3.5 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20">
+                                      <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                        {avBudget !== null ? `${avBudget.toFixed(1)}%` : "--"}
+                                      </span>
+                                    </td>
+                                  </>
+                                )}
+
+                                {/* REAL CURR */}
+                                <td className={`py-3.5 px-2 text-right font-bold font-mono text-xs ${
+                                  isBottomLine
+                                    ? isLossCurr
+                                      ? "text-rose-600 dark:text-rose-450 font-black bg-rose-500/[0.04]"
+                                      : "text-emerald-600 dark:text-emerald-400 font-black bg-emerald-500/[0.04]"
+                                    : isTotalRow 
+                                      ? "text-slate-900 dark:text-white text-sm bg-slate-50/10 dark:bg-zinc-950/10" 
+                                      : isKpiRow
+                                        ? "text-indigo-600 dark:text-indigo-400 font-black bg-indigo-50/10 dark:bg-indigo-950/10"
+                                        : "text-slate-800 dark:text-slate-200 bg-slate-50/30 dark:bg-zinc-950/5"
+                                }`}>
+                                  {formatCurrency(valCurr)}
+                                </td>
+                                <td className={`py-3.5 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20 ${isTotalRow ? "bg-slate-50/10 dark:bg-zinc-950/10" : "bg-slate-50/30 dark:bg-zinc-950/5"}`}>
+                                  {isBottomLine ? (
+                                    isLossCurr ? (
+                                      <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 ring-1 ring-rose-500/20">
+                                        {avCurr !== null ? `-${avCurr.toFixed(1)}%` : "--"}
+                                      </span>
+                                    ) : (
+                                      <span className="font-mono text-[10px] font-black px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 ring-1 ring-emerald-500/20">
+                                        {avCurr !== null ? `+${avCurr.toFixed(1)}%` : "--"}
+                                      </span>
+                                    )
+                                  ) : isKpiRow ? (
+                                    <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-700 dark:text-indigo-400 border border-indigo-500/30">
+                                      {avCurr !== null ? `${avCurr.toFixed(1)}%` : "--"}
+                                    </span>
+                                  ) : (
+                                    <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100/60 dark:bg-amber-950/25 text-amber-700 dark:text-amber-400 border-amber-200">
+                                      {avCurr !== null ? `${avCurr.toFixed(1)}%` : "--"}
+                                    </span>
+                                  )}
+                                </td>
+
+                                {comparativoViewMode === "full_budget" && (
+                                  <>
+                                    {/* VAR vs BUDGET */}
+                                    <td className={`py-3.5 px-2 text-right font-bold font-mono text-xs ${hasBudget ? getVarianceColor(varBudVal, isExpenseRow) : "text-slate-400 dark:text-slate-500 font-medium"}`}>
+                                      {hasBudget ? `${varBudVal > 0 ? "+" : ""}${formatCurrency(varBudVal)}` : "--"}
+                                    </td>
+                                    <td className={`py-3.5 px-2 text-right border-r border-slate-100 dark:border-zinc-800/20`}>
+                                      {varBudAH !== null ? (
+                                        <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${getVarianceColor(varBudAH, isExpenseRow, true)}`}>
+                                          {varBudAH > 0 ? "+" : ""}{varBudAH.toFixed(1)}%
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400 dark:text-slate-500 text-[10px] font-mono">--</span>
+                                      )}
+                                    </td>
+                                  </>
+                                )}
+
+                                {/* VAR YOY R$ */}
+                                <td className={`py-3.5 px-3 text-right font-mono text-xs border-r border-slate-100 dark:border-zinc-800/20 ${matchPrev ? getYoYColorClass(varYoYVal) : "text-slate-400 dark:text-slate-500 font-medium"}`}>
                                   {matchPrev ? `${varYoYVal > 0 ? "+" : ""}${formatCurrency(varYoYVal)}` : "--"}
                                 </td>
-                                <td className="py-3 px-2 text-right">
+
+                                {/* VAR YOY % (AH) */}
+                                <td className="py-3.5 px-3 text-center">
                                   {varYoYAH !== null ? (
-                                    <span className={`font-mono text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm border ${getVarianceColor(varYoYAH, isExpenseRow, true)}`}>
+                                    <span className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm border inline-block min-w-[62px] text-center ${getYoYColorClass(varYoYAH, true)}`}>
                                       {varYoYAH > 0 ? "+" : ""}{varYoYAH.toFixed(1)}%
                                     </span>
                                   ) : (
@@ -2586,13 +2982,18 @@ export default function Finance() {
                                             {detPrevAV !== null ? `${detPrevAV.toFixed(1)}%` : "--"}
                                           </span>
                                         </td>
-                                        {/* METAS ORÇADO (NOT SPECIFIED AT ACCOUNT LEVEL) */}
-                                        <td className="py-2.5 px-2 text-center text-[10px] font-mono text-slate-400 dark:text-zinc-650 italic">
-                                          —
-                                        </td>
-                                        <td className="py-2.5 px-2 text-center text-[9px] font-mono text-slate-400 dark:text-zinc-650 italic border-r border-slate-100 dark:border-zinc-800/20">
-                                          —
-                                        </td>
+
+                                        {comparativoViewMode === "full_budget" && (
+                                          <>
+                                            <td className="py-2.5 px-2 text-center text-[10px] font-mono text-slate-400 dark:text-zinc-650 italic">
+                                              —
+                                            </td>
+                                            <td className="py-2.5 px-2 text-center text-[9px] font-mono text-slate-400 dark:text-zinc-650 italic border-r border-slate-100 dark:border-zinc-800/20">
+                                              —
+                                            </td>
+                                          </>
+                                        )}
+
                                         {/* REAL CURR DET */}
                                         <td className="py-2.5 px-2 text-right font-mono font-medium text-[10px] text-slate-700 dark:text-zinc-300 bg-slate-50/15 dark:bg-zinc-950/5">
                                           {formatCurrency(detCurr)}
@@ -2602,20 +3003,27 @@ export default function Finance() {
                                             {detCurrAV !== null ? `${detCurrAV.toFixed(1)}%` : "--"}
                                           </span>
                                         </td>
-                                        {/* COMPAR BUDGET (NOT ENTERED AT DETAIL LEVEL) */}
-                                        <td className="py-2.5 px-2 text-center text-[10px] font-mono text-slate-400 dark:text-zinc-650 italic">
-                                          —
-                                        </td>
-                                        <td className="py-2.5 px-2 text-center text-[9px] font-mono text-slate-400 dark:text-zinc-650 italic border-r border-slate-100 dark:border-zinc-800/20">
-                                          —
-                                        </td>
-                                        {/* VAR YOY DET */}
-                                        <td className={`py-2.5 px-2 text-right font-mono font-semibold text-[10px] ${matchPrev ? getVarianceColor(detVar, isExpenseRow) : "text-slate-400 dark:text-slate-500"}`}>
+
+                                        {comparativoViewMode === "full_budget" && (
+                                          <>
+                                            <td className="py-2.5 px-2 text-center text-[10px] font-mono text-slate-400 dark:text-zinc-650 italic">
+                                              —
+                                            </td>
+                                            <td className="py-2.5 px-2 text-center text-[9px] font-mono text-slate-400 dark:text-zinc-650 italic border-r border-slate-100 dark:border-zinc-800/20">
+                                              —
+                                            </td>
+                                          </>
+                                        )}
+
+                                        {/* VAR YOY DET R$ */}
+                                        <td className={`py-2.5 px-3 text-right font-mono text-[10px] border-r border-slate-100 dark:border-zinc-800/20 ${matchPrev ? getYoYColorClass(detVar) : "text-slate-400 dark:text-slate-500"}`}>
                                           {matchPrev ? `${detVar > 0 ? "+" : ""}${formatCurrency(detVar)}` : "--"}
                                         </td>
-                                        <td className="py-2.5 px-2 text-right">
+
+                                        {/* VAR YOY DET % */}
+                                        <td className="py-2.5 px-3 text-center">
                                           {detVarPct !== null ? (
-                                            <span className={`font-mono text-[9px] font-black px-1.5 py-0.5 rounded border shadow-sm ${getVarianceColor(detVarPct, isExpenseRow, true)}`}>
+                                            <span className={`font-mono text-[9px] font-bold px-1.5 py-0.5 rounded border shadow-sm ${getYoYColorClass(detVarPct, true)}`}>
                                               {detVarPct > 0 ? "+" : ""}{detVarPct.toFixed(1)}%
                                             </span>
                                           ) : (
@@ -2688,22 +3096,9 @@ export default function Finance() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/30">
-                        {[
-                          { id: "faturamento", label: "RECEITA BRUTA", type: "income" },
-                          { id: "deducoes", label: "DEDUÇÕES DA RECEITA", type: "expense" },
-                          { id: "cmv", label: "CUSTOS VARIÁVEIS", type: "expense" },
-                          { id: "despesas_var", label: "DESPESAS VARIÁVEIS", type: "expense" },
-                          { id: "margem_contrib", label: "Margem de Contribuição", type: "total" },
-                          { id: "colaboradores", label: "DESPESAS COM PESSOAL", type: "expense" },
-                          { id: "funcionamento", label: "CUSTOS DE FUNCIONAMENTO", type: "expense" },
-                          { id: "manutencao", label: "MANUTENÇÃO E TÉCNICA", type: "expense" },
-                          { id: "comerciais", label: "DESPESAS COMERCIAIS / MKT", type: "expense" },
-                          { id: "administrativas", label: "DESPESAS ADM / GERAIS", type: "expense" },
-                          { id: "ebitda", label: "EBITDA - Resultado Operacional", type: "total" },
-                          { id: "financeiro", label: "Result. Financeiro & Impostos", type: "expense" },
-                          { id: "net_profit", label: "Resultado Líquido do Exercício", type: "total" },
-                        ].map((row) => {
+                        {getDreRows(isBebeluRioMar).map((row) => {
                           const isTotalRow = row.type === "total";
+                          const isKpiRow = row.type === "kpi";
                           let accumulatedValue = 0;
 
                           return (
@@ -2714,14 +3109,20 @@ export default function Finance() {
                                   ? isDarkMode 
                                     ? "bg-zinc-900 border-y border-zinc-800 font-extrabold" 
                                     : "bg-slate-50/80 border-y border-slate-200 font-extrabold" 
-                                  : ""
+                                  : isKpiRow
+                                    ? isDarkMode
+                                      ? "bg-indigo-950/20 border-y border-indigo-900/30 font-bold"
+                                      : "bg-indigo-50/50 border-y border-indigo-100 font-bold"
+                                    : ""
                               }`}
                             >
                               <td className="py-3 px-3 border-r border-slate-100 dark:border-zinc-800/20">
                                 <span className={`text-[11px] uppercase tracking-tight ${
                                   isTotalRow 
                                     ? "text-slate-900 dark:text-slate-100 font-black" 
-                                    : isDarkMode ? "text-slate-300" : "text-slate-700 font-bold"
+                                    : isKpiRow
+                                      ? "text-indigo-700 dark:text-indigo-400 font-black"
+                                      : isDarkMode ? "text-slate-300" : "text-slate-700 font-bold"
                                 }`}>
                                   {row.label}
                                 </span>
@@ -2736,7 +3137,9 @@ export default function Finance() {
                                   <td key={m.value} className={`py-3 px-2 text-right font-semibold font-mono text-[11px] ${
                                     isTotalRow 
                                       ? (cellVal >= 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-450 font-bold") 
-                                      : isDarkMode ? "text-slate-400" : "text-slate-650"
+                                      : isKpiRow
+                                        ? "text-indigo-600 dark:text-indigo-400 font-bold"
+                                        : isDarkMode ? "text-slate-400" : "text-slate-650"
                                   }`}>
                                     {cellVal !== 0 ? formatCurrency(cellVal) : "—"}
                                   </td>
