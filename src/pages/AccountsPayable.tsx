@@ -440,6 +440,31 @@ export default function AccountsPayable() {
   
   const editBoletoFileRef = useRef<HTMLInputElement>(null);
   const editNfFileRef = useRef<HTMLInputElement>(null);
+
+  const normalizeDateForInput = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const trimmed = dateStr.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(trimmed)) {
+      const [d, m, y] = trimmed.split('/');
+      return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+    }
+    if (trimmed.includes('T')) {
+      return trimmed.split('T')[0];
+    }
+    return trimmed;
+  };
+
+  const handleStartEditing = (ac: AccountPayable) => {
+    setEditingAccount(ac);
+    setEditValue(String(ac.value));
+    setEditSupplier(ac.supplier);
+    setEditDueDate(normalizeDateForInput(ac.dueDate));
+    setEditDescription(ac.description || '');
+    setEditCategory(ac.category || '');
+    setEditAttachedFile(ac.attachedFile || null);
+    setEditAttachedNF(ac.taxInvoiceFile || null);
+  };
   
   // Hover states for dynamic themed interactivity
   const [isHoverUploadZone, setIsHoverUploadZone] = useState(false);
@@ -1731,11 +1756,21 @@ export default function AccountsPayable() {
     }
     const updated = accounts.map(ac => {
       if (ac.id === editingAccount.id) {
+        let newStatus = ac.status;
+        const todayStr = getTodayStr();
+        if (ac.status !== 'Pago' && ac.status !== 'Cancelado' && ac.status !== 'Parcialmente Pago') {
+          if (editDueDate && editDueDate < todayStr) {
+            newStatus = 'Vencido';
+          } else if (ac.status === 'Vencido' && editDueDate && editDueDate >= todayStr) {
+            newStatus = 'Pendente';
+          }
+        }
         return {
           ...ac,
           value: valueNum,
           supplier: editSupplier,
           dueDate: editDueDate,
+          status: newStatus,
           description: editDescription,
           category: editCategory,
           attachedFile: editAttachedFile || undefined,
@@ -2900,16 +2935,7 @@ export default function AccountsPayable() {
                       <td className="px-4 py-3.5 text-center">
                         <div className="flex items-center justify-center gap-2">
                           <button
-                            onClick={() => {
-                              setEditingAccount(ac);
-                              setEditValue(String(ac.value));
-                              setEditSupplier(ac.supplier);
-                              setEditDueDate(ac.dueDate);
-                              setEditDescription(ac.description);
-                              setEditCategory(ac.category || '');
-                              setEditAttachedFile(ac.attachedFile || null);
-                              setEditAttachedNF(ac.taxInvoiceFile || null);
-                            }}
+                            onClick={() => handleStartEditing(ac)}
                             className="p-1.5 rounded-lg text-indigo-500 hover:bg-indigo-500/10 transition-all cursor-pointer"
                             title="Editar Dados do Boleto"
                           >
@@ -2993,16 +3019,7 @@ export default function AccountsPayable() {
                   <div className="flex items-center justify-end gap-1.5 mt-1">
                     <button
                       type="button"
-                      onClick={() => {
-                        setEditingAccount(ac);
-                        setEditValue(String(ac.value));
-                        setEditSupplier(ac.supplier);
-                        setEditDueDate(ac.dueDate);
-                        setEditDescription(ac.description);
-                        setEditCategory(ac.category || '');
-                        setEditAttachedFile(ac.attachedFile || null);
-                        setEditAttachedNF(ac.taxInvoiceFile || null);
-                      }}
+                      onClick={() => handleStartEditing(ac)}
                       className="p-2 rounded-xl text-indigo-500 hover:text-indigo-505 hover:bg-indigo-500/10 active:scale-95 transition-all cursor-pointer h-10 w-10 flex items-center justify-center border border-slate-100 dark:border-zinc-800"
                       title="Editar Dados do Boleto"
                     >
@@ -3240,8 +3257,17 @@ export default function AccountsPayable() {
                         required
                         value={editDueDate}
                         onChange={(e) => setEditDueDate(e.target.value)}
+                        onClick={(e) => {
+                          try {
+                            e.currentTarget.showPicker?.();
+                          } catch (_) {}
+                        }}
                         style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
-                        className="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-300 focus:ring-1 [color-scheme:dark]"
+                        className={`w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-lg border-0 focus:ring-1 cursor-pointer transition-colors ${
+                          isDarkMode 
+                            ? 'bg-[#181818] text-slate-200 [color-scheme:dark]' 
+                            : 'bg-slate-100 text-slate-800 [color-scheme:light]'
+                        }`}
                       />
                     </div>
                   </div>
@@ -4043,16 +4069,7 @@ export default function AccountsPayable() {
                             </button>
                           )}
                           <button
-                            onClick={() => {
-                              setEditingAccount(ac);
-                              setEditValue(String(ac.value));
-                              setEditSupplier(ac.supplier);
-                              setEditDueDate(ac.dueDate);
-                              setEditDescription(ac.description);
-                              setEditCategory(ac.category || '');
-                              setEditAttachedFile(ac.attachedFile || null);
-                              setEditAttachedNF(ac.taxInvoiceFile || null);
-                            }}
+                            onClick={() => handleStartEditing(ac)}
                             className="p-1.5 rounded-lg text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#222] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-500/15 border border-slate-200/60 dark:border-[#333] transition-all cursor-pointer shadow-2xs"
                             title="Editar Dados do Boleto"
                           >
@@ -4280,16 +4297,7 @@ export default function AccountsPayable() {
                       )}
                       <button
                         type="button"
-                        onClick={() => {
-                          setEditingAccount(ac);
-                          setEditValue(String(ac.value));
-                          setEditSupplier(ac.supplier);
-                          setEditDueDate(ac.dueDate);
-                          setEditDescription(ac.description);
-                          setEditCategory(ac.category || '');
-                          setEditAttachedFile(ac.attachedFile || null);
-                          setEditAttachedNF(ac.taxInvoiceFile || null);
-                        }}
+                        onClick={() => handleStartEditing(ac)}
                         className="p-2 rounded-xl text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-[#222] hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-500/15 active:scale-95 transition-all cursor-pointer w-10 h-10 flex items-center justify-center border border-slate-200/60 dark:border-zinc-800 shadow-2xs"
                         title="Editar"
                       >
@@ -5200,8 +5208,17 @@ export default function AccountsPayable() {
                       required
                       value={editDueDate}
                       onChange={(e) => setEditDueDate(e.target.value)}
+                      onClick={(e) => {
+                        try {
+                          e.currentTarget.showPicker?.();
+                        } catch (_) {}
+                      }}
                       style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
-                      className="w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-lg bg-slate-100 dark:bg-[#181818] border-0 text-slate-300 focus:ring-1 [color-scheme:dark]"
+                      className={`w-full text-xs font-mono font-bold px-3.5 py-2.5 rounded-lg border-0 focus:ring-1 cursor-pointer transition-colors ${
+                        isDarkMode 
+                          ? 'bg-[#181818] text-slate-200 [color-scheme:dark]' 
+                            : 'bg-slate-100 text-slate-800 [color-scheme:light]'
+                      }`}
                     />
                   </div>
                 </div>
