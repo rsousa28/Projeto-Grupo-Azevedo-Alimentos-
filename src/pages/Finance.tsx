@@ -2730,20 +2730,6 @@ export default function Finance() {
                           Visão Matriz com Orçado
                         </button>
                       </div>
-
-                      {/* Raio-X deep dive button */}
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const m = monthsGlobal.find(item => item.value === selectedMonth);
-                          if (m) handleOpenMonthDetail(m.value, m.label, selectedYear);
-                        }}
-                        className="px-3 py-1.5 rounded-xl text-[11px] font-black bg-amber-500/15 border border-amber-500/35 text-amber-300 hover:bg-amber-500/25 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
-                        title="Ver detalhamento analítico específico deste mês"
-                      >
-                        <Eye className="w-3.5 h-3.5 text-amber-400" />
-                        <span>Ver Raio-X do Mês</span>
-                      </button>
                     </div>
                   </div>
 
