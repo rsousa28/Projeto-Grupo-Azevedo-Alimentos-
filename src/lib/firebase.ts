@@ -7,11 +7,17 @@ import {
   persistentLocalCache, 
   persistentMultipleTabManager, 
   memoryLocalCache,
+  setLogLevel,
   doc,
   getDoc,
   Firestore
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
+
+// Silence verbose internal connection warnings from Firestore SDK
+try {
+  setLogLevel('silent');
+} catch (_) {}
 
 export const app = initializeApp(firebaseConfig);
 const databaseId = (firebaseConfig as any).firestoreDatabaseId || '(default)';
@@ -75,7 +81,8 @@ function createFirestoreInstance(): Firestore {
     }
 
     return initializeFirestore(app, {
-      localCache: localCacheConfig
+      localCache: localCacheConfig,
+      ...(typeof window !== 'undefined' ? { experimentalForceLongPolling: true } : {})
     }, databaseId);
   } catch (err) {
     console.warn("initializeFirestore failed or instance already initialized, using getFirestore fallback:", err);

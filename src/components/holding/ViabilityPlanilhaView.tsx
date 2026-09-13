@@ -1,6 +1,7 @@
 import React from 'react';
 import { ViabilityPlanilha } from '../../types/holding';
 import { useStore } from '../../contexts/StoreContext';
+import { formatPaybackTime } from '../../utils/viabilityCalculator';
 
 interface ViabilityPlanilhaViewProps {
   viability: ViabilityPlanilha;
@@ -275,13 +276,18 @@ export function ViabilityPlanilhaView({ viability, compact = false }: ViabilityP
               </td>
             </tr>
 
-            {/* 23. Payback em Meses - Destacada em Verde */}
+            {/* 23. Payback Estimado - Destacada em Verde */}
             <tr className={`text-white ${isDarkMode ? 'bg-[#38551f]' : 'bg-emerald-800'}`}>
               <td className="py-2.5 px-4 font-extrabold text-sm tracking-wide">
-                Payback em Meses
+                Payback Estimado
               </td>
-              <td className="py-2.5 px-4 text-right font-black text-base text-amber-300">
-                {viability.paybackMonths.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              <td className="py-2.5 px-4 text-right font-black text-sm sm:text-base text-amber-300">
+                <div className="flex flex-col items-end">
+                  <span>{formatPaybackTime(viability.paybackMonths)}</span>
+                  <span className="text-[11px] font-medium text-emerald-200 opacity-90">
+                    ({viability.paybackMonths.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} meses)
+                  </span>
+                </div>
               </td>
             </tr>
           </tbody>

@@ -19,8 +19,7 @@ import {
   ResponsiveContainer, 
   PieChart, 
   Pie, 
-  Cell, 
-  Tooltip 
+  Cell 
 } from 'recharts';
 import { BankLoan, StoreLiability, StoreOnlyBinding, StoreBenchmark } from '../../types/holding';
 import { HoldingStorage, DEFAULT_STORE_BENCHMARKS, getUnitLabel } from '../../services/holdingStorage';
@@ -62,6 +61,7 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
   const { isDarkMode } = useStore();
   const periodInfo = useMemo(() => getPreviousMonthInfo(), []);
   const [selectedUnit, setSelectedUnit] = useState<string>('ALL');
+  const [hoveredDonutIndex, setHoveredDonutIndex] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLiabilityId, setEditingLiabilityId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -628,53 +628,100 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
                     nameKey="name"
                     cx="50%"
                     cy="50%"
-                    innerRadius={65}
-                    outerRadius={95}
-                    paddingAngle={4}
+                    innerRadius={68}
+                    outerRadius={96}
+                    paddingAngle={3}
                     stroke="none"
+                    onMouseEnter={(_, index) => setHoveredDonutIndex(index)}
+                    onMouseLeave={() => setHoveredDonutIndex(null)}
                   >
-                    {donutData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
+                    {donutData.map((entry, index) => {
+                      const isHovered = hoveredDonutIndex === index;
+                      const isAnyHovered = hoveredDonutIndex !== null;
+                      return (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={entry.color} 
+                          opacity={isAnyHovered ? (isHovered ? 1 : 0.4) : 1}
+                          className="cursor-pointer transition-opacity duration-200"
+                        />
+                      );
+                    })}
                   </Pie>
-                  <Tooltip 
-                    formatter={(value: any) => [formatCurrency(Number(value)), 'Dívida']}
-                    contentStyle={isDarkMode ? { backgroundColor: '#18181D', borderColor: '#2E2E35', borderRadius: '12px', color: '#fff', fontSize: '12px' } : { backgroundColor: '#fff', borderColor: '#e2e8f0', borderRadius: '12px', color: '#0f172a', fontSize: '12px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                  />
                 </PieChart>
               </ResponsiveContainer>
 
-              {/* Centro da Rosca: Total Consolidado */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className={`text-[10px] uppercase font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} tracking-wider`}>Total</span>
-                <span className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                  {formatCurrency(storeMetrics.consolidated.totalDebt)}
-                </span>
+              {/* Centro da Rosca: Informativo Inteligente (Total ou Unidade em Hover) */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-3 text-center select-none">
+                {hoveredDonutIndex !== null && donutData[hoveredDonutIndex] ? (
+                  <div className="flex flex-col items-center justify-center">
+                    <span 
+                      className="text-[11px] font-black uppercase tracking-wider truncate max-w-[130px]"
+                      style={{ color: donutData[hoveredDonutIndex].color }}
+                    >
+                      {donutData[hoveredDonutIndex].shortName || donutData[hoveredDonutIndex].name}
+                    </span>
+                    <span className={`text-base font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'} my-0.5`}>
+                      {formatCurrency(donutData[hoveredDonutIndex].value)}
+                    </span>
+                    <span className={`text-[10px] font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {storeMetrics.consolidated.totalDebt > 0
+                        ? `${((donutData[hoveredDonutIndex].value / storeMetrics.consolidated.totalDebt) * 100).toFixed(1)}% do total`
+                        : '0.0%'}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center">
+                    <span className={`text-[10px] uppercase font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} tracking-wider`}>
+                      Total Consolidado
+                    </span>
+                    <span className={`text-base font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'} my-0.5`}>
+                      {formatCurrency(storeMetrics.consolidated.totalDebt)}
+                    </span>
+                    <span className={`text-[10px] font-medium ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                      Passivo do Grupo
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
             {/* Mini-Resumo com Legenda e Valores em Reais */}
             <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {donutData.map((item) => {
+              {donutData.map((item, index) => {
                 const total = storeMetrics.consolidated.totalDebt;
                 const percent = total > 0 ? (item.value / total) * 100 : 0;
+                const isHovered = hoveredDonutIndex === index;
 
                 return (
                   <div 
                     key={item.name}
-                    className={`p-4 rounded-xl ${isDarkMode ? 'bg-[#18181C] border-[#26262B]' : 'bg-slate-50 border-slate-200'} border flex items-center justify-between`}
+                    onMouseEnter={() => setHoveredDonutIndex(index)}
+                    onMouseLeave={() => setHoveredDonutIndex(null)}
+                    className={`p-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all duration-200 ${
+                      isHovered
+                        ? isDarkMode
+                          ? 'bg-[#222228] border-amber-400/60 shadow-md ring-1 ring-amber-400/40'
+                          : 'bg-amber-50/70 border-amber-300 shadow-xs ring-1 ring-amber-300'
+                        : isDarkMode
+                          ? 'bg-[#18181C] border-[#26262B] hover:border-[#3A3A42]'
+                          : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                    }`}
                   >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <span 
-                        className="w-3.5 h-3.5 rounded-md shrink-0" 
-                        style={{ backgroundColor: item.color }} 
+                        className="w-3.5 h-3.5 rounded-md shrink-0 transition-transform duration-200" 
+                        style={{ 
+                          backgroundColor: item.color,
+                          transform: isHovered ? 'scale(1.2)' : 'scale(1)'
+                        }} 
                       />
-                      <div>
-                        <div className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{item.name}</div>
+                      <div className="min-w-0">
+                        <div className={`text-xs font-bold truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{item.name}</div>
                         <div className={`text-[11px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium`}>{formatPercent(percent)} do total</div>
                       </div>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0 ml-2">
                       <div className={`text-xs font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                         {formatCurrency(item.value)}
                       </div>

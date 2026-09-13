@@ -40,6 +40,8 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [loanToDelete, setLoanToDelete] = useState<{ id: string; bank: string } | null>(null);
+  const [paymentModalLoan, setPaymentModalLoan] = useState<BankLoan | null>(null);
+  const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
   // Form State
   const [bank, setBank] = useState('');
@@ -201,15 +203,25 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
     showToast('Contrato de empréstimo cadastrado com sucesso!');
   };
 
-  // Pay single installment
+  // Open Payment Confirmation Modal
   const handlePayInstallment = (loan: BankLoan) => {
-    if (loan.status === 'Liquidado') {
+    if (loan.status === 'Liquidado' || loan.installmentsPaid >= loan.installmentsTotal) {
       showToast('Este contrato já foi 100% quitado!');
       return;
     }
-    HoldingStorage.payInstallment(loan.id);
+    setPaymentModalLoan(loan);
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+  };
+
+  // Confirm Payment of Installment
+  const handleConfirmPayInstallment = () => {
+    if (!paymentModalLoan) return;
+    const nextPaid = paymentModalLoan.installmentsPaid + 1;
+    const total = paymentModalLoan.installmentsTotal;
+    HoldingStorage.payInstallment(paymentModalLoan.id);
     onUpdate();
-    showToast(`Parcela paga com sucesso! Saldo devedor do contrato ${loan.bank} atualizado.`);
+    showToast(`Parcela ${nextPaid} de ${total} de ${paymentModalLoan.bank} registrada com sucesso!`);
+    setPaymentModalLoan(null);
   };
 
   // Delete loan
@@ -805,6 +817,175 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
             </motion.div>
           </div>
         )}
+        {/* Modal de Confirmação de Baixa de Parcela */}
+        {paymentModalLoan && (() => {
+          const nextPaid = paymentModalLoan.installmentsPaid + 1;
+          const totalInst = paymentModalLoan.installmentsTotal;
+          const currentPct = totalInst > 0 ? (paymentModalLoan.installmentsPaid / totalInst) * 100 : 0;
+          const newPct = totalInst > 0 ? (nextPaid / totalInst) * 100 : 0;
+          const ratioPaid = nextPaid / totalInst;
+          const newBalance = Math.max(0, Math.round(paymentModalLoan.principal * (1 - ratioPaid)));
+          const amortizedValue = Math.max(0, paymentModalLoan.currentBalance - newBalance);
+
+          return (
+            <div 
+              onClick={() => setPaymentModalLoan(null)}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+            >
+              <motion.div
+                onClick={(e) => e.stopPropagation()}
+                initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                className={`w-full max-w-lg ${isDarkMode ? 'bg-[#18181C] border-[#2B2B32] text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-3xl p-6 sm:p-7 shadow-2xl space-y-6`}
+              >
+                {/* Header */}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3.5">
+                    <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
+                      isDarkMode ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border border-emerald-200 text-emerald-600'
+                    }`}>
+                      <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className={`text-base font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                        Confirmar Baixa de Parcela
+                      </h3>
+                      <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                        {paymentModalLoan.bank} • {paymentModalLoan.modality}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setPaymentModalLoan(null)}
+                    className={`p-2 rounded-xl transition-all cursor-pointer ${
+                      isDarkMode ? 'hover:bg-white/5 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-400 hover:text-slate-700'
+                    }`}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Parcela & Valor Detalhado */}
+                <div className={`p-4 rounded-2xl border space-y-3.5 ${
+                  isDarkMode ? 'bg-[#121214] border-[#242428]' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Parcela a Pagar:
+                    </span>
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-black uppercase tracking-wider ${
+                      isDarkMode ? 'bg-amber-500/15 border border-amber-500/30 text-amber-400' : 'bg-amber-100 border border-amber-300 text-amber-800'
+                    }`}>
+                      {nextPaid} de {totalInst}
+                    </span>
+                  </div>
+
+                  <div className="flex items-baseline justify-between border-t pt-3 border-dashed border-slate-300 dark:border-[#26262B]">
+                    <span className={`text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                      Valor da Parcela:
+                    </span>
+                    <span className="text-xl font-black text-emerald-500">
+                      {formatCurrency(paymentModalLoan.monthlyPayment)}
+                    </span>
+                  </div>
+
+                  {/* Data do Pagamento */}
+                  <div className="flex items-center justify-between pt-1">
+                    <label className={`text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                      Data do Pagamento:
+                    </label>
+                    <input
+                      type="date"
+                      value={paymentDate}
+                      onChange={(e) => setPaymentDate(e.target.value)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                        isDarkMode 
+                          ? 'bg-[#1C1C20] border-[#2E2E36] text-white focus:border-amber-400' 
+                          : 'bg-white border-slate-300 text-slate-800 focus:border-amber-500'
+                      }`}
+                    />
+                  </div>
+                </div>
+
+                {/* Débito Automático e Avanço da Amortização */}
+                <div className={`p-4 rounded-2xl border space-y-3 ${
+                  isDarkMode ? 'bg-[#1C1C20]/60 border-[#26262B]' : 'bg-white border-slate-200 shadow-2xs'
+                }`}>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className={`font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Saldo Devedor Atual:
+                    </span>
+                    <strong className={isDarkMode ? 'text-slate-200' : 'text-slate-800'}>
+                      {formatCurrency(paymentModalLoan.currentBalance)}
+                    </strong>
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs">
+                    <span className={`font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Novo Saldo Devedor:
+                    </span>
+                    <strong className="text-emerald-500 font-black">
+                      {formatCurrency(newBalance)}
+                      <span className="text-[10px] text-emerald-400 ml-1">
+                        (-{formatCurrency(amortizedValue)})
+                      </span>
+                    </strong>
+                  </div>
+
+                  {/* Barra comparativa de Amortização */}
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex justify-between items-center text-[11px]">
+                      <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>
+                        Avanço da Amortização:
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`line-through ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
+                          {formatPercent(currentPct)}
+                        </span>
+                        <span className="text-amber-400 font-bold">→</span>
+                        <span className="text-emerald-500 font-black">
+                          {formatPercent(newPct)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className={`w-full h-2.5 rounded-full overflow-hidden ${isDarkMode ? 'bg-[#26262B]' : 'bg-slate-100'}`}>
+                      <div 
+                        className="h-full rounded-full bg-gradient-to-r from-amber-500 via-emerald-500 to-emerald-400 transition-all duration-500"
+                        style={{ width: `${Math.min(100, newPct)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ações */}
+                <div className="flex items-center justify-end gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentModalLoan(null)}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      isDarkMode 
+                        ? 'bg-[#222226] hover:bg-[#2A2A30] text-slate-300 hover:text-white' 
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleConfirmPayInstallment}
+                    className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 cursor-pointer flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Confirmar Pagamento da Parcela</span>
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          );
+        })()}
+
         {/* Modal de Confirmação de Exclusão de Empréstimo */}
         {loanToDelete && (
           <div 

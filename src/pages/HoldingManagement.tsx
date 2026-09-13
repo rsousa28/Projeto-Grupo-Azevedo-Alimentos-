@@ -42,7 +42,7 @@ import {
 import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { BankLoan, StoreLiability, InvestmentProject, StoreOnlyBinding, StoreBenchmark } from '../types/holding';
-import { HoldingStorage, DEFAULT_STORE_BENCHMARKS } from '../services/holdingStorage';
+import { HoldingStorage, DEFAULT_STORE_BENCHMARKS, CashBalances } from '../services/holdingStorage';
 import { 
   getPreviousMonthStoreMetrics, 
   getPreviousMonthInfo, 
@@ -75,6 +75,9 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
   const [storeBenchmarks, setStoreBenchmarks] = useState<Record<StoreOnlyBinding, StoreBenchmark>>(() => 
     HoldingStorage.getStoreBenchmarks()
   );
+  const [cashBalances, setCashBalances] = useState<CashBalances>(() => HoldingStorage.getCashBalances());
+  const [isCashModalOpen, setIsCashModalOpen] = useState(false);
+  const [cashForm, setCashForm] = useState<CashBalances>(() => HoldingStorage.getCashBalances());
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -93,6 +96,7 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
     setLiabilities(HoldingStorage.getLiabilities());
     setInvestments(HoldingStorage.getInvestments());
     setStoreBenchmarks(HoldingStorage.getStoreBenchmarks());
+    setCashBalances(HoldingStorage.getCashBalances());
   }, []);
 
   // Sincronização automática inicial com os DREs preenchidos no Dashboard
@@ -158,6 +162,10 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
   const annualEbitda = totalEbitda * 12;
   const leverageRatio = annualEbitda > 0 ? (totalConsolidatedDebt / annualEbitda) : 0;
 
+  const totalAvailableCash = useMemo(() => {
+    return (cashBalances.holding || 0) + (cashBalances.B32 || 0) + (cashBalances.B28 || 0) + (cashBalances.VERO || 0);
+  }, [cashBalances]);
+
   // Sincronização manual com os dados do dashboard
   const handleManualSync = async () => {
     setIsSyncing(true);
@@ -200,34 +208,54 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
             Governança financeira, controle de empréstimos, passivos operacionais e expansão da rede.
           </p>
         </div>
-
-        {/* Global Controls: Sync DRE */}
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleManualSync}
-            disabled={isSyncing}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-60 border ${
-              isDarkMode 
-                ? 'bg-[#1C1C20] hover:bg-[#25252A] text-slate-200 border-[#2A2A30] hover:border-amber-500/40' 
-                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-amber-400'
-            }`}
-            title="Sincronizar com os fechamentos do Dashboard"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
-            <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar DREs'}</span>
-          </button>
-        </div>
       </div>
 
       {/* 1. Visão Geral (Dashboard Consolidado) */}
       {activeTab === 'consolidated' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-          {/* Top 4 Financial KPI Cards (Visible ONLY in Visão Geral) */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {/* Card 1: Faturamento Consolidado */}
+          {/* Financial KPI Cards (5 cards consolidando Caixa + Operação + Dívida) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+            {/* Card 1: Saldo Total Disponível em Caixa (Holding + Lojas) */}
+            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} hover:border-emerald-500/30 transition-all flex flex-col justify-between space-y-3`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Caixa Disponível
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCashForm(cashBalances);
+                    setIsCashModalOpen(true);
+                  }}
+                  title="Atualizar saldos bancários de caixa"
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer ${
+                    isDarkMode ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100'
+                  }`}
+                >
+                  <Coins className="w-4 h-4" />
+                </button>
+              </div>
+              <div>
+                <div className="text-2xl font-black text-emerald-500 tracking-tight">
+                  {formatCurrency(totalAvailableCash)}
+                </div>
+                <div className={`flex items-center gap-1.5 mt-1 text-[11px] font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                  <span>Holding:</span>
+                  <strong className="text-amber-400 font-bold">{formatCurrency(cashBalances.holding)}</strong>
+                </div>
+              </div>
+              <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
+                <span>Lojas ativas:</span>
+                <strong className={isDarkMode ? 'text-slate-200' : 'text-slate-700'}>
+                  {formatCurrency(totalAvailableCash - cashBalances.holding)}
+                </strong>
+              </div>
+            </div>
+
+            {/* Card 2: Faturamento Consolidado */}
             <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} hover:border-amber-500/30 transition-all flex flex-col justify-between space-y-3`}>
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Faturamento Consolidado
                 </span>
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
@@ -235,12 +263,12 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
                 </div>
               </div>
               <div>
-                <div className={`text-2xl sm:text-3xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                <div className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                   {formatCurrency(totalRevenue)}
                 </div>
                 <div className="flex items-center gap-1.5 mt-1 text-xs text-emerald-500 font-semibold">
                   <ArrowUpRight className="w-3.5 h-3.5" />
-                  <span>Soma das 3 unidades ativas</span>
+                  <span>3 unidades ativas</span>
                 </div>
               </div>
               <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
@@ -249,10 +277,10 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
               </div>
             </div>
 
-            {/* Card 2: Lucro Operacional Livre (EBITDA) */}
+            {/* Card 3: Lucro Operacional Livre (EBITDA) */}
             <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} hover:border-emerald-500/30 transition-all flex flex-col justify-between space-y-3`}>
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Lucro Operacional (EBITDA)
                 </span>
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
@@ -260,7 +288,7 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
                 </div>
               </div>
               <div>
-                <div className="text-2xl sm:text-3xl font-black text-emerald-500 tracking-tight">
+                <div className="text-2xl font-black text-emerald-500 tracking-tight">
                   {formatCurrency(totalEbitda)}
                 </div>
                 <div className={`flex items-center gap-1.5 mt-1 text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
@@ -269,41 +297,45 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
                 </div>
               </div>
               <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
-                <span>Geração de caixa</span>
-                <strong className={totalEbitda > 0 ? "text-emerald-500 font-bold" : isDarkMode ? "text-slate-400" : "text-slate-500"}>
-                  {totalEbitda > 0 ? "Positiva" : "Sem registro"}
+                <span>Geração de caixa:</span>
+                <strong className={totalEbitda > 0 ? "text-emerald-500 font-bold" : "text-slate-400 font-medium italic"}>
+                  {totalEbitda > 0 ? "Positiva" : "Em apuração"}
                 </strong>
               </div>
             </div>
 
-            {/* Card 3: Passivo Total Consolidado */}
+            {/* Card 4: Passivo Total Consolidado */}
             <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} hover:border-red-500/30 transition-all flex flex-col justify-between space-y-3`}>
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  Passivo Total Consolidado
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Passivo Consolidado
                 </span>
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}>
                   <Scale className="w-4 h-4" />
                 </div>
               </div>
               <div>
-                <div className={`text-2xl sm:text-3xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                <div className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                   {formatCurrency(totalConsolidatedDebt)}
                 </div>
                 <div className={`flex items-center gap-1.5 mt-1 text-xs font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
-                  <span>{loans.filter(l => l.status !== 'Liquidado').length} contratos bancários + {liabilities.filter(li => li.status !== 'Quitado').length} passivos</span>
+                  <span>{loans.filter(l => l.status !== 'Liquidado').length} empréstimos + {liabilities.filter(li => li.status !== 'Quitado').length} passivos</span>
                 </div>
               </div>
               <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
-                <span>Alavancagem Líquida:</span>
-                <strong className="text-amber-500">{leverageRatio.toFixed(2)}x EBITDA</strong>
+                <span>Alavancagem:</span>
+                {leverageRatio > 0 ? (
+                  <strong className="text-amber-500 font-bold">{leverageRatio.toFixed(2)}x EBITDA</strong>
+                ) : (
+                  <span className="text-slate-400 italic">Em apuração</span>
+                )}
               </div>
             </div>
 
-            {/* Card 4: Serviço Mensal da Dívida */}
+            {/* Card 5: Serviço Mensal da Dívida */}
             <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} hover:border-amber-500/30 transition-all flex flex-col justify-between space-y-3`}>
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                <span className={`text-[11px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Serviço Mensal Total
                 </span>
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
@@ -311,19 +343,19 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
                 </div>
               </div>
               <div>
-                <div className="text-2xl sm:text-3xl font-black text-amber-500 tracking-tight">
+                <div className="text-2xl font-black text-amber-500 tracking-tight">
                   {formatCurrency(totalMonthlyService)}
                 </div>
                 <div className={`flex items-center gap-1.5 mt-1 text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                   <span>Comprometimento:</span>
                   <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>
-                    {totalRevenue > 0 ? `${formatPercent((totalMonthlyService / totalRevenue) * 100)} da receita` : '0.0%'}
+                    {totalRevenue > 0 ? `${formatPercent((totalMonthlyService / totalRevenue) * 100)}` : '0.0%'}
                   </strong>
                 </div>
               </div>
               <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
-                <span>Fluxo de Saída Mensal</span>
-                <span className="text-emerald-500 font-bold">Amortização ativa</span>
+                <span>Amortização mensal:</span>
+                <span className="text-emerald-500 font-bold">Ativa</span>
               </div>
             </div>
           </div>
@@ -338,19 +370,6 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
                 Alimentado automaticamente pelos DREs do mês anterior ({periodInfo.periodLabel}) de cada unidade.
               </p>
             </div>
-            <button
-              onClick={handleManualSync}
-              disabled={isSyncing}
-              className={`text-xs font-bold text-amber-500 hover:text-amber-600 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer disabled:opacity-60 shrink-0 self-start sm:self-auto shadow-xs ${
-                isDarkMode 
-                  ? 'bg-[#1C1C20] border-[#2B2B32] hover:border-amber-400/50' 
-                  : 'bg-white border-slate-200 hover:border-amber-400'
-              }`}
-              title="Recarregar faturamento e indicadores dos DREs das lojas"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : ''}`} />
-              <span>{isSyncing ? 'Sincronizando...' : 'Sincronizar com DREs'}</span>
-            </button>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -426,7 +445,7 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
             <div className="flex items-center justify-between">
               <div>
                 <h3 className={`text-base font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Contribuição de Receita e EBITDA por Unidade</h3>
-                <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Comparativo visual integrado em tempo real das unidades.</p>
+                <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Comparativo visual integrado em tempo real das unidades operacionais.</p>
               </div>
             </div>
 
@@ -444,25 +463,61 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
                 </button>
               </div>
             ) : (
-              <div className="h-64 w-full">
+              <div className="h-80 sm:h-96 w-full pt-2">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={consolidatedStores}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#242426' : '#E2E8F0'} />
-                    <XAxis dataKey="code" stroke={isDarkMode ? '#888' : '#64748B'} />
-                    <YAxis stroke={isDarkMode ? '#888' : '#64748B'} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                  <BarChart 
+                    data={consolidatedStores}
+                    margin={{ top: 20, right: 30, left: 15, bottom: 20 }}
+                    barGap={8}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#242426' : '#E2E8F0'} vertical={false} />
+                    <XAxis 
+                      dataKey="code" 
+                      stroke={isDarkMode ? '#888' : '#64748B'} 
+                      tick={{ fontSize: 12, fontWeight: 700 }}
+                      tickLine={false}
+                    />
+                    <YAxis 
+                      stroke={isDarkMode ? '#888' : '#64748B'} 
+                      tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} 
+                      tick={{ fontSize: 11 }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
                     <Tooltip 
-                      formatter={(value: any) => [formatCurrency(Number(value)), 'Valor']}
+                      formatter={(value: any, name: any) => [
+                        formatCurrency(Number(value)), 
+                        name === 'Faturamento' ? 'Faturamento Bruto' : 'EBITDA Operacional'
+                      ]}
                       contentStyle={{ 
                         backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF', 
                         borderColor: isDarkMode ? '#333' : '#CBD5E1', 
                         color: isDarkMode ? '#FFFFFF' : '#0F172A',
                         borderRadius: '12px',
-                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                        boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                        padding: '10px 14px'
                       }}
                     />
-                    <Legend />
-                    <Bar dataKey="faturamento" name="Faturamento" fill="#FFCB05" radius={[8, 8, 0, 0]} />
-                    <Bar dataKey="ebitda" name="EBITDA" fill="#10B981" radius={[8, 8, 0, 0]} />
+                    <Legend 
+                      verticalAlign="top" 
+                      align="right" 
+                      wrapperStyle={{ paddingBottom: 16 }}
+                      iconType="circle"
+                    />
+                    <Bar 
+                      dataKey="faturamento" 
+                      name="Faturamento" 
+                      fill="#FFCB05" 
+                      radius={[6, 6, 0, 0]} 
+                      maxBarSize={48} 
+                    />
+                    <Bar 
+                      dataKey="ebitda" 
+                      name="EBITDA" 
+                      fill="#10B981" 
+                      radius={[6, 6, 0, 0]} 
+                      maxBarSize={48} 
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -490,6 +545,149 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <HoldingInvestments investments={investments} onUpdate={refreshData} />
         </motion.div>
+      )}
+
+      {/* Modal de Gestão dos Saldos de Caixa (Holding + Lojas) */}
+      {isCashModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in">
+          <div className={`w-full max-w-md p-6 rounded-2xl border shadow-2xl space-y-4 ${
+            isDarkMode ? 'bg-[#18181C] border-[#2C2C34] text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-[#27272A]">
+              <div className="flex items-center gap-2.5">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                  isDarkMode ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-50 text-emerald-600'
+                }`}>
+                  <Coins className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-tight">Saldos Disponíveis em Caixa</h3>
+                  <p className="text-[11px] text-slate-400">Contas bancárias e aplicações imediatas</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCashModalOpen(false)}
+                className="text-slate-400 hover:text-white text-xs font-bold px-2 py-1 rounded-lg transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const saved = HoldingStorage.saveCashBalances(cashForm);
+                setCashBalances(saved);
+                showToast('Saldos de caixa atualizados com sucesso!');
+                setIsCashModalOpen(false);
+              }}
+              className="space-y-4"
+            >
+              <div className="space-y-1">
+                <label className="text-xs font-bold flex items-center justify-between">
+                  <span className="text-amber-400 font-bold">Holding Central (Grupo AZ)</span>
+                  <span className="text-[10px] text-slate-400">Conta Matriz</span>
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-2.5 text-xs text-slate-400 font-bold">R$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={cashForm.holding}
+                    onChange={(e) => setCashForm(prev => ({ ...prev, holding: parseFloat(e.target.value) || 0 }))}
+                    className={`w-full pl-9 pr-3 py-2 rounded-xl border text-xs font-bold focus:outline-none focus:border-amber-500 ${
+                      isDarkMode ? 'bg-[#222226] border-[#33333C] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2.5 pt-1">
+                <div className="space-y-1">
+                  <label className={`text-[11px] font-bold block truncate ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                    B32 Mossoró
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={cashForm.B32}
+                    onChange={(e) => setCashForm(prev => ({ ...prev, B32: parseFloat(e.target.value) || 0 }))}
+                    className={`w-full px-2.5 py-2 rounded-xl border text-xs font-bold focus:outline-none focus:border-amber-500 ${
+                      isDarkMode ? 'bg-[#222226] border-[#33333C] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className={`text-[11px] font-bold block truncate ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                    B28 Rio Mar
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={cashForm.B28}
+                    onChange={(e) => setCashForm(prev => ({ ...prev, B28: parseFloat(e.target.value) || 0 }))}
+                    className={`w-full px-2.5 py-2 rounded-xl border text-xs font-bold focus:outline-none focus:border-amber-500 ${
+                      isDarkMode ? 'bg-[#222226] border-[#33333C] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className={`text-[11px] font-bold block truncate ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                    Vero Pasta
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="any"
+                    value={cashForm.VERO}
+                    onChange={(e) => setCashForm(prev => ({ ...prev, VERO: parseFloat(e.target.value) || 0 }))}
+                    className={`w-full px-2.5 py-2 rounded-xl border text-xs font-bold focus:outline-none focus:border-amber-500 ${
+                      isDarkMode ? 'bg-[#222226] border-[#33333C] text-white' : 'bg-slate-50 border-slate-200 text-slate-900'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Total Preview */}
+              <div className={`p-3 rounded-xl border flex justify-between items-center text-xs ${
+                isDarkMode ? 'bg-[#141F16] border-[#224426]' : 'bg-emerald-50 border-emerald-200'
+              }`}>
+                <span className={`font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Saldo Total Consolidado:
+                </span>
+                <strong className={`text-sm font-black ${isDarkMode ? 'text-emerald-400' : 'text-emerald-700'}`}>
+                  {formatCurrency((cashForm.holding || 0) + (cashForm.B32 || 0) + (cashForm.B28 || 0) + (cashForm.VERO || 0))}
+                </strong>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsCashModalOpen(false)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                    isDarkMode 
+                      ? 'border-[#33333C] text-slate-300 hover:bg-[#24242A]' 
+                      : 'border-slate-200 text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black transition-all cursor-pointer shadow-md shadow-amber-500/20 active:scale-95"
+                >
+                  Salvar Saldos
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

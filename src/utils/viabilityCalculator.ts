@@ -16,12 +16,12 @@ export interface ViabilityInputParams {
 }
 
 export const DEFAULT_VIABILITY_PARAMS: Required<ViabilityInputParams> = {
-  monthlyRevenue: 75000,
-  cmvPercent: 35,
-  fixedExpenses: 35000,
-  marketingPercent: 0,
+  monthlyRevenue: 80000,
+  cmvPercent: 32,
+  fixedExpenses: 34000,
+  marketingPercent: 1,
   royaltiesPercent: 0,
-  cardFeesPercent: 4,
+  cardFeesPercent: 3.5,
   creditSalesPercent: 65,
   clientTermDays: 2,
   creditPurchasesPercent: 100,
@@ -29,6 +29,113 @@ export const DEFAULT_VIABILITY_PARAMS: Required<ViabilityInputParams> = {
   stockDays: 15,
   capex: 280000
 };
+
+/**
+ * Validação de Viabilidade da Margem EBITDA Operacional para Alimentação / Franquias.
+ * O padrão saudável e sustentável de mercado situa-se estritamente entre 10% e 18% da receita bruta.
+ * Projeções com EBITDA < 5% (como 0,5%) são irreais e bloqueadas.
+ */
+export function validateEbitdaMargin(marginPercent: number): {
+  isValid: boolean;
+  isWarning: boolean;
+  status: 'critical' | 'warning' | 'optimal' | 'high';
+  message: string;
+} {
+  if (marginPercent <= 0) {
+    return {
+      isValid: false,
+      isWarning: false,
+      status: 'critical',
+      message: 'Operação deficitária: EBITDA negativo não gera payback nem sustentabilidade financeira.'
+    };
+  }
+  if (marginPercent < 5) {
+    return {
+      isValid: false,
+      isWarning: true,
+      status: 'critical',
+      message: `Margem de ${marginPercent.toFixed(1)}% é irreal/insustentável para alimentação comercial (mínimo de viabilidade: 10% a 18%).`
+    };
+  }
+  if (marginPercent < 10) {
+    return {
+      isValid: true,
+      isWarning: true,
+      status: 'warning',
+      message: `Margem de ${marginPercent.toFixed(1)}% está abaixo da faixa recomendada de mercado (10% a 18%). Risco de caixa elevado.`
+    };
+  }
+  if (marginPercent <= 18) {
+    return {
+      isValid: true,
+      isWarning: false,
+      status: 'optimal',
+      message: `Margem de ${marginPercent.toFixed(1)}% é consistente e alinhada ao benchmark do setor de alimentação (10% a 18%).`
+    };
+  }
+  return {
+    isValid: true,
+    isWarning: true,
+    status: 'high',
+    message: `Margem de ${marginPercent.toFixed(1)}% é excepcionalmente alta para o setor de alimentação comercial. Recomenda-se auditar premissas.`
+  };
+}
+
+/**
+ * Calcula as despesas fixas ideais para atingir a margem EBITDA alvo (padrão de mercado: 14%)
+ */
+export function calculateSuggestedFixedForTargetMargin(
+  revenue: number,
+  cmvPercent: number = 32,
+  targetMarginPercent: number = 14,
+  cardFeesPercent: number = 3.5,
+  marketingPercent: number = 1,
+  royaltiesPercent: number = 0
+): number {
+  if (revenue <= 0) return 0;
+  const grossProfit = revenue * (1 - cmvPercent / 100);
+  const variableExpenses = revenue * ((cardFeesPercent + marketingPercent + royaltiesPercent) / 100);
+  const targetEbitda = revenue * (targetMarginPercent / 100);
+  const suggestedFixed = grossProfit - variableExpenses - targetEbitda;
+  return Math.max(0, Math.round(suggestedFixed));
+}
+
+/**
+ * Formata o Payback de meses para exibição amigável e realista em anos e meses.
+ * Exemplo: 20 meses -> "1 ano e 8 meses"
+ *          24 meses -> "2 anos"
+ *          8 meses  -> "8 meses"
+ */
+export function formatPaybackTime(months: number): string {
+  if (!months || isNaN(months) || !isFinite(months) || months <= 0) {
+    return 'Inviável (Sem EBITDA)';
+  }
+
+  if (months > 180) { // > 15 anos
+    return '> 15 anos (Inviável)';
+  }
+
+  const roundedMonths = Math.round(months * 10) / 10;
+  if (roundedMonths < 1) {
+    return '< 1 mês';
+  }
+
+  const totalWholeMonths = Math.round(roundedMonths);
+  const years = Math.floor(totalWholeMonths / 12);
+  const remMonths = totalWholeMonths % 12;
+
+  if (years === 0) {
+    return `${totalWholeMonths} ${totalWholeMonths === 1 ? 'mês' : 'meses'}`;
+  }
+
+  if (remMonths === 0) {
+    return `${years} ${years === 1 ? 'ano' : 'anos'}`;
+  }
+
+  const yearLabel = `${years} ${years === 1 ? 'ano' : 'anos'}`;
+  const monthLabel = `${remMonths} ${remMonths === 1 ? 'mês' : 'meses'}`;
+  return `${yearLabel} e ${monthLabel}`;
+}
 
 /**
  * Realiza os cálculos rigorosos baseados na Planilha de Parâmetros de Entrada e Indicadores

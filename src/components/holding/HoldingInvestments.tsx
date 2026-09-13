@@ -23,7 +23,8 @@ import {
   Calculator,
   SlidersHorizontal,
   Info,
-  AlertCircle
+  AlertCircle,
+  AlertTriangle
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -37,7 +38,13 @@ import {
 } from 'recharts';
 import { InvestmentProject, ViabilityPlanilha } from '../../types/holding';
 import { HoldingStorage } from '../../services/holdingStorage';
-import { calculateViability, DEFAULT_VIABILITY_PARAMS } from '../../utils/viabilityCalculator';
+import { 
+  calculateViability, 
+  DEFAULT_VIABILITY_PARAMS, 
+  formatPaybackTime, 
+  validateEbitdaMargin, 
+  calculateSuggestedFixedForTargetMargin 
+} from '../../utils/viabilityCalculator';
 import { ViabilityPlanilhaView } from './ViabilityPlanilhaView';
 import { useStore } from '../../contexts/StoreContext';
 
@@ -88,34 +95,34 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
 
   // Standalone Simulator Modal State
   const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
-  const [simRevenue, setSimRevenue] = useState('75000');
-  const [simCapex, setSimCapex] = useState('280000');
-  const [simCmv, setSimCmv] = useState('35');
-  const [simFixed, setSimFixed] = useState('35000');
-  const [simMkt, setSimMkt] = useState('0');
-  const [simRoy, setSimRoy] = useState('0');
-  const [simCard, setSimCard] = useState('4');
-  const [simCreditSales, setSimCreditSales] = useState('65');
-  const [simClientDays, setSimClientDays] = useState('2');
-  const [simCreditPurchases, setSimCreditPurchases] = useState('100');
-  const [simSupplierDays, setSimSupplierDays] = useState('15');
-  const [simStockDays, setSimStockDays] = useState('15');
+  const [simRevenue, setSimRevenue] = useState(DEFAULT_VIABILITY_PARAMS.monthlyRevenue.toString());
+  const [simCapex, setSimCapex] = useState(DEFAULT_VIABILITY_PARAMS.capex.toString());
+  const [simCmv, setSimCmv] = useState(DEFAULT_VIABILITY_PARAMS.cmvPercent.toString());
+  const [simFixed, setSimFixed] = useState(DEFAULT_VIABILITY_PARAMS.fixedExpenses.toString());
+  const [simMkt, setSimMkt] = useState(DEFAULT_VIABILITY_PARAMS.marketingPercent.toString());
+  const [simRoy, setSimRoy] = useState(DEFAULT_VIABILITY_PARAMS.royaltiesPercent.toString());
+  const [simCard, setSimCard] = useState(DEFAULT_VIABILITY_PARAMS.cardFeesPercent.toString());
+  const [simCreditSales, setSimCreditSales] = useState(DEFAULT_VIABILITY_PARAMS.creditSalesPercent.toString());
+  const [simClientDays, setSimClientDays] = useState(DEFAULT_VIABILITY_PARAMS.clientTermDays.toString());
+  const [simCreditPurchases, setSimCreditPurchases] = useState(DEFAULT_VIABILITY_PARAMS.creditPurchasesPercent.toString());
+  const [simSupplierDays, setSimSupplierDays] = useState(DEFAULT_VIABILITY_PARAMS.supplierTermDays.toString());
+  const [simStockDays, setSimStockDays] = useState(DEFAULT_VIABILITY_PARAMS.stockDays.toString());
 
   // Live calculation for Standalone Simulator
   const simViability = useMemo(() => {
     return calculateViability({
-      monthlyRevenue: parseFloat(simRevenue) || 0,
-      capex: parseFloat(simCapex) || 0,
-      cmvPercent: parseFloat(simCmv) || 35,
-      fixedExpenses: parseFloat(simFixed) || 35000,
-      marketingPercent: parseFloat(simMkt) || 0,
-      royaltiesPercent: parseFloat(simRoy) || 0,
-      cardFeesPercent: parseFloat(simCard) || 4,
-      creditSalesPercent: parseFloat(simCreditSales) || 65,
-      clientTermDays: parseFloat(simClientDays) || 2,
-      creditPurchasesPercent: parseFloat(simCreditPurchases) || 100,
-      supplierTermDays: parseFloat(simSupplierDays) || 15,
-      stockDays: parseFloat(simStockDays) || 15
+      monthlyRevenue: parseFloat(simRevenue) || DEFAULT_VIABILITY_PARAMS.monthlyRevenue,
+      capex: parseFloat(simCapex) || DEFAULT_VIABILITY_PARAMS.capex,
+      cmvPercent: parseFloat(simCmv) ?? DEFAULT_VIABILITY_PARAMS.cmvPercent,
+      fixedExpenses: parseFloat(simFixed) ?? DEFAULT_VIABILITY_PARAMS.fixedExpenses,
+      marketingPercent: parseFloat(simMkt) ?? DEFAULT_VIABILITY_PARAMS.marketingPercent,
+      royaltiesPercent: parseFloat(simRoy) ?? DEFAULT_VIABILITY_PARAMS.royaltiesPercent,
+      cardFeesPercent: parseFloat(simCard) ?? DEFAULT_VIABILITY_PARAMS.cardFeesPercent,
+      creditSalesPercent: parseFloat(simCreditSales) ?? DEFAULT_VIABILITY_PARAMS.creditSalesPercent,
+      clientTermDays: parseFloat(simClientDays) ?? DEFAULT_VIABILITY_PARAMS.clientTermDays,
+      creditPurchasesPercent: parseFloat(simCreditPurchases) ?? DEFAULT_VIABILITY_PARAMS.creditPurchasesPercent,
+      supplierTermDays: parseFloat(simSupplierDays) ?? DEFAULT_VIABILITY_PARAMS.supplierTermDays,
+      stockDays: parseFloat(simStockDays) ?? DEFAULT_VIABILITY_PARAMS.stockDays
     });
   }, [
     simRevenue,
@@ -159,43 +166,43 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
   };
   const [type, setType] = useState(INVESTMENT_TYPES[0]);
   const [stage, setStage] = useState(INVESTMENT_STAGES[0]);
-  const [capexBudget, setCapexBudget] = useState('280000');
+  const [capexBudget, setCapexBudget] = useState(DEFAULT_VIABILITY_PARAMS.capex.toString());
   const [spentSoFar, setSpentSoFar] = useState('0');
-  const [projectedMonthlyRevenue, setProjectedMonthlyRevenue] = useState('75000');
+  const [projectedMonthlyRevenue, setProjectedMonthlyRevenue] = useState(DEFAULT_VIABILITY_PARAMS.monthlyRevenue.toString());
   const [projectedRoi, setProjectedRoi] = useState('35% a.a.');
   const [targetLaunch, setTargetLaunch] = useState('');
   const [responsible, setResponsible] = useState('Diretoria de Expansão');
   const [notes, setNotes] = useState('');
 
   // Viability spreadsheet parameters for project form
-  const [cmvPercent, setCmvPercent] = useState('35');
-  const [fixedExpenses, setFixedExpenses] = useState('35000');
-  const [marketingPercent, setMarketingPercent] = useState('0');
-  const [royaltiesPercent, setRoyaltiesPercent] = useState('0');
-  const [cardFeesPercent, setCardFeesPercent] = useState('4');
-  const [creditSalesPercent, setCreditSalesPercent] = useState('65');
-  const [clientTermDays, setClientTermDays] = useState('2');
-  const [creditPurchasesPercent, setCreditPurchasesPercent] = useState('100');
-  const [supplierTermDays, setSupplierTermDays] = useState('15');
-  const [stockDays, setStockDays] = useState('15');
+  const [cmvPercent, setCmvPercent] = useState(DEFAULT_VIABILITY_PARAMS.cmvPercent.toString());
+  const [fixedExpenses, setFixedExpenses] = useState(DEFAULT_VIABILITY_PARAMS.fixedExpenses.toString());
+  const [marketingPercent, setMarketingPercent] = useState(DEFAULT_VIABILITY_PARAMS.marketingPercent.toString());
+  const [royaltiesPercent, setRoyaltiesPercent] = useState(DEFAULT_VIABILITY_PARAMS.royaltiesPercent.toString());
+  const [cardFeesPercent, setCardFeesPercent] = useState(DEFAULT_VIABILITY_PARAMS.cardFeesPercent.toString());
+  const [creditSalesPercent, setCreditSalesPercent] = useState(DEFAULT_VIABILITY_PARAMS.creditSalesPercent.toString());
+  const [clientTermDays, setClientTermDays] = useState(DEFAULT_VIABILITY_PARAMS.clientTermDays.toString());
+  const [creditPurchasesPercent, setCreditPurchasesPercent] = useState(DEFAULT_VIABILITY_PARAMS.creditPurchasesPercent.toString());
+  const [supplierTermDays, setSupplierTermDays] = useState(DEFAULT_VIABILITY_PARAMS.supplierTermDays.toString());
+  const [stockDays, setStockDays] = useState(DEFAULT_VIABILITY_PARAMS.stockDays.toString());
 
   // Live calculation of form viability based on the spreadsheet formula
   const formViability = useMemo(() => {
-    const numCapex = parseFloat(capexBudget.replace(/[^0-9.]/g, '')) || 0;
-    const numRev = parseFloat(projectedMonthlyRevenue.replace(/[^0-9.]/g, '')) || 0;
+    const numCapex = parseFloat(capexBudget.replace(/[^0-9.]/g, '')) || DEFAULT_VIABILITY_PARAMS.capex;
+    const numRev = parseFloat(projectedMonthlyRevenue.replace(/[^0-9.]/g, '')) || DEFAULT_VIABILITY_PARAMS.monthlyRevenue;
     return calculateViability({
       monthlyRevenue: numRev,
       capex: numCapex,
-      cmvPercent: parseFloat(cmvPercent) || 35,
-      fixedExpenses: parseFloat(fixedExpenses) || 35000,
-      marketingPercent: parseFloat(marketingPercent) || 0,
-      royaltiesPercent: parseFloat(royaltiesPercent) || 0,
-      cardFeesPercent: parseFloat(cardFeesPercent) || 4,
-      creditSalesPercent: parseFloat(creditSalesPercent) || 65,
-      clientTermDays: parseFloat(clientTermDays) || 2,
-      creditPurchasesPercent: parseFloat(creditPurchasesPercent) || 100,
-      supplierTermDays: parseFloat(supplierTermDays) || 15,
-      stockDays: parseFloat(stockDays) || 15
+      cmvPercent: parseFloat(cmvPercent) ?? DEFAULT_VIABILITY_PARAMS.cmvPercent,
+      fixedExpenses: parseFloat(fixedExpenses) ?? DEFAULT_VIABILITY_PARAMS.fixedExpenses,
+      marketingPercent: parseFloat(marketingPercent) ?? DEFAULT_VIABILITY_PARAMS.marketingPercent,
+      royaltiesPercent: parseFloat(royaltiesPercent) ?? DEFAULT_VIABILITY_PARAMS.royaltiesPercent,
+      cardFeesPercent: parseFloat(cardFeesPercent) ?? DEFAULT_VIABILITY_PARAMS.cardFeesPercent,
+      creditSalesPercent: parseFloat(creditSalesPercent) ?? DEFAULT_VIABILITY_PARAMS.creditSalesPercent,
+      clientTermDays: parseFloat(clientTermDays) ?? DEFAULT_VIABILITY_PARAMS.clientTermDays,
+      creditPurchasesPercent: parseFloat(creditPurchasesPercent) ?? DEFAULT_VIABILITY_PARAMS.creditPurchasesPercent,
+      supplierTermDays: parseFloat(supplierTermDays) ?? DEFAULT_VIABILITY_PARAMS.supplierTermDays,
+      stockDays: parseFloat(stockDays) ?? DEFAULT_VIABILITY_PARAMS.stockDays
     });
   }, [
     capexBudget,
@@ -219,19 +226,19 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
     setNameError(null);
     setType(INVESTMENT_TYPES[0]);
     setStage(INVESTMENT_STAGES[0]);
-    setCapexBudget('280000');
+    setCapexBudget(DEFAULT_VIABILITY_PARAMS.capex.toString());
     setSpentSoFar('0');
-    setProjectedMonthlyRevenue('75000');
-    setCmvPercent('35');
-    setFixedExpenses('35000');
-    setMarketingPercent('0');
-    setRoyaltiesPercent('0');
-    setCardFeesPercent('4');
-    setCreditSalesPercent('65');
-    setClientTermDays('2');
-    setCreditPurchasesPercent('100');
-    setSupplierTermDays('15');
-    setStockDays('15');
+    setProjectedMonthlyRevenue(DEFAULT_VIABILITY_PARAMS.monthlyRevenue.toString());
+    setCmvPercent(DEFAULT_VIABILITY_PARAMS.cmvPercent.toString());
+    setFixedExpenses(DEFAULT_VIABILITY_PARAMS.fixedExpenses.toString());
+    setMarketingPercent(DEFAULT_VIABILITY_PARAMS.marketingPercent.toString());
+    setRoyaltiesPercent(DEFAULT_VIABILITY_PARAMS.royaltiesPercent.toString());
+    setCardFeesPercent(DEFAULT_VIABILITY_PARAMS.cardFeesPercent.toString());
+    setCreditSalesPercent(DEFAULT_VIABILITY_PARAMS.creditSalesPercent.toString());
+    setClientTermDays(DEFAULT_VIABILITY_PARAMS.clientTermDays.toString());
+    setCreditPurchasesPercent(DEFAULT_VIABILITY_PARAMS.creditPurchasesPercent.toString());
+    setSupplierTermDays(DEFAULT_VIABILITY_PARAMS.supplierTermDays.toString());
+    setStockDays(DEFAULT_VIABILITY_PARAMS.stockDays.toString());
     setProjectedRoi('35% a.a.');
     setTargetLaunch('');
     setResponsible('Diretoria de Expansão');
@@ -251,16 +258,16 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
     setCapexBudget(inv.capexBudget.toString());
     setSpentSoFar(inv.spentSoFar.toString());
     setProjectedMonthlyRevenue(inv.projectedMonthlyRevenue.toString());
-    setCmvPercent((viab.cmvPercent ?? 35).toString());
-    setFixedExpenses((viab.fixedExpenses ?? 35000).toString());
-    setMarketingPercent((viab.marketingPercent ?? 0).toString());
-    setRoyaltiesPercent((viab.royaltiesPercent ?? 0).toString());
-    setCardFeesPercent((viab.cardFeesPercent ?? 4).toString());
-    setCreditSalesPercent((viab.creditSalesPercent ?? 65).toString());
-    setClientTermDays((viab.clientTermDays ?? 2).toString());
-    setCreditPurchasesPercent((viab.creditPurchasesPercent ?? 100).toString());
-    setSupplierTermDays((viab.supplierTermDays ?? 15).toString());
-    setStockDays((viab.stockDays ?? 15).toString());
+    setCmvPercent((viab.cmvPercent ?? DEFAULT_VIABILITY_PARAMS.cmvPercent).toString());
+    setFixedExpenses((viab.fixedExpenses ?? DEFAULT_VIABILITY_PARAMS.fixedExpenses).toString());
+    setMarketingPercent((viab.marketingPercent ?? DEFAULT_VIABILITY_PARAMS.marketingPercent).toString());
+    setRoyaltiesPercent((viab.royaltiesPercent ?? DEFAULT_VIABILITY_PARAMS.royaltiesPercent).toString());
+    setCardFeesPercent((viab.cardFeesPercent ?? DEFAULT_VIABILITY_PARAMS.cardFeesPercent).toString());
+    setCreditSalesPercent((viab.creditSalesPercent ?? DEFAULT_VIABILITY_PARAMS.creditSalesPercent).toString());
+    setClientTermDays((viab.clientTermDays ?? DEFAULT_VIABILITY_PARAMS.clientTermDays).toString());
+    setCreditPurchasesPercent((viab.creditPurchasesPercent ?? DEFAULT_VIABILITY_PARAMS.creditPurchasesPercent).toString());
+    setSupplierTermDays((viab.supplierTermDays ?? DEFAULT_VIABILITY_PARAMS.supplierTermDays).toString());
+    setStockDays((viab.stockDays ?? DEFAULT_VIABILITY_PARAMS.stockDays).toString());
     setProjectedRoi(inv.projectedRoi);
     setTargetLaunch(inv.targetLaunch);
     setResponsible(inv.responsible);
@@ -279,18 +286,38 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
     }
     setNameError(null);
 
-    const parsedSpent = parseFloat(spentSoFar.replace(/[^0-9.]/g, '')) || 0;
+    // 1. Validação Crítica de Viabilidade: Travar projeções com EBITDA irreal (< 5%)
+    if (formViability.ebitdaMarginPercent < 5) {
+      showToast(`Projeção Inválida: Margem EBITDA de ${formViability.ebitdaMarginPercent.toFixed(1)}% é irreal para o setor de alimentação (padrão saudável entre 10% e 18%). Ajuste os custos fixos ou a receita.`);
+      return;
+    }
+
+    const parsedCapex = formViability.capex;
+    let parsedSpent = parseFloat(spentSoFar.replace(/[^0-9.]/g, '')) || 0;
+    let finalLaunch = targetLaunch.trim();
+
+    // 2. Coerência de Status: Se "Concluído / Inaugurado", aporte não pode estar em 0% e previsão não pode ser "Em definição"
+    if (stage === 'Concluído / Inaugurado') {
+      if (parsedSpent <= 0) {
+        parsedSpent = parsedCapex > 0 ? parsedCapex : 280000;
+        setSpentSoFar(parsedSpent.toString());
+      }
+      if (!finalLaunch || finalLaunch === 'Em definição' || finalLaunch.toLowerCase().includes('definição')) {
+        finalLaunch = 'Inaugurado';
+        setTargetLaunch('Inaugurado');
+      }
+    }
 
     const projectPayload = {
       projectName: projectName.trim(),
       type,
       stage,
-      capexBudget: formViability.capex,
+      capexBudget: parsedCapex,
       spentSoFar: parsedSpent,
       projectedMonthlyRevenue: formViability.monthlyRevenue,
       expectedPaybackMonths: Number(formViability.paybackMonths.toFixed(2)),
       projectedRoi: projectedRoi.trim() || '30% a.a.',
-      targetLaunch: targetLaunch.trim() || 'Em definição',
+      targetLaunch: finalLaunch || 'Em definição',
       responsible: responsible.trim() || 'Diretoria de Expansão',
       notes: notes.trim(),
       viability: formViability
@@ -615,19 +642,14 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
             <div className={`text-2xl sm:text-3xl font-black tracking-tight ${
               isDarkMode ? 'text-purple-300' : 'text-purple-700'
             }`}>
-              {averagePayback > 0 ? averagePayback : 0}{' '}
-              <span className={`text-base font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>meses</span>
+              {averagePayback > 0 ? formatPaybackTime(averagePayback) : 'Sem projetos'}
             </div>
             <div className={`flex items-center gap-1.5 mt-1 text-xs font-semibold ${
               isDarkMode ? 'text-slate-300' : 'text-slate-600'
             }`}>
               <span>
-                {totalProjectedRevenue > 0
-                  ? averagePayback <= 18
-                    ? 'Retorno acelerado de capital'
-                    : averagePayback <= 30
-                    ? 'Retorno sustentável de capital'
-                    : 'Retorno de maturação estendida'
+                {averagePayback > 0
+                  ? `Média de ~${averagePayback} meses (${totalProjectedRevenue > 0 && averagePayback <= 24 ? 'Retorno acelerado' : 'Retorno sustentável'})`
                   : 'Aguardando projeção de receita'}
               </span>
             </div>
@@ -876,7 +898,9 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                   isDarkMode ? 'bg-[#18181C] border-[#242428]' : 'bg-slate-50 border-slate-200'
                 }`}>
                   <div className="flex justify-between items-center text-[11px]">
-                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Progresso do Aporte Capex:</span>
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>
+                      Capex: <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>{formatCurrency(inv.capexBudget)}</strong>
+                    </span>
                     <strong className={`font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>{formatPercent(pct)}</strong>
                   </div>
                   <div className={`h-2 w-full rounded-full overflow-hidden ${
@@ -902,10 +926,6 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                     <div className={`space-y-2 p-4 rounded-2xl border text-xs ${
                       isDarkMode ? 'bg-[#1C1C20] border-[#28282C]' : 'bg-slate-50 border-slate-200'
                     }`}>
-                      <div className="flex justify-between items-center">
-                        <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Orçamento Capex:</span>
-                        <strong className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(inv.capexBudget)}</strong>
-                      </div>
                       <div className="flex justify-between items-center">
                         <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Faturamento Projetado:</span>
                         <strong className={`font-bold ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>{formatCurrency(viab.monthlyRevenue)}</strong>
@@ -935,16 +955,25 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                         <span className={`font-bold flex items-center gap-1 ${
                           isDarkMode ? 'text-slate-300' : 'text-slate-700'
                         }`}>
-                          <Clock className="w-3 h-3 text-amber-500" />
+                          <Clock className="w-3.5 h-3.5 text-amber-500" />
                           Payback Estimado:
                         </span>
-                        <span className={`font-black text-sm ${
-                          isDarkMode ? 'text-amber-300' : 'text-amber-600'
-                        }`}>
-                          {viab.paybackMonths > 0
-                            ? `${viab.paybackMonths.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} meses`
-                            : 'Aguardando receita'}
-                        </span>
+                        <div className="text-right">
+                          <span className={`font-black text-sm block ${
+                            isDarkMode ? 'text-amber-300' : 'text-amber-600'
+                          }`}>
+                            {viab.paybackMonths > 0
+                              ? formatPaybackTime(viab.paybackMonths)
+                              : 'Aguardando receita'}
+                          </span>
+                          {viab.paybackMonths > 0 && (
+                            <span className={`text-[10px] font-medium block ${
+                              isDarkMode ? 'text-slate-400' : 'text-slate-500'
+                            }`}>
+                              ({viab.paybackMonths.toFixed(1)} meses)
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -1470,19 +1499,82 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                         <div className={`p-3 rounded-xl border ${
                           isDarkMode ? 'bg-[#282010] border-[#54411d]' : 'bg-amber-50 border-amber-200 shadow-xs'
                         }`}>
-                          <span className={`text-[10px] block font-bold ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>Payback em Meses</span>
-                          <strong className={`text-base font-black ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                          <span className={`text-[10px] block font-bold ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>Payback Estimado</span>
+                          <strong className={`text-xs sm:text-sm font-black block leading-tight ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
                             {formViability.paybackMonths > 0
-                              ? `${formViability.paybackMonths.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m`
-                              : '0 m'}
-                          </strong>
-                          <span className={`text-[10px] block ${isDarkMode ? 'text-amber-400/80' : 'text-amber-700/80 font-medium'}`}>
-                            {formViability.paybackMonths > 0
-                              ? `~ ${(formViability.paybackMonths / 12).toFixed(1)} anos`
+                              ? formatPaybackTime(formViability.paybackMonths)
                               : 'Sem retorno'}
+                          </strong>
+                          <span className={`text-[10px] block mt-0.5 ${isDarkMode ? 'text-amber-400/80' : 'text-amber-700/80 font-medium'}`}>
+                            {formViability.paybackMonths > 0
+                              ? `(${formViability.paybackMonths.toFixed(1)} meses)`
+                              : 'Ajuste receitas'}
                           </span>
                         </div>
                       </div>
+
+                      {/* Validação de Margem EBITDA */}
+                      {(() => {
+                        const validation = validateEbitdaMargin(formViability.ebitdaMarginPercent);
+                        if (validation.status === 'critical') {
+                          return (
+                            <div className="p-3 rounded-xl border bg-rose-500/10 border-rose-500/30 text-rose-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                              <div className="flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4 shrink-0 text-rose-500" />
+                                <div className="text-xs">
+                                  <span className="font-bold text-rose-400">Margem EBITDA Irreal ({formViability.ebitdaMarginPercent.toFixed(1)}%): </span>
+                                  <span>{validation.message}</span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const suggested = calculateSuggestedFixedForTargetMargin(formViability.monthlyRevenue, formViability.cmvPercent, 14);
+                                  setFixedExpenses(Math.round(suggested).toString());
+                                  showToast('Custos fixos calibrados para margem EBITDA saudável de 14%.');
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-white font-bold text-[11px] shrink-0 transition-colors cursor-pointer"
+                              >
+                                Calibrar p/ 14% EBITDA
+                              </button>
+                            </div>
+                          );
+                        } else if (validation.status === 'warning') {
+                          return (
+                            <div className="p-3 rounded-xl border bg-amber-500/10 border-amber-500/30 text-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                              <div className="flex items-center gap-2">
+                                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+                                <div className="text-xs">
+                                  <span className="font-bold text-amber-400">Margem em Alerta ({formViability.ebitdaMarginPercent.toFixed(1)}%): </span>
+                                  <span>{validation.message}</span>
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const suggested = calculateSuggestedFixedForTargetMargin(formViability.monthlyRevenue, formViability.cmvPercent, 14);
+                                  setFixedExpenses(Math.round(suggested).toString());
+                                  showToast('Custos fixos calibrados para margem EBITDA recomendada de 14%.');
+                                }}
+                                className="px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 font-bold text-[11px] shrink-0 transition-colors cursor-pointer"
+                              >
+                                Otimizar p/ 14%
+                              </button>
+                            </div>
+                          );
+                        } else {
+                          return (
+                            <div className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs ${
+                              isDarkMode ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                            }`}>
+                              <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                              <span className="font-medium">
+                                <strong>Margem Operacional Saudável ({formViability.ebitdaMarginPercent.toFixed(1)}%):</strong> Alinhada com o padrão de franquias de alimentação (10% a 18%).
+                              </span>
+                            </div>
+                          );
+                        }
+                      })()}
 
                       {showFormPlanilhaTable && (
                         <div className={`pt-2 border-t ${isDarkMode ? 'border-[#2e4726]' : 'border-emerald-200'}`}>
@@ -2067,9 +2159,14 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                       isDarkMode ? 'border-[#2d4d24]' : 'border-emerald-200'
                     }`}>
                       <span className={`font-bold ${isDarkMode ? 'text-amber-400' : 'text-amber-700'}`}>Payback Estimado:</span>
-                      <strong className={`text-sm font-black ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
-                        {simViability.paybackMonths.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} meses
-                      </strong>
+                      <div className="text-right">
+                        <strong className={`text-sm font-black block ${isDarkMode ? 'text-amber-300' : 'text-amber-700'}`}>
+                          {formatPaybackTime(simViability.paybackMonths)}
+                        </strong>
+                        <span className={`text-[10px] block ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                          ({simViability.paybackMonths.toFixed(1)} meses)
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2087,18 +2184,18 @@ export function HoldingInvestments({ investments, onUpdate }: HoldingInvestments
                 <button
                   type="button"
                   onClick={() => {
-                    setSimRevenue('75000');
-                    setSimCapex('280000');
-                    setSimCmv('35');
-                    setSimFixed('35000');
-                    setSimMkt('0');
-                    setSimRoy('0');
-                    setSimCard('4');
-                    setSimCreditSales('65');
-                    setSimClientDays('2');
-                    setSimCreditPurchases('100');
-                    setSimSupplierDays('15');
-                    setSimStockDays('15');
+                    setSimRevenue(DEFAULT_VIABILITY_PARAMS.monthlyRevenue.toString());
+                    setSimCapex(DEFAULT_VIABILITY_PARAMS.capex.toString());
+                    setSimCmv(DEFAULT_VIABILITY_PARAMS.cmvPercent.toString());
+                    setSimFixed(DEFAULT_VIABILITY_PARAMS.fixedExpenses.toString());
+                    setSimMkt(DEFAULT_VIABILITY_PARAMS.marketingPercent.toString());
+                    setSimRoy(DEFAULT_VIABILITY_PARAMS.royaltiesPercent.toString());
+                    setSimCard(DEFAULT_VIABILITY_PARAMS.cardFeesPercent.toString());
+                    setSimCreditSales(DEFAULT_VIABILITY_PARAMS.creditSalesPercent.toString());
+                    setSimClientDays(DEFAULT_VIABILITY_PARAMS.clientTermDays.toString());
+                    setSimCreditPurchases(DEFAULT_VIABILITY_PARAMS.creditPurchasesPercent.toString());
+                    setSimSupplierDays(DEFAULT_VIABILITY_PARAMS.supplierTermDays.toString());
+                    setSimStockDays(DEFAULT_VIABILITY_PARAMS.stockDays.toString());
                   }}
                   className={`text-xs underline cursor-pointer ${
                     isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'

@@ -46,11 +46,55 @@ export const INITIAL_BANK_LOANS: BankLoan[] = [];
 export const INITIAL_STORE_LIABILITIES: StoreLiability[] = [];
 export const INITIAL_INVESTMENTS: InvestmentProject[] = [];
 
+export interface CashBalances {
+  holding: number;
+  B32: number;
+  B28: number;
+  VERO: number;
+  lastUpdated?: string;
+}
+
+export const DEFAULT_CASH_BALANCES: CashBalances = {
+  holding: 185000,
+  B32: 68400,
+  B28: 45200,
+  VERO: 56800,
+  lastUpdated: new Date().toISOString()
+};
+
 const LOANS_KEY = 'holding_bank_loans_v3';
 const LIABILITIES_KEY = 'holding_liabilities_v3';
 const CLOSED_STORES_KEY = 'holding_closed_stores_v1';
 const INVESTMENTS_KEY = 'holding_investments_v3';
 const STORES_BENCHMARKS_KEY = 'holding_benchmarks_v3';
+const CASH_BALANCES_KEY = 'holding_cash_balances_v2';
+
+/**
+ * Sanitiza e sincroniza coerência de dados de projetos de investimento.
+ * Regra crítica de negócio: Se o projeto estiver 'Concluído / Inaugurado', o aporte
+ * acumulado não pode estar em 0% (sincroniza com o capex previsto de 100%) e a previsão
+ * não pode ser 'Em definição' (sincroniza para 'Inaugurado').
+ */
+export function sanitizeInvestment(inv: InvestmentProject): InvestmentProject {
+  const isCompleted = inv.stage === 'Concluído / Inaugurado';
+  let spent = Number(inv.spentSoFar) || 0;
+  let target = inv.targetLaunch || '';
+
+  if (isCompleted) {
+    if (spent <= 0) {
+      spent = Number(inv.capexBudget) > 0 ? Number(inv.capexBudget) : 250000;
+    }
+    if (!target || target.trim() === '' || target.toLowerCase().includes('definição')) {
+      target = 'Inaugurado';
+    }
+  }
+
+  return {
+    ...inv,
+    spentSoFar: spent,
+    targetLaunch: target
+  };
+}
 
 // Limpeza automática pontual de dados mock antigos em sessões do navegador
 if (typeof window !== 'undefined' && window.localStorage) {
@@ -255,18 +299,20 @@ export const HoldingStorage = {
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          // Garante sanitização e coerência para todos os projetos salvos
+          return parsed.map(sanitizeInvestment);
         }
       }
     } catch (e) {
       console.error('Error loading investment projects:', e);
     }
-    return INITIAL_INVESTMENTS;
+    return INITIAL_INVESTMENTS.map(sanitizeInvestment);
   },
 
   saveInvestments(investments: InvestmentProject[]) {
     try {
-      localStorage.setItem(INVESTMENTS_KEY, JSON.stringify(investments));
+      const sanitized = investments.map(sanitizeInvestment);
+      localStorage.setItem(INVESTMENTS_KEY, JSON.stringify(sanitized));
     } catch (e) {
       console.error('Error saving investment projects:', e);
     }
@@ -274,11 +320,12 @@ export const HoldingStorage = {
 
   addInvestment(newInv: Omit<InvestmentProject, 'id' | 'createdAt'>): InvestmentProject {
     const list = this.getInvestments();
-    const created: InvestmentProject = {
+    const createdRaw: InvestmentProject = {
       ...newInv,
       id: `INV-${Date.now().toString().slice(-4)}`,
       createdAt: new Date().toISOString()
     };
+    const created = sanitizeInvestment(createdRaw);
     const updated = [created, ...list];
     this.saveInvestments(updated);
     return created;
@@ -286,7 +333,12 @@ export const HoldingStorage = {
 
   updateInvestment(id: string, updates: Partial<InvestmentProject>): InvestmentProject[] {
     const list = this.getInvestments();
-    const updated = list.map(inv => (inv.id === id ? { ...inv, ...updates } : inv));
+    const updated = list.map(inv => {
+      if (inv.id === id) {
+        return sanitizeInvestment({ ...inv, ...updates });
+      }
+      return inv;
+    });
     this.saveInvestments(updated);
     return updated;
   },
@@ -296,10 +348,10 @@ export const HoldingStorage = {
     const updated = list.map(inv => {
       if (inv.id === id) {
         const newSpent = Math.max(0, inv.spentSoFar + additionalAmount);
-        return {
+        return sanitizeInvestment({
           ...inv,
           spentSoFar: newSpent
-        };
+        });
       }
       return inv;
     });
@@ -312,6 +364,48 @@ export const HoldingStorage = {
     const filtered = list.filter(inv => inv.id !== id);
     this.saveInvestments(filtered);
     return filtered;
+  },
+
+  // Gestão de Saldos em Caixa (Holding + Lojas)
+  getCashBalances(): CashBalances {
+    try {
+      const stored = localStorage.getItem(CASH_BALANCES_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          return {
+            ...DEFAULT_CASH_BALANCES,
+            ...parsed
+          };
+        }
+      }
+    } catch (e) {
+      console.error('Error loading cash balances:', e);
+    }
+    return DEFAULT_CASH_BALANCES;
+  },
+
+  saveCashBalances(balances: CashBalances): CashBalances {
+    try {
+      const payload: CashBalances = {
+        ...balances,
+        lastUpdated: new Date().toISOString()
+      };
+      localStorage.setItem(CASH_BALANCES_KEY, JSON.stringify(payload));
+      return payload;
+    } catch (e) {
+      console.error('Error saving cash balances:', e);
+      return balances;
+    }
+  },
+
+  updateCashBalance(key: keyof CashBalances, value: number): CashBalances {
+    const current = this.getCashBalances();
+    const updated = {
+      ...current,
+      [key]: Math.max(0, value)
+    };
+    return this.saveCashBalances(updated);
   },
 
   // Store Benchmarks & Metas
