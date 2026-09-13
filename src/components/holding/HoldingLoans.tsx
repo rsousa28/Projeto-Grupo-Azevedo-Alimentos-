@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { BankLoan, UnitBinding } from '../../types/holding';
 import { HoldingStorage, UNIT_LABELS } from '../../services/holdingStorage';
+import { useStore } from '../../contexts/StoreContext';
 
 interface HoldingLoansProps {
   loans: BankLoan[];
@@ -34,6 +35,7 @@ const formatPercent = (val: number) =>
   new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(val) + '%';
 
 export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) => {
+  const { isDarkMode } = useStore();
   const [selectedFilter, setSelectedFilter] = useState<UnitBinding | 'ALL'>('ALL');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -243,11 +245,11 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
       {/* Header with Title and Quick Action */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black uppercase tracking-tight text-white flex items-center gap-2.5">
+          <h2 className={`text-xl font-black uppercase tracking-tight flex items-center gap-2.5 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             <Landmark className="w-6 h-6 text-amber-400" />
             <span>Empréstimos Bancários & Financiamentos</span>
           </h2>
-          <p className="text-xs text-slate-400 font-medium mt-1">
+          <p className={`text-xs font-medium mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
             Gestão ativa de contratos de crédito, saldo devedor, cronograma de parcelas e vínculo por unidade.
           </p>
         </div>
@@ -264,98 +266,98 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
       {/* 4 Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Tomado */}
-        <div className="p-5 rounded-2xl border border-[#242426] bg-[#141416] space-y-3">
+        <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} space-y-3`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Total Tomado
             </span>
-            <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
               <Building2 className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-white tracking-tight">
+            <div className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
               {formatCurrency(totalPrincipal)}
             </div>
-            <div className="text-xs text-slate-400 font-medium mt-0.5">
+            <div className={`text-xs font-medium mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Valor financiado original
             </div>
           </div>
-          <div className="text-[11px] text-slate-400 border-t border-[#202022] pt-2 flex items-center justify-between">
+          <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
             <span>{loans.length} contratos ativos</span>
-            <span className="text-emerald-400 font-bold">{formatPercent(globalAmortizedPercent)} amortizado</span>
+            <span className="text-emerald-500 font-bold">{formatPercent(globalAmortizedPercent)} amortizado</span>
           </div>
         </div>
 
         {/* Card 2: Saldo Devedor Atual */}
-        <div className="p-5 rounded-2xl border border-[#242426] bg-[#141416] space-y-3">
+        <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} space-y-3`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Saldo Devedor Atual
             </span>
-            <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}>
               <TrendingDown className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-red-400 tracking-tight">
+            <div className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>
               {formatCurrency(totalBalance)}
             </div>
-            <div className="text-xs text-slate-400 font-medium mt-0.5">
+            <div className={`text-xs font-medium mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Passivo bancário remanescente
             </div>
           </div>
-          <div className="text-[11px] text-slate-400 border-t border-[#202022] pt-2 flex items-center justify-between">
+          <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
             <span>Amortização restante</span>
-            <span className="text-amber-400 font-bold">{formatCurrency(totalPrincipal - totalBalance)} pagos</span>
+            <span className="text-amber-500 font-bold">{formatCurrency(totalPrincipal - totalBalance)} pagos</span>
           </div>
         </div>
 
         {/* Card 3: Custo Mensal das Parcelas */}
-        <div className="p-5 rounded-2xl border border-[#242426] bg-[#141416] space-y-3">
+        <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} space-y-3`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Custo Mensal
             </span>
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
               <Calendar className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-amber-400 tracking-tight">
+            <div className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`}>
               {formatCurrency(totalMonthlyCost)}
             </div>
-            <div className="text-xs text-slate-400 font-medium mt-0.5">
+            <div className={`text-xs font-medium mt-0.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Serviço mensal consolidado
             </div>
           </div>
-          <div className="text-[11px] text-slate-400 border-t border-[#202022] pt-2 flex items-center justify-between">
+          <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
             <span>Compromisso bancário</span>
-            <span className="text-slate-300 font-bold">Vencimentos mensais</span>
+            <span className={`font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>Vencimentos mensais</span>
           </div>
         </div>
 
         {/* Card 4: Custo Médio de Juros */}
-        <div className="p-5 rounded-2xl border border-[#242426] bg-[#141416] space-y-3">
+        <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} space-y-3`}>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Custo Médio de Juros
             </span>
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
               <Percent className="w-4 h-4" />
             </div>
           </div>
           <div>
-            <div className="text-2xl font-black text-emerald-400 tracking-tight">
+            <div className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
               {averageInterestRateInfo.display}
             </div>
-            <div className="text-xs text-slate-400 font-medium mt-0.5 truncate" title={averageInterestRateInfo.subtitle}>
+            <div className={`text-xs font-medium mt-0.5 truncate ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`} title={averageInterestRateInfo.subtitle}>
               {averageInterestRateInfo.subtitle}
             </div>
           </div>
-          <div className="text-[11px] text-slate-400 border-t border-[#202022] pt-2 flex items-center justify-between">
+          <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
             <span>Indexadores:</span>
-            <span className="text-slate-300 font-semibold truncate max-w-[140px] text-right" title={averageInterestRateInfo.indexers}>
+            <span className={`font-semibold truncate max-w-[140px] text-right ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`} title={averageInterestRateInfo.indexers}>
               {averageInterestRateInfo.indexers}
             </span>
           </div>
@@ -363,8 +365,8 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
       </div>
 
       {/* Unit Filter Tabs */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#242426] pb-3">
-        <span className="text-xs font-bold text-slate-400 uppercase tracking-wider mr-2 flex items-center gap-1.5">
+      <div className={`flex flex-wrap items-center gap-2 border-b ${isDarkMode ? 'border-[#242426]' : 'border-slate-200'} pb-3`}>
+        <span className={`text-xs font-bold uppercase tracking-wider mr-2 flex items-center gap-1.5 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
           <Filter className="w-3.5 h-3.5" />
           Filtrar por Unidade:
         </span>
@@ -374,7 +376,9 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
           className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             selectedFilter === 'ALL'
               ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-              : 'bg-[#18181C] text-slate-400 hover:text-white border border-[#26262B]'
+              : isDarkMode
+                ? 'bg-[#18181C] text-slate-400 hover:text-white border border-[#26262B]'
+                : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 shadow-2xs hover:bg-slate-50'
           }`}
         >
           Todas as Unidades ({loans.length})
@@ -391,8 +395,12 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
               onClick={() => setSelectedFilter(uKey)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                 isSelected
-                  ? 'bg-white text-slate-950 shadow-md'
-                  : 'bg-[#18181C] text-slate-400 hover:text-white border border-[#26262B]'
+                  ? isDarkMode
+                    ? 'bg-white text-slate-950 shadow-md'
+                    : 'bg-slate-900 text-white shadow-md'
+                  : isDarkMode
+                    ? 'bg-[#18181C] text-slate-400 hover:text-white border border-[#26262B]'
+                    : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200 shadow-2xs hover:bg-slate-50'
               }`}
             >
               <span className={`w-2 h-2 rounded-full ${info.badgeBg.replace('/15', '')}`} style={{ backgroundColor: info.color }} />
@@ -404,28 +412,28 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
       </div>
 
       {/* Contracts Table */}
-      <div className="p-5 sm:p-6 rounded-2xl border border-[#242426] bg-[#141416] space-y-4">
+      <div className={`p-5 sm:p-6 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} space-y-4`}>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 className="text-base font-black uppercase tracking-tight text-white">
+            <h3 className={`text-base font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
               Tabela de Acompanhamento dos Contratos
             </h3>
-            <p className="text-xs text-slate-400 font-medium">
+            <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
               Acompanhe o pagamento de parcelas, o saldo restante e amortize em tempo real.
             </p>
           </div>
-          <span className="text-xs text-slate-400 font-medium">
-            Exibindo <strong className="text-white">{filteredLoans.length}</strong> contrato(s)
+          <span className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            Exibindo <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>{filteredLoans.length}</strong> contrato(s)
           </span>
         </div>
 
         {filteredLoans.length === 0 ? (
-          <div className="p-12 text-center border border-dashed border-[#28282C] rounded-2xl space-y-3">
-            <Landmark className="w-10 h-10 text-slate-600 mx-auto" />
-            <p className="text-sm font-bold text-slate-400">Nenhum contrato cadastrado para este filtro.</p>
+          <div className={`p-12 text-center border border-dashed rounded-2xl space-y-3 ${isDarkMode ? 'border-[#28282C]' : 'border-slate-200 bg-slate-50/50'}`}>
+            <Landmark className={`w-10 h-10 mx-auto ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`} />
+            <p className={`text-sm font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Nenhum contrato cadastrado para este filtro.</p>
             <button
               onClick={() => setIsModalOpen(true)}
-              className="px-4 py-2 rounded-xl bg-amber-500/15 text-amber-400 font-bold text-xs hover:bg-amber-500/25 transition-all"
+              className="px-4 py-2 rounded-xl bg-amber-500/15 text-amber-500 font-bold text-xs hover:bg-amber-500/25 transition-all cursor-pointer"
             >
               Cadastrar Empréstimo
             </button>
@@ -434,7 +442,7 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
           <div className="overflow-x-auto thin-scrollbar pb-2">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-[#242426] text-slate-400 uppercase tracking-wider font-bold">
+                <tr className={`border-b ${isDarkMode ? 'border-[#242426] text-slate-400' : 'border-slate-200 text-slate-500 bg-slate-50/70'} uppercase tracking-wider font-bold`}>
                   <th className="py-3 px-4">Banco / Linha</th>
                   <th className="py-3 px-4">Unidade Vinculada</th>
                   <th className="py-3 px-4 text-right">Parcela Mensal</th>
@@ -444,24 +452,24 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                   <th className="py-3 px-4 text-center">Ações</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#202024]">
+              <tbody className={`divide-y ${isDarkMode ? 'divide-[#202024]' : 'divide-slate-100'}`}>
                 {filteredLoans.map((loan) => {
                   const unitInfo = UNIT_LABELS[loan.unit];
                   const amortizedPercent = (loan.installmentsPaid / loan.installmentsTotal) * 100;
                   const isFinished = loan.status === 'Liquidado' || loan.installmentsPaid >= loan.installmentsTotal;
 
                   return (
-                    <tr key={loan.id} className="hover:bg-[#18181B] transition-colors group">
+                    <tr key={loan.id} className={`${isDarkMode ? 'hover:bg-[#18181B]' : 'hover:bg-slate-50/80'} transition-colors group`}>
                       {/* Banco / Linha */}
                       <td className="py-3.5 px-4">
-                        <div className="font-black text-sm text-white">{loan.bank}</div>
-                        <div className="text-[11px] text-amber-400/90 font-medium flex items-center gap-1 mt-0.5">
+                        <div className={`font-black text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{loan.bank}</div>
+                        <div className="text-[11px] text-amber-500 font-medium flex items-center gap-1 mt-0.5">
                           <span>{loan.modality}</span>
-                          <span className="text-slate-600">•</span>
-                          <span className="text-slate-400">{loan.rate}</span>
+                          <span className={isDarkMode ? 'text-slate-600' : 'text-slate-300'}>•</span>
+                          <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>{loan.rate}</span>
                         </div>
                         {loan.notes && (
-                          <div className="text-[10px] text-slate-500 truncate max-w-xs mt-0.5 italic">
+                          <div className={`text-[10px] truncate max-w-xs mt-0.5 italic ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`}>
                             {loan.notes}
                           </div>
                         )}
@@ -476,24 +484,24 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       </td>
 
                       {/* Parcela Mensal */}
-                      <td className="py-3.5 px-4 text-right font-black text-sm text-amber-400">
+                      <td className="py-3.5 px-4 text-right font-black text-sm text-amber-500">
                         {formatCurrency(loan.monthlyPayment)}
                       </td>
 
                       {/* Próx. Vencimento */}
-                      <td className="py-3.5 px-4 text-center text-slate-300 font-medium">
+                      <td className={`py-3.5 px-4 text-center font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                         <div className="flex items-center justify-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                          <Calendar className={`w-3.5 h-3.5 ${isDarkMode ? 'text-slate-500' : 'text-slate-400'}`} />
                           <span>{loan.dueDate}</span>
                         </div>
                       </td>
 
                       {/* Saldo Devedor */}
                       <td className="py-3.5 px-4 text-right">
-                        <div className="font-black text-sm text-white">
+                        <div className={`font-black text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                           {formatCurrency(loan.currentBalance)}
                         </div>
-                        <div className="text-[10px] text-slate-400">
+                        <div className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                           Original: {formatCurrency(loan.principal)}
                         </div>
                       </td>
@@ -501,17 +509,17 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       {/* Barra de Progresso de Amortização */}
                       <td className="py-3.5 px-4 min-w-[180px]">
                         <div className="flex items-center justify-between text-[11px] mb-1">
-                          <span className="font-bold text-slate-300">
+                          <span className={`font-bold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
                             {loan.installmentsPaid} / {loan.installmentsTotal} parcelas
                           </span>
-                          <span className={`font-black ${isFinished ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          <span className={`font-black ${isFinished ? 'text-emerald-500' : 'text-amber-500'}`}>
                             {formatPercent(amortizedPercent)}
                           </span>
                         </div>
-                        <div className="w-full h-2 bg-[#26262B] rounded-full overflow-hidden">
+                        <div className={`w-full h-2 rounded-full overflow-hidden ${isDarkMode ? 'bg-[#26262B]' : 'bg-slate-100'}`}>
                           <div 
                             className={`h-full rounded-full transition-all duration-500 ${
-                              isFinished ? 'bg-emerald-400' : 'bg-gradient-to-r from-amber-500 to-amber-300'
+                              isFinished ? 'bg-emerald-500' : 'bg-gradient-to-r from-amber-500 to-amber-400'
                             }`}
                             style={{ width: `${Math.min(100, amortizedPercent)}%` }}
                           />
@@ -527,8 +535,10 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                             title="Registrar pagamento da próxima parcela e amortizar saldo"
                             className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                               isFinished
-                                ? 'bg-[#222] text-slate-600 cursor-not-allowed'
-                                : 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950'
+                                ? isDarkMode ? 'bg-[#222] text-slate-600 cursor-not-allowed' : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : isDarkMode
+                                  ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500 hover:text-slate-950'
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white border border-emerald-200 shadow-2xs'
                             }`}
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
@@ -538,7 +548,11 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                           <button
                             onClick={() => handleRequestDeleteLoan(loan.id, loan.bank)}
                             title="Excluir contrato"
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer"
+                            className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                              isDarkMode 
+                                ? 'text-slate-500 hover:text-red-400 hover:bg-red-500/10' 
+                                : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+                            }`}
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -556,24 +570,24 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
       {/* Modal / Formulário de Cadastro (+ Novo Contrato) */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs overflow-y-auto">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-2xl bg-[#141416] border border-[#2B2B30] rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative my-8"
+              className={`w-full max-w-2xl ${isDarkMode ? 'bg-[#141416] border-[#2B2B30] text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative my-8`}
             >
               {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-[#242428] pb-4">
+              <div className={`flex items-center justify-between border-b ${isDarkMode ? 'border-[#242428]' : 'border-slate-100'} pb-4`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${isDarkMode ? 'bg-amber-500/15 border border-amber-500/30 text-amber-400' : 'bg-amber-100 border border-amber-300 text-amber-800'}`}>
                     <Landmark className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black uppercase tracking-tight text-white">
+                    <h3 className={`text-lg font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                       Novo Contrato de Empréstimo
                     </h3>
-                    <p className="text-xs text-slate-400 font-medium">
+                    <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium`}>
                       Cadastre uma nova operação de crédito ou linha de financiamento.
                     </p>
                   </div>
@@ -581,7 +595,7 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
 
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-[#222] transition-colors"
+                  className={`p-2 rounded-xl transition-colors cursor-pointer ${isDarkMode ? 'text-slate-400 hover:text-white hover:bg-[#222]' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'}`}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -592,7 +606,7 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Nome do Banco */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} mb-1.5`}>
                       Banco / Instituição Financeira *
                     </label>
                     <input
@@ -601,13 +615,13 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       placeholder="Ex: Santander, Bradesco, Banco do Brasil"
                       value={bank}
                       onChange={(e) => setBank(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] text-white text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors"
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${isDarkMode ? 'bg-[#1C1C20] border-[#2B2B32] text-white placeholder:text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white'} border text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors`}
                     />
                   </div>
 
                   {/* Linha / Tipo */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} mb-1.5`}>
                       Linha / Tipo de Financiamento *
                     </label>
                     <input
@@ -616,16 +630,16 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       placeholder="Ex: Capital de Giro, Pronampe, Finame"
                       value={modality}
                       onChange={(e) => setModality(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] text-white text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors"
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${isDarkMode ? 'bg-[#1C1C20] border-[#2B2B32] text-white placeholder:text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white'} border text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors`}
                     />
                   </div>
                 </div>
 
                 {/* Vínculo da Unidade (Campo Chave) */}
                 <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-amber-400 mb-1.5 flex items-center justify-between">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-amber-500 mb-1.5 flex items-center justify-between">
                     <span>Vínculo da Unidade (Quem responde pelo pagamento?) *</span>
-                    <span className="text-[10px] text-slate-400 font-normal">Impacta nos indicadores de endividamento</span>
+                    <span className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-normal`}>Impacta nos indicadores de endividamento</span>
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {(['B32', 'B28', 'VERO', 'HOLDING'] as UnitBinding[]).map((uKey) => {
@@ -639,8 +653,12 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                           onClick={() => setUnit(uKey)}
                           className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                             isSelected
-                              ? 'border-amber-400 bg-amber-500/15 text-white shadow-md'
-                              : 'border-[#26262B] bg-[#1A1A1E] text-slate-400 hover:text-white hover:border-[#35353D]'
+                              ? isDarkMode
+                                ? 'border-amber-400 bg-amber-500/15 text-white shadow-md'
+                                : 'border-amber-500 bg-amber-50 text-amber-900 shadow-xs'
+                              : isDarkMode
+                                ? 'border-[#26262B] bg-[#1A1A1E] text-slate-400 hover:text-white hover:border-[#35353D]'
+                                : 'border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                           }`}
                         >
                           <div className="flex items-center justify-between mb-1">
@@ -657,7 +675,7 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Valor Total Financiado */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} mb-1.5`}>
                       Valor Total Financiado (R$) *
                     </label>
                     <input
@@ -668,13 +686,13 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       placeholder="Ex: 300000"
                       value={principal}
                       onChange={(e) => setPrincipal(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] text-white text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors"
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${isDarkMode ? 'bg-[#1C1C20] border-[#2B2B32] text-white placeholder:text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white'} border text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors`}
                     />
                   </div>
 
                   {/* Taxa de Juros */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} mb-1.5`}>
                       Taxa de Juros (a.m. ou a.a.) *
                     </label>
                     <input
@@ -683,7 +701,7 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       placeholder="Ex: CDI + 2.8% a.a. ou 1.45% a.m."
                       value={rate}
                       onChange={(e) => setRate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] text-white text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors"
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${isDarkMode ? 'bg-[#1C1C20] border-[#2B2B32] text-white placeholder:text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white'} border text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors`}
                     />
                   </div>
                 </div>
@@ -691,7 +709,7 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* Quantidade de Parcelas Total */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} mb-1.5`}>
                       Total de Parcelas *
                     </label>
                     <input
@@ -701,13 +719,13 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       max="120"
                       value={installmentsTotal}
                       onChange={(e) => setInstallmentsTotal(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] text-white text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors"
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${isDarkMode ? 'bg-[#1C1C20] border-[#2B2B32] text-white' : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white'} border text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors`}
                     />
                   </div>
 
                   {/* Parcelas já Pagas */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} mb-1.5`}>
                       Parcelas já Pagas
                     </label>
                     <input
@@ -716,13 +734,13 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       max={installmentsTotal}
                       value={installmentsPaid}
                       onChange={(e) => setInstallmentsPaid(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] text-white text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors"
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${isDarkMode ? 'bg-[#1C1C20] border-[#2B2B32] text-white' : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white'} border text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors`}
                     />
                   </div>
 
                   {/* Valor da Parcela Mensal */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} mb-1.5`}>
                       Parcela Mensal (R$) *
                     </label>
                     <input
@@ -732,7 +750,7 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       placeholder="Ex: 8900"
                       value={monthlyPayment}
                       onChange={(e) => setMonthlyPayment(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] text-white text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors"
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${isDarkMode ? 'bg-[#1C1C20] border-[#2B2B32] text-white placeholder:text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white'} border text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors`}
                     />
                   </div>
                 </div>
@@ -740,7 +758,7 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* Data / Dia de Vencimento */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} mb-1.5`}>
                       Data / Próximo Vencimento *
                     </label>
                     <input
@@ -748,13 +766,13 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       required
                       value={dueDate}
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] text-white text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors"
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${isDarkMode ? 'bg-[#1C1C20] border-[#2B2B32] text-white [color-scheme:dark]' : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white [color-scheme:light]'} border text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors`}
                     />
                   </div>
 
                   {/* Observações / Destinação */}
                   <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                    <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-300' : 'text-slate-700'} mb-1.5`}>
                       Destinação / Observações
                     </label>
                     <input
@@ -762,17 +780,17 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                       placeholder="Ex: Reforma da cozinha, compra de fritadeira"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] text-white text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors"
+                      className={`w-full px-3.5 py-2.5 rounded-xl ${isDarkMode ? 'bg-[#1C1C20] border-[#2B2B32] text-white placeholder:text-slate-600' : 'bg-slate-50 border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white'} border text-xs font-medium focus:border-amber-400 focus:outline-none transition-colors`}
                     />
                   </div>
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#242428]">
+                <div className={`flex items-center justify-end gap-3 pt-4 border-t ${isDarkMode ? 'border-[#242428]' : 'border-slate-100'}`}>
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl text-slate-400 hover:text-white hover:bg-[#202024] text-xs font-bold transition-colors cursor-pointer"
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${isDarkMode ? 'text-slate-400 hover:text-white hover:bg-[#202024]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'}`}
                   >
                     Cancelar
                   </button>
@@ -791,23 +809,23 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
         {loanToDelete && (
           <div 
             onClick={() => setLoanToDelete(null)}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
           >
             <motion.div
               onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.95, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              className="w-full max-w-md bg-[#18181C] border border-[#2B2B32] rounded-3xl p-6 shadow-2xl space-y-5 text-white"
+              className={`w-full max-w-md ${isDarkMode ? 'bg-[#18181C] border-[#2B2B32] text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-3xl p-6 shadow-2xl space-y-5`}
             >
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 flex items-center justify-center shrink-0">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 ${isDarkMode ? 'bg-rose-500/15 border border-rose-500/30 text-rose-400' : 'bg-rose-50 border border-rose-200 text-rose-600'}`}>
                   <Trash2 className="w-6 h-6" />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-base font-bold text-white">Excluir Contrato</h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">
-                    Deseja realmente remover o contrato com <strong className="text-white">"{loanToDelete.bank}"</strong>? Esta ação não pode ser desfeita.
+                  <h3 className={`text-base font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Excluir Contrato</h3>
+                  <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-600'} leading-relaxed`}>
+                    Deseja realmente remover o contrato com <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>"{loanToDelete.bank}"</strong>? Esta ação não pode ser desfeita.
                   </p>
                 </div>
               </div>
@@ -816,7 +834,11 @@ export const HoldingLoans: React.FC<HoldingLoansProps> = ({ loans, onUpdate }) =
                 <button
                   type="button"
                   onClick={() => setLoanToDelete(null)}
-                  className="px-4 py-2.5 rounded-xl bg-[#222226] hover:bg-[#2A2A30] text-slate-300 hover:text-white text-xs font-bold transition-all cursor-pointer"
+                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    isDarkMode 
+                      ? 'bg-[#222226] hover:bg-[#2A2A30] text-slate-300 hover:text-white' 
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
                 >
                   Cancelar
                 </button>

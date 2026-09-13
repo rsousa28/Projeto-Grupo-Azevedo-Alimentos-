@@ -186,13 +186,17 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
       {/* Humanized Clean Header with Action Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-1">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white uppercase flex items-center gap-3">
+          <h1 className={`text-2xl sm:text-3xl font-black tracking-tight uppercase flex items-center gap-3 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
             <span>Gestão Grupo AZ</span>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 font-bold uppercase tracking-wider">
+            <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+              isDarkMode 
+                ? 'bg-amber-500/15 border border-amber-500/30 text-amber-400' 
+                : 'bg-amber-100 border border-amber-300 text-amber-800'
+            }`}>
               Holding Executiva
             </span>
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 font-medium mt-1">
+          <p className={`text-xs sm:text-sm font-medium mt-1 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>
             Governança financeira, controle de empréstimos, passivos operacionais e expansão da rede.
           </p>
         </div>
@@ -202,7 +206,11 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
           <button
             onClick={handleManualSync}
             disabled={isSyncing}
-            className="px-3.5 py-2 rounded-xl bg-[#1C1C20] hover:bg-[#25252A] text-slate-200 border border-[#2A2A30] hover:border-amber-500/40 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-sm disabled:opacity-60"
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer shadow-xs disabled:opacity-60 border ${
+              isDarkMode 
+                ? 'bg-[#1C1C20] hover:bg-[#25252A] text-slate-200 border-[#2A2A30] hover:border-amber-500/40' 
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-amber-400'
+            }`}
             title="Sincronizar com os fechamentos do Dashboard"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-amber-400 ${isSyncing ? 'animate-spin' : ''}`} />
@@ -217,123 +225,127 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
           {/* Top 4 Financial KPI Cards (Visible ONLY in Visão Geral) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Card 1: Faturamento Consolidado */}
-            <div className="p-5 rounded-2xl border border-[#242426] bg-[#141416] hover:border-amber-500/30 transition-all flex flex-col justify-between space-y-3 shadow-sm">
+            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} hover:border-amber-500/30 transition-all flex flex-col justify-between space-y-3`}>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Faturamento Consolidado
                 </span>
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
                   <DollarSign className="w-4 h-4" />
                 </div>
               </div>
               <div>
-                <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                <div className={`text-2xl sm:text-3xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                   {formatCurrency(totalRevenue)}
                 </div>
-                <div className="flex items-center gap-1.5 mt-1 text-xs text-emerald-400 font-semibold">
+                <div className="flex items-center gap-1.5 mt-1 text-xs text-emerald-500 font-semibold">
                   <ArrowUpRight className="w-3.5 h-3.5" />
                   <span>Soma das 3 unidades ativas</span>
                 </div>
               </div>
-              <div className="text-[11px] text-slate-400 border-t border-[#202022] pt-2 flex items-center justify-between">
+              <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
                 <span>B32, B28 e Vero</span>
-                <strong className="text-slate-300">Receita bruta</strong>
+                <strong className={isDarkMode ? 'text-slate-300' : 'text-slate-700'}>Receita bruta</strong>
               </div>
             </div>
 
             {/* Card 2: Lucro Operacional Livre (EBITDA) */}
-            <div className="p-5 rounded-2xl border border-[#242426] bg-[#141416] hover:border-emerald-500/30 transition-all flex flex-col justify-between space-y-3 shadow-sm">
+            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} hover:border-emerald-500/30 transition-all flex flex-col justify-between space-y-3`}>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Lucro Operacional (EBITDA)
                 </span>
-                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-50 text-emerald-600'}`}>
                   <TrendingUp className="w-4 h-4" />
                 </div>
               </div>
               <div>
-                <div className="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight">
+                <div className="text-2xl sm:text-3xl font-black text-emerald-500 tracking-tight">
                   {formatCurrency(totalEbitda)}
                 </div>
-                <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-300 font-semibold">
+                <div className={`flex items-center gap-1.5 mt-1 text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                   <span>Margem consolidada:</span>
-                  <span className="text-amber-400 font-bold">{formatPercent(averageEbitdaMargin)}</span>
+                  <span className="text-amber-500 font-bold">{formatPercent(averageEbitdaMargin)}</span>
                 </div>
               </div>
-              <div className="text-[11px] text-slate-400 border-t border-[#202022] pt-2 flex items-center justify-between">
+              <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
                 <span>Geração de caixa</span>
-                <strong className={totalEbitda > 0 ? "text-emerald-400 font-bold" : "text-slate-400"}>
+                <strong className={totalEbitda > 0 ? "text-emerald-500 font-bold" : isDarkMode ? "text-slate-400" : "text-slate-500"}>
                   {totalEbitda > 0 ? "Positiva" : "Sem registro"}
                 </strong>
               </div>
             </div>
 
             {/* Card 3: Passivo Total Consolidado */}
-            <div className="p-5 rounded-2xl border border-[#242426] bg-[#141416] hover:border-red-500/30 transition-all flex flex-col justify-between space-y-3 shadow-sm">
+            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} hover:border-red-500/30 transition-all flex flex-col justify-between space-y-3`}>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Passivo Total Consolidado
                 </span>
-                <div className="w-8 h-8 rounded-xl bg-red-500/10 text-red-400 flex items-center justify-center">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-red-500/10 text-red-400' : 'bg-red-50 text-red-600'}`}>
                   <Scale className="w-4 h-4" />
                 </div>
               </div>
               <div>
-                <div className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                <div className={`text-2xl sm:text-3xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                   {formatCurrency(totalConsolidatedDebt)}
                 </div>
-                <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-400 font-semibold">
+                <div className={`flex items-center gap-1.5 mt-1 text-xs font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   <span>{loans.filter(l => l.status !== 'Liquidado').length} contratos bancários + {liabilities.filter(li => li.status !== 'Quitado').length} passivos</span>
                 </div>
               </div>
-              <div className="text-[11px] text-slate-400 border-t border-[#202022] pt-2 flex items-center justify-between">
+              <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
                 <span>Alavancagem Líquida:</span>
-                <strong className="text-amber-400">{leverageRatio.toFixed(2)}x EBITDA</strong>
+                <strong className="text-amber-500">{leverageRatio.toFixed(2)}x EBITDA</strong>
               </div>
             </div>
 
             {/* Card 4: Serviço Mensal da Dívida */}
-            <div className="p-5 rounded-2xl border border-[#242426] bg-[#141416] hover:border-amber-500/30 transition-all flex flex-col justify-between space-y-3 shadow-sm">
+            <div className={`p-5 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200/90 bg-white shadow-xs'} hover:border-amber-500/30 transition-all flex flex-col justify-between space-y-3`}>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                <span className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                   Serviço Mensal Total
                 </span>
-                <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDarkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-50 text-amber-600'}`}>
                   <Calendar className="w-4 h-4" />
                 </div>
               </div>
               <div>
-                <div className="text-2xl sm:text-3xl font-black text-amber-400 tracking-tight">
+                <div className="text-2xl sm:text-3xl font-black text-amber-500 tracking-tight">
                   {formatCurrency(totalMonthlyService)}
                 </div>
-                <div className="flex items-center gap-1.5 mt-1 text-xs text-slate-300 font-semibold">
+                <div className={`flex items-center gap-1.5 mt-1 text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>
                   <span>Comprometimento:</span>
-                  <strong className="text-white">
+                  <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>
                     {totalRevenue > 0 ? `${formatPercent((totalMonthlyService / totalRevenue) * 100)} da receita` : '0.0%'}
                   </strong>
                 </div>
               </div>
-              <div className="text-[11px] text-slate-400 border-t border-[#202022] pt-2 flex items-center justify-between">
+              <div className={`text-[11px] border-t pt-2 flex items-center justify-between ${isDarkMode ? 'text-slate-400 border-[#202022]' : 'text-slate-500 border-slate-100'}`}>
                 <span>Fluxo de Saída Mensal</span>
-                <span className="text-emerald-400 font-bold">Amortização ativa</span>
+                <span className="text-emerald-500 font-bold">Amortização ativa</span>
               </div>
             </div>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-lg font-black uppercase tracking-tight text-white flex items-center gap-2">
+              <h2 className={`text-lg font-black uppercase tracking-tight flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
                 <Building2 className="w-5 h-5 text-amber-400" />
                 <span>Desempenho Operacional Consolidado das Lojas</span>
               </h2>
-              <p className="text-xs text-slate-400 font-medium">
+              <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                 Alimentado automaticamente pelos DREs do mês anterior ({periodInfo.periodLabel}) de cada unidade.
               </p>
             </div>
             <button
               onClick={handleManualSync}
               disabled={isSyncing}
-              className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1C1C20] border border-[#2B2B32] hover:border-amber-400/50 transition-all cursor-pointer disabled:opacity-60 shrink-0 self-start sm:self-auto shadow-sm"
+              className={`text-xs font-bold text-amber-500 hover:text-amber-600 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all cursor-pointer disabled:opacity-60 shrink-0 self-start sm:self-auto shadow-xs ${
+                isDarkMode 
+                  ? 'bg-[#1C1C20] border-[#2B2B32] hover:border-amber-400/50' 
+                  : 'bg-white border-slate-200 hover:border-amber-400'
+              }`}
               title="Recarregar faturamento e indicadores dos DREs das lojas"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin text-amber-400' : ''}`} />
@@ -345,46 +357,46 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
             {consolidatedStores.map((s) => (
               <div
                 key={s.id}
-                className="p-6 rounded-2xl border border-[#242426] bg-[#141416] space-y-4 hover:border-amber-500/40 transition-all flex flex-col justify-between shadow-sm"
+                className={`p-6 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200 bg-white shadow-xs'} space-y-4 hover:border-amber-500/40 transition-all flex flex-col justify-between`}
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-400 text-xs font-black">
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-500 text-xs font-black">
                       {s.code}
                     </span>
                     <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${
                       s.status === 'Em Expansão'
-                        ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                        : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                        : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
                     }`}>
                       {s.status}
                     </span>
                   </div>
 
-                  <h3 className="text-base font-black text-white">{s.name}</h3>
-                  <p className="text-xs text-slate-400 font-medium">{s.brand}</p>
+                  <h3 className={`text-base font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{s.name}</h3>
+                  <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{s.brand}</p>
                 </div>
 
-                <div className="space-y-2.5 py-3 border-y border-[#222224] text-xs">
+                <div className={`space-y-2.5 py-3 border-y ${isDarkMode ? 'border-[#222224]' : 'border-slate-100'} text-xs`}>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400">Faturamento:</span>
-                    <strong className="text-sm font-black text-white">{formatCurrency(s.faturamento)}</strong>
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Faturamento:</span>
+                    <strong className={`text-sm font-black ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{formatCurrency(s.faturamento)}</strong>
                   </div>
-                  <div className="text-[10px] text-emerald-400/90 font-medium flex items-center justify-between">
+                  <div className="text-[10px] text-emerald-500 font-medium flex items-center justify-between">
                     <span>Mês Base:</span>
                     <span className="font-bold">{periodInfo.periodLabel} (Dashboard)</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400">CMV Alvo:</span>
-                    <span className="text-slate-300 font-medium">{formatCurrency(s.cmv)}</span>
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>CMV Alvo:</span>
+                    <span className={`font-medium ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>{formatCurrency(s.cmv)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400">Lucro / EBITDA:</span>
-                    <strong className="text-xs font-bold text-emerald-400">{formatCurrency(s.ebitda)}</strong>
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Lucro / EBITDA:</span>
+                    <strong className="text-xs font-bold text-emerald-500">{formatCurrency(s.ebitda)}</strong>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-400">Margem Operacional:</span>
-                    <span className="text-amber-300 font-bold">{formatPercent(s.margin)}</span>
+                    <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Margem Operacional:</span>
+                    <span className="text-amber-500 font-bold">{formatPercent(s.margin)}</span>
                   </div>
                 </div>
 
@@ -396,7 +408,11 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
                       navigate('/dashboard');
                     }
                   }}
-                  className="w-full py-2.5 rounded-xl bg-[#1C1C20] hover:bg-amber-500 hover:text-slate-950 text-xs font-bold text-slate-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                    isDarkMode 
+                      ? 'bg-[#1C1C20] hover:bg-amber-500 hover:text-slate-950 text-slate-200' 
+                      : 'bg-slate-100 hover:bg-amber-500 hover:text-slate-950 text-slate-700'
+                  }`}
                 >
                   <span>Acessar Loja</span>
                   <ChevronRight className="w-4 h-4" />
@@ -406,22 +422,22 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
           </div>
 
           {/* Revenue Distribution Chart with dynamic integration */}
-          <div className="p-6 rounded-2xl border border-[#242426] bg-[#141416] space-y-4 shadow-sm">
+          <div className={`p-6 rounded-2xl border ${isDarkMode ? 'border-[#242426] bg-[#141416]' : 'border-slate-200 bg-white shadow-xs'} space-y-4`}>
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-base font-black uppercase tracking-tight text-white">Contribuição de Receita e EBITDA por Unidade</h3>
-                <p className="text-xs text-slate-400 font-medium">Comparativo visual integrado em tempo real das unidades.</p>
+                <h3 className={`text-base font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Contribuição de Receita e EBITDA por Unidade</h3>
+                <p className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Comparativo visual integrado em tempo real das unidades.</p>
               </div>
             </div>
 
             {totalRevenue === 0 && totalEbitda === 0 ? (
-              <div className="py-12 text-center border border-dashed border-[#26262B] rounded-2xl space-y-2">
-                <Building2 className="w-8 h-8 text-slate-600 mx-auto" />
-                <p className="text-xs font-bold text-slate-400">Nenhum faturamento registrado no fechamento de {periodInfo.periodLabel}.</p>
+              <div className={`py-12 text-center border border-dashed rounded-2xl space-y-2 ${isDarkMode ? 'border-[#26262B]' : 'border-slate-200 bg-slate-50/50'}`}>
+                <Building2 className={`w-8 h-8 mx-auto ${isDarkMode ? 'text-slate-600' : 'text-slate-400'}`} />
+                <p className={`text-xs font-bold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>Nenhum faturamento registrado no fechamento de {periodInfo.periodLabel}.</p>
                 <button
                   onClick={handleManualSync}
                   disabled={isSyncing}
-                  className="px-3.5 py-1.5 rounded-xl bg-amber-500/15 text-amber-400 text-xs font-bold hover:bg-amber-500/25 transition-all cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-60"
+                  className="px-3.5 py-1.5 rounded-xl bg-amber-500/15 text-amber-500 text-xs font-bold hover:bg-amber-500/25 transition-all cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-60"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                   <span>Sincronizar com DREs das Lojas</span>
@@ -431,12 +447,18 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
               <div className="h-64 w-full">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={consolidatedStores}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#242426" />
-                    <XAxis dataKey="code" stroke="#888" />
-                    <YAxis stroke="#888" tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
+                    <CartesianGrid strokeDasharray="3 3" stroke={isDarkMode ? '#242426' : '#E2E8F0'} />
+                    <XAxis dataKey="code" stroke={isDarkMode ? '#888' : '#64748B'} />
+                    <YAxis stroke={isDarkMode ? '#888' : '#64748B'} tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}k`} />
                     <Tooltip 
                       formatter={(value: any) => [formatCurrency(Number(value)), 'Valor']}
-                      contentStyle={{ backgroundColor: '#1A1A1A', borderColor: '#333', borderRadius: '12px' }}
+                      contentStyle={{ 
+                        backgroundColor: isDarkMode ? '#1A1A1A' : '#FFFFFF', 
+                        borderColor: isDarkMode ? '#333' : '#CBD5E1', 
+                        color: isDarkMode ? '#FFFFFF' : '#0F172A',
+                        borderRadius: '12px',
+                        boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
+                      }}
                     />
                     <Legend />
                     <Bar dataKey="faturamento" name="Faturamento" fill="#FFCB05" radius={[8, 8, 0, 0]} />

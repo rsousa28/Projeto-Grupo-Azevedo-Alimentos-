@@ -214,7 +214,9 @@ export default function Sidebar({
           mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         } ${
           isHoldingActive
-            ? 'bg-[#101012] border-amber-500/20 text-white'
+            ? isDarkMode
+              ? 'bg-[#101012] border-amber-500/20 text-white'
+              : 'bg-white border-amber-500/20 text-slate-900 shadow-sm'
             : isDarkMode
               ? 'bg-[#141414] border-[#242424] text-white'
               : 'bg-white border-slate-200 text-slate-900 shadow-sm'
@@ -224,17 +226,23 @@ export default function Sidebar({
         <div className="p-4 sm:p-5 flex items-center justify-between border-b border-inherit shrink-0">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="shrink-0 transition-transform duration-300 hover:scale-105">
-              <Logo className="h-8 w-auto" variant={isDarkMode || isHoldingActive ? 'light' : 'dark'} />
+              <Logo className="h-8 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
             </div>
 
             {(!collapsed || mobileMenuOpen) && (
               <div className="overflow-hidden">
                 <span className={`font-black text-xs italic tracking-tight uppercase block truncate ${
-                  isHoldingActive ? 'text-amber-400' : isDarkMode ? 'text-white' : 'text-slate-900'
+                  isHoldingActive 
+                    ? isDarkMode ? 'text-amber-400' : 'text-amber-600'
+                    : isDarkMode ? 'text-white' : 'text-slate-900'
                 }`}>
                   GRUPO AZEVEDO
                 </span>
-                <span className="text-[9px] font-extrabold uppercase tracking-wider text-slate-400 block truncate">
+                <span className={`text-[9px] font-extrabold uppercase tracking-wider block truncate ${
+                  isHoldingActive 
+                    ? isDarkMode ? 'text-slate-400' : 'text-slate-500'
+                    : 'text-slate-400'
+                }`}>
                   {isHoldingActive ? 'Holding Financeira' : 'Sistema Integrado'}
                 </span>
               </div>
@@ -243,7 +251,11 @@ export default function Sidebar({
 
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden lg:flex p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/50 transition-colors cursor-pointer"
+            className={`hidden lg:flex p-1.5 rounded-lg transition-colors cursor-pointer ${
+              isDarkMode 
+                ? 'text-slate-400 hover:text-white hover:bg-slate-800/50' 
+                : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
+            }`}
             title={collapsed ? "Expandir Menu" : "Recolher Menu"}
           >
             <Menu className="w-4 h-4" />
@@ -279,7 +291,9 @@ export default function Sidebar({
         {(!collapsed || mobileMenuOpen) && (
           <div className="px-5 pt-3 pb-1 shrink-0">
             <span className={`text-[10px] uppercase tracking-widest font-black ${
-              isHoldingActive ? 'text-amber-400' : 'text-slate-400'
+              isHoldingActive 
+                ? isDarkMode ? 'text-amber-400' : 'text-amber-600'
+                : isDarkMode ? 'text-slate-400' : 'text-slate-500'
             }`}>
               {isHoldingActive ? 'Módulos da Holding' : 'Módulos Operacionais'}
             </span>
@@ -305,7 +319,9 @@ export default function Sidebar({
                       ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20 font-black'
                       : 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/20 font-black'
                     : isHoldingActive
-                      ? 'text-slate-300 hover:bg-amber-500/10 hover:text-amber-300'
+                      ? isDarkMode
+                        ? 'text-slate-300 hover:bg-amber-500/10 hover:text-amber-300'
+                        : 'text-slate-600 hover:bg-amber-50 hover:text-amber-700'
                       : isDarkMode
                         ? 'text-slate-400 hover:bg-[#1E1E1E] hover:text-white'
                         : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -314,7 +330,7 @@ export default function Sidebar({
                 <Icon className={`w-4 h-4 shrink-0 transition-transform group-hover:scale-110 ${
                   isActive 
                     ? isHoldingActive ? 'text-slate-950' : 'text-slate-950'
-                    : isHoldingActive ? 'text-amber-400/80 group-hover:text-amber-300' : 'text-slate-400'
+                    : isHoldingActive ? (isDarkMode ? 'text-amber-400/80 group-hover:text-amber-300' : 'text-amber-600 group-hover:text-amber-700') : 'text-slate-400'
                 }`} />
 
                 {(!collapsed || mobileMenuOpen) && (
@@ -325,8 +341,12 @@ export default function Sidebar({
                         isActive 
                           ? 'bg-black/20 text-slate-950' 
                           : isHoldingActive 
-                            ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' 
-                            : 'bg-slate-800 text-slate-400'
+                            ? isDarkMode
+                              ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                              : 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : isDarkMode
+                              ? 'bg-slate-800 text-slate-400'
+                              : 'bg-slate-100 text-slate-600'
                       }`}>
                         {item.badge}
                       </span>
@@ -350,8 +370,8 @@ export default function Sidebar({
                     onClick={() => mobileMenuOpen && setMobileMenuOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2 rounded-xl font-bold text-xs transition-all ${
                       isActive
-                        ? 'bg-slate-800 text-white font-black'
-                        : 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200'
+                        ? isDarkMode ? 'bg-slate-800 text-white font-black' : 'bg-slate-200 text-slate-900 font-black'
+                        : isDarkMode ? 'text-slate-400 hover:bg-slate-800/40 hover:text-slate-200' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
                     }`}
                   >
                     <Icon className="w-4 h-4 shrink-0 text-slate-400" />
@@ -364,19 +384,23 @@ export default function Sidebar({
         </nav>
 
         {/* User Profile & Footer */}
-        <div className="p-3 border-t border-inherit shrink-0 bg-inherit/50">
+        <div className={`p-3 border-t shrink-0 ${isDarkMode ? 'border-inherit bg-inherit/50' : 'border-slate-200 bg-slate-50/60'}`}>
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-xs text-amber-400 shrink-0">
+              <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-bold text-xs shrink-0 ${
+                isDarkMode 
+                  ? 'bg-slate-800 border-slate-700 text-amber-400' 
+                  : 'bg-amber-100 border-amber-300 text-amber-800'
+              }`}>
                 {(user?.username || 'U')[0].toUpperCase()}
               </div>
 
               {(!collapsed || mobileMenuOpen) && (
                 <div className="overflow-hidden">
-                  <div className="text-xs font-bold truncate text-slate-200">
+                  <div className={`text-xs font-bold truncate ${isDarkMode ? 'text-slate-200' : 'text-slate-800'}`}>
                     {user?.name || user?.username || 'Usuário'}
                   </div>
-                  <div className="text-[10px] text-slate-400 truncate uppercase font-semibold">
+                  <div className={`text-[10px] truncate uppercase font-semibold ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
                     {user?.role || 'Operador'}
                   </div>
                 </div>
@@ -386,7 +410,11 @@ export default function Sidebar({
             <button
               onClick={handleLogout}
               title="Sair do Sistema"
-              className="p-2 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors cursor-pointer shrink-0"
+              className={`p-2 rounded-xl transition-colors cursor-pointer shrink-0 ${
+                isDarkMode 
+                  ? 'text-slate-400 hover:text-red-400 hover:bg-red-500/10' 
+                  : 'text-slate-400 hover:text-red-600 hover:bg-red-50'
+              }`}
             >
               <LogOut className="w-4 h-4" />
             </button>
