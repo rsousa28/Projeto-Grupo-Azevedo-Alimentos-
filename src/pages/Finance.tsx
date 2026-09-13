@@ -25,6 +25,7 @@ import {
   Trash2,
   AlertTriangle,
   Calendar,
+  Eye,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import ReactMarkdown from "react-markdown";
@@ -52,6 +53,7 @@ import { DREData } from "../types";
 import { getDocCached, setDocCached } from "../lib/firestoreQueryCache";
 import { sanitizeForFirestore } from "../utils/firestoreSanitizer";
 import { formatCleanYAxisCurrency } from "../utils/formatters";
+import MonthDetailModal from "../components/MonthDetailModal";
 
 const monthsGlobal = [
   { value: "01", label: "Janeiro" },
@@ -691,6 +693,46 @@ export default function Finance() {
   const [realYearForTab, setRealYearForTab] = useState(selectedYear);
   const [isLoadingAllMonths, setIsLoadingAllMonths] = useState(false);
 
+  // Specific Month Inspection Modal (Raio-X do Mês)
+  const [monthDetailState, setMonthDetailState] = useState<{
+    isOpen: boolean;
+    monthValue: string;
+    monthLabel: string;
+    year: string;
+  }>({
+    isOpen: false,
+    monthValue: "01",
+    monthLabel: "Janeiro",
+    year: selectedYear || "2025",
+  });
+
+  const handleOpenMonthDetail = (mVal: string, mLabel: string, y: string) => {
+    setMonthDetailState({
+      isOpen: true,
+      monthValue: mVal,
+      monthLabel: mLabel,
+      year: y,
+    });
+  };
+
+  const handleCloseMonthDetail = () => {
+    setMonthDetailState(prev => ({ ...prev, isOpen: false }));
+  };
+
+  const handleSelectDetailMonth = (mVal: string, mLabel: string) => {
+    setMonthDetailState(prev => ({
+      ...prev,
+      monthValue: mVal,
+      monthLabel: mLabel,
+    }));
+  };
+
+  const handleOpenVerticalDRE = (mVal: string, y: string) => {
+    setSelectedMonth(mVal);
+    setSelectedYear(y);
+    setActiveDRETab("unico_mes");
+  };
+
   const fetchBudgetsForYear = async (year: string) => {
     setIsLoadingBudgets(true);
     try {
@@ -947,6 +989,19 @@ export default function Finance() {
 
   const toggleGroup = (group: string) => {
     setExpandedGroups((prev) =>
+      prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group],
+    );
+  };
+
+  const [expandedRealGroups, setExpandedRealGroups] = useState<string[]>([
+    "receita",
+    "deducoes",
+    "cmv",
+    "despesas_variaveis",
+  ]);
+
+  const toggleRealGroup = (group: string) => {
+    setExpandedRealGroups((prev) =>
       prev.includes(group) ? prev.filter((g) => g !== group) : [...prev, group],
     );
   };
@@ -2429,6 +2484,20 @@ export default function Finance() {
                         A representatividade (%) destaca a participação de cada conta e custo sobre o faturamento total da empresa (Receita Bruta = 100%).
                       </p>
                     </div>
+                    <div className="flex items-center gap-2 self-start md:self-auto shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const m = monthsGlobal.find(item => item.value === selectedMonth);
+                          if (m) handleOpenMonthDetail(m.value, m.label, selectedYear);
+                        }}
+                        className="px-4 py-2.5 rounded-2xl text-xs font-black bg-amber-500/15 border border-amber-500/35 text-amber-300 hover:bg-amber-500/25 transition-all flex items-center gap-2 cursor-pointer shadow-xs active:scale-95"
+                        title="Ver detalhamento analítico com todas as contas e insumos deste mês"
+                      >
+                        <Eye className="w-4 h-4 text-amber-400" />
+                        <span>Ver Raio-X Detalhado</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="p-6 overflow-x-auto select-none">
@@ -2661,6 +2730,20 @@ export default function Finance() {
                           Visão Matriz com Orçado
                         </button>
                       </div>
+
+                      {/* Raio-X deep dive button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const m = monthsGlobal.find(item => item.value === selectedMonth);
+                          if (m) handleOpenMonthDetail(m.value, m.label, selectedYear);
+                        }}
+                        className="px-3 py-1.5 rounded-xl text-[11px] font-black bg-amber-500/15 border border-amber-500/35 text-amber-300 hover:bg-amber-500/25 transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                        title="Ver detalhamento analítico específico deste mês"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Ver Raio-X do Mês</span>
+                      </button>
                     </div>
                   </div>
 
@@ -3046,7 +3129,7 @@ export default function Finance() {
                   }`}
                 >
                   <div
-                    className={`px-10 py-6 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                    className={`px-8 py-5 border-b flex flex-col md:flex-row md:items-center justify-between gap-4 ${
                       isDarkMode ? "bg-black/20 border-[#333]" : "bg-slate-50/50 border-slate-100"
                     }`}
                   >
@@ -3057,20 +3140,44 @@ export default function Finance() {
                       <h3 className={`text-xl font-black uppercase tracking-tight italic font-display ${isDarkMode ? "text-white" : "text-slate-800"}`}>
                         DRE Realizada Multi-Mês de {realYearForTab}
                       </h3>
+                      <p className={`text-[11px] mt-1 font-medium ${isDarkMode ? "text-zinc-400" : "text-slate-500"}`}>
+                        Clique na seta ao lado de cada grupo para expandir as contas e visualizar os valores mês a mês.
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest shrink-0 mr-1">Selecionar Ano DRE:</span>
-                      <select
-                        value={realYearForTab}
-                        onChange={(e) => setRealYearForTab(e.target.value)}
-                        className={`text-xs font-black px-3 py-2 rounded-xl border ${
-                          isDarkMode ? "bg-[#252525] border-[#3C3C3C] text-white" : "bg-white border-slate-200 text-slate-800"
-                        }`}
-                      >
-                        {["2023", "2024", "2025", "2026", "2027", "2028"].map((y) => (
-                          <option key={y} value={y}>{y}</option>
-                        ))}
-                      </select>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const allIds = dreGroups.map(g => g.id);
+                            setExpandedRealGroups(allIds);
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl text-[10px] font-black border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-300 transition-colors cursor-pointer"
+                        >
+                          Expandir Tudo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedRealGroups([])}
+                          className="px-2.5 py-1.5 rounded-xl text-[10px] font-black border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-300 transition-colors cursor-pointer"
+                        >
+                          Recolher Tudo
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 dark:border-zinc-700">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest shrink-0">Ano:</span>
+                        <select
+                          value={realYearForTab}
+                          onChange={(e) => setRealYearForTab(e.target.value)}
+                          className={`text-xs font-black px-3 py-1.5 rounded-xl border ${
+                            isDarkMode ? "bg-[#252525] border-[#3C3C3C] text-white" : "bg-white border-slate-200 text-slate-800"
+                          }`}
+                        >
+                          {["2023", "2024", "2025", "2026", "2027", "2028"].map((y) => (
+                            <option key={y} value={y}>{y}</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
 
@@ -3083,9 +3190,11 @@ export default function Finance() {
                     <table className="w-full text-left border-collapse min-w-[1280px]">
                       <thead>
                         <tr className="border-b-2 border-slate-200 dark:border-zinc-800 text-[10px] font-black text-slate-400 dark:text-zinc-500 uppercase tracking-wider font-display">
-                          <th className="py-4 px-3 w-[16%] border-r border-slate-100 dark:border-zinc-800/20">CONCEITO / COMPONENTES</th>
+                          <th className="py-4 px-3 w-[22%] border-r border-slate-100 dark:border-zinc-800/20">ESTRUTURA DE CONTAS / DRE</th>
                           {monthsGlobal.map((m) => (
-                            <th key={m.value} className="py-4 px-2 text-right w-[6.5%] font-extrabold">{m.label.substring(0, 3).toUpperCase()}</th>
+                            <th key={m.value} className="py-4 px-2 text-right w-[6%] font-display">
+                              {m.label.substring(0, 3).toUpperCase()}
+                            </th>
                           ))}
                           <th className="py-4 px-3 text-right bg-slate-100/60 dark:bg-zinc-900/50 border-l border-slate-100 dark:border-zinc-800/20 text-slate-800 dark:text-slate-200 font-extrabold w-[8%]">ACUMULADO</th>
                         </tr>
@@ -3094,61 +3203,127 @@ export default function Finance() {
                         {getDreRows(isBebeluRioMar).map((row) => {
                           const isTotalRow = row.type === "total";
                           const isKpiRow = row.type === "kpi";
+                          const rowGroup = dreGroups.find(g => g.id === row.mapGroupId);
+                          const hasDetails = Boolean(rowGroup && rowGroup.items && rowGroup.items.length > 0);
+                          const isExpanded = expandedRealGroups.includes(row.mapGroupId);
                           let accumulatedValue = 0;
 
                           return (
-                            <tr
-                              key={row.id}
-                              className={`group/row transition-all hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 ${
-                                isTotalRow 
-                                  ? isDarkMode 
-                                    ? "bg-zinc-900 border-y border-zinc-800 font-extrabold" 
-                                    : "bg-slate-50/80 border-y border-slate-200 font-extrabold" 
-                                  : isKpiRow
-                                    ? isDarkMode
-                                      ? "bg-indigo-950/20 border-y border-indigo-900/30 font-bold"
-                                      : "bg-indigo-50/50 border-y border-indigo-100 font-bold"
-                                    : ""
-                              }`}
-                            >
-                              <td className="py-3 px-3 border-r border-slate-100 dark:border-zinc-800/20">
-                                <span className={`text-[11px] uppercase tracking-tight ${
+                            <React.Fragment key={row.id}>
+                              <tr
+                                onClick={() => hasDetails && toggleRealGroup(row.mapGroupId)}
+                                className={`group/row transition-all hover:bg-slate-50/70 dark:hover:bg-zinc-800/40 ${
+                                  hasDetails ? "cursor-pointer" : ""
+                                } ${
                                   isTotalRow 
-                                    ? "text-slate-900 dark:text-slate-100 font-black" 
+                                    ? isDarkMode 
+                                      ? "bg-zinc-900 border-y border-zinc-800 font-extrabold" 
+                                      : "bg-slate-50/80 border-y border-slate-200 font-extrabold" 
                                     : isKpiRow
-                                      ? "text-indigo-700 dark:text-indigo-400 font-black"
-                                      : isDarkMode ? "text-slate-300" : "text-slate-700 font-bold"
-                                }`}>
-                                  {row.label}
-                                </span>
-                              </td>
-                              {monthsGlobal.map((m) => {
-                                const compMonthName = m.label;
-                                const match = activeDreTimeline.find(d => d.month === compMonthName && d.year === realYearForTab);
-                                const cellVal = getActualRowValue(match, row.id);
-                                accumulatedValue += cellVal;
+                                      ? isDarkMode
+                                        ? "bg-indigo-950/20 border-y border-indigo-900/30 font-bold"
+                                        : "bg-indigo-50/50 border-y border-indigo-100 font-bold"
+                                      : ""
+                                }`}
+                              >
+                                <td className="py-3 px-3 border-r border-slate-100 dark:border-zinc-800/20">
+                                  <div className="flex items-center gap-2">
+                                    {hasDetails ? (
+                                      <button
+                                        type="button"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleRealGroup(row.mapGroupId);
+                                        }}
+                                        className="p-0.5 rounded hover:bg-slate-200 dark:hover:bg-zinc-800 transition-colors shrink-0"
+                                      >
+                                        <ChevronDown
+                                          className={`w-4 h-4 transition-transform duration-200 ${
+                                            isExpanded
+                                              ? "rotate-0 text-slate-800 dark:text-slate-100 font-bold"
+                                              : "-rotate-90 text-slate-400 dark:text-zinc-500"
+                                          }`}
+                                        />
+                                      </button>
+                                    ) : (
+                                      <span className="w-4 h-4 shrink-0 inline-block" />
+                                    )}
+                                    <span className={`text-[11px] uppercase tracking-tight ${
+                                      isTotalRow 
+                                        ? "text-slate-900 dark:text-slate-100 font-black font-display" 
+                                        : isKpiRow
+                                          ? "text-indigo-700 dark:text-indigo-400 font-black font-display"
+                                          : isDarkMode ? "text-slate-200 font-bold" : "text-slate-800 font-bold"
+                                    }`}>
+                                      {row.label}
+                                    </span>
+                                  </div>
+                                </td>
+                                {monthsGlobal.map((m) => {
+                                  const compMonthName = m.label;
+                                  const match = activeDreTimeline.find(d => d.month === compMonthName && (d.year === realYearForTab || (!d.year && realYearForTab === "2026")));
+                                  const cellVal = getActualRowValue(match, row.id);
+                                  accumulatedValue += cellVal;
 
+                                  return (
+                                    <td
+                                      key={m.value}
+                                      className={`py-3 px-2 text-right font-mono text-[11px] ${
+                                        isTotalRow 
+                                          ? (cellVal >= 0 ? "text-emerald-600 dark:text-emerald-400 font-black" : "text-rose-600 dark:text-rose-450 font-black") 
+                                          : isKpiRow
+                                            ? "text-indigo-600 dark:text-indigo-400 font-black"
+                                            : isDarkMode ? "text-slate-300 font-semibold" : "text-slate-700 font-semibold"
+                                      }`}
+                                    >
+                                      {cellVal !== 0 ? formatCurrency(cellVal) : "—"}
+                                    </td>
+                                  );
+                                })}
+                                {/* Accumulated Column */}
+                                <td className={`py-3 px-3 text-right font-bold font-mono text-xs border-l border-slate-100 dark:border-zinc-800/20 bg-slate-100/50 dark:bg-zinc-900/30 ${
+                                  accumulatedValue >= 0 
+                                    ? "text-emerald-600 dark:text-emerald-400 font-black" 
+                                    : "text-rose-600 dark:text-rose-450 font-black"
+                                }`}>
+                                  {formatCurrency(accumulatedValue)}
+                                </td>
+                              </tr>
+
+                              {/* ACCORDION SUB-ITEMS ROWS */}
+                              {isExpanded && hasDetails && rowGroup.items.map((item) => {
+                                let itemAccumulated = 0;
                                 return (
-                                  <td key={m.value} className={`py-3 px-2 text-right font-semibold font-mono text-[11px] ${
-                                    isTotalRow 
-                                      ? (cellVal >= 0 ? "text-emerald-600 dark:text-emerald-400 font-bold" : "text-rose-600 dark:text-rose-450 font-bold") 
-                                      : isKpiRow
-                                        ? "text-indigo-600 dark:text-indigo-400 font-bold"
-                                        : isDarkMode ? "text-slate-400" : "text-slate-650"
-                                  }`}>
-                                    {cellVal !== 0 ? formatCurrency(cellVal) : "—"}
-                                  </td>
+                                  <tr
+                                    key={item.label}
+                                    className="bg-slate-50/40 dark:bg-zinc-900/40 hover:bg-slate-100/60 dark:hover:bg-zinc-800/30 transition-all border-b border-slate-100/50 dark:border-zinc-800/20"
+                                  >
+                                    <td className="py-2 pl-9 pr-3 text-[11px] font-medium text-slate-500 dark:text-zinc-400 italic border-r border-slate-100 dark:border-zinc-800/20 leading-tight">
+                                      {item.label}
+                                    </td>
+                                    {monthsGlobal.map((m) => {
+                                      const compMonthName = m.label;
+                                      const match = activeDreTimeline.find(d => d.month === compMonthName && (d.year === realYearForTab || (!d.year && realYearForTab === "2026")));
+                                      const rawVal = getActualDetailValue(match, row.mapGroupId, item.label);
+                                      const displayVal = Math.abs(rawVal);
+                                      itemAccumulated += displayVal;
+
+                                      return (
+                                        <td
+                                          key={m.value}
+                                          className="py-2 px-2 text-right font-mono text-[11px] text-slate-500 dark:text-zinc-400 font-medium"
+                                        >
+                                          {displayVal !== 0 ? formatCurrency(displayVal) : "—"}
+                                        </td>
+                                      );
+                                    })}
+                                    <td className="py-2 px-3 text-right font-mono text-[11px] font-bold border-l border-slate-100 dark:border-zinc-800/20 bg-slate-50/70 dark:bg-zinc-900/30 text-slate-600 dark:text-zinc-400">
+                                      {itemAccumulated !== 0 ? formatCurrency(itemAccumulated) : "—"}
+                                    </td>
+                                  </tr>
                                 );
                               })}
-                              {/* Accumulated Column */}
-                              <td className={`py-3 px-3 text-right font-bold font-mono text-xs border-l border-slate-100 dark:border-zinc-800/20 bg-slate-100/50 dark:bg-zinc-900/30 ${
-                                accumulatedValue >= 0 
-                                  ? "text-emerald-600 dark:text-emerald-400 font-black" 
-                                  : "text-rose-600 dark:text-rose-450 font-black"
-                              }`}>
-                                {formatCurrency(accumulatedValue)}
-                              </td>
-                            </tr>
+                            </React.Fragment>
                           );
                         })}
                       </tbody>
@@ -3489,6 +3664,26 @@ export default function Finance() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Specific Month Deep-Dive Breakdown Modal (Raio-X de Contas) */}
+      {monthDetailState.isOpen && (
+        <MonthDetailModal
+          isOpen={monthDetailState.isOpen}
+          onClose={handleCloseMonthDetail}
+          monthValue={monthDetailState.monthValue}
+          monthLabel={monthDetailState.monthLabel}
+          year={monthDetailState.year}
+          data={activeDreTimeline.find(
+            d => d.month === monthDetailState.monthLabel && (d.year === monthDetailState.year || (!d.year && monthDetailState.year === "2026"))
+          )}
+          storeName={currentStore?.name || "Loja"}
+          isDarkMode={isDarkMode}
+          isBebelu={isBebelu}
+          isBebeluRioMar={isBebeluRioMar}
+          onSelectMonth={handleSelectDetailMonth}
+          onOpenVerticalDRE={handleOpenVerticalDRE}
+        />
+      )}
     </div>
   );
 }
