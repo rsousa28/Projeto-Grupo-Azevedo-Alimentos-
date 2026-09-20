@@ -14,7 +14,9 @@ import {
   Pencil,
   PieChart as PieChartIcon,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  History,
+  FileText
 } from 'lucide-react';
 import { 
   ResponsiveContainer, 
@@ -62,6 +64,7 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
   const { isDarkMode } = useStore();
   const periodInfo = useMemo(() => getPreviousMonthInfo(), []);
   const [selectedUnit, setSelectedUnit] = useState<string>('ALL');
+  const [selectedStatusTab, setSelectedStatusTab] = useState<'ALL' | 'OPEN' | 'QUITADO'>('ALL');
   const [hoveredDonutIndex, setHoveredDonutIndex] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLiabilityId, setEditingLiabilityId] = useState<string | null>(null);
@@ -70,6 +73,7 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
 
   // Modal de Pagamento de Passivo / Pendência
   const [paymentModalLiability, setPaymentModalLiability] = useState<StoreLiability | null>(null);
+  const [selectedLiabilityForHistory, setSelectedLiabilityForHistory] = useState<StoreLiability | null>(null);
   const [paymentMode, setPaymentMode] = useState<'installment' | 'full' | 'custom'>('installment');
   const [customPaymentAmount, setCustomPaymentAmount] = useState<string>('');
   const [paymentDate, setPaymentDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
@@ -110,13 +114,14 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (paymentModalLiability) setPaymentModalLiability(null);
+        if (selectedLiabilityForHistory) setSelectedLiabilityForHistory(null);
+        else if (paymentModalLiability) setPaymentModalLiability(null);
         else if (isModalOpen) handleCloseModal();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isModalOpen, paymentModalLiability]);
+  }, [isModalOpen, paymentModalLiability, selectedLiabilityForHistory]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -355,17 +360,32 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
     return items.filter(i => i.value > 0);
   }, [storeMetrics]);
 
-  // 3. Tabela Filtrada de Passivos
+  // 3. Tabela Filtrada de Passivos por Unidade e Status
   const filteredLiabilities = useMemo(() => {
-    if (selectedUnit === 'ALL') return liabilities;
+    let result = liabilities;
+
+    // Filtro por Unidade
     if (selectedUnit === 'HOLDING') {
-      return liabilities.filter(li => li.unit === 'HOLDING' || li.unit.toLowerCase().includes('holding'));
+      result = result.filter(li => li.unit === 'HOLDING' || li.unit.toLowerCase().includes('holding'));
+    } else if (selectedUnit === 'ENCERRADA') {
+      result = result.filter(li => li.isClosedStore || li.unit.includes('[ENCERRADA]'));
+    } else if (selectedUnit !== 'ALL') {
+      result = result.filter(li => li.unit === selectedUnit);
     }
-    if (selectedUnit === 'ENCERRADA') {
-      return liabilities.filter(li => li.isClosedStore || li.unit.includes('[ENCERRADA]'));
+
+    // Filtro por Situação (Todos, Em Aberto, Quitados)
+    if (selectedStatusTab === 'OPEN') {
+      result = result.filter(li => li.status !== 'Quitado' && li.totalAmount > 0);
+    } else if (selectedStatusTab === 'QUITADO') {
+      result = result.filter(li => li.status === 'Quitado' || li.totalAmount <= 0);
     }
-    return liabilities.filter(li => li.unit === selectedUnit);
-  }, [liabilities, selectedUnit]);
+
+    return result;
+  }, [liabilities, selectedUnit, selectedStatusTab]);
+
+  // Contagem de passivos em aberto e quitados
+  const openCount = useMemo(() => liabilities.filter(li => li.status !== 'Quitado' && li.totalAmount > 0).length, [liabilities]);
+  const quitadoCount = useMemo(() => liabilities.filter(li => li.status === 'Quitado' || li.totalAmount <= 0).length, [liabilities]);
 
   // Abertura do Modal para Criação
   const handleOpenCreateModal = () => {
@@ -824,30 +844,84 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
             </p>
           </div>
 
-          {/* Filtro Rápido de Unidades na Tabela */}
-          <div className={`flex flex-wrap items-center gap-1.5 p-1 rounded-xl ${isDarkMode ? 'bg-[#18181C] border-[#28282D]' : 'bg-slate-100 border-slate-200'} border`}>
-            {[
-              { id: 'ALL', label: 'Todas' },
-              { id: 'B32', label: 'B32' },
-              { id: 'B28', label: 'B28' },
-              { id: 'VERO', label: 'Vero' },
-              { id: 'HOLDING', label: 'Holding' },
-              { id: 'ENCERRADA', label: 'Encerradas' }
-            ].map((f) => (
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Filtro de Situação (Todos, Em Aberto, Quitados) */}
+            <div className={`flex items-center gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-[#18181C] border-[#28282D]' : 'bg-slate-100 border-slate-200'} border`}>
               <button
-                key={f.id}
-                onClick={() => setSelectedUnit(f.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  selectedUnit === f.id
+                onClick={() => setSelectedStatusTab('ALL')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedStatusTab === 'ALL'
                     ? 'bg-amber-500 text-slate-950 shadow-xs'
                     : isDarkMode
                       ? 'text-slate-400 hover:text-white'
                       : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                {f.label}
+                <span>Todos</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-black/15">
+                  {liabilities.length}
+                </span>
               </button>
-            ))}
+
+              <button
+                onClick={() => setSelectedStatusTab('OPEN')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedStatusTab === 'OPEN'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : isDarkMode
+                      ? 'text-slate-400 hover:text-white'
+                      : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <span>Em Aberto</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${selectedStatusTab === 'OPEN' ? 'bg-black/15' : isDarkMode ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-100 text-amber-700'}`}>
+                  {openCount}
+                </span>
+              </button>
+
+              <button
+                onClick={() => setSelectedStatusTab('QUITADO')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                  selectedStatusTab === 'QUITADO'
+                    ? 'bg-emerald-500 text-slate-950 shadow-xs'
+                    : isDarkMode
+                      ? 'text-slate-400 hover:text-white'
+                      : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Quitados</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${selectedStatusTab === 'QUITADO' ? 'bg-black/15' : isDarkMode ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>
+                  {quitadoCount}
+                </span>
+              </button>
+            </div>
+
+            {/* Filtro Rápido de Unidades na Tabela */}
+            <div className={`flex flex-wrap items-center gap-1.5 p-1 rounded-xl ${isDarkMode ? 'bg-[#18181C] border-[#28282D]' : 'bg-slate-100 border-slate-200'} border`}>
+              {[
+                { id: 'ALL', label: 'Todas Lojas' },
+                { id: 'B32', label: 'B32' },
+                { id: 'B28', label: 'B28' },
+                { id: 'VERO', label: 'Vero' },
+                { id: 'HOLDING', label: 'Holding' },
+                { id: 'ENCERRADA', label: 'Encerradas' }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setSelectedUnit(f.id)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    selectedUnit === f.id
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
+                      : isDarkMode
+                        ? 'text-slate-400 hover:text-white'
+                        : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -915,7 +989,24 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
 
                       {/* Credor */}
                       <td className="py-4 px-4">
-                        <div className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'} text-xs`}>{liab.creditor}</div>
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${isDarkMode ? 'text-white' : 'text-slate-900'} text-xs`}>{liab.creditor}</span>
+                          {(isQuitado || liab.lastPaymentDate) && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedLiabilityForHistory(liab)}
+                              title="Ver comprovante / histórico do pagamento"
+                              className={`p-1 rounded-md text-[10px] font-bold inline-flex items-center gap-1 transition-all cursor-pointer ${
+                                isDarkMode 
+                                  ? 'bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 border border-emerald-500/30' 
+                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                              }`}
+                            >
+                              <FileText className="w-3 h-3" />
+                              <span>Recibo</span>
+                            </button>
+                          )}
+                        </div>
                         {liab.notes && (
                           <div className={`text-[10px] ${isDarkMode ? 'text-slate-500' : 'text-slate-400'} truncate max-w-xs mt-0.5`}>
                             {liab.notes}
@@ -1811,6 +1902,119 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
                   className="px-4 py-2.5 rounded-xl bg-rose-500 hover:bg-rose-400 text-white text-xs font-black uppercase tracking-wider transition-all shadow-lg shadow-rose-500/20 cursor-pointer"
                 >
                   Excluir Pendência
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Modal 3: Comprovante & Histórico de Pagamentos de Passivo/Boleto */}
+        {selectedLiabilityForHistory && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className={`w-full max-w-lg ${isDarkMode ? 'bg-[#18181C] border-[#2B2B32] text-white' : 'bg-white border-slate-200 text-slate-900'} border rounded-3xl shadow-2xl overflow-hidden flex flex-col`}
+            >
+              {/* Header do Comprovante */}
+              <div className={`flex items-center justify-between px-6 py-5 border-b ${isDarkMode ? 'border-[#26262B] bg-[#141417]' : 'border-slate-100 bg-slate-50/70'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-2xl ${isDarkMode ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400' : 'bg-emerald-50 border border-emerald-200 text-emerald-600'} flex items-center justify-center`}>
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black uppercase tracking-tight flex items-center gap-2">
+                      <span>Comprovante de Quitação</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${
+                        selectedLiabilityForHistory.status === 'Quitado'
+                          ? isDarkMode ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-emerald-100 text-emerald-800'
+                          : isDarkMode ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' : 'bg-amber-100 text-amber-800'
+                      }`}>
+                        {selectedLiabilityForHistory.status}
+                      </span>
+                    </h3>
+                    <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Registro financeiro de baixa em passivo do Grupo AZ
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedLiabilityForHistory(null)}
+                  className={`p-2 rounded-xl ${isDarkMode ? 'hover:bg-[#25252A] text-slate-400' : 'hover:bg-slate-200 text-slate-500'} transition-all cursor-pointer`}
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Corpo com Detalhes */}
+              <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto thin-scrollbar">
+                {/* Destaque do Credor & Valor */}
+                <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-[#141416] border-[#28282E]' : 'bg-slate-50 border-slate-200'} space-y-3`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-xs uppercase font-bold tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Credor / Beneficiário
+                    </span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-md ${isDarkMode ? 'bg-[#202025] text-slate-300' : 'bg-slate-200 text-slate-700'}`}>
+                      {selectedLiabilityForHistory.category}
+                    </span>
+                  </div>
+                  <div className="text-xl font-black">
+                    {selectedLiabilityForHistory.creditor}
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200 dark:border-[#222226] text-xs">
+                    <div>
+                      <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Unidade:</span>
+                      <p className="font-bold mt-0.5">{selectedLiabilityForHistory.unit}</p>
+                    </div>
+                    <div>
+                      <span className={isDarkMode ? 'text-slate-400' : 'text-slate-500'}>Saldo Atual Restante:</span>
+                      <p className={`font-black mt-0.5 ${selectedLiabilityForHistory.totalAmount === 0 ? 'text-emerald-500' : 'text-amber-500'}`}>
+                        {formatCurrency(selectedLiabilityForHistory.totalAmount)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Último Pagamento */}
+                {selectedLiabilityForHistory.lastPaymentAmount ? (
+                  <div className={`p-4 rounded-2xl border ${isDarkMode ? 'bg-emerald-500/10 border-emerald-500/25' : 'bg-emerald-50/80 border-emerald-200'} space-y-2`}>
+                    <div className="flex items-center justify-between text-xs font-bold text-emerald-500">
+                      <span>Último Pagamento Realizado</span>
+                      <span>{selectedLiabilityForHistory.lastPaymentDate ? selectedLiabilityForHistory.lastPaymentDate.split('-').reverse().join('/') : 'Hoje'}</span>
+                    </div>
+                    <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+                      {formatCurrency(selectedLiabilityForHistory.lastPaymentAmount)}
+                    </div>
+                  </div>
+                ) : null}
+
+                {/* Histórico e Notas Registradas */}
+                <div className="space-y-2">
+                  <h4 className={`text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} flex items-center gap-1.5`}>
+                    <History className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Histórico de Pagamento & Notas</span>
+                  </h4>
+                  <div className={`p-4 rounded-2xl border text-xs whitespace-pre-line leading-relaxed font-mono ${
+                    isDarkMode ? 'bg-[#141416] border-[#26262B] text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
+                  }`}>
+                    {selectedLiabilityForHistory.notes || 'Sem observações ou registros adicionais.'}
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className={`flex items-center justify-end px-6 py-4 border-t ${isDarkMode ? 'border-[#26262B] bg-[#141417]' : 'border-slate-100 bg-white'}`}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedLiabilityForHistory(null)}
+                  className={`px-5 py-2.5 rounded-xl font-bold text-xs transition-all cursor-pointer ${
+                    isDarkMode ? 'bg-white text-slate-950 hover:bg-slate-200' : 'bg-slate-900 text-white hover:bg-slate-800'
+                  }`}
+                >
+                  Fechar Comprovante
                 </button>
               </div>
             </motion.div>

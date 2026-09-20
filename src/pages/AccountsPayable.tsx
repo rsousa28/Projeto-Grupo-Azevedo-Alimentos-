@@ -3629,16 +3629,67 @@ export default function AccountsPayable() {
         isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-sm'
       }`}>
         <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full lg:w-96 flex items-center">
-            <Search className="absolute left-3 w-5 h-5 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Buscar por fornecedor, descrição, doc..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-[#1E1E1E] border-0 focus:ring-2 text-slate-800 dark:text-slate-200 rounded-xl text-sm font-medium"
-              style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
-            />
+          <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto flex-1">
+            <div className="relative w-full sm:w-80 flex items-center">
+              <Search className="absolute left-3 w-5 h-5 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Buscar por fornecedor, descrição, doc..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-slate-100 dark:bg-[#1E1E1E] border-0 focus:ring-2 text-slate-800 dark:text-slate-200 rounded-xl text-sm font-medium"
+                style={{ '--tw-ring-color': themePrimary } as React.CSSProperties}
+              />
+            </div>
+
+            {/* Quick Status Tabs (Todos, Pendentes, Pagos / Boletos Quitados, Vencidos) */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2C2C2C] self-start sm:self-auto overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setFilterStatus('all')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  filterStatus === 'all'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Todos
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterStatus('Pendente')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  filterStatus === 'Pendente'
+                    ? 'bg-amber-500 text-slate-950 shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Pendentes
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterStatus('Pago')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 whitespace-nowrap ${
+                  filterStatus === 'Pago'
+                    ? 'bg-emerald-500 text-slate-950 shadow-xs font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-emerald-500'
+                }`}
+              >
+                <Check className="w-3.5 h-3.5" />
+                <span>Quitados / Pagos</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFilterStatus('Vencido')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  filterStatus === 'Vencido'
+                    ? 'bg-rose-500 text-white shadow-xs font-black'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-rose-500'
+                }`}
+              >
+                Vencidos
+              </button>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 w-full lg:w-auto">
