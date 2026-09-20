@@ -762,7 +762,11 @@ export default function CashClosing() {
             </thead>
             <tbody className="divide-y dark:divide-[#333]">
               {closings.map((closing) => (
-                <tr key={closing.id} className={`group transition-colors ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}>
+                <tr 
+                  key={closing.id} 
+                  onClick={() => openEditModal(closing.id)}
+                  className={`group transition-colors cursor-pointer ${isDarkMode ? 'hover:bg-white/5' : 'hover:bg-slate-50'}`}
+                >
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
@@ -882,21 +886,22 @@ export default function CashClosing() {
         </div>
       </div>
 
-      <AnimatePresence>
-        {showModal && typeof document !== 'undefined' && createPortal(
-          <motion.div 
-            key="cash-closing-modal-container"
-            className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4"
-          >
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showModal && (
             <motion.div 
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className={`relative w-full max-w-5xl max-h-[96vh] overflow-hidden rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col border ${
-                isDarkMode ? 'bg-[#121214] border-[#2C2C32] text-white' : 'bg-white border-slate-200 text-slate-900'
-              }`}
+              key="cash-closing-modal-container"
+              className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4"
             >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className={`relative w-full max-w-5xl max-h-[96vh] overflow-hidden rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col border ${
+                  isDarkMode ? 'bg-[#121214] border-[#2C2C32] text-white' : 'bg-white border-slate-200 text-slate-900'
+                }`}
+              >
               {/* 1. Header Principal */}
               <div className="px-5 py-3 border-b border-white/10 dark:border-[#2C2C32] flex items-center justify-between bg-black text-white shrink-0">
                 <div className="flex items-center gap-3">
@@ -1330,16 +1335,18 @@ export default function CashClosing() {
                 </div>
               </div>
             </motion.div>
-          </motion.div>,
-          document.body
+          </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
 
+    {typeof document !== 'undefined' && createPortal(
       <AnimatePresence>
-        {confirmResetId && typeof document !== 'undefined' && createPortal(
+        {confirmResetId && (
           <motion.div 
             key="cash-reset-modal-container"
-            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
           >
             <motion.div 
               initial={{ opacity: 0 }} 
@@ -1399,10 +1406,11 @@ export default function CashClosing() {
                 </button>
               </div>
             </motion.div>
-          </motion.div>,
-          document.body
+          </motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+    )}
     </div>
   );
 }

@@ -23,14 +23,14 @@ try {
       console.log('[SW] Firebase Background Push Message received:', payload);
       const title = payload.notification?.title || payload.data?.title || '🔔 Grupo Azevedo';
       const body = payload.notification?.body || payload.data?.body || 'Nova notificação do sistema.';
-      const icon = payload.notification?.icon || payload.data?.icon || '/logo_azevedo.png?v=10';
+      const icon = payload.notification?.icon || payload.data?.icon || '/logo_azevedo.png?v=11';
       const tag = payload.data?.tag || 'fcm_background_push';
       const url = payload.data?.url || '/';
 
       self.registration.showNotification(title, {
         body,
         icon,
-        badge: '/logo_azevedo.png?v=10',
+        badge: '/logo_azevedo.png?v=11',
         tag,
         vibrate: [200, 100, 200, 100, 200],
         data: { url }
@@ -41,7 +41,7 @@ try {
   console.warn('[SW] Firebase messaging import in Service Worker warning:', e);
 }
 
-const CACHE_NAME = 'grupo-azevedo-v12';
+const CACHE_NAME = 'grupo-azevedo-v13';
 
 const PRECACHE_ASSETS = [
   '/',

@@ -1,44 +1,120 @@
-<svg viewBox="0 0 512 370" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-  <!-- Transparent Background -->
-  <g transform="translate(256, 145) scale(1.15)">
-    <!-- Iconic Monogram 'A' with Arch Crossbar -->
-    <path fill="currentColor" d="
-      M 0 -115
-      C -3 -115 -10 -108 -18 -88
-      L -82 82
-      C -92 105 -102 112 -122 114
-      L -122 122
-      L -45 122
-      L -45 114
-      C -62 112 -65 102 -58 84
-      L -40 38
-      C -18 15 18 15 40 38
-      L 58 84
-      C 65 102 62 112 45 114
-      L 45 122
-      L 122 122
-      L 122 114
-      C 102 112 92 105 82 82
-      L 18 -88
-      C 10 -108 3 -115 0 -115 Z
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <!-- Background subtle warm radial glow in top-left -->
+    <radialGradient id="bgGlow" cx="28%" cy="20%" r="65%">
+      <stop offset="0%" stop-color="#4a3b10" stop-opacity="0.75" />
+      <stop offset="35%" stop-color="#211909" stop-opacity="0.85" />
+      <stop offset="70%" stop-color="#0a0806" stop-opacity="0.98" />
+      <stop offset="100%" stop-color="#050403" stop-opacity="1" />
+    </radialGradient>
 
-      M 0 -62
-      L 28 8
-      C 16 -6 -16 -6 -28 8
-      L 0 -62 Z
-    "/>
+    <!-- Warm Golden Yellow Gradient for the Arch and "GRUPO" -->
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffd22a" />
+      <stop offset="60%" stop-color="#f5a60b" />
+      <stop offset="100%" stop-color="#d97706" />
+    </linearGradient>
 
-    <!-- Upward Arch Bar Detail -->
-    <path fill="currentColor" d="
-      M -36 30
-      Q 0 -12 36 30
-      Q 0 4 0 4
-      Q -36 30 -36 30 Z
-    " opacity="0.95"/>
+    <!-- Letter A Glow -->
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#000" flood-opacity="0.6"/>
+    </filter>
+  </defs>
+
+  <!-- Dark Background Canvas -->
+  <rect width="512" height="512" fill="url(#bgGlow)" />
+
+  <!-- Main Monogram & Typography Group -->
+  <g filter="url(#softShadow)">
+    
+    <!-- Big Serif Letter 'A' -->
+    <!-- Left leg, Right leg, Top apex and Serif feet -->
+    <path fill="#ffffff" d="
+      M 256 94
+      C 252 94 246 98 241 108
+      L 173 246
+      C 165 262 155 269 138 271
+      L 138 278
+      L 204 278
+      L 204 271
+      C 188 269 184 261 190 248
+      L 203 222
+      C 220 205 240 198 256 198
+      C 272 198 292 205 309 222
+      L 322 248
+      C 328 261 324 269 308 271
+      L 308 278
+      L 374 278
+      L 374 271
+      C 357 269 347 262 339 246
+      L 271 108
+      C 266 98 260 94 256 94 Z
+
+      M 256 138
+      L 278 184
+      C 268 175 244 175 234 184
+      L 256 138 Z
+    " />
+
+    <!-- Golden Swoosh / Arch Crossing through the 'A' -->
+    <path fill="url(#goldGrad)" d="
+      M 182 238
+      C 210 178 276 172 328 244
+      C 316 230 300 206 278 198
+      C 246 186 210 206 182 238 Z
+    " />
+
+    <!-- AZEVEDO Text -->
+    <text 
+      x="256" 
+      y="336" 
+      text-anchor="middle" 
+      fill="#ffffff" 
+      font-family="'Montserrat', 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif" 
+      font-size="47" 
+      font-weight="900" 
+      letter-spacing="5"
+    >
+      AZEVEDO
+    </text>
+
+    <!-- GRUPO Text -->
+    <text 
+      x="256" 
+      y="386" 
+      text-anchor="middle" 
+      fill="url(#goldGrad)" 
+      font-family="'Montserrat', 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif" 
+      font-size="39" 
+      font-weight="900" 
+      letter-spacing="14"
+    >
+      GRUPO
+    </text>
+
+    <!-- Golden Divider Line -->
+    <rect 
+      x="176" 
+      y="404" 
+      width="160" 
+      height="6" 
+      rx="3" 
+      fill="url(#goldGrad)" 
+    />
+
+    <!-- ALIMENTOS Text -->
+    <text 
+      x="256" 
+      y="442" 
+      text-anchor="middle" 
+      fill="#ffffff" 
+      font-family="'Montserrat', 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif" 
+      font-size="20" 
+      font-weight="500" 
+      letter-spacing="11"
+    >
+      ALIMENTOS
+    </text>
+
   </g>
-
-  <!-- Wordmark "AZEVEDO" -->
-  <text x="256" y="342" text-anchor="middle" fill="currentColor" font-family="'Plus Jakarta Sans', 'Inter', 'Cinzel', -apple-system, sans-serif" font-size="52" font-weight="900" letter-spacing="10">
-    AZEVEDO
-  </text>
 </svg>
