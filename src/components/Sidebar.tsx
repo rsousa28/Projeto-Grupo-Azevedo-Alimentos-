@@ -15,13 +15,13 @@ import {
   Briefcase, 
   Wallet, 
   Menu, 
+  X,
   LogOut, 
   ChevronRight, 
   ChevronDown, 
   Layers, 
   Sparkles, 
   Store as StoreIcon, 
-  UtensilsCrossed, 
   Users, 
   Shield, 
   Database,
@@ -223,69 +223,87 @@ export default function Sidebar({
         }`}
       >
         {/* Top Brand Header */}
-        <div className="p-4 sm:p-5 flex items-center justify-between border-b border-inherit shrink-0">
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="shrink-0 transition-transform duration-300 hover:scale-105">
-              <Logo className="h-8 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
-            </div>
-
-            {(!collapsed || mobileMenuOpen) && (
-              <div className="overflow-hidden">
-                <span className={`font-black text-xs italic tracking-tight uppercase block truncate ${
-                  isHoldingActive 
-                    ? isDarkMode ? 'text-amber-400' : 'text-amber-600'
-                    : isDarkMode ? 'text-white' : 'text-slate-900'
-                }`}>
-                  GRUPO AZEVEDO
-                </span>
-                <span className={`text-[9px] font-extrabold uppercase tracking-wider block truncate ${
-                  isHoldingActive 
-                    ? isDarkMode ? 'text-slate-400' : 'text-slate-500'
-                    : 'text-slate-400'
-                }`}>
-                  {isHoldingActive ? 'Holding Financeira' : 'Sistema Integrado'}
-                </span>
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={`hidden lg:flex p-1.5 rounded-lg transition-colors cursor-pointer ${
-              isDarkMode 
-                ? 'text-slate-400 hover:text-white hover:bg-slate-800/50' 
-                : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
-            }`}
-            title={collapsed ? "Expandir Menu" : "Recolher Menu"}
-          >
-            <Menu className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Collapsed Store Icon Switcher */}
-        {collapsed && !mobileMenuOpen && (
-          <div className="p-3 shrink-0 flex flex-col items-center">
+        <div className={`border-b border-inherit shrink-0 transition-all ${
+          collapsed && !mobileMenuOpen 
+            ? 'h-16 lg:h-20 flex items-center justify-center p-2' 
+            : 'h-16 lg:h-20 px-4 sm:px-5 flex items-center justify-between'
+        }`}>
+          {collapsed && !mobileMenuOpen ? (
+            /* No modo recolhido: exibe o botão com as 3 listras perfeitamente centralizado, sem sobreposição na logo */
             <button
-              onClick={() => setShowUnitModal(true)}
-              title={`Unidade Atual: ${currentStore.name}. Clique para alternar.`}
-              className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs transition-transform hover:scale-105 cursor-pointer shadow-md ${
-                isHoldingActive
-                  ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400/50'
-                  : currentStore.brand === 'VERO PASTA'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-[#FFCB05] text-[#7F300C]'
+              type="button"
+              id="sidebar-expand-btn"
+              onClick={() => setCollapsed(false)}
+              className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+                isDarkMode 
+                  ? 'bg-[#1C1C1F] border-[#2C2C32] text-slate-300 hover:text-white hover:bg-[#25252A]' 
+                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 shadow-2xs'
               }`}
+              title="Expandir Menu"
+              aria-label="Expandir Menu Lateral"
             >
-              {isHoldingActive ? (
-                <Building2 className="w-5 h-5" />
-              ) : currentStore.brand === 'VERO PASTA' ? (
-                <UtensilsCrossed className="w-5 h-5" />
-              ) : (
-                currentStore.code
-              )}
+              <Menu className="w-5 h-5" />
             </button>
-          </div>
-        )}
+          ) : (
+            /* No modo expandido ou gaveta mobile: Logo + Grupo Azevedo e botão de recolher/fechar */
+            <>
+              <div className="flex items-center gap-3 overflow-hidden min-w-0">
+                <div className="shrink-0 transition-transform duration-300 hover:scale-105">
+                  <Logo className="h-8 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
+                </div>
+
+                <div className="overflow-hidden min-w-0">
+                  <span className={`font-black text-xs italic tracking-tight uppercase block truncate ${
+                    isHoldingActive 
+                      ? isDarkMode ? 'text-amber-400' : 'text-amber-600'
+                      : isDarkMode ? 'text-white' : 'text-slate-900'
+                  }`}>
+                    GRUPO AZEVEDO
+                  </span>
+                  <span className={`text-[9px] font-extrabold uppercase tracking-wider block truncate ${
+                    isHoldingActive 
+                      ? isDarkMode ? 'text-slate-400' : 'text-slate-500'
+                      : 'text-slate-400'
+                  }`}>
+                    {isHoldingActive ? 'Holding Financeira' : 'Sistema Integrado'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Botão no Desktop: Recolhe o menu (3 listras) */}
+              <button
+                type="button"
+                id="sidebar-collapse-btn"
+                onClick={() => setCollapsed(true)}
+                className={`hidden lg:flex p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 ${
+                  isDarkMode 
+                    ? 'bg-[#1E1E22] border-[#2A2A30] text-slate-400 hover:text-white hover:bg-[#26262D]' 
+                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-100 shadow-2xs'
+                }`}
+                title="Recolher Menu"
+                aria-label="Recolher Menu Lateral"
+              >
+                <Menu className="w-4 h-4" />
+              </button>
+
+              {/* Botão no Mobile: Fecha a gaveta (X) */}
+              <button
+                type="button"
+                id="sidebar-close-mobile-btn"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`lg:hidden p-2 rounded-xl border transition-all cursor-pointer ${
+                  isDarkMode 
+                    ? 'bg-[#1E1E22] border-[#2A2A30] text-slate-400 hover:text-white' 
+                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-slate-900 shadow-2xs'
+                }`}
+                title="Fechar Menu"
+                aria-label="Fechar Menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </>
+          )}
+        </div>
 
         {/* Section Title */}
         {(!collapsed || mobileMenuOpen) && (
@@ -421,6 +439,15 @@ export default function Sidebar({
           </div>
         </div>
       </aside>
+
+      {/* Backdrop para Menu Mobile */}
+      {mobileMenuOpen && (
+        <div 
+          onClick={() => setMobileMenuOpen(false)}
+          className="fixed inset-0 z-30 bg-black/50 backdrop-blur-xs lg:hidden transition-opacity"
+          aria-hidden="true"
+        />
+      )}
 
       {/* Modal Seletor de Unidades (if opened from sidebar) */}
       <UnitSelector
