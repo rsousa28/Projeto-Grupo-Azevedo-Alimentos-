@@ -249,7 +249,7 @@ export default function Sidebar({
             <>
               <div className="flex items-center gap-3 overflow-hidden min-w-0">
                 <div className="shrink-0 transition-transform duration-300 hover:scale-105">
-                  <Logo className="h-8 w-auto" variant={isDarkMode ? 'light' : 'dark'} />
+                  <Logo className="h-8 w-auto" variant={isDarkMode ? 'light' : 'dark'} showSubtext={false} />
                 </div>
 
                 <div className="overflow-hidden min-w-0">

@@ -139,57 +139,65 @@ export default function Login() {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-        className="max-w-[1000px] w-full grid md:grid-cols-12 rounded-[28px] overflow-hidden shadow-[0_32px_100px_rgba(28,24,20,0.12)] bg-white border border-[#EBE8DF]"
+        className="max-w-[1000px] w-full flex flex-col md:grid md:grid-cols-12 rounded-[28px] overflow-hidden shadow-[0_32px_100px_rgba(28,24,20,0.12)] bg-white border border-[#EBE8DF]"
         id="login_main_card"
       >
         {/* Left Side: Editorial Banner Panel */}
-        <div className="md:col-span-5 relative bg-[#120F0D] text-white overflow-hidden flex flex-col justify-between p-8 md:p-11 min-h-[360px] md:min-h-[580px]">
+        <div className="md:col-span-5 relative bg-[#120F0D] text-white overflow-hidden flex flex-col justify-between p-7 sm:p-8 md:p-10 min-h-[380px] md:min-h-[580px]">
           {/* Cyber Gradient Background Mesh */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black/70 z-0" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_rgba(255,203,5,0.15),_transparent_60%)] z-0" />
           
-          {/* Logo & Slogan Header */}
-          <div className="z-10 relative flex flex-col items-center md:items-start text-center md:text-left mt-4">
+          {/* 1. Top-Left Brand Logo */}
+          <div className="z-10 relative flex items-center justify-start w-full">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="mb-8"
               id="login_logo_container"
             >
-              <div className="inline-block">
-                <Logo className="w-32 md:w-40 h-auto hover:scale-105 transition-transform duration-300" variant="white" />
-              </div>
+              <Logo className="w-16 sm:w-20 md:w-22 h-auto hover:scale-105 transition-transform duration-300" variant="white" showSubtext={false} />
             </motion.div>
-            
+          </div>
+
+          {/* 2. Centered Typography Block (Centro do painel) */}
+          <div className="z-10 relative my-auto py-6 flex flex-col items-center justify-center text-center w-full">
             <motion.div
               initial={{ y: 10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.3 }}
+              className="flex flex-col items-center text-center"
+              style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
-              <h1 className="text-3xl md:text-4xl font-black uppercase italic tracking-tighter text-white leading-none">
-                Grupo <br className="hidden md:block" />
-                <span className="text-[#FFCB05] not-italic font-black">Azevedo</span> <br />
-                <span className="text-[17px] md:text-[20px] text-white/90 font-bold block mt-1 tracking-tight">ALIMENTOS</span>
+              <h1 className="leading-[0.88] tracking-tight">
+                <span className="text-4xl sm:text-5xl md:text-[3.25rem] font-black uppercase italic text-white block">
+                  GRUPO
+                </span>
+                <span className="text-4xl sm:text-5xl md:text-[3.25rem] font-black uppercase italic text-[#FFCB05] block mt-1.5">
+                  AZEVEDO
+                </span>
+                <span className="text-2xl sm:text-3xl md:text-[2rem] font-black uppercase italic text-slate-100 block mt-2 tracking-normal">
+                  ALIMENTOS
+                </span>
               </h1>
-              <div className="w-12 h-[2.5px] bg-[#FFCB05] my-4 rounded-full" />
-              <p className="text-[9.5px] font-black uppercase tracking-[0.25em] text-[#FFCB05]/80 italic">
-                Portal de Governança & Operações
+              <div className="w-16 h-[3.5px] bg-[#FFCB05] my-5 rounded-full" />
+              <p className="text-[10px] sm:text-[11.5px] font-black uppercase tracking-[0.25em] text-[#FFCB05] italic">
+                PORTAL DE GOVERNANÇA & OPERAÇÕES
               </p>
             </motion.div>
           </div>
 
           {/* Luxury Floating Quote of the Day Widget */}
-          <div className="z-10 relative mt-auto pt-6 border-t border-white/10">
+          <div className="z-10 relative pt-4 md:pt-5 border-t border-white/10 hidden sm:block">
             <div className="bg-white/5 backdrop-blur-md rounded-2xl p-4 md:p-5 border border-white/10 shadow-[0_4px_30px_rgba(0,0,0,0.3)]">
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center justify-center sm:justify-start gap-2 mb-2">
                 <div className="w-2 h-2 rounded-full bg-[#FFCB05] animate-pulse" />
                 <div className="flex items-center gap-1.5 text-[9.5px] font-black uppercase text-[#FFCB05] tracking-widest">
                   <ShieldCheck className="w-3.5 h-3.5 text-[#FFCB05]" /> Ideia & Padrão de Excelência
                 </div>
               </div>
               
-              <div className="min-h-[56px] flex items-center pr-2">
+              <div className="min-h-[48px] md:min-h-[56px] flex items-center justify-center sm:justify-start text-center sm:text-left pr-2">
                 <AnimatePresence mode="wait">
                   <motion.p
                     key={quoteIndex}
@@ -197,7 +205,7 @@ export default function Login() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.4, ease: "easeInOut" }}
-                    className="text-[11.5px] leading-relaxed font-semibold italic text-slate-200"
+                    className="text-[11px] md:text-[11.5px] leading-relaxed font-semibold italic text-slate-200"
                   >
                     "{quotes[quoteIndex]}"
                   </motion.p>
@@ -208,7 +216,7 @@ export default function Login() {
         </div>
 
         {/* Right Side: Authentication Console */}
-        <div className="md:col-span-7 p-8 md:p-14 flex flex-col justify-between bg-white relative">
+        <div className="md:col-span-7 p-6 sm:p-8 md:p-14 flex flex-col justify-between bg-white relative">
           
           <div className="w-full">
             {/* Header section with tiny visual bar */}
