@@ -18,6 +18,7 @@ import {
   History,
   FileText
 } from 'lucide-react';
+import { TableFiltersToolbar, StatusTab, StoreOption } from './TableFiltersToolbar';
 import { 
   ResponsiveContainer, 
   PieChart, 
@@ -64,7 +65,8 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
   const { isDarkMode } = useStore();
   const periodInfo = useMemo(() => getPreviousMonthInfo(), []);
   const [selectedUnit, setSelectedUnit] = useState<string>('ALL');
-  const [selectedStatusTab, setSelectedStatusTab] = useState<'ALL' | 'OPEN' | 'QUITADO'>('ALL');
+  const [selectedStatusTab, setSelectedStatusTab] = useState<StatusTab>('ALL');
+  const [liabilitySearchQuery, setLiabilitySearchQuery] = useState<string>('');
   const [hoveredDonutIndex, setHoveredDonutIndex] = useState<number | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingLiabilityId, setEditingLiabilityId] = useState<string | null>(null);
@@ -360,11 +362,39 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
     return items.filter(i => i.value > 0);
   }, [storeMetrics]);
 
-  // 3. Tabela Filtrada de Passivos por Unidade e Status
+  // Opções de Lojas/Unidades para o Dropdown (com seção dedicada para Encerradas)
+  const storeOptions: StoreOption[] = useMemo(() => {
+    const list: StoreOption[] = [
+      { id: 'ALL', label: 'Todas as Unidades', type: 'ALL', subtitle: 'Ativas, Central e Encerradas' },
+      { id: 'HOLDING', label: 'Holding Central', type: 'HOLDING', subtitle: 'Administração Geral' },
+      { id: 'B32', label: 'Loja B32', type: 'STORE', subtitle: 'Mossoró' },
+      { id: 'B28', label: 'Loja B28', type: 'STORE', subtitle: 'Rio Mar' },
+      { id: 'VERO', label: 'Vero Pasta', type: 'STORE', subtitle: 'Indústria' },
+      { id: 'ENCERRADA', label: 'Lojas Encerradas (Geral)', type: 'CLOSED', subtitle: 'Todos os acordos e tributos de unidades extintas', isClosed: true },
+    ];
+
+    // Se houver lojas encerradas cadastradas individualmente, adiciona-as no dropdown
+    if (closedStores && closedStores.length > 0) {
+      closedStores.forEach(cs => {
+        const cleanName = cs.replace(/\[ENCERRADA\]/g, '').trim();
+        list.push({
+          id: cs,
+          label: cleanName.toUpperCase().startsWith('LOJA') ? cleanName : `Loja ${cleanName}`,
+          type: 'CLOSED',
+          subtitle: 'Unidade extinta',
+          isClosed: true
+        });
+      });
+    }
+
+    return list;
+  }, [closedStores]);
+
+  // 3. Tabela Filtrada de Passivos por Unidade, Status e Busca
   const filteredLiabilities = useMemo(() => {
     let result = liabilities;
 
-    // Filtro por Unidade
+    // Filtro por Unidade / Loja (incluindo opção de Lojas Encerradas)
     if (selectedUnit === 'HOLDING') {
       result = result.filter(li => li.unit === 'HOLDING' || li.unit.toLowerCase().includes('holding'));
     } else if (selectedUnit === 'ENCERRADA') {
@@ -380,8 +410,19 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
       result = result.filter(li => li.status === 'Quitado' || li.totalAmount <= 0);
     }
 
+    // Filtro por Busca de Texto (Credor, Categoria, Notas, Doc)
+    if (liabilitySearchQuery.trim()) {
+      const q = liabilitySearchQuery.toLowerCase().trim();
+      result = result.filter(li => 
+        (li.creditor && li.creditor.toLowerCase().includes(q)) ||
+        (li.category && li.category.toLowerCase().includes(q)) ||
+        (li.unit && li.unit.toLowerCase().includes(q)) ||
+        (li.notes && li.notes.toLowerCase().includes(q))
+      );
+    }
+
     return result;
-  }, [liabilities, selectedUnit, selectedStatusTab]);
+  }, [liabilities, selectedUnit, selectedStatusTab, liabilitySearchQuery]);
 
   // Contagem de passivos em aberto e quitados
   const openCount = useMemo(() => liabilities.filter(li => li.status !== 'Quitado' && li.totalAmount > 0).length, [liabilities]);
@@ -840,90 +881,35 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
               <span>Passivos & Pendências Cadastradas</span>
             </h3>
             <p className={`text-xs ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-medium mt-0.5`}>
-              Lista detalhada de tributos, fornecedores, acordos e demais obrigações.
+              Lista detalhada de tributos, fornecedores, acordos e demais obrigações com conciliação contábil.
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Filtro de Situação (Todos, Em Aberto, Quitados) */}
-            <div className={`flex items-center gap-1 p-1 rounded-xl ${isDarkMode ? 'bg-[#18181C] border-[#28282D]' : 'bg-slate-100 border-slate-200'} border`}>
-              <button
-                onClick={() => setSelectedStatusTab('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  selectedStatusTab === 'ALL'
-                    ? 'bg-amber-500 text-slate-950 shadow-xs'
-                    : isDarkMode
-                      ? 'text-slate-400 hover:text-white'
-                      : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <span>Todos</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded-full font-mono bg-black/15">
-                  {liabilities.length}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setSelectedStatusTab('OPEN')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  selectedStatusTab === 'OPEN'
-                    ? 'bg-amber-500 text-slate-950 shadow-xs'
-                    : isDarkMode
-                      ? 'text-slate-400 hover:text-white'
-                      : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <span>Em Aberto</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${selectedStatusTab === 'OPEN' ? 'bg-black/15' : isDarkMode ? 'bg-amber-500/15 text-amber-400' : 'bg-amber-100 text-amber-700'}`}>
-                  {openCount}
-                </span>
-              </button>
-
-              <button
-                onClick={() => setSelectedStatusTab('QUITADO')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                  selectedStatusTab === 'QUITADO'
-                    ? 'bg-emerald-500 text-slate-950 shadow-xs'
-                    : isDarkMode
-                      ? 'text-slate-400 hover:text-white'
-                      : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                <Check className="w-3.5 h-3.5" />
-                <span>Quitados</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${selectedStatusTab === 'QUITADO' ? 'bg-black/15' : isDarkMode ? 'bg-emerald-500/15 text-emerald-400' : 'bg-emerald-100 text-emerald-700'}`}>
-                  {quitadoCount}
-                </span>
-              </button>
-            </div>
-
-            {/* Filtro Rápido de Unidades na Tabela */}
-            <div className={`flex flex-wrap items-center gap-1.5 p-1 rounded-xl ${isDarkMode ? 'bg-[#18181C] border-[#28282D]' : 'bg-slate-100 border-slate-200'} border`}>
-              {[
-                { id: 'ALL', label: 'Todas Lojas' },
-                { id: 'B32', label: 'B32' },
-                { id: 'B28', label: 'B28' },
-                { id: 'VERO', label: 'Vero' },
-                { id: 'HOLDING', label: 'Holding' },
-                { id: 'ENCERRADA', label: 'Encerradas' }
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => setSelectedUnit(f.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    selectedUnit === f.id
-                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-950 shadow-xs'
-                      : isDarkMode
-                        ? 'text-slate-400 hover:text-white'
-                        : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <button
+            onClick={handleOpenCreateModal}
+            className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-xs transition-all flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Novo Passivo</span>
+          </button>
         </div>
+
+        {/* Barra de Ferramentas Refatorada (Segmented Control Status + Dropdown com Lojas e Encerradas + Busca) */}
+        <TableFiltersToolbar
+          isDarkMode={isDarkMode}
+          status={selectedStatusTab}
+          counts={{
+            all: liabilities.length,
+            open: openCount,
+            quitado: quitadoCount,
+          }}
+          onStatusChange={setSelectedStatusTab}
+          unitId={selectedUnit}
+          storeOptions={storeOptions}
+          onUnitChange={setSelectedUnit}
+          searchQuery={liabilitySearchQuery}
+          onSearchChange={setLiabilitySearchQuery}
+        />
 
         {/* Tabela ou Empty State Elegante */}
         {filteredLiabilities.length === 0 ? (
@@ -1016,22 +1002,38 @@ export const HoldingDebtAnalysis: React.FC<HoldingDebtAnalysisProps> = ({ loans,
 
                       {/* Valor Restante */}
                       <td className={`py-4 px-4 text-right font-black text-sm ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
-                        {formatCurrency(liab.totalAmount)}
+                        {isQuitado ? (
+                          <span className="text-emerald-500 font-bold">R$ 0,00</span>
+                        ) : (
+                          formatCurrency(liab.totalAmount)
+                        )}
                       </td>
 
-                      {/* Parcela Mensal */}
+                      {/* Parcela Mensal (Elimina cálculo de parcelas ativas se quitado) */}
                       <td className={`py-4 px-4 text-right font-bold ${isDarkMode ? 'text-amber-400' : 'text-amber-600'}`}>
-                        <div>{formatCurrency(liab.monthlyPayment)}/mês</div>
-                        {liab.installmentsRemaining && (
-                          <div className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-normal mt-0.5`}>
-                            {liab.installmentsRemaining}x restantes
-                          </div>
+                        {isQuitado ? (
+                          <span className="text-slate-400 font-normal text-xs" aria-label="Sem parcelas ativas">—</span>
+                        ) : (
+                          <>
+                            <div>{formatCurrency(liab.monthlyPayment)}/mês</div>
+                            {liab.installmentsRemaining ? (
+                              <div className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-500'} font-normal mt-0.5`}>
+                                {liab.installmentsRemaining}x restantes
+                              </div>
+                            ) : null}
+                          </>
                         )}
                       </td>
 
                       {/* Dia do Vencimento */}
                       <td className={`py-4 px-4 text-center text-xs font-semibold ${isDarkMode ? 'text-slate-300' : 'text-slate-700'}`}>
-                        {liab.dueDay ? `Dia ${liab.dueDay}` : '—'}
+                        {isQuitado ? (
+                          <span className="text-slate-400 font-normal text-[11px]">
+                            {liab.lastPaymentDate ? `Liquidado (${liab.lastPaymentDate.split('-').reverse().join('/')})` : 'Quitado'}
+                          </span>
+                        ) : (
+                          liab.dueDay ? `Dia ${liab.dueDay}` : '—'
+                        )}
                       </td>
 
                       {/* Status */}
