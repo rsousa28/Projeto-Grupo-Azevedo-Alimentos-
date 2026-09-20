@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Banknote, 
@@ -93,6 +94,13 @@ export default function CashClosing() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [confirmResetId, setConfirmResetId] = useState<string | null>(null);
+
+  // Minimiza automaticamente a barra lateral ao abrir a planilha/modal de fechamento para não obstruir a tela
+  useEffect(() => {
+    if (showModal) {
+      window.dispatchEvent(new CustomEvent('set_sidebar_collapsed', { detail: { collapsed: true } }));
+    }
+  }, [showModal]);
 
   // Load initial store custom closings on mount, store, and period changes
   useEffect(() => {
@@ -875,10 +883,10 @@ export default function CashClosing() {
       </div>
 
       <AnimatePresence>
-        {showModal && (
+        {showModal && typeof document !== 'undefined' && createPortal(
           <motion.div 
             key="cash-closing-modal-container"
-            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4"
           >
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
             <motion.div 
@@ -1322,15 +1330,16 @@ export default function CashClosing() {
                 </div>
               </div>
             </motion.div>
-          </motion.div>
+          </motion.div>,
+          document.body
         )}
       </AnimatePresence>
 
       <AnimatePresence>
-        {confirmResetId && (
+        {confirmResetId && typeof document !== 'undefined' && createPortal(
           <motion.div 
             key="cash-reset-modal-container"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4"
           >
             <motion.div 
               initial={{ opacity: 0 }} 
@@ -1390,7 +1399,8 @@ export default function CashClosing() {
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </motion.div>,
+          document.body
         )}
       </AnimatePresence>
     </div>

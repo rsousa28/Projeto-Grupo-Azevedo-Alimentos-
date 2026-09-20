@@ -143,6 +143,20 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     return () => window.removeEventListener('app_push_notification', handlePushEvent);
   }, [showToast]);
 
+  // Listen for sidebar collapse/expand requests from modals or full-screen views
+  useEffect(() => {
+    const handleCollapseEvent = (e: any) => {
+      const shouldCollapse = e.detail?.collapsed !== undefined ? Boolean(e.detail.collapsed) : true;
+      setCollapsed(shouldCollapse);
+      if (shouldCollapse) {
+        setMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener('set_sidebar_collapsed', handleCollapseEvent as EventListener);
+    return () => window.removeEventListener('set_sidebar_collapsed', handleCollapseEvent as EventListener);
+  }, []);
+
   return (
     <div className={`flex min-h-[100dvh] w-full max-w-[100dvw] overflow-x-hidden font-sans ${currentStore.brand === 'BEBELU' || currentStore.code === 'ROOT' ? 'selection:bg-amber-200 selection:text-[#7F300C]' : 'selection:bg-red-200 selection:text-red-950'} ${isDarkMode ? 'dark' : ''}`}>
       {/* Dynamic Conditional Sidebar (Operational for Stores, Holding for Gestão Grupo AZ) */}
