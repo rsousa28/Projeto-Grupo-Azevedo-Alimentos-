@@ -1675,7 +1675,7 @@ export default function DataEntrySection({
                   <h4 className={`text-sm font-black uppercase tracking-[0.2em] italic ${isDarkMode ? 'text-white' : 'text-black'}`}>Parâmetros da Campanha de Marketing</h4>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[#7D7D7D] dark:text-slate-400">Valor Total de Vendas das campanhas</label>
                     <div className="relative">
@@ -1702,21 +1702,6 @@ export default function DataEntrySection({
                         onChange={(e) => setMktInvestidoLoja(e.target.value === '' ? 0 : Number(e.target.value))}
                         onBlur={() => handleSave(true)}
                         className={`w-full pl-12 pr-4 py-3 rounded-xl border outline-none font-bold focus:ring-2 focus:ring-[#E63946] transition-all ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-[#E63946]' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-[#E63946]'}`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[#7D7D7D] dark:text-slate-400">Total de Pedidos Rastreados</label>
-                    <div className="relative">
-                      <input 
-                        type="number"
-                        placeholder="0"
-                        value={mktPedidosPromocao || ''}
-                        onPaste={(e) => handleNumericPaste(e, setMktPedidosPromocao)}
-                        onChange={(e) => setMktPedidosPromocao(e.target.value === '' ? 0 : Number(e.target.value))}
-                        onBlur={() => handleSave(true)}
-                        className={`w-full px-4 py-3 rounded-xl border outline-none font-bold focus:ring-2 focus:ring-[#E63946] transition-all ${isDarkMode ? 'bg-[#121212] border-[#333] text-white focus:border-[#E63946]' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-[#E63946]'}`}
                       />
                     </div>
                   </div>

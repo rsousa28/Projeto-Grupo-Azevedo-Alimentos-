@@ -73,6 +73,24 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
   // Auto-Save status tracking
   const [saveStatus, setSaveStatus] = useState<'IDLE' | 'SAVING' | 'SAVED'>('IDLE');
   const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const [showDiscardModal, setShowDiscardModal] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
+
+  const handleDiscardExecution = async () => {
+    try {
+      setIsDiscarding(true);
+      const draftDocRef = doc(db, 'stores', currentStore.id, 'checklists', `draft_${template.id}`);
+      await deleteDoc(draftDocRef);
+      setShowDiscardModal(false);
+      onBack();
+    } catch (err) {
+      console.warn("Erro ao descartar vistoria:", err);
+      setShowDiscardModal(false);
+      onBack();
+    } finally {
+      setIsDiscarding(false);
+    }
+  };
 
   // Initialize answers with defaults where appropriate, merged with existing draft
   useEffect(() => {
@@ -540,13 +558,31 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <button 
-          onClick={onBack}
-          className={`flex items-center gap-2 text-xs font-black uppercase tracking-wider ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
-        >
-          <ChevronLeft className="w-4 h-4" /> Voltar aos Modelos
-        </button>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex items-center gap-3">
+          <button 
+            type="button"
+            onClick={onBack}
+            className={`flex items-center gap-2 text-xs font-black uppercase tracking-wider cursor-pointer ${isDarkMode ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-slate-900'}`}
+          >
+            <ChevronLeft className="w-4 h-4" /> Voltar aos Modelos
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowDiscardModal(true)}
+            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+              isDarkMode 
+                ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20' 
+                : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'
+            }`}
+            title="Cancelar e descartar esta vistoria iniciada"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Descartar Vistoria</span>
+          </button>
+        </div>
+
         <span className={`text-[10px] font-black uppercase px-3 py-1 rounded-full ${
           isDarkMode ? 'bg-[#FFCB05]/10 text-[#FFCB05]' : 'bg-amber-100 text-amber-800'
         }`}>
@@ -953,20 +989,32 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
             <h4 className={`text-sm font-black uppercase italic ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Tudo Concluído?</h4>
             <p className="text-xs text-slate-500">Revise suas respostas e evidências antes de enviar.</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowDiscardModal(true)}
+              className={`px-4 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-colors flex items-center gap-1.5 border cursor-pointer ${
+                isDarkMode 
+                  ? 'border-rose-500/30 text-rose-400 hover:bg-rose-500/10' 
+                  : 'border-rose-200 text-rose-600 hover:bg-rose-50'
+              }`}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Descartar Vistoria
+            </button>
             <button
               type="button"
               onClick={onBack}
-              className={`px-5 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-colors ${
+              className={`px-5 py-3.5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-colors cursor-pointer ${
                 isDarkMode ? 'text-slate-400 hover:text-white hover:bg-white/5' : 'text-slate-600 hover:text-slate-950 hover:bg-slate-50'
               }`}
             >
-              Cancelar
+              Pausar e Sair
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-emerald-500/10 flex items-center gap-2"
+              className="px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-xl shadow-emerald-500/10 flex items-center gap-2 cursor-pointer"
             >
               {isSubmitting ? (
                 <>Enviando...</>
@@ -979,6 +1027,58 @@ export default function ChecklistExecution({ template, onBack, onSubmit }: Execu
           </div>
         </div>
       </form>
+
+      {/* Modal de Confirmação para Descartar Vistoria */}
+      {showDiscardModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-md p-6 rounded-3xl border shadow-2xl space-y-5 ${
+            isDarkMode ? 'bg-[#18181B] border-[#2C2C32] text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-black text-sm uppercase tracking-tight">Descartar esta Vistoria?</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  O rascunho em andamento de <strong className="text-rose-400 font-bold">{template.title}</strong> será apagado do sistema e não constará mais nas vistorias em andamento.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDiscarding}
+                onClick={() => setShowDiscardModal(false)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  isDarkMode ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Voltar / Continuar Vistoria
+              </button>
+              <button
+                type="button"
+                disabled={isDiscarding}
+                onClick={handleDiscardExecution}
+                className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-rose-600 hover:bg-rose-700 text-white transition-all cursor-pointer shadow-md active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isDiscarding ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Descartando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Sim, Descartar
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Photo Zoom Lightbox in Execution Screen */}
       <PhotoZoomModal 

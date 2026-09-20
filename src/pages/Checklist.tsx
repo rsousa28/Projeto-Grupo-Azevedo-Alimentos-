@@ -13,7 +13,9 @@ import {
   FileText,
   Play,
   Timer,
-  User
+  User,
+  Trash2,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useStore, STORES } from '../contexts/StoreContext';
@@ -79,6 +81,8 @@ export default function Checklist() {
 
   // Active Drafts (In-Progress checklists)
   const [activeDrafts, setActiveDrafts] = useState<any[]>([]);
+  const [draftToDelete, setDraftToDelete] = useState<any | null>(null);
+  const [isDeletingDraft, setIsDeletingDraft] = useState(false);
 
   // Synchronize Active Drafts (In-Progress checklists) in real-time
   useEffect(() => {
@@ -96,7 +100,9 @@ export default function Checklist() {
           if (snapshot.exists()) {
             draftsMap[`${stor.id}_${temp.id}`] = {
               ...snapshot.data(),
-              id: `draft_${stor.id}_${temp.id}`
+              id: `draft_${stor.id}_${temp.id}`,
+              storeId: stor.id,
+              templateId: temp.id
             };
           } else {
             delete draftsMap[`${stor.id}_${temp.id}`];
@@ -116,6 +122,25 @@ export default function Checklist() {
       unsubDraftsList.forEach(unsub => unsub());
     };
   }, [templates, currentStore.id]);
+
+  // Função para encerrar/cancelar vistoria em andamento iniciada por engano
+  const handleDiscardDraft = async (draft: any) => {
+    if (!draft) return;
+    try {
+      setIsDeletingDraft(true);
+      const targetStoreId = draft.storeId || currentStore.id;
+      const targetTemplateId = draft.templateId;
+      const draftDocRef = doc(db, 'stores', targetStoreId, 'checklists', `draft_${targetTemplateId}`);
+      await deleteDoc(draftDocRef);
+      success('Vistoria encerrada e rascunho descartado com sucesso.');
+      setDraftToDelete(null);
+    } catch (err) {
+      console.error('Erro ao descartar vistoria em andamento:', err);
+      warning('Não foi possível descartar a vistoria. Tente novamente.');
+    } finally {
+      setIsDeletingDraft(false);
+    }
+  };
 
   // Load persistent database on mount and whenever currentStore changes
   useEffect(() => {
@@ -812,21 +837,38 @@ export default function Checklist() {
                               </div>
                             </div>
 
-                            <button
-                              onClick={() => {
-                                if (relatedTemplate) {
-                                  setExecutingTemplate(relatedTemplate);
-                                }
-                              }}
-                              disabled={!relatedTemplate}
-                              className={`w-full sm:w-auto px-4 py-3 rounded-2xl font-black text-[9px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
-                                relatedTemplate
-                                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer active:scale-95'
-                                  : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
-                              }`}
-                            >
-                              <Play className="w-3 h-3 fill-current" /> Continuar
-                            </button>
+                            <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setDraftToDelete(draft)}
+                                className={`flex-1 sm:flex-initial px-3.5 py-3 rounded-2xl font-black text-[9px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all border cursor-pointer active:scale-95 ${
+                                  isDarkMode
+                                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 hover:border-rose-500/50'
+                                    : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100 hover:border-rose-300'
+                                }`}
+                                title="Encerrar ou cancelar esta vistoria iniciada"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Encerrar</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (relatedTemplate) {
+                                    setExecutingTemplate(relatedTemplate);
+                                  }
+                                }}
+                                disabled={!relatedTemplate}
+                                className={`flex-1 sm:flex-initial px-4 py-3 rounded-2xl font-black text-[9px] uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all ${
+                                  relatedTemplate
+                                    ? 'bg-emerald-500 hover:bg-emerald-600 text-white cursor-pointer active:scale-95'
+                                    : 'bg-zinc-800 text-zinc-600 cursor-not-allowed'
+                                }`}
+                              >
+                                <Play className="w-3 h-3 fill-current" /> Continuar
+                              </button>
+                            </div>
                           </div>
                         );
                       })}
@@ -933,6 +975,58 @@ export default function Checklist() {
                 }}
               />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação para Descartar/Encerrar Vistoria em Andamento */}
+      {draftToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className={`w-full max-w-md p-6 rounded-3xl border shadow-2xl space-y-5 ${
+            isDarkMode ? 'bg-[#18181B] border-[#2C2C32] text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}>
+            <div className="flex items-start gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div className="space-y-1">
+                <h4 className="font-black text-sm uppercase tracking-tight">Encerrar e Descartar Vistoria?</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Você iniciou a vistoria de <strong className="text-rose-400 font-bold">{draftToDelete.templateTitle}</strong> na unidade <strong className={isDarkMode ? 'text-white' : 'text-slate-900'}>{draftToDelete.storeName}</strong>. Deseja cancelar e apagar este rascunho em andamento?
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeletingDraft}
+                onClick={() => setDraftToDelete(null)}
+                className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                  isDarkMode ? 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                Voltar / Manter
+              </button>
+              <button
+                type="button"
+                disabled={isDeletingDraft}
+                onClick={() => handleDiscardDraft(draftToDelete)}
+                className="px-4 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider bg-rose-600 hover:bg-rose-700 text-white transition-all cursor-pointer shadow-md active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isDeletingDraft ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    Encerrando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Sim, Encerrar
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

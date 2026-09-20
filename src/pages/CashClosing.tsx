@@ -21,7 +21,8 @@ import {
   ChevronDown,
   RotateCcw,
   Check,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -177,6 +178,7 @@ export default function CashClosing() {
 
   const [formData, setFormData] = useState<CashClosingForm>(initialFormState);
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
+  const [extraFields, setExtraFields] = useState<('outros2' | 'outros3' | 'outros4')[]>([]);
 
   const months = [
     { value: '01', label: 'Janeiro' },
@@ -370,18 +372,49 @@ export default function CashClosing() {
     ? totalRevenue / allClosings.filter(c => c.revenue > 0).length 
     : 0;
 
+  const formatCurrencyInputDisplay = (val: number | undefined | null): string => {
+    if (val === undefined || val === null || isNaN(val) || val === 0) return '0,00';
+    return val.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const handleInputChange = (field: keyof CashClosingForm, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const handleNumberChange = (field: keyof CashClosingForm, value: string) => {
-    // Keep the raw string in local input state to allow typing comma
+    // Keep raw string in local state while typing
     setInputValues(prev => ({ ...prev, [field]: value }));
     
-    // Normalize for numeric state (replace comma with dot)
-    const normalized = value.replace(',', '.').replace(/[^0-9.]/g, '');
+    // Normalize for numeric state (replace thousand dots, convert comma to dot)
+    const normalized = value.replace(/\./g, '').replace(',', '.').replace(/[^0-9.]/g, '');
     const num = parseFloat(normalized) || 0;
     setFormData(prev => ({ ...prev, [field]: num }));
+  };
+
+  const handleNumberFocus = (field: keyof CashClosingForm) => {
+    const currentVal = inputValues[field];
+    if (currentVal === '0,00' || currentVal === '0' || !currentVal) {
+      setInputValues(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const handleNumberBlur = (field: keyof CashClosingForm) => {
+    const num = (formData[field] as number) || 0;
+    setInputValues(prev => ({ ...prev, [field]: formatCurrencyInputDisplay(num) }));
+  };
+
+  const addExtraJustification = () => {
+    const allExtras: ('outros2' | 'outros3' | 'outros4')[] = ['outros2', 'outros3', 'outros4'];
+    const next = allExtras.find(field => !extraFields.includes(field));
+    if (next) {
+      setExtraFields(prev => [...prev, next]);
+    }
+  };
+
+  const removeExtraJustification = (field: ('outros2' | 'outros3' | 'outros4')) => {
+    setExtraFields(prev => prev.filter(f => f !== field));
+    setFormData(prev => ({ ...prev, [field]: 0, [`${field}_label`]: '' }));
+    setInputValues(prev => ({ ...prev, [field]: '0,00' }));
   };
 
   const toggleVerifyClosing = async (id: string, currentVerified: boolean) => {
@@ -426,17 +459,41 @@ export default function CashClosing() {
       const initialInputs: Record<string, string> = {};
       Object.entries(saved).forEach(([key, val]) => {
         if (typeof val === 'number') {
-          initialInputs[key] = val === 0 ? '' : val.toString().replace('.', ',');
+          initialInputs[key] = formatCurrencyInputDisplay(val);
         }
       });
       setInputValues(initialInputs);
+
+      // Check which extra fields have content
+      const activeExtras: ('outros2' | 'outros3' | 'outros4')[] = [];
+      if ((saved.outros2 && saved.outros2 > 0) || saved.outros2_label) activeExtras.push('outros2');
+      if ((saved.outros3 && saved.outros3 > 0) || saved.outros3_label) activeExtras.push('outros3');
+      if ((saved.outros4 && saved.outros4 > 0) || saved.outros4_label) activeExtras.push('outros4');
+      setExtraFields(activeExtras);
     } else {
       setFormData({ 
         ...initialFormState, 
         date: id,
         operator: user?.name || ''
       });
-      setInputValues({});
+      setInputValues({
+        delivery: '0,00',
+        creditCard: '0,00',
+        debitCard: '0,00',
+        refeicao: '0,00',
+        pix: '0,00',
+        totem: '0,00',
+        sangria: '0,00',
+        lancheFuncionarios: '0,00',
+        valefuncionario: '0,00',
+        despesas: '0,00',
+        outros1: '0,00',
+        outros2: '0,00',
+        outros3: '0,00',
+        outros4: '0,00',
+        totalSistema: '0,00',
+      });
+      setExtraFields([]);
     }
     setShowModal(true);
   };
@@ -821,58 +878,107 @@ export default function CashClosing() {
         {showModal && (
           <motion.div 
             key="cash-closing-modal-container"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4"
           >
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowModal(false)} className="absolute inset-0 bg-black/80 backdrop-blur-md" />
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 30 }}
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 30 }}
-              className={`relative w-full max-w-4xl max-h-[90vh] overflow-hidden rounded-[3rem] shadow-2xl flex flex-col ${isDarkMode ? 'bg-[#121212]' : 'bg-white'}`}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className={`relative w-full max-w-5xl max-h-[96vh] overflow-hidden rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col border ${
+                isDarkMode ? 'bg-[#121214] border-[#2C2C32] text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`}
             >
-              <div className="p-8 border-b dark:border-[#333] flex items-center justify-between bg-black">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 bg-amber-500 rounded-2xl font-black italic">{storeInfo.logo}</div>
+              {/* 1. Header Principal */}
+              <div className="px-5 py-3 border-b border-white/10 dark:border-[#2C2C32] flex items-center justify-between bg-black text-white shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 flex items-center justify-center bg-amber-500 rounded-xl font-black italic text-black text-sm shadow-md">
+                    {storeInfo.logo}
+                  </div>
                   <div>
-                    <h3 className={`text-xl font-black uppercase italic tracking-tighter ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-amber-500' : 'text-white'}`}>{storeInfo.title}</h3>
-                    <p className={`text-[10px] font-bold uppercase tracking-widest italic ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-amber-500/50' : 'text-slate-400'}`}>{storeInfo.location}</p>
+                    <h3 className={`text-sm sm:text-base font-black uppercase italic tracking-tighter leading-tight ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-amber-500' : 'text-white'}`}>
+                      {storeInfo.title}
+                    </h3>
+                    <p className={`text-[9px] font-bold uppercase tracking-widest italic leading-none ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-amber-500/60' : 'text-slate-400'}`}>
+                      {storeInfo.location}
+                    </p>
                   </div>
                 </div>
-                <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/10 rounded-xl text-white"><X /></button>
+                <button 
+                  onClick={() => setShowModal(false)} 
+                  className="p-1.5 hover:bg-white/10 rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+                  title="Fechar"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 md:p-10 space-y-8">
-                {/* Header Date & Operator */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase italic ml-2">Data do Fechamento</label>
+              {/* 2. Barra de Status Discreta (Data e Operador) */}
+              <div className={`px-5 py-2 border-b flex flex-wrap items-center justify-between gap-3 text-xs shrink-0 ${
+                isDarkMode 
+                  ? 'bg-zinc-900/60 border-[#2C2C32] text-slate-300' 
+                  : 'bg-slate-50 border-slate-200 text-slate-700'
+              }`}>
+                <div className="flex items-center gap-4 flex-wrap">
+                  {/* Data */}
+                  <div className="flex items-center gap-2">
+                    <Calendar className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Data:</label>
                     <input 
                       type="date" 
                       value={formData.date} 
                       onChange={(e) => handleInputChange('date', e.target.value)} 
-                      className={`w-full px-6 py-4 rounded-2xl border font-black italic text-sm outline-none ${isDarkMode ? 'bg-black border-[#333] text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} 
+                      className={`px-2.5 py-1 rounded-lg border font-bold text-xs outline-none transition-colors ${
+                        isDarkMode 
+                          ? 'bg-black/50 border-zinc-700 text-white focus:border-amber-500' 
+                          : 'bg-white border-slate-200 text-slate-900 focus:border-amber-500'
+                      }`} 
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-500 uppercase italic ml-2">Operador Responsável</label>
+
+                  <div className="h-4 w-px bg-slate-300 dark:bg-zinc-700 hidden sm:block" />
+
+                  {/* Operador */}
+                  <div className="flex items-center gap-2">
+                    <User className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400">Operador:</label>
                     <input 
                       type="text" 
                       placeholder="Nome do responsável" 
                       value={formData.operator} 
                       onChange={(e) => handleInputChange('operator', e.target.value)} 
-                      className={`w-full px-6 py-4 rounded-2xl border font-black italic text-sm outline-none ${isDarkMode ? 'bg-black border-[#333] text-white' : 'bg-slate-50 border-slate-100 text-slate-900'}`} 
+                      className={`w-44 sm:w-60 px-2.5 py-1 rounded-lg border font-bold text-xs outline-none transition-colors ${
+                        isDarkMode 
+                          ? 'bg-black/50 border-zinc-700 text-white focus:border-amber-500 placeholder:text-zinc-600' 
+                          : 'bg-white border-slate-200 text-slate-900 focus:border-amber-500 placeholder:text-slate-400'
+                      }`} 
                     />
                   </div>
                 </div>
 
-                {/* 2-Column Form Layout matching Bebelu Design */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                  {/* Left Column: Finalizadores de Venda */}
-                  <div className="space-y-6">
-                    <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${
+                {/* Badge de Status da Conferência */}
+                <div className="flex items-center gap-2">
+                  <span className={`text-[9px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                    closingsData[formData.date]?.verified
+                      ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                  }`}>
+                    {closingsData[formData.date]?.verified ? '✓ Conferido' : '• Lançamento em Aberto'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Corpo do Modal */}
+              <div className="flex-1 overflow-y-auto px-5 py-3.5 sm:px-6 sm:py-4 space-y-3.5">
+                {/* 3. 2 Colunas de Lançamento */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 items-start">
+                  
+                  {/* Coluna Esquerda: Finalizadores de Venda */}
+                  <div className="space-y-1">
+                    <h4 className={`text-xs font-black uppercase italic border-b pb-1 mb-2 ${
                       storeInfo.brand?.toLowerCase().includes('bebelu') 
                         ? 'text-[#7F300C] border-[#7F300C]/20' 
-                        : isDarkMode ? 'text-white border-white/20' : 'text-slate-900 border-slate-200'
+                        : isDarkMode ? 'text-white border-white/10' : 'text-slate-900 border-slate-200'
                     }`}>
                       Finalizadores de Venda {isB28 ? '(B28)' : ''}
                     </h4>
@@ -893,153 +999,273 @@ export default function CashClosing() {
                       { label: 'TOTEM', field: 'totem' as const },
                       { label: 'SANGRIA', field: 'sangria' as const },
                     ]).map(item => (
-                      <div key={item.field} className="flex items-center justify-between group">
-                        <span className={`text-[11px] font-bold uppercase transition-colors ${
+                      <div key={item.field} className="flex items-center justify-between group py-0.5">
+                        <span className={`text-[10px] sm:text-[11px] font-bold uppercase transition-colors ${
                           storeInfo.brand?.toLowerCase().includes('bebelu') 
                             ? 'text-[#7F300C]' 
-                            : isDarkMode ? 'text-white group-hover:text-amber-500' : 'text-slate-900 group-hover:text-amber-500'
+                            : isDarkMode ? 'text-slate-300 group-hover:text-amber-500' : 'text-slate-700 group-hover:text-amber-500'
                         }`}>
                           {item.label}
                         </span>
+                        <div className={`flex items-center w-36 px-2.5 py-1 rounded-xl border transition-all ${
+                          isDarkMode 
+                            ? 'bg-black/40 border-zinc-800 focus-within:border-amber-500' 
+                            : 'bg-slate-50 border-slate-200 focus-within:border-amber-500'
+                        }`}>
+                          <span className="text-[10px] font-bold text-slate-400 select-none mr-1 shrink-0">R$</span>
+                          <input 
+                            type="text" 
+                            value={inputValues[item.field] !== undefined ? inputValues[item.field] : formatCurrencyInputDisplay(formData[item.field] as number)} 
+                            onChange={(e) => handleNumberChange(item.field, e.target.value)} 
+                            onFocus={() => handleNumberFocus(item.field)}
+                            onBlur={() => handleNumberBlur(item.field)}
+                            className="w-full text-right font-black italic text-xs outline-none bg-transparent text-slate-900 dark:text-white"
+                            placeholder="0,00"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Coluna Direita: Outros / Justificativas */}
+                  <div className="space-y-1">
+                    <h4 className={`text-xs font-black uppercase italic border-b pb-1 mb-2 ${
+                      storeInfo.brand?.toLowerCase().includes('bebelu') 
+                        ? 'text-[#7F300C] border-[#7F300C]/20' 
+                        : isDarkMode ? 'text-white border-white/10' : 'text-slate-900 border-slate-200'
+                    }`}>
+                      Outros / Justificativas {isB28 ? '(B28)' : ''}
+                    </h4>
+
+                    {(isB28 ? [
+                      { label: 'LANCHE FUNCIONÁRIO', field: 'lancheFuncionarios' as const, isFixed: true },
+                      { label: 'VALE FUNCIONÁRIO', field: 'valefuncionario' as const, isFixed: true },
+                      { label: 'DESPESAS', field: 'despesas' as const, isFixed: true },
+                    ] : [
+                      { label: 'LANCHE', field: 'lancheFuncionarios' as const, isFixed: true },
+                      { label: 'VALE FUNCIONÁRIO', field: 'valefuncionario' as const, isFixed: true },
+                      { label: 'DESPESAS', field: 'despesas' as const, isFixed: true },
+                      { label: 'REPOSIÇÃO FUNDO DE CAIXA', field: 'outros1' as const, isFixed: true },
+                    ]).map(item => (
+                      <div key={item.field} className="flex items-center justify-between group py-0.5">
+                        <span className={`text-[10px] sm:text-[11px] font-bold uppercase transition-colors shrink-0 ${
+                          storeInfo.brand?.toLowerCase().includes('bebelu') 
+                            ? 'text-[#7F300C]' 
+                            : isDarkMode ? 'text-slate-300 group-hover:text-amber-500' : 'text-slate-700 group-hover:text-amber-500'
+                        }`}>
+                          {item.label}
+                        </span>
+                        <div className={`flex items-center w-36 px-2.5 py-1 rounded-xl border transition-all ${
+                          isDarkMode 
+                            ? 'bg-black/40 border-zinc-800 focus-within:border-amber-500' 
+                            : 'bg-slate-50 border-slate-200 focus-within:border-amber-500'
+                        }`}>
+                          <span className="text-[10px] font-bold text-slate-400 select-none mr-1 shrink-0">R$</span>
+                          <input 
+                            type="text" 
+                            value={inputValues[item.field] !== undefined ? inputValues[item.field] : formatCurrencyInputDisplay(formData[item.field] as number)} 
+                            onChange={(e) => handleNumberChange(item.field, e.target.value)} 
+                            onFocus={() => handleNumberFocus(item.field)}
+                            onBlur={() => handleNumberBlur(item.field)}
+                            className="w-full text-right font-black italic text-xs outline-none bg-transparent text-slate-900 dark:text-white"
+                            placeholder="0,00"
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Justificativas Extras Dinâmicas (outros2, outros3, outros4) */}
+                    {extraFields.map((field) => {
+                      const num = field.replace('outros', '');
+                      const labelField = `${field}_label` as keyof CashClosingForm;
+                      return (
+                        <div key={field} className="flex items-center justify-between group gap-2 py-0.5">
+                          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                            <button
+                              type="button"
+                              onClick={() => removeExtraJustification(field)}
+                              className="text-slate-400 hover:text-rose-500 p-0.5 transition-colors cursor-pointer shrink-0"
+                              title="Remover justificativa"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                            <input 
+                              type="text" 
+                              placeholder={`OUTROS ${num}`} 
+                              value={(formData[labelField] as string) || ''}
+                              onChange={(e) => handleInputChange(labelField, e.target.value)}
+                              className={`w-full px-2 py-1 rounded-lg border text-[10px] font-bold uppercase outline-none transition-all ${
+                                isDarkMode 
+                                  ? 'bg-black/30 border-zinc-800 text-white focus:border-amber-500 placeholder:text-zinc-600' 
+                                  : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-amber-500 placeholder:text-slate-400'
+                              }`} 
+                            />
+                          </div>
+                          <div className={`flex items-center w-36 px-2.5 py-1 rounded-xl border transition-all shrink-0 ${
+                            isDarkMode 
+                              ? 'bg-black/40 border-zinc-800 focus-within:border-amber-500' 
+                              : 'bg-slate-50 border-slate-200 focus-within:border-amber-500'
+                          }`}>
+                            <span className="text-[10px] font-bold text-slate-400 select-none mr-1 shrink-0">R$</span>
+                            <input 
+                              type="text" 
+                              value={inputValues[field] !== undefined ? inputValues[field] : formatCurrencyInputDisplay(formData[field] as number)} 
+                              onChange={(e) => handleNumberChange(field, e.target.value)} 
+                              onFocus={() => handleNumberFocus(field)}
+                              onBlur={() => handleNumberBlur(field)}
+                              className="w-full text-right font-black italic text-xs outline-none bg-transparent text-slate-900 dark:text-white"
+                              placeholder="0,00"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {/* Botão de Adicionar Justificativa Extra */}
+                    {!isB28 && extraFields.length < 3 && (
+                      <div className="pt-1">
+                        <button
+                          type="button"
+                          onClick={addExtraJustification}
+                          className="inline-flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold text-amber-500 hover:text-amber-400 hover:underline cursor-pointer transition-colors"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Adicionar outros</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. Área Inferior: Observações e Totais (Duas Metades Equilibradas) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 pt-2.5 border-t border-slate-100 dark:border-white/5 items-stretch">
+                  {/* Lado Esquerdo: Observações / Notas */}
+                  <div className="flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className={`text-[10px] sm:text-xs font-black uppercase italic ${
+                        storeInfo.brand?.toLowerCase().includes('bebelu') 
+                          ? 'text-[#7F300C]' 
+                          : isDarkMode ? 'text-white' : 'text-slate-900'
+                      }`}>
+                        Observações / Notas
+                      </label>
+                      <span className="text-[9px] text-slate-400 font-medium">Opcional</span>
+                    </div>
+                    <textarea 
+                      value={formData.observations}
+                      onChange={(e) => handleInputChange('observations', e.target.value)}
+                      placeholder="Observações ou justificativas relevantes sobre o fechamento..."
+                      rows={3}
+                      className={`w-full flex-1 p-2.5 rounded-xl border font-medium text-xs outline-none resize-none transition-all ${
+                        isDarkMode 
+                          ? 'bg-black/30 border-zinc-800 text-white focus:border-amber-500 placeholder:text-zinc-600' 
+                          : 'bg-slate-50 border-slate-200 text-slate-900 focus:border-amber-500 placeholder:text-slate-400'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Lado Direito: Card de Resumo Contábil Refinado */}
+                  <div className={`p-3 sm:p-3.5 rounded-2xl border flex flex-col justify-between space-y-2.5 ${
+                    isDarkMode 
+                      ? 'bg-[#18181C] border-[#2C2C32] shadow-sm' 
+                      : 'bg-slate-50 border-slate-200 shadow-sm'
+                  }`}>
+                    {/* Total Geral Informado */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-tight text-slate-500 dark:text-slate-400">
+                        Total Informado
+                      </span>
+                      <span className="text-sm sm:text-base font-black italic text-slate-900 dark:text-white">
+                        {formatCurrencyLocal(totalGeral)}
+                      </span>
+                    </div>
+
+                    {/* Total Sistema */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-tight text-slate-500 dark:text-slate-400">
+                        Total Sistema
+                      </span>
+                      <div className={`flex items-center w-36 px-2.5 py-1 rounded-xl border transition-all ${
+                        isDarkMode 
+                          ? 'bg-black/50 border-zinc-800 focus-within:border-amber-500' 
+                          : 'bg-white border-slate-200 focus-within:border-amber-500'
+                      }`}>
+                        <span className="text-[10px] font-bold text-slate-400 select-none mr-1 shrink-0">R$</span>
                         <input 
                           type="text" 
-                          value={inputValues[item.field] !== undefined ? inputValues[item.field] : (formData[item.field] || '')} 
-                          onChange={(e) => handleNumberChange(item.field, e.target.value)} 
-                          className={`w-36 px-4 py-2.5 text-right rounded-2xl font-black italic outline-none border transition-all text-sm ${
-                            isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'
-                          }`}
+                          value={inputValues['totalSistema'] !== undefined ? inputValues['totalSistema'] : formatCurrencyInputDisplay(formData.totalSistema)} 
+                          onChange={(e) => handleNumberChange('totalSistema', e.target.value)} 
+                          onFocus={() => handleNumberFocus('totalSistema')}
+                          onBlur={() => handleNumberBlur('totalSistema')}
+                          className="w-full text-right font-black italic text-xs outline-none bg-transparent text-amber-500"
                           placeholder="0,00"
                         />
                       </div>
-                    ))}
-                    
-                    {/* Observations in left column bottom */}
-                    <div className="space-y-2 pt-6">
-                      <label className={`text-[10px] font-black uppercase italic ml-2 ${storeInfo.brand?.toLowerCase().includes('bebelu') ? 'text-[#7F300C]' : (isDarkMode ? 'text-white' : 'text-slate-950')}`}>
-                        Observações / Notas
-                      </label>
-                      <textarea 
-                        value={formData.observations}
-                        onChange={(e) => handleInputChange('observations', e.target.value)}
-                        placeholder="Digite aqui observações relevantes sobre o fechamento..."
-                        className={`w-full h-full min-h-[120px] p-6 rounded-[2rem] border font-medium text-sm outline-none resize-none transition-all ${
-                          isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-950 focus:border-amber-500'
-                        }`}
-                      />
                     </div>
-                  </div>
 
-                  {/* Right Column: Outros / Justificativas & Totals */}
-                  <div className="space-y-8">
-                    <div className="space-y-4">
-                      <h4 className={`text-sm font-black uppercase italic border-b pb-2 ${
-                        storeInfo.brand?.toLowerCase().includes('bebelu') 
-                          ? 'text-[#7F300C] border-[#7F300C]/20' 
-                          : isDarkMode ? 'text-white border-white/20' : 'text-slate-900 border-slate-200'
+                    {/* Linha Divisória */}
+                    <div className="border-t border-slate-200 dark:border-zinc-800" />
+
+                    {/* Diferença: Badge ou cor condicional */}
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] sm:text-xs font-bold uppercase tracking-tight text-slate-500 dark:text-slate-400">
+                        Diferença
+                      </span>
+                      <div className={`px-2.5 py-1 rounded-xl text-xs font-black tracking-tight flex items-center gap-1.5 ${
+                        diff === 0 
+                          ? 'bg-slate-500/10 text-slate-400 border border-slate-500/20' 
+                          : diff > 0 
+                            ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/25' 
+                            : 'bg-rose-500/10 text-rose-500 border border-rose-500/25'
                       }`}>
-                        Outros / Justificativas {isB28 ? '(B28)' : ''}
-                      </h4>
-
-                      {(isB28 ? [
-                        { label: 'LANCHE FUNCIONÁRIO', field: 'lancheFuncionarios' as const, isFixed: true },
-                        { label: 'VALE FUNCIONÁRIO', field: 'valefuncionario' as const, isFixed: true },
-                        { label: 'DESPESAS', field: 'despesas' as const, isFixed: true },
-                      ] : [
-                        { label: 'LANCHE', field: 'lancheFuncionarios' as const, isFixed: true },
-                        { label: 'VALE FUNCIONÁRIO', field: 'valefuncionario' as const, isFixed: true },
-                        { label: 'DESPESAS', field: 'despesas' as const, isFixed: true },
-                        { label: 'OUTROS (COD 50)', field: 'outros1' as const },
-                        { label: 'OUTROS 2', field: 'outros2' as const },
-                        { label: 'OUTROS 3', field: 'outros3' as const },
-                        { label: 'OUTROS 4', field: 'outros4' as const },
-                      ]).map(item => (
-                        <div key={item.field} className="flex items-center justify-between group gap-2">
-                          {(item as any).isFixed ? (
-                            <span className={`text-[11px] font-bold uppercase transition-colors shrink-0 ${
-                              storeInfo.brand?.toLowerCase().includes('bebelu') 
-                                ? 'text-[#7F300C]' 
-                                : isDarkMode ? 'text-white group-hover:text-amber-500' : 'text-slate-900 group-hover:text-amber-500'
-                            }`}>
-                              {item.label}
-                            </span>
-                          ) : (
-                            <input 
-                              type="text" 
-                              placeholder={item.label} 
-                              value={formData[`${item.field}_label` as keyof CashClosingForm] as string || ''}
-                              onChange={(e) => handleInputChange(`${item.field}_label` as keyof CashClosingForm, e.target.value)}
-                              className={`flex-1 px-4 py-2 rounded-xl border text-[10px] font-bold uppercase outline-none transition-all ${isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500 placeholder:text-slate-600' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'}`} 
-                            />
-                          )}
-                          <input 
-                            type="text" 
-                            value={inputValues[item.field] !== undefined ? inputValues[item.field] : (formData[item.field] || '')} 
-                            onChange={(e) => handleNumberChange(item.field, e.target.value)} 
-                            className={`w-36 px-4 py-2.5 text-right rounded-2xl font-black italic outline-none border transition-all text-sm ${
-                              isDarkMode ? 'bg-black border-slate-800 text-white focus:border-amber-500' : 'bg-slate-50 border-slate-100 text-slate-900 focus:border-amber-500'
-                            }`}
-                            placeholder="0,00"
-                          />
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Totals and Calculation Box */}
-                    <div className="mt-8">
-                      <div className="p-8 rounded-[2rem] bg-black border border-slate-800 space-y-6 shadow-2xl flex flex-col justify-center">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[10px] font-black text-slate-500 uppercase italic">Total Geral Informado</span>
-                          <span className="text-2xl font-black text-white italic">{formatCurrencyLocal(totalGeral)}</span>
-                        </div>
-                        <div className="flex items-center justify-between border-t border-slate-800 pt-6">
-                          <span className="text-[10px] font-black text-slate-500 uppercase italic">Total Sistema</span>
-                          <input 
-                            type="text" 
-                            value={inputValues['totalSistema'] !== undefined ? inputValues['totalSistema'] : (formData.totalSistema || '')} 
-                            onChange={(e) => handleNumberChange('totalSistema', e.target.value)} 
-                            className="w-36 bg-transparent text-xl font-black text-amber-500 text-right outline-none underline underline-offset-4 decoration-amber-500/30"
-                            placeholder="0,00"
-                          />
-                        </div>
-                        <div className={`flex items-center justify-between border-t border-slate-800 pt-6 p-4 rounded-2xl ${
-                          diff === 0 
-                            ? 'bg-slate-500/10 text-slate-300' 
-                            : diff > 0 
-                              ? 'bg-green-500/10 text-green-500' 
-                              : 'bg-red-700/10 text-red-700'
-                        }`}>
-                          <span className={`text-[10px] font-black uppercase italic ${
-                            diff === 0 ? 'text-slate-300' : diff > 0 ? 'text-green-500' : 'text-red-700'
-                          }`}>
-                            {diff === 0 ? 'SOBRA / FALTA' : diff > 0 ? 'SOBRA (+)' : 'FALTA (-)'}
-                          </span>
-                          <span className={`text-xl font-black italic ${
-                            diff === 0 ? 'text-slate-300' : diff > 0 ? 'text-green-500' : 'text-red-700'
-                          }`}>
-                            {diff === 0 ? 'R$ 0,00 (Batido)' : formatCurrencyLocal(Math.abs(diff))}
-                          </span>
-                        </div>
+                        <span>
+                          {diff === 0 ? 'Batido' : diff > 0 ? 'Sobra (+)' : 'Falta (-)'}
+                        </span>
+                        <span className="italic font-bold">
+                          {diff === 0 ? 'R$ 0,00' : formatCurrencyLocal(Math.abs(diff))}
+                        </span>
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="p-8 border-t dark:border-[#333] flex items-center justify-between bg-slate-900 rounded-b-[3rem]">
-                <div className="flex gap-2">
-                   <button onClick={exportToPDF} className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all">
-                     <FileDown className="w-4 h-4" /> PDF
-                   </button>
-                   <button 
-                     onClick={() => window.print()} 
-                     className="flex items-center gap-2 px-6 py-3 bg-white/5 hover:bg-white/10 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
-                   >
-                     <Printer className="w-4 h-4" /> IMPRIMIR
-                   </button>
-                </div>
-                <div className="flex gap-4">
-                  <button onClick={() => setShowModal(false)} className="px-6 py-3 text-slate-400 hover:text-white font-black text-[10px] uppercase tracking-widest">CANCELAR</button>
+              {/* 5. Rodapé de Ações */}
+              <div className="px-5 py-3 border-t border-slate-200 dark:border-[#2C2C32] flex items-center justify-between bg-slate-950 text-white shrink-0">
+                {/* Botões Secundários: PDF e Imprimir minimalistas */}
+                <div className="flex items-center gap-2">
                   <button 
+                    type="button"
+                    onClick={exportToPDF} 
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-white/10 transition-all cursor-pointer"
+                    title="Exportar fechamento em PDF"
+                  >
+                    <FileDown className="w-3.5 h-3.5 text-amber-500" />
+                    <span>PDF</span>
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => window.print()} 
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-white/10 transition-all cursor-pointer"
+                    title="Imprimir fechamento"
+                  >
+                    <Printer className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Imprimir</span>
+                  </button>
+                </div>
+
+                {/* Botões de Ação Final */}
+                <div className="flex items-center gap-3">
+                  <button 
+                    type="button"
+                    onClick={() => setShowModal(false)} 
+                    className="px-4 py-2 text-slate-400 hover:text-white font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="button"
+                    disabled={isSaving}
                     onClick={async () => {
                       setIsSaving(true);
                       await new Promise(r => setTimeout(r, 800));
@@ -1052,8 +1278,8 @@ export default function CashClosing() {
                       localStorage.setItem(`closings_data_${currentStore.id}`, JSON.stringify(updated));
                       
                       try {
-                        const entryDateKey = formData.date; // e.g. 2026-08-05
-                        const periodKey = entryDateKey.substring(0, 7).replace('-', '_'); // e.g. 2026_08
+                        const entryDateKey = formData.date;
+                        const periodKey = entryDateKey.substring(0, 7).replace('-', '_');
                         const periodRef = doc(db, 'stores', currentStore.id, 'closings', periodKey);
                         const allRef = doc(db, 'stores', currentStore.id, 'closings', 'all');
 
@@ -1065,7 +1291,6 @@ export default function CashClosing() {
                         ]);
                         toastSuccess("Fechamento de caixa confirmado e registrado com sucesso!");
 
-                        // Dispatch real-time push notification to all devices
                         const activeOperator = user?.name || user?.username || formData.operator || 'Operador';
                         NotificationService.notifyCashClosingCompleted({
                           storeName: currentStore.name,
@@ -1083,9 +1308,16 @@ export default function CashClosing() {
                       setIsSaving(false);
                       setShowModal(false);
                     }}
-                    className="px-10 py-4 bg-amber-500 hover:bg-white text-black rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-amber-500/20 active:scale-95"
+                    className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-black rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50"
                   >
-                    CONFIRMAR FECHAMENTO
+                    {isSaving ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Salvando...</span>
+                      </>
+                    ) : (
+                      <span>Confirmar Fechamento</span>
+                    )}
                   </button>
                 </div>
               </div>
