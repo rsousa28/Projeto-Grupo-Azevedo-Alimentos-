@@ -37,6 +37,8 @@ export interface StoreLiability {
   status: 'Em Dia' | 'Atrasado' | 'Em Negociação' | 'Quitado';
   dueDate?: string;
   dueDay?: number; // Dia de vencimento (1 a 31)
+  lastPaymentDate?: string;
+  lastPaymentAmount?: number;
   createdAt: string;
   notes?: string;
 }

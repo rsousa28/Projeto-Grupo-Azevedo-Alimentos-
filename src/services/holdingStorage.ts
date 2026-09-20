@@ -234,6 +234,54 @@ export const HoldingStorage = {
     return updated;
   },
 
+  payLiability(
+    id: string,
+    amountPaid: number,
+    options?: {
+      isFullSettlement?: boolean;
+      decrementInstallment?: boolean;
+      paymentDate?: string;
+      payerAccount?: string;
+      notes?: string;
+    }
+  ): StoreLiability[] {
+    const liabs = this.getLiabilities();
+    const updated = liabs.map(li => {
+      if (li.id === id) {
+        const isFull = options?.isFullSettlement || amountPaid >= li.totalAmount;
+        const newTotal = isFull ? 0 : Math.max(0, Math.round((li.totalAmount - amountPaid) * 100) / 100);
+        const newStatus: StoreLiability['status'] = newTotal <= 0 ? 'Quitado' : 'Em Dia';
+
+        let newInstallments = li.installmentsRemaining;
+        if (isFull) {
+          newInstallments = 0;
+        } else if (options?.decrementInstallment && newInstallments && newInstallments > 0) {
+          newInstallments = Math.max(0, newInstallments - 1);
+        }
+
+        const dateStr = options?.paymentDate || new Date().toISOString().split('T')[0];
+        const formattedAmount = amountPaid.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+        const payerAccountInfo = options?.payerAccount ? ` via ${options.payerAccount}` : '';
+        const customNote = options?.notes?.trim() ? ` (${options.notes.trim()})` : '';
+        const logEntry = `[Pago ${formattedAmount} em ${dateStr}${payerAccountInfo}${customNote}]`;
+        const updatedNotes = li.notes ? `${li.notes}\n${logEntry}` : logEntry;
+
+        return {
+          ...li,
+          totalAmount: newTotal,
+          status: newStatus,
+          installmentsRemaining: newInstallments,
+          lastPaymentDate: dateStr,
+          lastPaymentAmount: amountPaid,
+          notes: updatedNotes
+        };
+      }
+      return li;
+    });
+    this.saveLiabilities(updated);
+    return updated;
+  },
+
   deleteLiability(id: string): StoreLiability[] {
     const liabs = this.getLiabilities();
     const filtered = liabs.filter(li => li.id !== id);
