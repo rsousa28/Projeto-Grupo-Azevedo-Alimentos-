@@ -35,6 +35,7 @@ import {
   ZoomOut,
   RotateCcw,
   Mail,
+  Loader2,
   CheckCircle2,
   Cloud,
   UploadCloud
@@ -44,6 +45,7 @@ import { useStore, STORES } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { NotificationService } from '../services/NotificationService';
+import { EmailService } from '../services/EmailService';
 import { AccountPayable } from '../types';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -577,6 +579,7 @@ export default function AccountsPayable() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
   const [uploadSuccessFeedback, setUploadSuccessFeedback] = useState<string | null>(null);
   const [isProcessingFile, setIsProcessingFile] = useState(false);
+  const [sendingEmailType, setSendingEmailType] = useState<string | null>(null);
 
   // Auto-Save status tracking for Accounts Payable form
   const [apSaveStatus, setApSaveStatus] = useState<'IDLE' | 'SAVING' | 'SAVED'>('IDLE');
@@ -5577,7 +5580,7 @@ export default function AccountsPayable() {
                   
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (rawOverdueAccounts.length === 0) {
                           showToast("Nenhuma conta vencida para gerar relatório.", "info");
                           return;
@@ -5609,27 +5612,50 @@ export default function AccountsPayable() {
                         const recipients = "rennaninacio0003@gmail.com,azevedogas@yahoo.com.br";
                         const subject = `🚨 RELATÓRIO: Boletos Vencidos - ${currentStore.name.toUpperCase()}`;
 
-                        // Copy to clipboard as a high-reliability fallback
-                        navigator.clipboard.writeText(emailBody)
-                          .then(() => {
-                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-                            window.location.href = mailtoUrl;
-                            showToast("E-mail iniciado e relatório copiado para área de transferência! Caso seu app de e-mail oculte o texto, é só colar (Ctrl+V).", "success");
-                          })
-                          .catch(() => {
-                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-                            window.location.href = mailtoUrl;
-                            showToast("E-mail iniciado com sucesso!", "success");
+                        setSendingEmailType('overdue');
+                        try {
+                          const res = await EmailService.sendDirectEmail({
+                            to: recipients,
+                            subject,
+                            body: emailBody,
+                            storeName: currentStore.name,
+                            reportType: 'overdue',
+                            totalValue: bentoOverdueVal,
+                            count: rawOverdueAccounts.length,
+                            items: rawOverdueAccounts.map(ac => ({
+                              supplier: ac.supplier,
+                              value: ac.value,
+                              dueDate: ac.dueDate,
+                              daysOverdue: getDaysOverdue(ac.dueDate),
+                              partialAmountPaid: ac.partialAmountPaid,
+                              status: ac.status,
+                            })),
                           });
+                          showToast(res.message || "E-mail enviado diretamente com sucesso!", "success");
+                        } catch (err: any) {
+                          navigator.clipboard.writeText(emailBody).catch(() => {});
+                          showToast(`Falha no envio direto: ${err.message}. Relatório copiado para área de transferência!`, "warning");
+                        } finally {
+                          setSendingEmailType(null);
+                        }
                       }}
-                      title="Enviar relatório por e-mail para diretores"
+                      disabled={sendingEmailType === 'overdue'}
+                      title="Enviar relatório por e-mail para diretores diretamente"
                       style={{
                         backgroundColor: `${themePrimary}1A`,
                         color: themePrimary,
                       }}
-                      className="py-2 px-3.5 rounded-xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold hover:brightness-110"
+                      className="py-2 px-3.5 rounded-xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold hover:brightness-110 disabled:opacity-60"
                     >
-                      <Mail className="w-4 h-4" /> Enviar por E-mail
+                      {sendingEmailType === 'overdue' ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4" /> Enviar por E-mail
+                        </>
+                      )}
                     </button>
                     
                     <button
@@ -6016,7 +6042,7 @@ export default function AccountsPayable() {
                   
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (rawPaidMonthAccounts.length === 0) {
                           showToast("Nenhuma conta paga para gerar relatório.", "info");
                           return;
@@ -6051,26 +6077,49 @@ export default function AccountsPayable() {
                         const recipients = "rennaninacio0003@gmail.com,azevedogas@yahoo.com.br";
                         const subject = `✅ RELATÓRIO: Boletos Pagos (${months.find(m => m.value === selectedMonth)?.label || ''}/${selectedYear}) - ${currentStore.name.toUpperCase()}`;
 
-                        navigator.clipboard.writeText(emailBody)
-                          .then(() => {
-                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-                            window.location.href = mailtoUrl;
-                            showToast("E-mail de relatório iniciado e cópia salva na área de transferência!", "success");
-                          })
-                          .catch(() => {
-                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-                            window.location.href = mailtoUrl;
-                            showToast("E-mail de relatório iniciado!", "success");
+                        setSendingEmailType('paid_month');
+                        try {
+                          const res = await EmailService.sendDirectEmail({
+                            to: recipients,
+                            subject,
+                            body: emailBody,
+                            storeName: currentStore.name,
+                            reportType: 'paid_month',
+                            totalValue: paidMonthStats.totalSum,
+                            count: rawPaidMonthAccounts.length,
+                            items: rawPaidMonthAccounts.map(ac => ({
+                              supplier: ac.supplier,
+                              value: ac.status === 'Pago' ? ac.value + (ac.fine || 0) + (ac.interest || 0) - (ac.discount || 0) : (ac.partialAmountPaid || 0),
+                              dueDate: ac.paymentDate || ac.dueDate,
+                              partialAmountPaid: ac.partialAmountPaid,
+                              status: ac.status,
+                            })),
                           });
+                          showToast(res.message || "E-mail de boletos pagos enviado diretamente!", "success");
+                        } catch (err: any) {
+                          navigator.clipboard.writeText(emailBody).catch(() => {});
+                          showToast(`Falha no envio direto: ${err.message}. Relatório copiado para área de transferência!`, "warning");
+                        } finally {
+                          setSendingEmailType(null);
+                        }
                       }}
-                      title="Enviar relatório por e-mail para diretores"
+                      disabled={sendingEmailType === 'paid_month'}
+                      title="Enviar relatório por e-mail para diretores diretamente"
                       style={{
                         backgroundColor: `${themePrimary}1A`,
                         color: themePrimary,
                       }}
-                      className="py-2 px-3.5 rounded-xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold hover:brightness-110"
+                      className="py-2 px-3.5 rounded-xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold hover:brightness-110 disabled:opacity-60"
                     >
-                      <Mail className="w-4 h-4" /> Enviar por E-mail
+                      {sendingEmailType === 'paid_month' ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4" /> Enviar por E-mail
+                        </>
+                      )}
                     </button>
                     
                     <button
@@ -6411,7 +6460,7 @@ export default function AccountsPayable() {
                   
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         if (rawUpcomingAccounts.length === 0) {
                           showToast("Nenhum compromisso futuro para gerar relatório.", "info");
                           return;
@@ -6443,27 +6492,50 @@ export default function AccountsPayable() {
                         const recipients = "rennaninacio0003@gmail.com,azevedogas@yahoo.com.br";
                         const subject = `🔮 RELATÓRIO: Compromissos Futuros - ${currentStore.name.toUpperCase()}`;
 
-                        // Copy to clipboard as a high-reliability fallback
-                        navigator.clipboard.writeText(emailBody)
-                          .then(() => {
-                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-                            window.location.href = mailtoUrl;
-                            showToast("E-mail iniciado e relatório copiado para área de transferência! Caso seu app de e-mail oculte o texto, é só colar (Ctrl+V).", "success");
-                          })
-                          .catch(() => {
-                            const mailtoUrl = `mailto:${recipients}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-                            window.location.href = mailtoUrl;
-                            showToast("E-mail iniciado com sucesso!", "success");
+                        setSendingEmailType('upcoming');
+                        try {
+                          const res = await EmailService.sendDirectEmail({
+                            to: recipients,
+                            subject,
+                            body: emailBody,
+                            storeName: currentStore.name,
+                            reportType: 'upcoming',
+                            totalValue: bentoUpcomingVal,
+                            count: rawUpcomingAccounts.length,
+                            items: rawUpcomingAccounts.map(ac => ({
+                              supplier: ac.supplier,
+                              value: ac.value,
+                              dueDate: ac.dueDate,
+                              daysUntilDue: getDaysUntilDue(ac.dueDate),
+                              partialAmountPaid: ac.partialAmountPaid,
+                              status: ac.status,
+                            })),
                           });
+                          showToast(res.message || "E-mail de compromissos futuros enviado diretamente!", "success");
+                        } catch (err: any) {
+                          navigator.clipboard.writeText(emailBody).catch(() => {});
+                          showToast(`Falha no envio direto: ${err.message}. Relatório copiado para área de transferência!`, "warning");
+                        } finally {
+                          setSendingEmailType(null);
+                        }
                       }}
-                      title="Enviar relatório por e-mail para diretores"
+                      disabled={sendingEmailType === 'upcoming'}
+                      title="Enviar relatório por e-mail para diretores diretamente"
                       style={{
                         backgroundColor: `${themeButtonBg}1A`,
                         color: themeButtonBg,
                       }}
-                      className="py-2 px-3.5 rounded-xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold hover:brightness-110"
+                      className="py-2 px-3.5 rounded-xl hover:scale-[1.01] active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold hover:brightness-110 disabled:opacity-60"
                     >
-                      <Mail className="w-4 h-4" /> Enviar por E-mail
+                      {sendingEmailType === 'upcoming' ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Enviando...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4" /> Enviar por E-mail
+                        </>
+                      )}
                     </button>
                     
                     <button

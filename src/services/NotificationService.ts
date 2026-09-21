@@ -298,6 +298,77 @@ export class NotificationService {
   }
 
   /**
+   * Helper to convert Base64 URL safe string to Uint8Array for VAPID key
+   */
+  static urlBase64ToUint8Array(base64String: string): Uint8Array {
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  /**
+   * Register Native Web Push Subscription with server for reliable background mobile dispatch
+   */
+  static async registerWebPushSubscription(user?: any): Promise<boolean> {
+    try {
+      if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+        return false;
+      }
+
+      if (Notification.permission !== 'granted') {
+        return false;
+      }
+
+      const reg = await navigator.serviceWorker.ready;
+      let subscription = await reg.pushManager.getSubscription();
+
+      if (!subscription) {
+        // Fetch VAPID public key from backend
+        const res = await fetch('/api/push/vapid-public-key');
+        if (!res.ok) return false;
+        const data = await res.json();
+        if (!data.publicKey) return false;
+
+        const applicationServerKey = this.urlBase64ToUint8Array(data.publicKey);
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+      }
+
+      if (subscription) {
+        const deviceId = getDeviceId();
+        const storedUser = user || {
+          name: localStorage.getItem('g_azevedo_auth_user_name') || 'Administrador',
+          role: localStorage.getItem('g_azevedo_auth_role') || 'ADMIN',
+          username: localStorage.getItem('g_azevedo_auth_username') || 'admin',
+        };
+
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription,
+            deviceId,
+            user: storedUser,
+          }),
+        });
+
+        console.log('[NotificationService] Web Push subscription successfully registered with server!');
+        return true;
+      }
+    } catch (err) {
+      console.warn('[NotificationService] Web Push subscription registration error:', err);
+    }
+    return false;
+  }
+
+  /**
    * Request push notification permission from the browser
    */
   static async requestPermission(): Promise<NotificationPermission> {
@@ -323,6 +394,9 @@ export class NotificationService {
 
       // Register FCM Token
       this.initFCMToken().catch(err => console.warn('Error obtaining FCM token after permission granted:', err));
+
+      // Register Web Push subscription for background delivery
+      this.registerWebPushSubscription().catch(err => console.warn('Error obtaining Web Push subscription:', err));
     }
     return permission;
   }
@@ -898,6 +972,11 @@ export class NotificationService {
       tag: `payable_hourly_${hourKey || Date.now()}`,
       url: '/accounts-payable',
     });
+
+    // Also ping server background worker to broadcast real Web Push to subscribed devices
+    try {
+      fetch('/api/notifications/trigger-hourly-payable', { method: 'POST' }).catch(() => {});
+    } catch (e) {}
 
     if (hourKey) {
       const prefs = this.getPreferences();

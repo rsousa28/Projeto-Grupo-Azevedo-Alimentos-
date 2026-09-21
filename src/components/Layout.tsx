@@ -143,6 +143,13 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     return () => window.removeEventListener('app_push_notification', handlePushEvent);
   }, [showToast]);
 
+  // Automatically sync Web Push subscription with server for mobile background notifications
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      NotificationService.registerWebPushSubscription(user).catch(console.warn);
+    }
+  }, [user]);
+
   // Listen for sidebar collapse/expand requests from modals or full-screen views
   useEffect(() => {
     const handleCollapseEvent = (e: any) => {

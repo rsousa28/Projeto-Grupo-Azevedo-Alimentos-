@@ -171,6 +171,18 @@
     "/stores/{storeId}/closings/all": {
       "schema": "Closings",
       "description": "All day-by-day cash closing logs"
+    },
+    "/global_notifications/{notifId}": {
+      "schema": "object",
+      "description": "Real-time and background cross-device notifications"
+    },
+    "/fcm_tokens/{tokenId}": {
+      "schema": "object",
+      "description": "Registered FCM tokens for push notifications"
+    },
+    "/push_subscriptions/{subId}": {
+      "schema": "object",
+      "description": "Web Push subscription endpoints for background alerts"
     }
   }
 }
