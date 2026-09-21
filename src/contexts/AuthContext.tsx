@@ -50,14 +50,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             usernameLower.includes('michele') ||
             nameLower.includes('michele') ||
             docSnap.id === 'michele-4e09' ||
+            usernameLower.includes('4estylos') ||
+            nameLower.includes('4estylos') ||
+            nameLower.includes('4 estylos') ||
+            uData.role === 'MANAGER_4ESTYLOS_MOSSORO' ||
             (!usernameLower.includes('jef') && usernameLower.includes('4e09'))
           ) {
             console.log(`Auto-deleting restricted user: ${uData.name} (@${uData.username})`);
             await deleteDoc(doc(db, 'users', docSnap.id));
           } else if (usernameLower.includes('jef') || nameLower.includes('jefferson')) {
-            if (uData.role === 'MANAGER_4ESTYLOS_MOSSORO' || uData.name?.includes('4 Estylos')) {
+            if (uData.role === 'MANAGER_4ESTYLOS_MOSSORO' || uData.name?.includes('4 Estylos') || uData.username === 'jef4e09') {
               await updateDoc(doc(db, 'users', docSnap.id), {
                 name: 'Jefferson - Bebelu Mossoró',
+                username: 'jefb32',
                 role: 'MANAGER_BEBELU_MOSSORO'
               });
             }
@@ -270,11 +275,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      if ((u === 'jef' || u === 'jef4e09') && p === 'jqc26') {
+      if ((u === 'jef' || u === 'jefb32' || u === 'jef4e09') && (p === 'jqc26' || p === 'b32' || p === '4e09')) {
         const jefUser: User = { 
           id: 'jef-mossoro', 
           name: 'Jefferson - Bebelu Mossoró', 
-          username: 'jef4e09', 
+          username: 'jefb32', 
           role: 'MANAGER_BEBELU_MOSSORO' 
         };
         setUser(jefUser);

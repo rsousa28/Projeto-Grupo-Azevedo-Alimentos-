@@ -175,10 +175,17 @@ export class EmailService {
       }),
     });
 
-    const data = await response.json().catch(() => ({}));
+    let data: any = {};
+    const rawText = await response.text().catch(() => '');
+    try {
+      data = JSON.parse(rawText);
+    } catch {
+      data = { message: rawText };
+    }
 
     if (!response.ok) {
-      throw new Error(data.error || data.message || `Falha no envio do e-mail (HTTP ${response.status})`);
+      const errMsg = data.error || data.message || `Servidor retornou HTTP ${response.status}`;
+      throw new Error(errMsg);
     }
 
     return data;

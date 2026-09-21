@@ -35,7 +35,7 @@
         "username": { "type": "string" },
         "password": { "type": "string" },
         "email": { "type": "string" },
-        "role": { "type": "string", "enum": ["ADMIN", "MANAGER", "FINANCIAL", "MANAGER_4ESTYLOS_MOSSORO", "MANAGER_BEBELU_MOSSORO", "MANAGER_BEBELU_RIOMAR_PAPICU"] },
+        "role": { "type": "string", "enum": ["ADMIN", "MANAGER", "FINANCIAL", "MANAGER_BEBELU_MOSSORO", "MANAGER_BEBELU_RIOMAR_PAPICU", "MANAGER_VERO_PASTA"] },
         "biometricEnabled": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },

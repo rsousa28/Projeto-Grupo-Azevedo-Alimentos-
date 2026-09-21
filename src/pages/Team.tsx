@@ -43,7 +43,7 @@ const DEFAULT_SYSTEM_USERS: { id: string; name: string; username: string; role: 
   { id: 'root-admin', name: 'Admin Geral Grupo AZ', username: 'adm', role: 'ADMIN', defaultPassword: '88028837' },
   { id: 'patricia-b28', name: 'Patrícia - Bebelu Papicu', username: 'patriciab28', role: 'MANAGER_BEBELU_RIOMAR_PAPICU', defaultPassword: 'b28' },
   { id: 'andressa-b32', name: 'Andressa - Bebelu Mossoró', username: 'andressab32', role: 'MANAGER_BEBELU_MOSSORO', defaultPassword: 'b32' },
-  { id: 'jef-mossoro', name: 'Jefferson - Bebelu Mossoró', username: 'jef4e09', role: 'MANAGER_BEBELU_MOSSORO', defaultPassword: 'jqc26' }
+  { id: 'jef-mossoro', name: 'Jefferson - Bebelu Mossoró', username: 'jefb32', role: 'MANAGER_BEBELU_MOSSORO', defaultPassword: 'jqc26' }
 ];
 
 export default function Team() {

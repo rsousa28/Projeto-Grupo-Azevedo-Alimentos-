@@ -121,7 +121,7 @@ async function executeHourlyAccountsPayableCheck(force = false): Promise<{ succe
     const storeConfigs = [
       { id: "1", name: "B32 (Mossoró)" },
       { id: "2", name: "B28 (Bebelu Rio Mar)" },
-      { id: "3", name: "4Estylos (Mossoró)" },
+      { id: "3", name: "Vero Pasta" },
     ];
 
     const storeSummaries: any[] = [];

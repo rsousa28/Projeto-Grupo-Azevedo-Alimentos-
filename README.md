@@ -9,8 +9,9 @@ A premium, full-stack management system designed for multi-brand food networks, 
 - **CMV & Inventory**: Advanced tracking of protein costs, technical sheets, and supplier management.
 - **Hybrid Routing**: Intelligent environment detection (HashRouter for previews, BrowserRouter for production).
 - **Multi-Brand Themes**:
-  - **4 Estylos**: Dark Premium Red theme.
-  - **Bebelu**: Clean Corporate Blue theme.
+  - **Bebelu Sanduíches**: Clean Corporate Blue theme.
+  - **Vero Pasta**: Gourmet Warm theme.
+  - **Holding Grupo AZ**: Executive Dark Slate theme.
 - **AI Insights**: Predictive analysis using Google Gemini for operational optimization.
 
 ## Tech Stack

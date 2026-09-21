@@ -39,7 +39,7 @@ async function callAIApi(contents: any, model: string = "gemini-1.5-flash", conf
 
 export async function extractDataFromCSV(csvContent: string, type: 'products' | 'inventory') {
   const systemInstruction = type === 'products' 
-    ? `Você é um especialista em análise de vendas e controladoria de restaurantes brasileiros (Pizzarias e Fast-Food). 
+    ? `Você é um especialista em análise de vendas e controladoria de restaurantes brasileiros (Fast-Food e Gastronomia). 
        Sua tarefa é extrair dados reais de relatórios de venda.
        
        CAMPOS OBRIGATÓRIOS:
@@ -149,7 +149,7 @@ export async function chatWithConsultant(message: string, dreContext: any, histo
     // Provide a smart consultative response based on the message
     const msg = message.toLowerCase();
     if (msg.includes("cmv") || msg.includes("custo")) {
-      return "Com base na análise consultiva dos dados, recomendo revisar o porcionamento na montagem e negociar volumes consolidados de insumos (como queijo e proteínas) entre Bebelu e 4 Estylos. Pequenos desvios diários de gramatura geram distorções significativas de até 3% no CMV real ao final do mês.";
+      return "Com base na análise consultiva dos dados, recomendo revisar o porcionamento na montagem e negociar volumes consolidados de insumos (como queijo e proteínas) entre as unidades do Grupo Azevedo (Bebelu e Vero Pasta). Pequenos desvios diários de gramatura geram distorções significativas de até 3% no CMV real ao final do mês.";
     }
     if (msg.includes("dre") || msg.includes("lucro") || msg.includes("faturamento")) {
       return "Analisando o DRE, a prioridade máxima deve ser o controle rígido das despesas variáveis. Certifique-se de que todas as taxas e despesas acessórias de vendas (como taxas de entrega e adquirentes de cartões) estão devidamente otimizadas e conciliadas diariamente.";
@@ -222,7 +222,7 @@ export async function generatePredictiveInsights(context: any): Promise<Predicti
 export async function analyzeMenuEngineering(negativeMarginProducts: any[]) {
   if (negativeMarginProducts.length === 0) return "Nenhum produto com margem negativa para analisar.";
   
-  const prompt = `Como um consultor de engenharia de cardápio, analise estes produtos que estão com margem negativa (prejuízo) na minha operação Bebelu/4Estylos (fast-food/pizzaria):
+  const prompt = `Como um consultor de engenharia de cardápio, analise estes produtos que estão com margem negativa (prejuízo) na operação do Grupo Azevedo (Bebelu e Vero Pasta):
   
   ${negativeMarginProducts.map(p => `- ${p.name}: CMV R$${p.cmv}, Preço Médio R$${((p.faturamento || 0) / (p.quantidadeVendas || 1)).toFixed(2)}, Margem ${p.margin}%`).join('\n')}
   
