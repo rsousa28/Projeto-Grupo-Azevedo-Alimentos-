@@ -1,7 +1,8 @@
 import { db, getFirebaseMessaging } from '../lib/firebase';
-import { doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot, getDocs } from 'firebase/firestore';
 import { getToken, onMessage } from 'firebase/messaging';
 import { STORES } from '../contexts/StoreContext';
+import { getDocCached } from '../lib/firestoreQueryCache';
 
 export interface NotificationPreferences {
   enabled: boolean;
@@ -638,11 +639,6 @@ export class NotificationService {
       url: '/accounts-payable',
     });
 
-    // Automatically trigger fresh hourly report calculation and sync across devices
-    setTimeout(() => {
-      this.triggerAccountsPayableReport();
-    }, 1000);
-
     return sent;
   }
 
@@ -655,7 +651,10 @@ export class NotificationService {
     if (!prefs.enabled || prefs.accountsPayableHourlyReminder === false) return;
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
     const currentHourKey = `${todayStr}_H${now.getHours()}`;
 
     if (prefs.lastNotifiedAccountsPayableHour === currentHourKey) {
@@ -670,7 +669,8 @@ export class NotificationService {
   }
 
   /**
-   * Helper to fetch AP data from Firestore for all stores, calculate metrics, and dispatch notification
+   * Helper to fetch AP data from Firestore and cache for each store with strict store isolation,
+   * calculate exact metrics matching AccountsPayable.tsx, and dispatch notification
    */
   static async triggerAccountsPayableReport(hourKey?: string): Promise<boolean> {
     if (!this.isCurrentUserAdmin()) return false;
@@ -682,75 +682,19 @@ export class NotificationService {
     const currentYear = String(year);
     const currentMonth = month;
 
-    // Build master list of all accounts across stores prioritizing Firestore
-    const masterMap = new Map<string, any>();
-
-    // 1. Fetch from Firestore for all stores first (authoritative database source)
-    const allStorePromises = STORES.map(async store => {
+    // Prepare admin user context for cache authorization
+    let adminUser: any = { role: 'ADMIN', username: 'admin' };
+    if (typeof window !== 'undefined' && window.localStorage) {
       try {
-        const docRef = doc(db, 'stores', store.id, 'accounts_payable', 'all');
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data().data || [];
-          // Keep local storage synced with cloud data
-          if (typeof window !== 'undefined' && window.localStorage) {
-            try {
-              localStorage.setItem(`g_azevedo_ap_items_clean_${store.id}`, JSON.stringify(data));
-            } catch (e) {}
-          }
-          return { storeId: store.id, data, hasCloud: true };
+        const rawUser = localStorage.getItem('auth_user');
+        if (rawUser) {
+          const parsed = JSON.parse(rawUser);
+          if (parsed) adminUser = parsed;
         }
-      } catch (e) {
-        console.warn(`Error reading AP data for store ${store.name}:`, e);
-      }
-      return { storeId: store.id, data: [], hasCloud: false };
-    });
+      } catch (e) {}
+    }
 
-    const storeResults = await Promise.all(allStorePromises);
-    storeResults.forEach(res => {
-      if (res.hasCloud) {
-        res.data.forEach((item: any) => {
-          if (item && item.id) {
-            masterMap.set(item.id, item);
-          }
-        });
-      } else if (typeof window !== 'undefined' && window.localStorage) {
-        // Fallback to local storage only if store has no cloud document or network failed
-        const key = `g_azevedo_ap_items_clean_${res.storeId}`;
-        const raw = localStorage.getItem(key);
-        if (raw) {
-          try {
-            const list = JSON.parse(raw);
-            if (Array.isArray(list)) {
-              list.forEach(item => {
-                if (item && item.id) masterMap.set(item.id, item);
-              });
-            }
-          } catch (e) {}
-        }
-      }
-    });
-
-    // 3. Process & normalize accounts (normalize storeId and auto-set overdue statuses)
-    const allAccounts = Array.from(masterMap.values()).map(item => {
-      let normalizedStoreId = item.storeId;
-      let normalizedStoreName = item.storeName;
-      if (!normalizedStoreId || normalizedStoreId === 'admin-global') {
-        normalizedStoreId = '1';
-        normalizedStoreName = 'Bebelu Mossoró';
-      }
-      const isOverdue = (item.status === 'Pendente' || item.status === 'Agendado' || item.status === 'Parcialmente Pago') && item.dueDate < todayStr;
-      return {
-        ...item,
-        storeId: normalizedStoreId,
-        storeName: normalizedStoreName,
-        status: isOverdue ? 'Vencido' : item.status
-      };
-    });
-
-    // 4. Group by store and compute metrics matching AccountsPayable.tsx logic
     const functionalStores = STORES.filter(s => s.code !== 'ROOT');
-
     const storeSummaries: Array<{
       storeName: string;
       today: number;
@@ -764,46 +708,157 @@ export class NotificationService {
     let totalGroupPaid = 0;
     let totalGroupUpcoming = 0;
 
+    // Process each functional store in complete isolation (Store 1, Store 2, Store 3)
     for (const store of functionalStores) {
+      let storeItems: any[] = [];
+      const storeId = store.id;
+
+      // 1. Try reading from Firestore for this specific store (authoritative source)
+      try {
+        const docRef = doc(db, 'stores', storeId, 'accounts_payable', 'all');
+
+        // A. Try cached read
+        try {
+          const docSnap = await getDocCached(docRef, storeId, adminUser);
+          if (docSnap && docSnap.exists()) {
+            const d = docSnap.data();
+            if (Array.isArray(d?.data)) {
+              storeItems = d.data;
+            } else if (Array.isArray(d)) {
+              storeItems = d;
+            }
+          }
+        } catch (cachedErr) {
+          console.warn(`[NotificationService] getDocCached failed for store ${storeId}:`, cachedErr);
+        }
+
+        // B. If still empty, read directly from Firestore with explicit chunk reassembly
+        if (storeItems.length === 0) {
+          const directSnap = await getDoc(docRef);
+          if (directSnap.exists()) {
+            let rawData = directSnap.data();
+            if (rawData?._isChunked) {
+              try {
+                const chunksSnap = await getDocs(collection(db, `${docRef.path}/chunks`));
+                const chunksList = chunksSnap.docs.map(d => d.data() as { index: number; data: string });
+                chunksList.sort((a, b) => a.index - b.index);
+                const reassembled = chunksList.map(c => c.data).join('');
+                rawData = JSON.parse(reassembled);
+              } catch (chunkErr) {
+                console.warn(`[NotificationService] Error reassembling chunks for ${docRef.path}:`, chunkErr);
+              }
+            }
+            if (Array.isArray(rawData?.data)) {
+              storeItems = rawData.data;
+            } else if (Array.isArray(rawData)) {
+              storeItems = rawData;
+            }
+          }
+        }
+      } catch (storeErr) {
+        console.warn(`[NotificationService] Error reading cloud accounts for store ${storeId}:`, storeErr);
+      }
+
+      // 2. Fallback to localStorage for this specific store if Firestore failed or was offline
+      if (storeItems.length === 0 && typeof window !== 'undefined' && window.localStorage) {
+        try {
+          const localRaw = localStorage.getItem(`g_azevedo_ap_items_clean_${storeId}`);
+          if (localRaw) {
+            const parsed = JSON.parse(localRaw);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              storeItems = parsed;
+            }
+          }
+        } catch (e) {}
+
+        if (storeItems.length === 0) {
+          try {
+            const queryCacheRaw = localStorage.getItem(`doc_cache_stores/${storeId}/accounts_payable/all`);
+            if (queryCacheRaw) {
+              const parsed = JSON.parse(queryCacheRaw);
+              const list = Array.isArray(parsed?.data) ? parsed.data : Array.isArray(parsed) ? parsed : [];
+              if (list.length > 0) storeItems = list;
+            }
+          } catch (e) {}
+        }
+      }
+
+      // 3. Strict Store Boundary Validation
+      // Ensure only accounts legitimately belonging to this store are evaluated
+      const cleanStoreAccounts = storeItems.filter((ac: any) => {
+        if (!ac || !ac.id) return false;
+        
+        // Strict boundary check
+        if (storeId === '1') {
+          // Store 1 (Mossoró) must NEVER include accounts tagged for Store 2 or Store 3
+          if (ac.storeId === '2' || ac.storeId === '3') return false;
+          const sName = (ac.storeName || '').toUpperCase();
+          if (sName.includes('RIO MAR') || sName.includes('B28') || sName.includes('PAPICU') || sName.includes('VERO') || sName.includes('PASTA')) {
+            return false;
+          }
+          return true;
+        }
+
+        if (storeId === '2') {
+          // Store 2 (Bebelu Rio Mar)
+          if (ac.storeId === '2') return true;
+          const sName = (ac.storeName || '').toUpperCase();
+          return sName.includes('RIO MAR') || sName.includes('B28') || sName.includes('PAPICU');
+        }
+
+        if (storeId === '3') {
+          // Store 3 (Vero Pasta)
+          if (ac.storeId === '3') return true;
+          const sName = (ac.storeName || '').toUpperCase();
+          return sName.includes('VERO') || sName.includes('PASTA');
+        }
+
+        return ac.storeId === storeId;
+      });
+
+      // Update localStorage with clean sanitized list for this store
+      if (typeof window !== 'undefined' && window.localStorage && cleanStoreAccounts.length > 0) {
+        try {
+          localStorage.setItem(`g_azevedo_ap_items_clean_${storeId}`, JSON.stringify(cleanStoreAccounts));
+        } catch (e) {}
+      }
+
+      // 4. Calculate exact metrics matching AccountsPayable.tsx lines 2138-2188
       let storeToday = 0;
       let storeOverdue = 0;
       let storePaid = 0;
       let storeUpcoming = 0;
 
-      const storeAccounts = allAccounts.filter(ac => ac.storeId === store.id);
-
-      storeAccounts.forEach((ac: any) => {
-        if (!ac) return;
-
+      cleanStoreAccounts.forEach((ac: any) => {
         const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado' || ac.status === 'Parcialmente Pago') && ac.dueDate < todayStr);
 
-        // A Pagar Hoje (strictly due today and unpaid)
+        // A Pagar Hoje: due today and not paid/canceled
         if (ac.dueDate === todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
           const remainingVal = Number(ac.value || 0) - Number(ac.partialAmountPaid || 0);
           if (remainingVal > 0) storeToday += remainingVal;
         }
 
-        // Total Vencido (overdue and unpaid)
+        // Total Vencido: overdue unpaid/partially-unpaid balance as of today
         if (isAcOverdue && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
           const remainingVal = Number(ac.value || 0) - Number(ac.partialAmountPaid || 0);
           if (remainingVal > 0) storeOverdue += remainingVal;
         }
 
-        // Pagas no Mês
+        // Pagas no Mês: strictly assigned to their actual payment execution month (with fallback to due date if no paymentDate exists)
         const hasDueDateInRange = ac.dueDate?.startsWith(`${currentYear}-${currentMonth}`);
         const hasPaymentDateInRange = ac.paymentDate && (
           ac.paymentDate.startsWith(`${currentYear}-${currentMonth}`) ||
           ac.paymentDate.includes(`${currentYear}-${currentMonth}`)
         );
-        const matchesPeriod = ac.paymentDate ? hasPaymentDateInRange : hasDueDateInRange;
+        const matchesPaymentPeriod = ac.paymentDate ? hasPaymentDateInRange : hasDueDateInRange;
 
-        if (ac.status === 'Pago' && matchesPeriod) {
+        if (ac.status === 'Pago' && matchesPaymentPeriod) {
           storePaid += Number(ac.value || 0) + Number(ac.fine || 0) + Number(ac.interest || 0) - Number(ac.discount || 0);
-        } else if (ac.status === 'Parcialmente Pago' && matchesPeriod && ac.partialAmountPaid) {
+        } else if (ac.status === 'Parcialmente Pago' && matchesPaymentPeriod && ac.partialAmountPaid) {
           storePaid += Number(ac.partialAmountPaid || 0);
         }
 
-        // Compromissos Futuros (strictly due after today and unpaid)
+        // Compromissos Futuros: due in the future (after today) and not paid/canceled
         if (ac.dueDate > todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
           const remainingVal = Number(ac.value || 0) - Number(ac.partialAmountPaid || 0);
           if (remainingVal > 0) storeUpcoming += remainingVal;

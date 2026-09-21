@@ -119,7 +119,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   <h4 className="font-semibold text-xs sm:text-sm tracking-tight leading-none mb-1 text-white">
                     {toast.title}
                   </h4>
-                  <p className="text-xs leading-relaxed text-slate-200 antialiased font-medium">
+                  <p className="text-xs leading-relaxed text-slate-200 antialiased font-medium whitespace-pre-line">
                     {toast.message}
                   </p>
                 </div>
