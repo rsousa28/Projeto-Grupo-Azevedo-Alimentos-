@@ -3,6 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Bell, 
   BellOff, 
+  BellRing,
+  AlertTriangle,
   Check, 
   CheckCircle2, 
   ClipboardList, 
@@ -62,6 +64,19 @@ export default function NotificationCenter() {
     if (user) {
       setBiometricSupported(BiometricService.isSupported());
       setBiometricEnabled(BiometricService.isBiometricEnabled(user.username));
+    }
+
+    // Real-time permission listener in modern browsers
+    if (typeof window !== 'undefined' && 'permissions' in navigator) {
+      try {
+        navigator.permissions.query({ name: 'notifications' as any }).then((status) => {
+          status.onchange = () => {
+            setPermission(NotificationService.getPermission());
+          };
+        }).catch(() => {});
+      } catch {
+        // Ignored on browsers that don't support notification permission query
+      }
     }
 
     // Fetch server VAPID public key
@@ -222,27 +237,92 @@ export default function NotificationCenter() {
   };
 
   return (
-    <div className="relative inline-block" ref={dropdownRef}>
-      {/* Bell Trigger Button */}
+    <div className="relative inline-flex items-center gap-1.5 sm:gap-2" ref={dropdownRef}>
+      {/* Quick Action Pill for Desktop/Tablet when permission is NOT granted */}
+      {permission === 'default' && (
+        <button
+          onClick={handleRequestPermission}
+          title="Clique para autorizar as notificações push do PWA no seu navegador/celular"
+          className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 dark:text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+          </span>
+          <span className="whitespace-nowrap">Ativar Notificações</span>
+        </button>
+      )}
+
+      {permission === 'denied' && (
+        <button
+          onClick={() => setIsOpen(true)}
+          title="Notificações bloqueadas no navegador. Clique para ver instruções de desbloqueio."
+          className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 border border-rose-500/30 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
+        >
+          <span className="w-2 h-2 rounded-full bg-rose-500" />
+          <span className="whitespace-nowrap">Alertas Bloqueados</span>
+        </button>
+      )}
+
+      {/* Bell Trigger Button with Status Badges */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        title="Lembretes & Notificações Push"
-        className={`p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center relative ${
+        title={
+          permission === 'granted'
+            ? 'Notificações Push PWA: Ativas e Conectadas'
+            : permission === 'denied'
+            ? 'Notificações Bloqueadas no Navegador - Clique para ver instruções'
+            : 'Notificações Pendentes - Clique para habilitar alertas no PWA'
+        }
+        className={`p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center relative shrink-0 ${
           isDarkMode
             ? 'bg-[#1E1E1E] border-[#2A2A2A] text-slate-300 hover:bg-[#252525] hover:text-white'
             : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+        } ${
+          permission === 'default'
+            ? 'ring-2 ring-amber-500/30 border-amber-500/50'
+            : permission === 'denied'
+            ? 'border-rose-500/40 ring-1 ring-rose-500/20'
+            : ''
         }`}
       >
         {permission === 'denied' ? (
-          <BellOff className="w-4 h-4 text-red-400" />
+          <BellOff className="w-4 h-4 text-rose-400" />
+        ) : permission === 'default' ? (
+          <BellRing className="w-4 h-4 text-amber-500 animate-pulse" />
         ) : (
           <Bell className="w-4 h-4" />
         )}
 
-        {/* Unread badge */}
+        {/* Unread badge (Top Right) */}
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center animate-bounce shadow-xs">
+          <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center shadow-xs z-10 animate-bounce">
             {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+
+        {/* PWA Permission Status Indicator (Bottom Right) */}
+        {permission === 'granted' ? (
+          <span
+            className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#1E1E1E] shadow-xs"
+            title="Permissão Concedida: Push PWA Ativo"
+          />
+        ) : permission === 'default' ? (
+          <span
+            className="absolute -bottom-1 -right-1 flex h-3 w-3 z-10"
+            title="Permissão Pendente: Clique para ativar no PWA"
+          >
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500 border border-white dark:border-[#1E1E1E] text-[7px] font-black text-slate-950 items-center justify-center leading-none">
+              !
+            </span>
+          </span>
+        ) : (
+          <span
+            className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-rose-500 border border-white dark:border-[#1E1E1E] flex items-center justify-center text-[7px] font-black text-white leading-none shadow-xs z-10"
+            title="Permissão Bloqueada no Navegador"
+          >
+            ✕
           </span>
         )}
       </button>
@@ -331,6 +411,31 @@ export default function NotificationCenter() {
                       <span>Ativar Notificações no Celular</span>
                     </button>
                   )}
+                </div>
+              )}
+
+              {/* Permission Granted Status Card */}
+              {permission === 'granted' && (
+                <div className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2.5 ${
+                  isDarkMode 
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                    <div>
+                      <span className="text-[11px] font-black uppercase italic tracking-tight block leading-tight">
+                        Notificações Push PWA Ativas
+                      </span>
+                      <span className="text-[9.5px] opacity-80 block leading-tight mt-0.5">
+                        Dispositivo pronto para receber alertas em 2º plano
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-black text-[8.5px] tracking-wider uppercase">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Conectado</span>
+                  </div>
                 </div>
               )}
 
