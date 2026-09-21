@@ -26,10 +26,19 @@ import {
   ShieldCheck,
   Timer,
   BatteryCharging,
-  Apple
+  Apple,
+  Radio,
+  Wifi
 } from 'lucide-react';
 import { NotificationService, NotificationPreferences, NotificationLogItem } from '../services/NotificationService';
 import { BiometricService } from '../services/BiometricService';
+import { 
+  triggerServerPushTest, 
+  getPushDiagnosticStatus, 
+  subscribeUserToPush, 
+  getExistingPushSubscription,
+  DEFAULT_VAPID_PUBLIC_KEY 
+} from '../utils/pushConfig';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
@@ -45,10 +54,15 @@ export default function NotificationCenter() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricSupported, setBiometricSupported] = useState(false);
   
+  // Push & Device registration states
+  const [deviceSubscribed, setDeviceSubscribed] = useState<boolean>(false);
+  const [serverDevicesCount, setServerDevicesCount] = useState<number>(0);
+  const [subscribing, setSubscribing] = useState<boolean>(false);
+
   // VAPID & Background Guide States
   const [showVapidGuide, setShowVapidGuide] = useState(false);
   const [guideTab, setGuideTab] = useState<'overview' | 'ios' | 'android' | 'vapid'>('overview');
-  const [serverVapidKey, setServerVapidKey] = useState<string>('');
+  const [serverVapidKey, setServerVapidKey] = useState<string>(DEFAULT_VAPID_PUBLIC_KEY);
   const [copiedKey, setCopiedKey] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
 
@@ -79,14 +93,25 @@ export default function NotificationCenter() {
       }
     }
 
-    // Fetch server VAPID public key
+    // Fetch server VAPID public key and device diagnostic status
+    getPushDiagnosticStatus().then(diag => {
+      setDeviceSubscribed(diag.isSubscribed);
+      if (diag.serverDevicesCount !== undefined) {
+        setServerDevicesCount(diag.serverDevicesCount);
+      }
+      if (diag.isSubscribed && permission === 'granted' && user) {
+        // Silent sync with server & Firestore
+        subscribeUserToPush(user).catch(() => {});
+      }
+    });
+
     fetch('/api/push/vapid-public-key', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (data.publicKey) setServerVapidKey(data.publicKey);
       })
       .catch(() => {});
-  }, [isOpen, user]);
+  }, [isOpen, user, permission]);
 
   const handleToggleBiometric = async () => {
     if (!user) return;
@@ -126,6 +151,38 @@ export default function NotificationCenter() {
 
   const unreadCount = logs.filter((l) => !l.read).length;
 
+  const handleRegisterThisDevice = async () => {
+    setSubscribing(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        await navigator.serviceWorker.register('/sw.js');
+      }
+      const perm = await Notification.requestPermission();
+      setPermission(perm);
+      if (perm !== 'granted') {
+        warning('Permissão de notificação não concedida no navegador.', 'Permissão Negada');
+        return;
+      }
+
+      const sub = await subscribeUserToPush(user);
+      if (sub) {
+        setDeviceSubscribed(true);
+        success('Aparelho registrado no Web Push com sucesso! Você receberá os alertas em segundo plano.', 'Dispositivo Conectado');
+        const diag = await getPushDiagnosticStatus();
+        setServerDevicesCount(diag.serverDevicesCount || 1);
+        
+        // Immediate server push confirmation
+        await triggerServerPushTest(0, '📲 Aparelho Registrado no Push!', 'Seu smartphone agora receberá todos os alertas de contas a pagar e auditorias em tempo real.');
+      } else {
+        toastError('Não foi possível registrar o aparelho no Push.');
+      }
+    } catch (err: any) {
+      toastError(err.message || 'Erro ao registrar aparelho no Push.');
+    } finally {
+      setSubscribing(false);
+    }
+  };
+
   const handleRequestPermission = async () => {
     try {
       if ('serviceWorker' in navigator) {
@@ -136,7 +193,17 @@ export default function NotificationCenter() {
       if (res === 'granted') {
         success('Notificações Push ativadas com sucesso no seu dispositivo!', 'Permissão Concedida');
         setPreferences(NotificationService.getPreferences());
-        // Trigger test notification immediately to confirm
+        
+        // Register device subscription with VAPID
+        const sub = await subscribeUserToPush(user);
+        if (sub) {
+          setDeviceSubscribed(true);
+          const diag = await getPushDiagnosticStatus();
+          setServerDevicesCount(diag.serverDevicesCount || 1);
+        }
+
+        // Trigger real server push notification test
+        await triggerServerPushTest(0, '🔔 Push PWA Ativado!', 'Dispositivo registrado com sucesso para receber alertas do Grupo Azevedo em segundo plano.');
         await NotificationService.sendTestNotification();
       } else {
         warning('A permissão de notificações foi negada no navegador. Habilite nas configurações do seu celular.', 'Permissão Negada');
@@ -156,9 +223,22 @@ export default function NotificationCenter() {
   const handleTestNotification = async () => {
     setTesting(true);
     try {
+      // Ensure subscription is active
+      await subscribeUserToPush(user);
+      setDeviceSubscribed(true);
+
+      // Trigger cloud push to all registered devices
+      await triggerServerPushTest(
+        0,
+        '🔔 Teste de Notificação Web Push',
+        'Notificação enviada através do servidor em nuvem (VAPID) para todos os dispositivos cadastrados!'
+      );
       await NotificationService.sendTestNotification();
-      success('Notificação de teste disparada! Verifique a barra do sistema.', 'Push Enviado');
+      success('Notificação de teste disparada pelo servidor! Verifique a barra do sistema.', 'Push Enviado');
       setLogs(NotificationService.getLogs());
+
+      const diag = await getPushDiagnosticStatus();
+      setServerDevicesCount(diag.serverDevicesCount || 1);
     } catch (err: any) {
       toastError(err.message || 'Não foi possível disparar a notificação de teste.');
     } finally {
@@ -179,40 +259,43 @@ export default function NotificationCenter() {
     }
   };
 
-  const handleTestDelayedPush = () => {
+  const handleTestDelayedPush = async () => {
     if (permission !== 'granted') {
       warning('Ative as permissões de notificação antes de testar em segundo plano.');
       return;
     }
-    setCountdown(5);
-    info('Bloqueie a tela do celular AGORA! O alerta push chegará em 5 segundos.', 'Teste em Segundo Plano');
-    
-    let counter = 5;
-    const interval = setInterval(() => {
-      counter -= 1;
-      if (counter > 0) {
-        setCountdown(counter);
-      } else {
-        clearInterval(interval);
-        setCountdown(null);
-        
-        NotificationService.sendPushNotification('📲 Alerta em Segundo Plano Recebido!', {
-          body: 'Seu smartphone recebeu a notificação com sucesso com a tela bloqueada.',
-          type: 'TEST',
-          tag: `background_test_${Date.now()}`,
-          url: '/accounts-payable',
-        });
-        
-        fetch('/api/notifications/trigger-hourly-payable', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-        }).catch(() => {});
-        
-        success('Notificação em segundo plano disparada com sucesso!');
-        setLogs(NotificationService.getLogs());
-      }
-    }, 1000);
+
+    try {
+      // Ensure subscription is active
+      await subscribeUserToPush(user);
+      setDeviceSubscribed(true);
+
+      setCountdown(5);
+      info('Bloqueie a tela do celular AGORA! O servidor disparará o push em 5 segundos.', 'Teste em Segundo Plano');
+      
+      // Server-side delayed Web Push dispatch (Node.js cloud background timer)
+      await triggerServerPushTest(
+        5,
+        '📲 Alerta em Segundo Plano Recebido!',
+        'Seu smartphone recebeu o push com sucesso mesmo com a tela bloqueada!'
+      );
+
+      let counter = 5;
+      const interval = setInterval(() => {
+        counter -= 1;
+        if (counter > 0) {
+          setCountdown(counter);
+        } else {
+          clearInterval(interval);
+          setCountdown(null);
+          success('Push disparado pelo servidor em nuvem!');
+          setLogs(NotificationService.getLogs());
+        }
+      }, 1000);
+    } catch (err: any) {
+      setCountdown(null);
+      toastError(err.message || 'Erro ao agendar push no servidor.');
+    }
   };
 
   const handleMarkAllRead = () => {
@@ -416,26 +499,66 @@ export default function NotificationCenter() {
 
               {/* Permission Granted Status Card */}
               {permission === 'granted' && (
-                <div className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2.5 ${
-                  isDarkMode 
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                    : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                    <div>
-                      <span className="text-[11px] font-black uppercase italic tracking-tight block leading-tight">
-                        Notificações Push PWA Ativas
-                      </span>
-                      <span className="text-[9.5px] opacity-80 block leading-tight mt-0.5">
-                        Dispositivo pronto para receber alertas em 2º plano
-                      </span>
+                <div className="space-y-2">
+                  <div className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2.5 ${
+                    isDarkMode 
+                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                      : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                      <div>
+                        <span className="text-[11px] font-black uppercase italic tracking-tight block leading-tight">
+                          {deviceSubscribed ? 'Notificações Push PWA Ativas' : 'Permissão Concedida no Aparelho'}
+                        </span>
+                        <span className="text-[9.5px] opacity-80 block leading-tight mt-0.5">
+                          {deviceSubscribed 
+                            ? `Dispositivo conectado • ${serverDevicesCount || 1} aparelho(s) registrado(s)` 
+                            : 'Clique abaixo para registrar este celular no servidor'}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-black text-[8.5px] tracking-wider uppercase">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>{deviceSubscribed ? 'Conectado' : 'Pendente'}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-black text-[8.5px] tracking-wider uppercase">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Conectado</span>
-                  </div>
+
+                  {!deviceSubscribed && (
+                    <button
+                      onClick={handleRegisterThisDevice}
+                      disabled={subscribing}
+                      className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider text-[10px] italic flex items-center justify-center gap-2 transition cursor-pointer shadow-xs disabled:opacity-50"
+                    >
+                      {subscribing ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Smartphone className="w-3.5 h-3.5" />
+                      )}
+                      <span>Registrar este Celular para Push em Nuvem</span>
+                    </button>
+                  )}
+
+                  {deviceSubscribed && (
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        onClick={handleTestNotification}
+                        disabled={testing}
+                        className="py-1.5 px-2 rounded-xl bg-slate-900/5 hover:bg-slate-900/10 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/50 dark:border-white/10 text-slate-700 dark:text-slate-200 text-[9px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        {testing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3 text-[#FFCB05]" />}
+                        <span>Testar Push</span>
+                      </button>
+                      <button
+                        onClick={handleTestDelayedPush}
+                        disabled={countdown !== null}
+                        className="py-1.5 px-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-500 text-[9px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer"
+                      >
+                        <Timer className="w-3 h-3" />
+                        <span>{countdown !== null ? `Bloqueie (${countdown}s)` : 'Testar Tela Bloqueada'}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 

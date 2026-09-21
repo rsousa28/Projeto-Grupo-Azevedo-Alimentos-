@@ -10,6 +10,9 @@
  * 5. Inscrição nativa (PushManager.subscribe) e envio da PushSubscription para o servidor
  */
 
+import { db } from '../lib/firebase';
+import { doc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+
 export interface PushDeviceInfo {
   deviceId: string;
   userAgent: string;
@@ -26,9 +29,11 @@ export interface PushDiagnosticStatus {
   vapidConfigured: boolean;
   publicKeyPreview?: string;
   endpoint?: string;
+  serverDevicesCount?: number;
 }
 
 const DEVICE_ID_KEY = 'g_azevedo_push_device_id';
+export const DEFAULT_VAPID_PUBLIC_KEY = 'BICKQSsomQNxolxMgOH8zuTiBR0qEuFX6zSUbt462NkBtbqZ3gO2DHc6IJizJgZupwKk6o-64Jdr04aL5QMHvYk';
 
 /**
  * Retorna ou gera um identificador estável para o dispositivo atual
@@ -131,28 +136,25 @@ export async function registerServiceWorker(swUrl: string = '/sw.js'): Promise<S
 }
 
 /**
- * Obtém a chave pública VAPID do backend
+ * Obtém a chave pública VAPID do backend, com fallback para a chave pública persistida
  */
-export async function getVapidPublicKey(): Promise<string | null> {
+export async function getVapidPublicKey(): Promise<string> {
   try {
     const res = await fetch('/api/push/vapid-public-key', {
       method: 'GET',
       credentials: 'include',
     });
 
-    if (!res.ok) {
-      throw new Error(`Servidor retornou HTTP ${res.status}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.publicKey) {
+        return data.publicKey;
+      }
     }
-
-    const data = await res.json();
-    if (data && data.publicKey) {
-      return data.publicKey;
-    }
-    return null;
   } catch (err) {
-    console.warn('[PushConfig] Não foi possível carregar a chave pública VAPID do servidor:', err);
-    return null;
+    console.warn('[PushConfig] Erro ao carregar chave pública do servidor, usando chave mestra:', err);
   }
+  return DEFAULT_VAPID_PUBLIC_KEY;
 }
 
 /**
@@ -171,20 +173,47 @@ export async function getExistingPushSubscription(): Promise<PushSubscription | 
 }
 
 /**
- * Envia os dados da inscrição Push (PushSubscription) para o backend salvar no Firestore
+ * Envia os dados da inscrição Push (PushSubscription) para o backend e diretamente ao Firestore
  */
 export async function sendPushSubscriptionToServer(
   subscription: PushSubscription,
   user?: any
 ): Promise<boolean> {
-  try {
-    const deviceId = getPushDeviceIdentifier();
-    const storedUser = user || {
-      name: localStorage.getItem('g_azevedo_auth_user_name') || 'Usuário PWA',
-      role: localStorage.getItem('g_azevedo_auth_role') || 'ADMIN',
-      username: localStorage.getItem('g_azevedo_auth_username') || 'admin',
-    };
+  let backendSuccess = false;
+  let firestoreSuccess = false;
 
+  const deviceId = getPushDeviceIdentifier();
+  const storedUser = user || {
+    name: localStorage.getItem('g_azevedo_auth_user_name') || 'Usuário PWA',
+    role: localStorage.getItem('g_azevedo_auth_role') || 'ADMIN',
+    username: localStorage.getItem('g_azevedo_auth_username') || 'admin',
+  };
+
+  const subJson = subscription.toJSON();
+  const rawEndpoint = subscription.endpoint || '';
+  const docId = deviceId || `sub_${btoa(rawEndpoint).slice(-24).replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+  // 1. Gravação direta no Firestore push_subscriptions (Redundância 100% confiável independente de proxy)
+  try {
+    await setDoc(doc(db, 'push_subscriptions', docId), {
+      id: docId,
+      subscription: subJson,
+      deviceId,
+      userName: storedUser?.name || 'Usuário PWA',
+      userRole: storedUser?.role || 'ADMIN',
+      username: storedUser?.username || 'user',
+      updatedAt: new Date().toISOString(),
+      platform: 'PWA Web Push Native (Client Direct)',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : 'unknown',
+    }, { merge: true });
+    firestoreSuccess = true;
+    console.log('[PushConfig] Inscrição salva diretamente no Firestore:', docId);
+  } catch (fsErr) {
+    console.warn('[PushConfig] Gravação direta no Firestore apresentou aviso:', fsErr);
+  }
+
+  // 2. Notificar backend via /api/push/subscribe
+  try {
     const response = await fetch('/api/push/subscribe', {
       method: 'POST',
       credentials: 'include',
@@ -192,7 +221,7 @@ export async function sendPushSubscriptionToServer(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        subscription,
+        subscription: subJson,
         deviceId,
         user: storedUser,
         deviceInfo: {
@@ -204,17 +233,15 @@ export async function sendPushSubscriptionToServer(
       }),
     });
 
-    if (!response.ok) {
-      throw new Error(`Falha ao registrar inscrição no servidor (HTTP ${response.status})`);
+    if (response.ok) {
+      backendSuccess = true;
+      console.log('[PushConfig] Inscrição registrada no backend HTTP com sucesso.');
     }
-
-    const result = await response.json();
-    console.log('[PushConfig] Inscrição Push registrada no servidor com sucesso:', result);
-    return true;
   } catch (err) {
-    console.error('[PushConfig] Erro ao sincronizar PushSubscription com o servidor:', err);
-    return false;
+    console.warn('[PushConfig] Chamada HTTP /api/push/subscribe avisou:', err);
   }
+
+  return firestoreSuccess || backendSuccess;
 }
 
 /**
@@ -223,7 +250,7 @@ export async function sendPushSubscriptionToServer(
  * 2. Garante permissão concedida
  * 3. Registra e aguarda o Service Worker
  * 4. Obtém ou cria a assinatura Push com a chave pública VAPID
- * 5. Registra o endpoint no servidor
+ * 5. Registra o endpoint no servidor e no Firestore
  */
 export async function subscribeUserToPush(user?: any): Promise<PushSubscription | null> {
   if (!isPushSupported()) {
@@ -238,7 +265,7 @@ export async function subscribeUserToPush(user?: any): Promise<PushSubscription 
   }
 
   if (permission !== 'granted') {
-    console.warn('[PushConfig] Permissão de notificação não foi concedida:', permission);
+    console.warn('[PushConfig] Permissão de notificação não concedida:', permission);
     return null;
   }
 
@@ -256,10 +283,6 @@ export async function subscribeUserToPush(user?: any): Promise<PushSubscription 
     // 3. Se não houver inscrição, obter chave VAPID e inscrever
     if (!subscription) {
       const vapidPublicKey = await getVapidPublicKey();
-      if (!vapidPublicKey) {
-        throw new Error('Chave pública VAPID indisponível no servidor.');
-      }
-
       const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
       subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
@@ -269,7 +292,7 @@ export async function subscribeUserToPush(user?: any): Promise<PushSubscription 
       console.log('[PushConfig] Nova PushSubscription gerada com sucesso via VAPID!');
     }
 
-    // 4. Salvar no backend / Firestore
+    // 4. Salvar no backend e no Firestore
     if (subscription) {
       await sendPushSubscriptionToServer(subscription, user);
     }
@@ -289,6 +312,11 @@ export async function unsubscribeUserFromPush(): Promise<boolean> {
     const subscription = await getExistingPushSubscription();
     if (!subscription) return true;
 
+    const deviceId = getPushDeviceIdentifier();
+    try {
+      await deleteDoc(doc(db, 'push_subscriptions', deviceId));
+    } catch {}
+
     const successful = await subscription.unsubscribe();
     console.log('[PushConfig] Inscrição Push cancelada no navegador:', successful);
     return successful;
@@ -299,7 +327,40 @@ export async function unsubscribeUserFromPush(): Promise<boolean> {
 }
 
 /**
- * Retorna um relatório de diagnóstico completo do Web Push no cliente
+ * Dispara um teste de Web Push a partir do servidor para todos os aparelhos inscritos
+ */
+export async function triggerServerPushTest(
+  delaySeconds = 0,
+  title?: string,
+  body?: string
+): Promise<{ success: boolean; message: string; scheduled?: boolean }> {
+  try {
+    const res = await fetch('/api/push/test', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        delaySeconds,
+        title: title || '📲 Alerta Grupo Azevedo em Segundo Plano',
+        body: body || 'Notificação Push recebida com sucesso no seu celular! Seu dispositivo está pronto para receber alertas.',
+        deviceId: getPushDeviceIdentifier(),
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Servidor retornou erro: ${errText}`);
+    }
+
+    return await res.json();
+  } catch (err: any) {
+    console.error('[PushConfig] Erro ao acionar disparo de push no servidor:', err);
+    throw err;
+  }
+}
+
+/**
+ * Retorna um relatório de diagnóstico completo do Web Push no cliente e na nuvem
  */
 export async function getPushDiagnosticStatus(): Promise<PushDiagnosticStatus> {
   const supported = isPushSupported();
@@ -309,6 +370,7 @@ export async function getPushDiagnosticStatus(): Promise<PushDiagnosticStatus> {
   let publicKeyPreview: string | undefined = undefined;
   let endpoint: string | undefined = undefined;
   let vapidConfigured = false;
+  let serverDevicesCount = 0;
 
   if (supported) {
     try {
@@ -321,7 +383,7 @@ export async function getPushDiagnosticStatus(): Promise<PushDiagnosticStatus> {
         endpoint = sub.endpoint;
       }
     } catch {
-      // Falhas silenciosas de diagnóstico
+      // Falhas silenciosas
     }
   }
 
@@ -331,9 +393,12 @@ export async function getPushDiagnosticStatus(): Promise<PushDiagnosticStatus> {
       vapidConfigured = true;
       publicKeyPreview = `${pubKey.slice(0, 10)}...${pubKey.slice(-6)}`;
     }
-  } catch {
-    // Falhas silenciosas
-  }
+  } catch {}
+
+  try {
+    const snap = await getDocs(collection(db, 'push_subscriptions'));
+    serverDevicesCount = snap.size;
+  } catch {}
 
   return {
     supported,
@@ -343,5 +408,6 @@ export async function getPushDiagnosticStatus(): Promise<PushDiagnosticStatus> {
     vapidConfigured,
     publicKeyPreview,
     endpoint,
+    serverDevicesCount,
   };
 }

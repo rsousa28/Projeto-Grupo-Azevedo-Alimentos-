@@ -365,6 +365,116 @@ async function startServer() {
     }
   });
 
+  // Web Push direct test endpoint (immediate or delayed for locked screen testing)
+  app.post("/api/push/test", async (req, res) => {
+    try {
+      const { delaySeconds, title, body, deviceId } = req.body || {};
+      const delay = Math.max(0, Math.min(60, Number(delaySeconds) || 0));
+
+      const dispatchPush = async () => {
+        if (!db) return;
+        try {
+          const subDocs = await getDocs(collection(db, "push_subscriptions"));
+          console.log(`[WebPush Test] Dispatching test push to ${subDocs.size} registered devices...`);
+
+          const pushPayload = JSON.stringify({
+            title: title || "🔔 Teste de Notificação Push (PWA)",
+            body: body || "Seu celular recebeu a notificação em segundo plano com sucesso! O Web Push está 100% ativo.",
+            icon: "/logo_azevedo.png?v=11",
+            badge: "/logo_azevedo.png?v=11",
+            tag: `push_test_${Date.now()}`,
+            data: {
+              url: "/accounts-payable",
+              timestamp: new Date().toISOString(),
+            },
+          });
+
+          let sentCount = 0;
+          let expiredCount = 0;
+
+          for (const sDoc of subDocs.docs) {
+            const subData = sDoc.data();
+            if (deviceId && subData.deviceId !== deviceId && sDoc.id !== deviceId) {
+              continue;
+            }
+
+            if (subData && subData.subscription && subData.subscription.endpoint) {
+              try {
+                await webpush.sendNotification(subData.subscription, pushPayload);
+                sentCount++;
+              } catch (pushErr: any) {
+                if (pushErr.statusCode === 404 || pushErr.statusCode === 410) {
+                  await deleteDoc(doc(db, "push_subscriptions", sDoc.id)).catch(() => {});
+                  expiredCount++;
+                } else {
+                  console.warn(`[WebPush Test] Send error for ${sDoc.id}:`, pushErr.message || pushErr);
+                }
+              }
+            }
+          }
+
+          console.log(`[WebPush Test] Sent to ${sentCount} devices (${expiredCount} expired).`);
+        } catch (err) {
+          console.error("[WebPush Test] Error executing test push dispatch:", err);
+        }
+      };
+
+      if (delay > 0) {
+        setTimeout(dispatchPush, delay * 1000);
+        res.json({
+          success: true,
+          scheduled: true,
+          delaySeconds: delay,
+          message: `Disparo agendado para daqui a ${delay} segundos. Bloqueie a tela do celular agora!`
+        });
+      } else {
+        await dispatchPush();
+        res.json({
+          success: true,
+          scheduled: false,
+          message: "Push de teste disparado com sucesso para os dispositivos registrados!"
+        });
+      }
+    } catch (err: any) {
+      console.error("[WebPush Test] Route error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Get push subscriptions count and status
+  app.get("/api/push/status", async (req, res) => {
+    try {
+      if (!db) {
+        return res.json({ connected: false, devicesCount: 0, devices: [] });
+      }
+      const subDocs = await getDocs(collection(db, "push_subscriptions"));
+      const devices = subDocs.docs.map(d => {
+        const data = d.data();
+        let domain = "unknown";
+        try {
+          if (data.subscription?.endpoint) {
+            domain = new URL(data.subscription.endpoint).hostname;
+          }
+        } catch (e) {}
+        return {
+          id: d.id,
+          userName: data.userName || "Usuário",
+          userRole: data.userRole || "USER",
+          platform: data.platform || "PWA",
+          updatedAt: data.updatedAt || "",
+          endpointDomain: domain,
+        };
+      });
+      res.json({
+        connected: true,
+        devicesCount: subDocs.size,
+        devices,
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // Manual trigger for testing hourly payable push
   app.post("/api/notifications/trigger-hourly-payable", async (req, res) => {
     try {
