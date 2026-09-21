@@ -161,6 +161,7 @@ export class EmailService {
 
     const response = await fetch('/api/send-email', {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },

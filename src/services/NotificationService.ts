@@ -329,7 +329,7 @@ export class NotificationService {
 
       if (!subscription) {
         // Fetch VAPID public key from backend
-        const res = await fetch('/api/push/vapid-public-key');
+        const res = await fetch('/api/push/vapid-public-key', { credentials: 'include' });
         if (!res.ok) return false;
         const data = await res.json();
         if (!data.publicKey) return false;
@@ -351,6 +351,7 @@ export class NotificationService {
 
         await fetch('/api/push/subscribe', {
           method: 'POST',
+          credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             subscription,
@@ -975,7 +976,7 @@ export class NotificationService {
 
     // Also ping server background worker to broadcast real Web Push to subscribed devices
     try {
-      fetch('/api/notifications/trigger-hourly-payable', { method: 'POST' }).catch(() => {});
+      fetch('/api/notifications/trigger-hourly-payable', { method: 'POST', credentials: 'include' }).catch(() => {});
     } catch (e) {}
 
     if (hourKey) {
