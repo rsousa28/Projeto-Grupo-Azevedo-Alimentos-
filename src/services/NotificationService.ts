@@ -3,6 +3,13 @@ import { doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot, get
 import { getToken, onMessage } from 'firebase/messaging';
 import { STORES } from '../contexts/StoreContext';
 import { getDocCached } from '../lib/firestoreQueryCache';
+import { 
+  urlBase64ToUint8Array, 
+  subscribeUserToPush, 
+  requestNotificationPermission, 
+  getNotificationPermission, 
+  getPushDiagnosticStatus 
+} from '../utils/pushConfig';
 
 export interface NotificationPreferences {
   enabled: boolean;
@@ -301,14 +308,7 @@ export class NotificationService {
    * Helper to convert Base64 URL safe string to Uint8Array for VAPID key
    */
   static urlBase64ToUint8Array(base64String: string): Uint8Array {
-    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-    const rawData = window.atob(base64);
-    const outputArray = new Uint8Array(rawData.length);
-    for (let i = 0; i < rawData.length; ++i) {
-      outputArray[i] = rawData.charCodeAt(i);
-    }
-    return outputArray;
+    return urlBase64ToUint8Array(base64String);
   }
 
   /**
@@ -316,57 +316,12 @@ export class NotificationService {
    */
   static async registerWebPushSubscription(user?: any): Promise<boolean> {
     try {
-      if (typeof window === 'undefined' || !('serviceWorker' in navigator) || !('PushManager' in window)) {
-        return false;
-      }
-
-      if (Notification.permission !== 'granted') {
-        return false;
-      }
-
-      const reg = await navigator.serviceWorker.ready;
-      let subscription = await reg.pushManager.getSubscription();
-
-      if (!subscription) {
-        // Fetch VAPID public key from backend
-        const res = await fetch('/api/push/vapid-public-key', { credentials: 'include' });
-        if (!res.ok) return false;
-        const data = await res.json();
-        if (!data.publicKey) return false;
-
-        const applicationServerKey = this.urlBase64ToUint8Array(data.publicKey);
-        subscription = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey,
-        });
-      }
-
-      if (subscription) {
-        const deviceId = getDeviceId();
-        const storedUser = user || {
-          name: localStorage.getItem('g_azevedo_auth_user_name') || 'Administrador',
-          role: localStorage.getItem('g_azevedo_auth_role') || 'ADMIN',
-          username: localStorage.getItem('g_azevedo_auth_username') || 'admin',
-        };
-
-        await fetch('/api/push/subscribe', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            subscription,
-            deviceId,
-            user: storedUser,
-          }),
-        });
-
-        console.log('[NotificationService] Web Push subscription successfully registered with server!');
-        return true;
-      }
+      const sub = await subscribeUserToPush(user);
+      return !!sub;
     } catch (err) {
       console.warn('[NotificationService] Web Push subscription registration error:', err);
+      return false;
     }
-    return false;
   }
 
   /**

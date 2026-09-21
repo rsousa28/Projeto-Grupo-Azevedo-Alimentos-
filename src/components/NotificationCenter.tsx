@@ -16,7 +16,15 @@ import {
   Smartphone,
   Volume2, 
   ScanFace,
-  X 
+  X,
+  BookOpen,
+  Key,
+  Copy,
+  ExternalLink,
+  ShieldCheck,
+  Timer,
+  BatteryCharging,
+  Apple
 } from 'lucide-react';
 import { NotificationService, NotificationPreferences, NotificationLogItem } from '../services/NotificationService';
 import { BiometricService } from '../services/BiometricService';
@@ -34,10 +42,17 @@ export default function NotificationCenter() {
   const [testingPayable, setTestingPayable] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(false);
   const [biometricSupported, setBiometricSupported] = useState(false);
+  
+  // VAPID & Background Guide States
+  const [showVapidGuide, setShowVapidGuide] = useState(false);
+  const [guideTab, setGuideTab] = useState<'overview' | 'ios' | 'android' | 'vapid'>('overview');
+  const [serverVapidKey, setServerVapidKey] = useState<string>('');
+  const [copiedKey, setCopiedKey] = useState(false);
+  const [countdown, setCountdown] = useState<number | null>(null);
 
   const { user } = useAuth();
   const { isDarkMode, currentStore } = useStore();
-  const { success, warning, error: toastError } = useToast();
+  const { success, warning, error: toastError, info } = useToast();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,6 +63,14 @@ export default function NotificationCenter() {
       setBiometricSupported(BiometricService.isSupported());
       setBiometricEnabled(BiometricService.isBiometricEnabled(user.username));
     }
+
+    // Fetch server VAPID public key
+    fetch('/api/push/vapid-public-key', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.publicKey) setServerVapidKey(data.publicKey);
+      })
+      .catch(() => {});
   }, [isOpen, user]);
 
   const handleToggleBiometric = async () => {
@@ -139,6 +162,42 @@ export default function NotificationCenter() {
     } finally {
       setTestingPayable(false);
     }
+  };
+
+  const handleTestDelayedPush = () => {
+    if (permission !== 'granted') {
+      warning('Ative as permissões de notificação antes de testar em segundo plano.');
+      return;
+    }
+    setCountdown(5);
+    info('Bloqueie a tela do celular AGORA! O alerta push chegará em 5 segundos.', 'Teste em Segundo Plano');
+    
+    let counter = 5;
+    const interval = setInterval(() => {
+      counter -= 1;
+      if (counter > 0) {
+        setCountdown(counter);
+      } else {
+        clearInterval(interval);
+        setCountdown(null);
+        
+        NotificationService.sendPushNotification('📲 Alerta em Segundo Plano Recebido!', {
+          body: 'Seu smartphone recebeu a notificação com sucesso com a tela bloqueada.',
+          type: 'TEST',
+          tag: `background_test_${Date.now()}`,
+          url: '/accounts-payable',
+        });
+        
+        fetch('/api/notifications/trigger-hourly-payable', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+        }).catch(() => {});
+        
+        success('Notificação em segundo plano disparada com sucesso!');
+        setLogs(NotificationService.getLogs());
+      }
+    }, 1000);
   };
 
   const handleMarkAllRead = () => {
@@ -543,6 +602,33 @@ export default function NotificationCenter() {
 
                   {/* Action Buttons */}
                   <div className="pt-2 space-y-2">
+                    {/* Botão Guia VAPID Passo a Passo */}
+                    <button
+                      onClick={() => setShowVapidGuide(true)}
+                      className="w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 font-black uppercase tracking-wider text-[10px] italic flex items-center justify-center gap-2 transition cursor-pointer"
+                    >
+                      <BookOpen className="w-3.5 h-3.5" />
+                      <span>Guia Passo a Passo: Notificações em 2º Plano</span>
+                    </button>
+
+                    {/* Botão Teste com Bloqueio de Tela (5 segundos de delay) */}
+                    <button
+                      onClick={handleTestDelayedPush}
+                      disabled={countdown !== null}
+                      className={`w-full py-2.5 px-3 rounded-xl border font-black uppercase tracking-wider text-[10px] italic flex items-center justify-center gap-2 transition cursor-pointer ${
+                        countdown !== null
+                          ? 'bg-amber-500 text-slate-950 border-amber-400 animate-pulse'
+                          : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border-emerald-500/30'
+                      }`}
+                    >
+                      <Timer className="w-3.5 h-3.5" />
+                      {countdown !== null ? (
+                        <span>Bloqueie a Tela Agora! ({countdown}s)</span>
+                      ) : (
+                        <span>Testar Push na Tela Bloqueada (5s Delay)</span>
+                      )}
+                    </button>
+
                     {(user?.role === 'ADMIN' || user?.role === 'FINANCIAL' || user?.username?.toLowerCase() === 'rennan' || user?.username?.toLowerCase().includes('admin') || user?.username?.toLowerCase() === 'victordiretor') && (
                       <button
                         onClick={handleTriggerPayableReport}
@@ -570,7 +656,7 @@ export default function NotificationCenter() {
                       ) : (
                         <>
                           <Send className="w-3.5 h-3.5 text-[#FFCB05]" />
-                          <span>Testar Notificação Push Geral</span>
+                          <span>Testar Notificação Push Imediata</span>
                         </>
                       )}
                     </button>
@@ -579,6 +665,291 @@ export default function NotificationCenter() {
               )}
             </div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal Guia VAPID e Notificações em Segundo Plano */}
+      <AnimatePresence>
+        {showVapidGuide && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className={`w-full max-w-2xl rounded-3xl border shadow-2xl overflow-hidden my-auto ${
+                isDarkMode ? 'bg-[#181818] border-[#333] text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`}
+            >
+              {/* Modal Header */}
+              <div className={`p-4 sm:p-5 border-b flex items-center justify-between ${
+                isDarkMode ? 'bg-[#1F1F1F] border-[#2A2A2A]' : 'bg-slate-50 border-slate-100'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-slate-950 flex items-center justify-center shadow-md">
+                    <Smartphone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-base font-black uppercase italic tracking-tight flex items-center gap-2">
+                      Guia VAPID & Notificações em Segundo Plano
+                    </h2>
+                    <p className="text-[11px] text-slate-400 font-medium">
+                      Como receber alertas sem precisar manter o app aberto
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowVapidGuide(false)}
+                  className="p-2 rounded-xl hover:bg-white/10 text-slate-400 transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className={`flex border-b text-xs font-bold ${
+                isDarkMode ? 'border-[#2A2A2A] bg-[#141414]' : 'border-slate-100 bg-slate-100/50'
+              }`}>
+                <button
+                  onClick={() => setGuideTab('overview')}
+                  className={`flex-1 py-3 px-3 border-b-2 flex items-center justify-center gap-1.5 transition ${
+                    guideTab === 'overview'
+                      ? 'border-amber-500 text-amber-500 bg-amber-500/5'
+                      : 'border-transparent text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Como Funciona</span>
+                </button>
+                <button
+                  onClick={() => setGuideTab('ios')}
+                  className={`flex-1 py-3 px-3 border-b-2 flex items-center justify-center gap-1.5 transition ${
+                    guideTab === 'ios'
+                      ? 'border-amber-500 text-amber-500 bg-amber-500/5'
+                      : 'border-transparent text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Apple className="w-4 h-4" />
+                  <span>iPhone (iOS)</span>
+                </button>
+                <button
+                  onClick={() => setGuideTab('android')}
+                  className={`flex-1 py-3 px-3 border-b-2 flex items-center justify-center gap-1.5 transition ${
+                    guideTab === 'android'
+                      ? 'border-amber-500 text-amber-500 bg-amber-500/5'
+                      : 'border-transparent text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span>Android</span>
+                </button>
+                <button
+                  onClick={() => setGuideTab('vapid')}
+                  className={`flex-1 py-3 px-3 border-b-2 flex items-center justify-center gap-1.5 transition ${
+                    guideTab === 'vapid'
+                      ? 'border-amber-500 text-amber-500 bg-amber-500/5'
+                      : 'border-transparent text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Key className="w-4 h-4" />
+                  <span>Chaves VAPID</span>
+                </button>
+              </div>
+
+              {/* Tab Content */}
+              <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4 custom-scrollbar text-xs leading-relaxed">
+                {guideTab === 'overview' && (
+                  <div className="space-y-4">
+                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300">
+                      <p className="font-bold text-xs">💡 O que é o VAPID?</p>
+                      <p className="text-[11px] text-slate-300 mt-1">
+                        VAPID (Voluntary Application Server Identification) é o protocolo oficial da Web que permite ao servidor do Grupo Azevedo enviar notificações push criptografadas diretamente para os servidores da Apple (APNs) e Google (FCM). O celular acorda em segundo plano e exibe o alerta sem que você precise estar com o app aberto.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="font-black uppercase tracking-wider text-[11px] text-slate-400">
+                        Fluxo de Entrega em 4 Etapas:
+                      </h4>
+                      <ol className="list-decimal pl-4 space-y-2 text-slate-300 text-[11.5px]">
+                        <li>
+                          <strong className="text-white">Autorização no PWA:</strong> Ao permitir notificações, seu navegador gera uma assinatura exclusiva ligada à chave pública VAPID do sistema.
+                        </li>
+                        <li>
+                          <strong className="text-white">Registro no Banco de Dados:</strong> A assinatura é salva automaticamente no Firestore em <code className="text-amber-400 font-mono">push_subscriptions</code>.
+                        </li>
+                        <li>
+                          <strong className="text-white">Robô em Background:</strong> O robô no servidor verifica as contas a pagar de hora em hora (08h às 22h) ou rotinas atrasadas e dispara a notificação via Web Push.
+                        </li>
+                        <li>
+                          <strong className="text-white">Exibição Nativa:</strong> O sistema operacional do seu celular (iOS ou Android) recebe o sinal, acorda o Service Worker e emite o som e banner na tela bloqueada.
+                        </li>
+                      </ol>
+                    </div>
+                  </div>
+                )}
+
+                {guideTab === 'ios' && (
+                  <div className="space-y-4">
+                    <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300">
+                      <p className="font-bold text-xs">⚠️ Requisito Obrigatório da Apple (iOS 16.4+):</p>
+                      <p className="text-[11px] text-slate-300 mt-1">
+                        O Safari no iPhone <strong>NÃO</strong> permite notificações push em abas comuns do navegador. É <strong>obrigatório</strong> instalar o PWA na Tela de Início!
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="font-black uppercase tracking-wider text-[11px] text-slate-400">
+                        Passo a Passo no iPhone:
+                      </h4>
+                      <div className="space-y-2.5 text-slate-300 text-[11.5px]">
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
+                          <div>
+                            <strong className="text-white">Instalar na Tela de Início:</strong> Abra o sistema no <strong>Safari</strong>, toque no botão <strong>Compartilhar</strong> (quadrado com seta para cima) e escolha <strong>"Adicionar à Tela de Início"</strong>.
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
+                          <div>
+                            <strong className="text-white">Abrir pelo Ícone Novo:</strong> Feche o Safari e abra o app através do ícone recém-criado na tela inicial do seu iPhone.
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
+                          <div>
+                            <strong className="text-white">Conceder Permissão:</strong> Abra o sino de notificações, clique em <strong>"Ativar Notificações Push"</strong> e confirme no diálogo nativo do iOS tocando em <strong>"Permitir"</strong>.
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">4</span>
+                          <div>
+                            <strong className="text-white">Conferir Ajustes do iOS:</strong> Em <strong>Ajustes &gt; Notificações &gt; Grupo AZ</strong>, verifique se "Permitir Notificações", "Sons" e "Tela Bloqueada" estão ativos.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {guideTab === 'android' && (
+                  <div className="space-y-4">
+                    <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
+                      <p className="font-bold text-xs">🔋 Dica Crítica de Bateria no Android:</p>
+                      <p className="text-[11px] text-slate-300 mt-1">
+                        Sistemas Android (Samsung, Motorola, Xiaomi) possuem economia agressiva de bateria que pode atrasar notificações em segundo plano se o app estiver configurado como "Otimizado".
+                      </p>
+                    </div>
+
+                    <div className="space-y-3">
+                      <h4 className="font-black uppercase tracking-wider text-[11px] text-slate-400">
+                        Configuração Recomendada no Android:
+                      </h4>
+                      <div className="space-y-2.5 text-slate-300 text-[11.5px]">
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
+                          <div>
+                            <strong className="text-white">Instalar o App:</strong> No Google Chrome, toque no botão <strong>"Instalar Aplicativo"</strong> ou nos 3 pontinhos &gt; <strong>"Instalar aplicativo"</strong>.
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
+                          <div>
+                            <strong className="text-white">Permitir Notificações:</strong> Toque no sino do sistema e clique em <strong>"Permitir"</strong> quando o Chrome solicitar.
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
+                          <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
+                          <div>
+                            <strong className="text-white">Desativar Restrição de Bateria:</strong> Vá em <strong>Configurações do Celular &gt; Aplicativos &gt; Grupo AZ (ou Chrome) &gt; Bateria</strong> e mude para <strong>"Sem restrições"</strong>. Isso garante que a notificação chegue no mesmo segundo mesmo com o celular em modo de espera!
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {guideTab === 'vapid' && (
+                  <div className="space-y-4">
+                    <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-amber-400">Chave VAPID Pública do Servidor</span>
+                        <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                          Ativa
+                        </span>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-black/40 font-mono text-[10px] text-slate-300 break-all select-all border border-white/5 flex items-center justify-between gap-2">
+                        <span>{serverVapidKey || 'BICKQSsomQNxolxMgOH8zuTiBR0qEuFX6zSUbt462NkBtbqZ3gO2DHc6IJizJgZupwKk6o-64Jdr04aL5QMHvYk'}</span>
+                        <button
+                          onClick={() => {
+                            const key = serverVapidKey || 'BICKQSsomQNxolxMgOH8zuTiBR0qEuFX6zSUbt462NkBtbqZ3gO2DHc6IJizJgZupwKk6o-64Jdr04aL5QMHvYk';
+                            navigator.clipboard.writeText(key);
+                            setCopiedKey(true);
+                            setTimeout(() => setCopiedKey(false), 2000);
+                            success('Chave VAPID copiada com sucesso!');
+                          }}
+                          className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white shrink-0 transition cursor-pointer"
+                          title="Copiar Chave Pública"
+                        >
+                          {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-slate-400">
+                        Armazenada de forma persistente em <code className="text-amber-300">vapid-keys.json</code> e em variáveis de ambiente.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <h4 className="font-black uppercase tracking-wider text-[11px] text-slate-400">
+                        Como Configurar no .env do Projeto:
+                      </h4>
+                      <pre className="p-3 rounded-xl bg-black/40 border border-white/10 text-[10px] font-mono text-amber-300 overflow-x-auto">
+{`# Variáveis de Ambiente no Servidor
+VAPID_PUBLIC_KEY="BICKQSsomQNxolxMgOH8zuTiBR0qEuFX6zSUbt462NkBtbqZ3gO2DHc6IJizJgZupwKk6o-64Jdr04aL5QMHvYk"
+VAPID_PRIVATE_KEY="..."
+VAPID_SUBJECT="mailto:rennaninacio0003@gmail.com"`}
+                      </pre>
+                      <p className="text-[10.5px] text-slate-400">
+                        O guia técnico completo e diagramas de arquitetura estão disponíveis no arquivo <strong className="text-white">GUIA_NOTIFICACOES_VAPID.md</strong> na raiz do projeto.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Modal Footer */}
+              <div className={`p-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 ${
+                isDarkMode ? 'bg-[#1F1F1F] border-[#2A2A2A]' : 'bg-slate-50 border-slate-100'
+              }`}>
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                  <span>Push Criptografado de Ponta a Ponta</span>
+                </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => {
+                      setShowVapidGuide(false);
+                      handleTestDelayedPush();
+                    }}
+                    className="flex-1 sm:flex-none py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs italic flex items-center justify-center gap-2 transition cursor-pointer"
+                  >
+                    <Timer className="w-3.5 h-3.5" />
+                    <span>Testar na Tela Bloqueada (5s)</span>
+                  </button>
+                  <button
+                    onClick={() => setShowVapidGuide(false)}
+                    className="py-2 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition cursor-pointer"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
