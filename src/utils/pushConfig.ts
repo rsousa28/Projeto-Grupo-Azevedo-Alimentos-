@@ -252,7 +252,7 @@ export async function sendPushSubscriptionToServer(
  * 4. Obtém ou cria a assinatura Push com a chave pública VAPID
  * 5. Registra o endpoint no servidor e no Firestore
  */
-export async function subscribeUserToPush(user?: any): Promise<PushSubscription | null> {
+export async function subscribeUserToPush(user?: any, forceRenew = false): Promise<PushSubscription | null> {
   if (!isPushSupported()) {
     console.warn('[PushConfig] Web Push não suportado neste navegador.');
     return null;
@@ -279,11 +279,36 @@ export async function subscribeUserToPush(user?: any): Promise<PushSubscription 
   try {
     const reg = await navigator.serviceWorker.ready;
     let subscription = await reg.pushManager.getSubscription();
+    const vapidPublicKey = await getVapidPublicKey();
+    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
 
-    // 3. Se não houver inscrição, obter chave VAPID e inscrever
+    // Se já houver inscrição, validar se a chave VAPID é compatível
+    if (subscription) {
+      let keyMismatch = false;
+      const existingKeyBuf = (subscription as any).options?.applicationServerKey;
+      if (existingKeyBuf) {
+        const existingKeyArray = new Uint8Array(existingKeyBuf);
+        if (existingKeyArray.length !== applicationServerKey.length) {
+          keyMismatch = true;
+        } else {
+          for (let i = 0; i < existingKeyArray.length; i++) {
+            if (existingKeyArray[i] !== applicationServerKey[i]) {
+              keyMismatch = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (keyMismatch || forceRenew) {
+        console.log('[PushConfig] Inscrição Push anterior inválida ou chave divergente. Renovando...');
+        await subscription.unsubscribe().catch(() => {});
+        subscription = null;
+      }
+    }
+
+    // 3. Se não houver inscrição (ou se foi renovada), inscrever com chave ativa
     if (!subscription) {
-      const vapidPublicKey = await getVapidPublicKey();
-      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
       subscription = await reg.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey,

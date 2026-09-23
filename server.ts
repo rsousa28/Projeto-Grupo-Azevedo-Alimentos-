@@ -269,10 +269,16 @@ async function executeHourlyAccountsPayableCheck(force = false): Promise<{ succe
             await webpush.sendNotification(subData.subscription, pushPayload);
             sentCount++;
           } catch (pushErr: any) {
-            if (pushErr.statusCode === 404 || pushErr.statusCode === 410) {
-              // Expired subscription, clean up
+            if (
+              pushErr.statusCode === 404 ||
+              pushErr.statusCode === 410 ||
+              pushErr.statusCode === 403 ||
+              (pushErr.statusCode === 400 && String(pushErr.body || '').includes('invalid'))
+            ) {
+              // Expired or mismatched credentials subscription, prune from Firestore
               await deleteDoc(doc(db, "push_subscriptions", sDoc.id)).catch(() => {});
               expiredCount++;
+              console.log(`[Hourly AP Worker] Pruned invalid/expired subscription (HTTP ${pushErr.statusCode}) for ${sDoc.id}`);
             } else {
               console.warn(`[Hourly AP Worker] Push send error for ${sDoc.id}:`, pushErr.message || pushErr);
             }
@@ -402,9 +408,15 @@ async function startServer() {
                 await webpush.sendNotification(subData.subscription, pushPayload);
                 sentCount++;
               } catch (pushErr: any) {
-                if (pushErr.statusCode === 404 || pushErr.statusCode === 410) {
+                if (
+                  pushErr.statusCode === 404 ||
+                  pushErr.statusCode === 410 ||
+                  pushErr.statusCode === 403 ||
+                  (pushErr.statusCode === 400 && String(pushErr.body || '').includes('invalid'))
+                ) {
                   await deleteDoc(doc(db, "push_subscriptions", sDoc.id)).catch(() => {});
                   expiredCount++;
+                  console.log(`[WebPush Test] Pruned invalid/expired subscription (HTTP ${pushErr.statusCode}) for ${sDoc.id}`);
                 } else {
                   console.warn(`[WebPush Test] Send error for ${sDoc.id}:`, pushErr.message || pushErr);
                 }

@@ -164,7 +164,7 @@ export default function NotificationCenter() {
         return;
       }
 
-      const sub = await subscribeUserToPush(user);
+      const sub = await subscribeUserToPush(user, true);
       if (sub) {
         setDeviceSubscribed(true);
         success('Aparelho registrado no Web Push com sucesso! Você receberá os alertas em segundo plano.', 'Dispositivo Conectado');
@@ -321,32 +321,6 @@ export default function NotificationCenter() {
 
   return (
     <div className="relative inline-flex items-center gap-1.5 sm:gap-2" ref={dropdownRef}>
-      {/* Quick Action Pill for Desktop/Tablet when permission is NOT granted */}
-      {permission === 'default' && (
-        <button
-          onClick={handleRequestPermission}
-          title="Clique para autorizar as notificações push do PWA no seu navegador/celular"
-          className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 dark:text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-          </span>
-          <span className="whitespace-nowrap">Ativar Notificações</span>
-        </button>
-      )}
-
-      {permission === 'denied' && (
-        <button
-          onClick={() => setIsOpen(true)}
-          title="Notificações bloqueadas no navegador. Clique para ver instruções de desbloqueio."
-          className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 dark:text-rose-400 border border-rose-500/30 text-[10px] font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs active:scale-95 shrink-0"
-        >
-          <span className="w-2 h-2 rounded-full bg-rose-500" />
-          <span className="whitespace-nowrap">Alertas Bloqueados</span>
-        </button>
-      )}
-
       {/* Bell Trigger Button with Status Badges */}
       <button
         onClick={() => setIsOpen(!isOpen)}
@@ -527,66 +501,43 @@ export default function NotificationCenter() {
 
               {/* Permission Granted Status Card */}
               {permission === 'granted' && (
-                <div className="space-y-2">
-                  <div className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2.5 ${
-                    isDarkMode 
-                      ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                      : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                  }`}>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                      <div>
-                        <span className="text-[11px] font-black uppercase italic tracking-tight block leading-tight">
-                          {deviceSubscribed ? 'Notificações Push PWA Ativas' : 'Permissão Concedida no Aparelho'}
-                        </span>
-                        <span className="text-[9.5px] opacity-80 block leading-tight mt-0.5">
-                          {deviceSubscribed 
-                            ? `Dispositivo conectado • ${serverDevicesCount || 1} aparelho(s) registrado(s)` 
-                            : 'Clique abaixo para registrar este celular no servidor'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-black text-[8.5px] tracking-wider uppercase">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>{deviceSubscribed ? 'Conectado' : 'Pendente'}</span>
+                <div className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2.5 ${
+                  isDarkMode 
+                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
+                    : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                }`}>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
+                    <div className="min-w-0">
+                      <span className="text-[11px] font-black uppercase italic tracking-tight block leading-tight truncate">
+                        {deviceSubscribed ? 'Push PWA Ativo' : 'Permissão Concedida'}
+                      </span>
+                      <span className="text-[9.5px] opacity-80 block leading-tight mt-0.5 truncate">
+                        {deviceSubscribed 
+                          ? `${serverDevicesCount || 1} aparelho(s) conectado(s)` 
+                          : 'Aparelho aguardando conexão em 2º plano'}
+                      </span>
                     </div>
                   </div>
 
-                  {!deviceSubscribed && (
-                    <button
-                      onClick={handleRegisterThisDevice}
-                      disabled={subscribing}
-                      className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-wider text-[10px] italic flex items-center justify-center gap-2 transition cursor-pointer shadow-xs disabled:opacity-50"
-                    >
-                      {subscribing ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <Smartphone className="w-3.5 h-3.5" />
-                      )}
-                      <span>Registrar este Celular para Push em Nuvem</span>
-                    </button>
-                  )}
-
-                  {deviceSubscribed && (
-                    <div className="grid grid-cols-2 gap-1.5">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {!deviceSubscribed ? (
                       <button
-                        onClick={handleTestNotification}
-                        disabled={testing}
-                        className="py-1.5 px-2 rounded-xl bg-slate-900/5 hover:bg-slate-900/10 dark:bg-white/5 dark:hover:bg-white/10 border border-slate-200/50 dark:border-white/10 text-slate-700 dark:text-slate-200 text-[9px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer"
+                        onClick={handleRegisterThisDevice}
+                        disabled={subscribing}
+                        className="py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[9px] uppercase tracking-wider transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1"
+                        title="Conectar este aparelho ao servidor de Web Push"
                       >
-                        {testing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3 text-[#FFCB05]" />}
-                        <span>Testar Push</span>
+                        {subscribing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Smartphone className="w-3 h-3" />}
+                        <span>Conectar</span>
                       </button>
-                      <button
-                        onClick={handleTestDelayedPush}
-                        disabled={countdown !== null}
-                        className="py-1.5 px-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-500 text-[9px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer"
-                      >
-                        <Timer className="w-3 h-3" />
-                        <span>{countdown !== null ? `Bloqueie (${countdown}s)` : 'Testar Tela Bloqueada'}</span>
-                      </button>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-black text-[8.5px] tracking-wider uppercase">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Online</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -856,66 +807,80 @@ export default function NotificationCenter() {
                     </button>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="pt-2 space-y-2">
-                    {/* Botão Guia VAPID Passo a Passo */}
-                    <button
-                      onClick={() => setShowVapidGuide(true)}
-                      className="w-full py-2.5 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 font-black uppercase tracking-wider text-[10px] italic flex items-center justify-center gap-2 transition cursor-pointer"
-                    >
-                      <BookOpen className="w-3.5 h-3.5" />
-                      <span>Guia Passo a Passo: Notificações em 2º Plano</span>
-                    </button>
+                  {/* Seção Resumida & Compacta de Testes Push */}
+                  <div className={`p-3 rounded-2xl border space-y-2.5 ${
+                    isDarkMode ? 'bg-[#202020] border-[#303030]' : 'bg-slate-50 border-slate-100'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                        Testes de Disparo Push
+                      </span>
+                      <button
+                        onClick={() => setShowVapidGuide(true)}
+                        className="text-[9.5px] font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer transition"
+                        title="Ver instruções passo a passo para iPhone e Android"
+                      >
+                        <BookOpen className="w-3 h-3" />
+                        <span>Guia 2º plano</span>
+                      </button>
+                    </div>
 
-                    {/* Botão Teste com Bloqueio de Tela (5 segundos de delay) */}
-                    <button
-                      onClick={handleTestDelayedPush}
-                      disabled={countdown !== null}
-                      className={`w-full py-2.5 px-3 rounded-xl border font-black uppercase tracking-wider text-[10px] italic flex items-center justify-center gap-2 transition cursor-pointer ${
-                        countdown !== null
-                          ? 'bg-amber-500 text-slate-950 border-amber-400 animate-pulse'
-                          : 'bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border-emerald-500/30'
-                      }`}
-                    >
-                      <Timer className="w-3.5 h-3.5" />
-                      {countdown !== null ? (
-                        <span>Bloqueie a Tela Agora! ({countdown}s)</span>
-                      ) : (
-                        <span>Testar Push na Tela Bloqueada (5s Delay)</span>
-                      )}
-                    </button>
+                    {/* 2 botões compactos lado a lado */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={handleTestNotification}
+                        disabled={testing}
+                        className={`py-2 px-2.5 rounded-xl border text-[9.5px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs disabled:opacity-50 ${
+                          isDarkMode
+                            ? 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
+                            : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-800'
+                        }`}
+                        title="Envia um push instantâneo para testar se este aparelho está recebendo"
+                      >
+                        {testing ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Send className="w-3 h-3 text-[#FFCB05]" />
+                        )}
+                        <span>Testar Push</span>
+                      </button>
 
+                      <button
+                        onClick={handleTestDelayedPush}
+                        disabled={countdown !== null}
+                        className={`py-2 px-2.5 rounded-xl border text-[9.5px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs ${
+                          countdown !== null
+                            ? 'bg-amber-500 text-slate-950 border-amber-400 animate-pulse font-black'
+                            : isDarkMode
+                            ? 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/30 text-emerald-400'
+                            : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700'
+                        }`}
+                        title="Dispara com 5s de atraso para você bloquear a tela do celular e ver a notificação nativa"
+                      >
+                        <Timer className="w-3 h-3" />
+                        <span>{countdown !== null ? `Bloqueie (${countdown}s)` : 'Tela Bloqueada (5s)'}</span>
+                      </button>
+                    </div>
+
+                    {/* Disparo do Relatório de Contas a Pagar (Apenas Admin/Financeiro) */}
                     {(user?.role === 'ADMIN' || user?.role === 'FINANCIAL' || user?.username?.toLowerCase() === 'rennan' || user?.username?.toLowerCase().includes('admin') || user?.username?.toLowerCase() === 'victordiretor') && (
                       <button
                         onClick={handleTriggerPayableReport}
                         disabled={testingPayable}
-                        className="w-full py-3 rounded-xl bg-rose-600 text-white font-black uppercase tracking-wider text-[10px] italic flex items-center justify-center gap-2 hover:bg-rose-700 transition shadow-xs disabled:opacity-50 cursor-pointer"
+                        className={`w-full py-2 px-2.5 rounded-xl border text-[9.5px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs disabled:opacity-50 ${
+                          isDarkMode
+                            ? 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 text-rose-300'
+                            : 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700'
+                        }`}
                       >
                         {testingPayable ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
-                          <>
-                            <Receipt className="w-3.5 h-3.5" />
-                            <span>Disparar Relatório Contas a Pagar Agora</span>
-                          </>
+                          <Receipt className="w-3.5 h-3.5 text-rose-500" />
                         )}
+                        <span>Disparar Relatório Contas a Pagar</span>
                       </button>
                     )}
-
-                    <button
-                      onClick={handleTestNotification}
-                      disabled={testing}
-                      className="w-full py-3 rounded-xl bg-slate-900 text-white dark:bg-white dark:text-slate-900 font-black uppercase tracking-wider text-[10px] italic flex items-center justify-center gap-2 hover:opacity-90 transition shadow-xs disabled:opacity-50 cursor-pointer"
-                    >
-                      {testing ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <>
-                          <Send className="w-3.5 h-3.5 text-[#FFCB05]" />
-                          <span>Testar Notificação Push Imediata</span>
-                        </>
-                      )}
-                    </button>
                   </div>
                 </div>
               )}
