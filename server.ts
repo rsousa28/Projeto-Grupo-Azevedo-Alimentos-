@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -12,8 +11,8 @@ import { getFirestore, collection, getDocs, getDoc, doc, setDoc, addDoc, deleteD
 
 dotenv.config();
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Safe directory root resolution compatible with ESM, CJS (esbuild bundle), and native Node
+const appDir = process.cwd();
 
 // Initialize Firebase for server-side hourly background tasks
 let db: any = null;

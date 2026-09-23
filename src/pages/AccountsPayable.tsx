@@ -5634,7 +5634,11 @@ export default function AccountsPayable() {
                           showToast(res.message || "E-mail enviado diretamente com sucesso!", "success");
                         } catch (err: any) {
                           navigator.clipboard.writeText(emailBody).catch(() => {});
-                          showToast(`Falha no envio direto: ${err.message}. Relatório copiado para área de transferência!`, "warning");
+                          try {
+                            const mailtoUrl = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                            window.location.href = mailtoUrl;
+                          } catch (e) {}
+                          showToast(`Falha no envio direto (${err.message}). Abrindo seu app de e-mail e copiando o relatório!`, "warning");
                         } finally {
                           setSendingEmailType(null);
                         }
@@ -6098,7 +6102,11 @@ export default function AccountsPayable() {
                           showToast(res.message || "E-mail de boletos pagos enviado diretamente!", "success");
                         } catch (err: any) {
                           navigator.clipboard.writeText(emailBody).catch(() => {});
-                          showToast(`Falha no envio direto: ${err.message}. Relatório copiado para área de transferência!`, "warning");
+                          try {
+                            const mailtoUrl = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                            window.location.href = mailtoUrl;
+                          } catch (e) {}
+                          showToast(`Falha no envio direto (${err.message}). Abrindo seu app de e-mail e copiando o relatório!`, "warning");
                         } finally {
                           setSendingEmailType(null);
                         }
@@ -6514,7 +6522,11 @@ export default function AccountsPayable() {
                           showToast(res.message || "E-mail de compromissos futuros enviado diretamente!", "success");
                         } catch (err: any) {
                           navigator.clipboard.writeText(emailBody).catch(() => {});
-                          showToast(`Falha no envio direto: ${err.message}. Relatório copiado para área de transferência!`, "warning");
+                          try {
+                            const mailtoUrl = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
+                            window.location.href = mailtoUrl;
+                          } catch (e) {}
+                          showToast(`Falha no envio direto (${err.message}). Abrindo seu app de e-mail e copiando o relatório!`, "warning");
                         } finally {
                           setSendingEmailType(null);
                         }

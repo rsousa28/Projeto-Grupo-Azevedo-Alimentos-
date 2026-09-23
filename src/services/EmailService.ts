@@ -159,21 +159,27 @@ export class EmailService {
       });
     }
 
-    const response = await fetch('/api/send-email', {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        to: recipients,
-        subject: options.subject,
-        text: options.body,
-        html: html || undefined,
-        storeName: options.storeName,
-        reportType: options.reportType,
-      }),
-    });
+    let response: Response;
+    try {
+      response = await fetch('/api/send-email', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          to: recipients,
+          subject: options.subject,
+          text: options.body,
+          html: html || undefined,
+          storeName: options.storeName,
+          reportType: options.reportType,
+        }),
+      });
+    } catch (networkErr: any) {
+      console.warn('[EmailService] Network error connecting to /api/send-email:', networkErr);
+      throw new Error(`Falha de conexão com o servidor de e-mail (${networkErr.message || 'offline'}).`);
+    }
 
     let data: any = {};
     const rawText = await response.text().catch(() => '');
