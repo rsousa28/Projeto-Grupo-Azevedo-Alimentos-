@@ -131,12 +131,12 @@ export default function BackupStatusIndicator() {
             initial={{ opacity: 0, y: 10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className={`fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:mt-3 w-auto sm:w-96 rounded-3xl border shadow-2xl z-50 overflow-hidden ${
+            className={`fixed inset-x-2.5 top-[calc(env(safe-area-inset-top,0px)+4.25rem)] sm:absolute sm:top-full sm:right-0 sm:left-auto sm:bottom-auto sm:mt-2.5 w-auto sm:w-96 max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-6.5rem)] flex flex-col rounded-3xl border shadow-2xl z-50 overflow-hidden ${
               isDarkMode ? 'bg-[#181818] border-[#333] text-white' : 'bg-white border-slate-200 text-slate-900'
             }`}
           >
             {/* Header */}
-            <div className={`p-4 border-b flex items-center justify-between ${
+            <div className={`p-4 border-b flex items-center justify-between shrink-0 ${
               isAlert
                 ? isDarkMode ? 'bg-red-500/20 border-red-500/30' : 'bg-red-50 border-red-200'
                 : isDarkMode ? 'bg-[#1F1F1F] border-[#282828]' : 'bg-slate-50 border-slate-100'
@@ -168,7 +168,7 @@ export default function BackupStatusIndicator() {
             </div>
 
             {/* Content Body */}
-            <div className="p-4 space-y-4">
+            <div className="p-4 space-y-4 flex-1 overflow-y-auto custom-scrollbar">
               {/* Alert or Success Message Box */}
               {isAlert ? (
                 <div className="p-3.5 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs leading-relaxed space-y-2">

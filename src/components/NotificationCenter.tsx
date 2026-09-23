@@ -414,17 +414,17 @@ export default function NotificationCenter() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.95 }}
-            className={`fixed inset-x-3 top-16 sm:absolute sm:inset-auto sm:right-0 sm:mt-3 w-auto sm:w-96 rounded-3xl border shadow-2xl z-50 overflow-hidden ${
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            className={`fixed inset-x-2.5 top-[calc(env(safe-area-inset-top,0px)+4.25rem)] sm:absolute sm:top-full sm:right-0 sm:left-auto sm:bottom-auto sm:mt-2.5 w-auto sm:w-[420px] max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-6.5rem)] flex flex-col rounded-3xl border shadow-2xl z-50 overflow-hidden ${
               isDarkMode ? 'bg-[#181818] border-[#333] text-white' : 'bg-white border-slate-200 text-slate-900'
             }`}
           >
-            {/* Header */}
-            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-[#282828] bg-[#1F1F1F]' : 'border-slate-100 bg-slate-50/80'}`}>
+            {/* Fixed Header */}
+            <div className={`p-3.5 sm:p-4 border-b flex items-center justify-between shrink-0 ${isDarkMode ? 'border-[#282828] bg-[#1F1F1F]' : 'border-slate-100 bg-slate-50/90'}`}>
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#FFCB05] text-[#7F300C] flex items-center justify-center font-black shadow-xs">
+                <div className="w-8 h-8 rounded-xl bg-[#FFCB05] text-[#7F300C] flex items-center justify-center font-black shadow-xs shrink-0">
                   <Bell className="w-4 h-4" />
                 </div>
                 <div>
@@ -437,31 +437,59 @@ export default function NotificationCenter() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setActiveTab(activeTab === 'notifications' ? 'settings' : 'notifications')}
-                  className={`p-2 rounded-xl transition-all text-xs font-bold flex items-center gap-1 ${
-                    activeTab === 'settings'
-                      ? 'bg-[#FFCB05] text-[#7F300C]'
-                      : isDarkMode
-                      ? 'bg-white/5 text-slate-300 hover:bg-white/10'
-                      : 'bg-slate-200/70 text-slate-700 hover:bg-slate-200'
-                  }`}
-                  title="Configurações de Notificação"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                </button>
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 transition"
+                  className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 transition cursor-pointer"
+                  title="Fechar"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
+            {/* Navigation Tabs - Always visible at the top */}
+            <div className={`p-1.5 border-b grid grid-cols-2 gap-1.5 shrink-0 ${
+              isDarkMode ? 'border-[#262626] bg-[#141414]' : 'border-slate-100 bg-slate-100/70'
+            }`}>
+              <button
+                onClick={() => setActiveTab('notifications')}
+                className={`py-2 px-3 rounded-xl text-[11px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  activeTab === 'notifications'
+                    ? 'bg-[#FFCB05] text-[#7F300C] shadow-xs'
+                    : isDarkMode
+                    ? 'text-slate-400 hover:text-white hover:bg-white/5'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                }`}
+              >
+                <Bell className="w-3.5 h-3.5" />
+                <span>Alertas</span>
+                {unreadCount > 0 && (
+                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black leading-none ${
+                    activeTab === 'notifications' ? 'bg-[#7F300C] text-[#FFCB05]' : 'bg-amber-500 text-slate-950'
+                  }`}>
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`py-2 px-3 rounded-xl text-[11px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  activeTab === 'settings'
+                    ? 'bg-[#FFCB05] text-[#7F300C] shadow-xs'
+                    : isDarkMode
+                    ? 'text-slate-400 hover:text-white hover:bg-white/5'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+                }`}
+              >
+                <Settings className="w-3.5 h-3.5" />
+                <span>Ajustes & Push</span>
+              </button>
+            </div>
+
             {/* Content area */}
-            <div className="p-4 max-h-96 overflow-y-auto space-y-3 custom-scrollbar">
+            <div className="p-3.5 sm:p-4 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
               {/* Permission Request Banner if default/denied */}
               {permission !== 'granted' && (
                 <div className={`p-3.5 rounded-2xl border flex flex-col gap-2 ${
