@@ -729,12 +729,14 @@ export class NotificationService {
       storeName: string;
       today: number;
       overdue: number;
+      overdueCount: number;
       paid: number;
       upcoming: number;
     }> = [];
 
     let totalGroupToday = 0;
     let totalGroupOverdue = 0;
+    let totalGroupOverdueCount = 0;
     let totalGroupPaid = 0;
     let totalGroupUpcoming = 0;
 
@@ -816,7 +818,7 @@ export class NotificationService {
       // 3. Strict Store Boundary Validation
       // Ensure only accounts legitimately belonging to this store are evaluated
       const cleanStoreAccounts = storeItems.filter((ac: any) => {
-        if (!ac || !ac.id) return false;
+        if (!ac || !ac.dueDate || ac.deleted) return false;
         
         // Strict boundary check
         if (storeId === '1') {
@@ -843,7 +845,7 @@ export class NotificationService {
           return sName.includes('VERO') || sName.includes('PASTA');
         }
 
-        return ac.storeId === storeId;
+        return !ac.storeId || ac.storeId === storeId;
       });
 
       // Update localStorage with clean sanitized list for this store
@@ -853,28 +855,44 @@ export class NotificationService {
         } catch (e) {}
       }
 
-      // 4. Calculate exact metrics matching AccountsPayable.tsx lines 2138-2188
+      // 4. Calculate exact metrics matching AccountsPayable.tsx
       let storeToday = 0;
       let storeOverdue = 0;
+      let storeOverdueCount = 0;
       let storePaid = 0;
       let storeUpcoming = 0;
 
       cleanStoreAccounts.forEach((ac: any) => {
-        const isAcOverdue = ac.status === 'Vencido' || ((ac.status === 'Pendente' || ac.status === 'Agendado' || ac.status === 'Parcialmente Pago') && ac.dueDate < todayStr);
+        const val = Number(ac.value || 0);
+        const partial = Number(ac.partialAmountPaid || 0);
+        const fine = Number(ac.fine || 0);
+        const interest = Number(ac.interest || 0);
+        const discount = Number(ac.discount || 0);
+        const remainingVal = Math.max(0, val - partial);
 
-        // A Pagar Hoje: due today and not paid/canceled
-        if (ac.dueDate === todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
-          const remainingVal = Number(ac.value || 0) - Number(ac.partialAmountPaid || 0);
+        const statusNorm = String(ac.status || 'Pendente').trim().toLowerCase();
+        const isPaid = statusNorm === 'pago' || statusNorm === 'paid';
+        const isCanceled = statusNorm === 'cancelado' || statusNorm === 'canceled';
+        const isPartiallyPaid = statusNorm === 'parcialmente pago' || statusNorm === 'partially_paid';
+        const isAcOverdue = statusNorm === 'vencido' || statusNorm === 'overdue' || 
+          ((statusNorm === 'pendente' || statusNorm === 'agendado' || isPartiallyPaid) && ac.dueDate < todayStr);
+
+        if (isCanceled) return;
+
+        // A Pagar Hoje: due today and not paid
+        if (ac.dueDate === todayStr && !isPaid) {
           if (remainingVal > 0) storeToday += remainingVal;
         }
 
         // Total Vencido: overdue unpaid/partially-unpaid balance as of today
-        if (isAcOverdue && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
-          const remainingVal = Number(ac.value || 0) - Number(ac.partialAmountPaid || 0);
-          if (remainingVal > 0) storeOverdue += remainingVal;
+        if (isAcOverdue && !isPaid) {
+          if (remainingVal > 0) {
+            storeOverdue += remainingVal;
+            storeOverdueCount++;
+          }
         }
 
-        // Pagas no Mês: strictly assigned to their actual payment execution month (with fallback to due date if no paymentDate exists)
+        // Pagas no Mês: strictly assigned to their actual payment execution month
         const hasDueDateInRange = ac.dueDate?.startsWith(`${currentYear}-${currentMonth}`);
         const hasPaymentDateInRange = ac.paymentDate && (
           ac.paymentDate.startsWith(`${currentYear}-${currentMonth}`) ||
@@ -882,15 +900,14 @@ export class NotificationService {
         );
         const matchesPaymentPeriod = ac.paymentDate ? hasPaymentDateInRange : hasDueDateInRange;
 
-        if (ac.status === 'Pago' && matchesPaymentPeriod) {
-          storePaid += Number(ac.value || 0) + Number(ac.fine || 0) + Number(ac.interest || 0) - Number(ac.discount || 0);
-        } else if (ac.status === 'Parcialmente Pago' && matchesPaymentPeriod && ac.partialAmountPaid) {
-          storePaid += Number(ac.partialAmountPaid || 0);
+        if (isPaid && matchesPaymentPeriod) {
+          storePaid += (val + fine + interest - discount);
+        } else if (isPartiallyPaid && matchesPaymentPeriod && partial > 0) {
+          storePaid += partial;
         }
 
-        // Compromissos Futuros: due in the future (after today) and not paid/canceled
-        if (ac.dueDate > todayStr && ac.status !== 'Pago' && ac.status !== 'Cancelado') {
-          const remainingVal = Number(ac.value || 0) - Number(ac.partialAmountPaid || 0);
+        // Compromissos Futuros: due in the future (after today) and not paid
+        if (ac.dueDate > todayStr && !isPaid) {
           if (remainingVal > 0) storeUpcoming += remainingVal;
         }
       });
@@ -899,12 +916,14 @@ export class NotificationService {
         storeName: store.name,
         today: storeToday,
         overdue: storeOverdue,
+        overdueCount: storeOverdueCount,
         paid: storePaid,
         upcoming: storeUpcoming,
       });
 
       totalGroupToday += storeToday;
       totalGroupOverdue += storeOverdue;
+      totalGroupOverdueCount += storeOverdueCount;
       totalGroupPaid += storePaid;
       totalGroupUpcoming += storeUpcoming;
     }
@@ -914,12 +933,12 @@ export class NotificationService {
     // Build concise notification text
     const lines: string[] = [];
     storeSummaries.forEach(s => {
-      lines.push(`📍 ${s.storeName}:\nHoje: ${fmt(s.today)} | Vencido: ${fmt(s.overdue)} | Pagas Mês: ${fmt(s.paid)} | Futuro: ${fmt(s.upcoming)}`);
+      lines.push(`📍 ${s.storeName}:\nHoje: ${fmt(s.today)} | Vencido: ${fmt(s.overdue)} (${s.overdueCount} boletos) | Pagas Mês: ${fmt(s.paid)} | Futuro: ${fmt(s.upcoming)}`);
     });
 
-    lines.push(`💰 TOTAL GRUPO:\nHoje: ${fmt(totalGroupToday)} | Vencido: ${fmt(totalGroupOverdue)} | Pagas Mês: ${fmt(totalGroupPaid)} | Futuro: ${fmt(totalGroupUpcoming)}`);
+    lines.push(`💰 TOTAL GRUPO:\nHoje: ${fmt(totalGroupToday)} | Vencido: ${fmt(totalGroupOverdue)} (${totalGroupOverdueCount} boletos) | Pagas Mês: ${fmt(totalGroupPaid)} | Futuro: ${fmt(totalGroupUpcoming)}`);
 
-    const title = `📊 Contas a Pagar - Relatório Horário (${now.getHours()}:00h)`;
+    const title = `📊 Contas a Pagar - Relatório Horário (${now.getHours()}:00h) - ${totalGroupOverdue > 0 ? "🚨 ATENÇÃO" : "✅ REGULAR"}`;
     const body = lines.join('\n\n');
 
     const sent = this.sendPushNotification(title, {

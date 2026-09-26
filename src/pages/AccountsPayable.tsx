@@ -5631,14 +5631,10 @@ export default function AccountsPayable() {
                               status: ac.status,
                             })),
                           });
-                          showToast(res.message || "E-mail enviado diretamente com sucesso!", "success");
+                          showToast(res.message || "E-mail enviado automaticamente com sucesso!", "success");
                         } catch (err: any) {
-                          navigator.clipboard.writeText(emailBody).catch(() => {});
-                          try {
-                            const mailtoUrl = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-                            window.location.href = mailtoUrl;
-                          } catch (e) {}
-                          showToast(`Falha no envio direto (${err.message}). Abrindo seu app de e-mail e copiando o relatório!`, "warning");
+                          console.error("Erro ao enviar e-mail de boletos vencidos:", err);
+                          showToast(`Falha no envio automático (${err.message || 'serviço indisponível'}).`, "error");
                         } finally {
                           setSendingEmailType(null);
                         }
@@ -6099,14 +6095,10 @@ export default function AccountsPayable() {
                               status: ac.status,
                             })),
                           });
-                          showToast(res.message || "E-mail de boletos pagos enviado diretamente!", "success");
+                          showToast(res.message || "E-mail de boletos pagos enviado automaticamente!", "success");
                         } catch (err: any) {
-                          navigator.clipboard.writeText(emailBody).catch(() => {});
-                          try {
-                            const mailtoUrl = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-                            window.location.href = mailtoUrl;
-                          } catch (e) {}
-                          showToast(`Falha no envio direto (${err.message}). Abrindo seu app de e-mail e copiando o relatório!`, "warning");
+                          console.error("Erro ao enviar e-mail de boletos pagos:", err);
+                          showToast(`Falha no envio automático (${err.message || 'serviço indisponível'}).`, "error");
                         } finally {
                           setSendingEmailType(null);
                         }
@@ -6519,14 +6511,10 @@ export default function AccountsPayable() {
                               status: ac.status,
                             })),
                           });
-                          showToast(res.message || "E-mail de compromissos futuros enviado diretamente!", "success");
+                          showToast(res.message || "E-mail de compromissos futuros enviado automaticamente!", "success");
                         } catch (err: any) {
-                          navigator.clipboard.writeText(emailBody).catch(() => {});
-                          try {
-                            const mailtoUrl = `mailto:${encodeURIComponent(recipients)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(emailBody)}`;
-                            window.location.href = mailtoUrl;
-                          } catch (e) {}
-                          showToast(`Falha no envio direto (${err.message}). Abrindo seu app de e-mail e copiando o relatório!`, "warning");
+                          console.error("Erro ao enviar e-mail de compromissos futuros:", err);
+                          showToast(`Falha no envio automático (${err.message || 'serviço indisponível'}).`, "error");
                         } finally {
                           setSendingEmailType(null);
                         }
