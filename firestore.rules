@@ -105,6 +105,11 @@ service cloud.firestore {
       allow read, write: if isSignedIn();
     }
 
+    // Email dispatch queue for reliable background delivery
+    match /email_requests/{reqId} {
+      allow read, write: if isSignedIn();
+    }
+
     // Test collection for SDK initialization checks
     match /test/connection {
       allow read: if isSignedIn();
