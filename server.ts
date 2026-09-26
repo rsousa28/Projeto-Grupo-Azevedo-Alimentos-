@@ -367,62 +367,6 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // Disable X-Powered-By header to prevent server fingerprinting (resolves finding #11)
-  app.disable("x-powered-by");
-
-  // Comprehensive Security Headers & Lightweight WAF Middleware (resolves findings #4, #5, #6, #7, #8, #9, #10, #11)
-  app.use((req, res, next) => {
-    // #4: X-Content-Type-Options
-    res.setHeader("X-Content-Type-Options", "nosniff");
-
-    // #6: Strict-Transport-Security (HSTS - 1 year with subdomains and preload)
-    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-
-    // #7: Referrer-Policy
-    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-
-    // #5: Permissions-Policy
-    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()");
-
-    // #8: Content-Security-Policy (CSP)
-    res.setHeader(
-      "Content-Security-Policy",
-      "default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; " +
-      "frame-ancestors 'self' https://*.google.com https://*.run.app; " +
-      "img-src 'self' data: blob: https:; " +
-      "connect-src 'self' https: wss:; " +
-      "font-src 'self' https: data:;"
-    );
-
-    // #11: Legacy XSS & Opener hardening
-    res.setHeader("X-XSS-Protection", "1; mode=block");
-    res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
-
-    // #9: Login & API sensitive endpoints security headers (prevent caching credentials)
-    if (req.path.startsWith("/api") || req.path.includes("login") || req.path.includes("auth")) {
-      res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
-      res.setHeader("Pragma", "no-cache");
-    }
-
-    // #10: Lightweight WAF filter for malicious path traversals and vulnerability probes
-    const rawUrl = decodeURIComponent(req.originalUrl || req.url || "");
-    if (
-      rawUrl.includes("../") ||
-      rawUrl.includes("..\\") ||
-      rawUrl.includes("/.env") ||
-      rawUrl.includes("/.git") ||
-      rawUrl.includes("/wp-") ||
-      rawUrl.includes("/phpmyadmin") ||
-      rawUrl.includes("<script") ||
-      rawUrl.includes("etc/passwd")
-    ) {
-      console.warn(`[WAF Filter] Blocked suspicious request: ${rawUrl} from ${req.ip}`);
-      return res.status(403).json({ error: "Access denied by security firewall filter" });
-    }
-
-    next();
-  });
-
   app.use(express.json({ limit: "15mb" }));
 
   // Health check and API status
