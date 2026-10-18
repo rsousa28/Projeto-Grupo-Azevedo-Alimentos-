@@ -9,7 +9,6 @@ import {
   Receipt, 
   Megaphone, 
   DollarSign, 
-  Building2, 
   Scale, 
   Landmark, 
   Briefcase, 
@@ -109,14 +108,6 @@ export const OPERATIONAL_MENU_ITEMS: MenuItem[] = [
 // Corporate menu for Holding ("Gestão Grupo AZ")
 export const HOLDING_MENU_ITEMS: MenuItem[] = [
   {
-    id: 'holding-overview',
-    label: 'Visão Geral',
-    path: '/holding/consolidated',
-    icon: Building2,
-    type: 'HOLDING',
-    description: 'Dashboard Consolidado de Todas as Lojas'
-  },
-  {
     id: 'holding-loans',
     label: 'Empréstimos Bancários',
     path: '/holding/loans',
@@ -134,7 +125,7 @@ export const HOLDING_MENU_ITEMS: MenuItem[] = [
   },
   {
     id: 'holding-investments',
-    label: 'Novos Negócios & Investimentos',
+    label: 'Novos Negócios',
     path: '/holding/investments',
     icon: Briefcase,
     type: 'HOLDING',
@@ -178,7 +169,7 @@ export default function Sidebar({
       setMobileMenuOpen(false);
     }
     if (unit.type === 'HOLDING' || unit.code === 'ROOT') {
-      navigate('/holding/consolidated');
+      navigate('/holding/loans');
     } else {
       navigate('/dashboard');
     }

@@ -118,7 +118,7 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
     if (path.includes('/debt')) return 'debt';
     if (path.includes('/loans')) return 'loans';
     if (path.includes('/investments')) return 'investments';
-    return 'consolidated';
+    return 'loans';
   };
 
   const [activeTab, setActiveTab] = useState<'consolidated' | 'debt' | 'loans' | 'investments'>(getActiveTabFromPath());
@@ -540,7 +540,7 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
         </motion.div>
       )}
 
-      {/* 4. Módulo: Novos Negócios & Investimentos */}
+      {/* 4. Módulo: Novos Negócios */}
       {activeTab === 'investments' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <HoldingInvestments investments={investments} onUpdate={refreshData} />

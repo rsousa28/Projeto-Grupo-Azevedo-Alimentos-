@@ -46,7 +46,7 @@ export default function SelectStore() {
   const handleSelect = (unit: Unit) => {
     setStore(unit);
     if (unit.type === 'HOLDING' || unit.code === 'ROOT') {
-      navigate('/holding/consolidated');
+      navigate('/holding/loans');
     } else {
       navigate('/dashboard');
     }

@@ -176,11 +176,7 @@ function AppRoutes() {
           {/* Holding / Corporate Management Routes */}
           <Route
             path="/holding/consolidated"
-            element={
-              <HoldingAccessRoute>
-                <HoldingManagement initialTab="consolidated" />
-              </HoldingAccessRoute>
-            }
+            element={<Navigate to="/holding/loans" replace />}
           />
           <Route
             path="/holding/debt"
@@ -208,7 +204,7 @@ function AppRoutes() {
           />
           <Route
             path="/holding/cash-flow"
-            element={<Navigate to="/holding/consolidated" replace />}
+            element={<Navigate to="/holding/loans" replace />}
           />
           <Route
             path="/finance"

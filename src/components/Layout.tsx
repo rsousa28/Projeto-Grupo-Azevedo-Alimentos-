@@ -42,7 +42,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     if (isHolding) {
       // If holding is active and user tries to browse operational routes, smoothly redirect to holding consolidated
       if (!isHoldingRoute && !isGovernanceRoute) {
-        navigate('/holding/consolidated', { replace: true });
+        navigate('/holding/loans', { replace: true });
       }
     } else {
       // If a physical store is active and user tries to access holding routes, redirect to operational dashboard

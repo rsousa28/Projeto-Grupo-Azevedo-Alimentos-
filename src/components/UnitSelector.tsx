@@ -115,7 +115,7 @@ export default function UnitSelector({
     }
 
     if (unit.type === 'HOLDING' || unit.code === 'ROOT') {
-      navigate('/holding/consolidated');
+      navigate('/holding/loans');
     } else {
       navigate('/dashboard');
     }
