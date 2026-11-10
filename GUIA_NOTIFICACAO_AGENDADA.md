@@ -4,7 +4,7 @@ A notificação de hora em hora de Contas a Pagar roda no GitHub Actions
 (`.github/workflows/hourly-payable.yml`), não mais dentro do `server.ts`.
 Assim ela chega mesmo com o AI Studio fechado, já que a Vercel só hospeda o frontend.
 
-- Roda toda hora, no minuto 7 (o GitHub pode atrasar alguns minutos).
+- Tenta a cada 10 minutos e envia **uma vez por hora** (o GitHub às vezes atrasa ou pula execuções agendadas; as tentativas extras garantem o envio).
 - Usa o horário de Fortaleza/Mossoró (`America/Fortaleza`) para "hoje", "vencido" e a hora do título.
 - Grava a última hora enviada em `system_state/payable_hourly` no Firestore, então nunca envia duas vezes na mesma hora.
 
