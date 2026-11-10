@@ -192,7 +192,10 @@ export default function ActivityFeed({ limitCount = 10, className = '' }: Activi
           { id: 'ALL', label: 'Todos' },
           { id: 'CASH', label: '💰 Caixas' },
           { id: 'PAYABLE', label: '📄 Contas a Pagar' },
-          { id: 'CHECKLIST', label: '📋 Checklists' },
+          ...((currentStore.code === 'VERO' || currentStore.id === '3' || currentStore.brand === 'VERO PASTA' || (currentStore.name || '').toUpperCase().includes('VERO PASTA'))
+            ? [] 
+            : [{ id: 'CHECKLIST', label: '📋 Checklists' }]
+          ),
           { id: 'SECURITY', label: '🛡️ Segurança' },
         ].map((tab) => {
           const isActive = filterType === tab.id;

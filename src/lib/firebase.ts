@@ -2,11 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 import { getMessaging, isSupported as isMessagingSupported, Messaging } from 'firebase/messaging';
 import { 
-  initializeFirestore, 
   getFirestore,
-  persistentLocalCache, 
-  persistentMultipleTabManager, 
-  memoryLocalCache,
   setLogLevel,
   doc,
   getDoc,
@@ -38,63 +34,30 @@ export async function getFirebaseMessaging(): Promise<Messaging | null> {
   return null;
 }
 
-function createFirestoreInstance(): Firestore {
+// Proactively clean stale cache keys if localStorage is near quota
+if (typeof window !== 'undefined' && window.localStorage) {
   try {
-    // Proactively clean stale cache keys if localStorage is near quota
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        let totalBytes = 0;
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k) totalBytes += (localStorage.getItem(k) || '').length;
-        }
-        // If localStorage usage exceeds 2MB, prune temporary doc caches and draft keys
-        if (totalBytes > 2000000) {
-          console.warn('[Storage Safeguard] Storage usage > 2MB. Cleaning stale doc_cache_ items...');
-          const keysToRemove: string[] = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const k = localStorage.key(i);
-            if (k && (k.startsWith('doc_cache_') || k.startsWith('firestore_') || k.includes('_draft_') || k.includes('_backup_'))) {
-              keysToRemove.push(k);
-            }
-          }
-          keysToRemove.forEach(k => localStorage.removeItem(k));
-        }
-      } catch (_) {}
+    let totalBytes = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k) totalBytes += (localStorage.getItem(k) || '').length;
     }
-
-    let localCacheConfig;
-    // Check if running in iframe / restricted sandbox
-    const inIframe = typeof window !== 'undefined' && window.self !== window.top;
-    if (inIframe) {
-      // In sandboxed iframes, prefer memoryLocalCache to prevent QuotaExceededError in IndexedDB/localStorage
-      localCacheConfig = memoryLocalCache();
-    } else {
-      try {
-        localCacheConfig = persistentLocalCache({
-          tabManager: persistentMultipleTabManager()
-        });
-      } catch (error) {
-        console.warn('Persistent cache initialization failed, falling back to memoryLocalCache:', error);
-        localCacheConfig = memoryLocalCache();
+    // If localStorage usage exceeds 2MB, prune temporary doc caches and draft keys
+    if (totalBytes > 2000000) {
+      console.warn('[Storage Safeguard] Storage usage > 2MB. Cleaning stale doc_cache_ items...');
+      const keysToRemove: string[] = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith('doc_cache_') || k.startsWith('firestore_') || k.includes('_draft_') || k.includes('_backup_'))) {
+          keysToRemove.push(k);
+        }
       }
+      keysToRemove.forEach(k => localStorage.removeItem(k));
     }
-
-    return initializeFirestore(app, {
-      localCache: localCacheConfig,
-      ...(typeof window !== 'undefined' ? { experimentalForceLongPolling: true } : {})
-    }, databaseId);
-  } catch (err) {
-    console.warn("initializeFirestore failed or instance already initialized, using getFirestore fallback:", err);
-    try {
-      return getFirestore(app, databaseId);
-    } catch (e) {
-      return getFirestore(app);
-    }
-  }
+  } catch (_) {}
 }
 
-export const db = createFirestoreInstance();
+export const db: Firestore = getFirestore(app, databaseId);
 
 export const auth = getAuth(app);
 

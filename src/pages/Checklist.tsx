@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Navigate } from 'react-router-dom';
 import { 
   ClipboardCheck, 
   Settings, 
@@ -67,6 +68,17 @@ export default function Checklist() {
   const { currentStore, isDarkMode, brandColors } = useStore();
   const { user } = useAuth();
   const { success, warning, info } = useToast();
+
+  // If Vero Pasta is active, checklists are eliminated/disabled
+  const isVeroPasta = 
+    currentStore.code === 'VERO' || 
+    currentStore.id === '3' || 
+    currentStore.brand === 'VERO PASTA' || 
+    (currentStore.name || '').toUpperCase().includes('VERO PASTA');
+
+  if (isVeroPasta) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   // Primary navigation tabs
   const [activeTab, setActiveTab] = useState<'fill' | 'history' | 'plans' | 'config'>('fill');

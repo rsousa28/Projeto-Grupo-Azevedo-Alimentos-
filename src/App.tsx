@@ -33,6 +33,8 @@ import AuditLogs from "./pages/AuditLogs";
 import Marketing from "./pages/Marketing";
 import DailyControl from "./pages/DailyControl";
 import HoldingManagement from "./pages/HoldingManagement";
+import UnitInvestmentsControl from "./pages/UnitInvestmentsControl";
+import TechnicalSheets from "./pages/TechnicalSheets";
 
 /**
  * Detects if the current environment is a preview/proxy environment.
@@ -170,6 +172,7 @@ function AppRoutes() {
           <Route path="/analysis" element={<Dashboard />} />
           <Route path="/reports" element={<Dashboard />} />
           <Route path="/cash-closing" element={<CashClosing />} />
+          <Route path="/fichas-tecnicas" element={<TechnicalSheets />} />
           <Route path="/data-entry" element={<DataEntry />} />
           <Route path="/daily-control" element={<DailyControl />} />
 
@@ -199,6 +202,22 @@ function AppRoutes() {
             element={
               <HoldingAccessRoute>
                 <HoldingManagement initialTab="investments" />
+              </HoldingAccessRoute>
+            }
+          />
+          <Route
+            path="/holding/unit-investments"
+            element={
+              <HoldingAccessRoute>
+                <UnitInvestmentsControl />
+              </HoldingAccessRoute>
+            }
+          />
+          <Route
+            path="/controle-investimentos-unidades"
+            element={
+              <HoldingAccessRoute>
+                <UnitInvestmentsControl />
               </HoldingAccessRoute>
             }
           />

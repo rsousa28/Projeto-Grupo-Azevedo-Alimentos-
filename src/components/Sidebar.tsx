@@ -27,7 +27,9 @@ import {
   CheckCircle2,
   Lock,
   ExternalLink,
-  LayoutGrid
+  Coins,
+  LayoutGrid,
+  BookOpen
 } from 'lucide-react';
 import { Logo } from './Logo';
 import { useStore } from '../contexts/StoreContext';
@@ -68,6 +70,14 @@ export const OPERATIONAL_MENU_ITEMS: MenuItem[] = [
     icon: Banknote,
     type: 'STORE',
     description: 'Fechamento de Caixa e Sangrias'
+  },
+  {
+    id: 'technical-sheets',
+    label: 'Fichas Técnicas',
+    path: '/fichas-tecnicas',
+    icon: BookOpen,
+    type: 'STORE',
+    description: 'Receitas, CMV, Insumos e Modo Cozinha'
   },
   {
     id: 'finance-dre',
@@ -124,12 +134,28 @@ export const HOLDING_MENU_ITEMS: MenuItem[] = [
     description: 'Dívidas por loja, tributos, fornecedores atrasados'
   },
   {
+    id: 'holding-unit-investments',
+    label: 'Controle de Investimentos - Unidades',
+    path: '/holding/unit-investments',
+    icon: Coins,
+    type: 'HOLDING',
+    description: 'Aportes, gastos pré-operacionais e coberturas'
+  },
+  {
     id: 'holding-investments',
     label: 'Novos Negócios',
     path: '/holding/investments',
     icon: Briefcase,
     type: 'HOLDING',
     description: 'Projetos e expansão'
+  },
+  {
+    id: 'holding-technical-sheets',
+    label: 'Fichas Técnicas',
+    path: '/fichas-tecnicas',
+    icon: BookOpen,
+    type: 'HOLDING',
+    description: 'Receitas, CMV, Insumos e Modo Cozinha'
   },
 ];
 
@@ -179,15 +205,27 @@ export default function Sidebar({
   const isUserAdmin = Boolean(
     user && (
       user.role === 'ADMIN' || 
-      user.username === 'adm' ||
+      user.username === 'adm' || 
       (user.username || '').toLowerCase().includes('rennan') ||
       (user.email || '').toLowerCase().includes('rennan')
     )
   );
 
+  // Check if current active store is Vero Pasta
+  const isVeroPasta = 
+    currentStore.code === 'VERO' || 
+    currentStore.id === '3' || 
+    currentStore.brand === 'VERO PASTA' || 
+    (currentStore.name || '').toUpperCase().includes('VERO PASTA');
+
   // Determine current menu items dynamically based on unit type and role restrictions
   const baseMenuItems = isHoldingActive ? HOLDING_MENU_ITEMS : OPERATIONAL_MENU_ITEMS;
   const activeMenuItems = baseMenuItems.filter(item => {
+    // If unit is Vero Pasta, eliminate the checklist item completely
+    if (isVeroPasta && (item.id === 'checklists' || item.path === '/checklist')) {
+      return false;
+    }
+
     // If the item is restricted to ADMIN (like Financeiro DRE and Marketing), only show to admin users
     if (item.allowedRoles && item.allowedRoles.includes('ADMIN')) {
       return isUserAdmin;

@@ -1,0 +1,6 @@
+{
+  "summary":  "Plano arquitetural revisado para evolução do módulo de Fichas Técnicas & Custos do Grupo Azevedo, incorporando precisão decimal estrita, modelos desnormalizados zero-custo, split collection para Modo Cozinha com regras de segurança, fonte única de taxas, migração com dry-run e importador de vendas para CMV ponderado.",
+  "updatedAt":  "2026-11-09T21:31:46.348083303Z",
+  "requestFeedback":  true,
+  "userFacing":  true
+}

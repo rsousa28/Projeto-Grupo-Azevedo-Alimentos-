@@ -51,9 +51,10 @@ import {
 import { HoldingLoans } from '../components/holding/HoldingLoans';
 import { HoldingDebtAnalysis } from '../components/holding/HoldingDebtAnalysis';
 import { HoldingInvestments } from '../components/holding/HoldingInvestments';
+import UnitInvestmentsControl from './UnitInvestmentsControl';
 
 interface HoldingManagementProps {
-  initialTab?: 'consolidated' | 'debt' | 'loans' | 'investments';
+  initialTab?: 'consolidated' | 'debt' | 'loans' | 'investments' | 'unit-investments';
 }
 
 const formatCurrency = (val: number) => 
@@ -112,16 +113,17 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
   }, []);
 
   // Determine active tab from URL or props
-  const getActiveTabFromPath = (): 'consolidated' | 'debt' | 'loans' | 'investments' => {
+  const getActiveTabFromPath = (): 'consolidated' | 'debt' | 'loans' | 'investments' | 'unit-investments' => {
     if (initialTab) return initialTab;
     const path = location.pathname;
     if (path.includes('/debt')) return 'debt';
     if (path.includes('/loans')) return 'loans';
+    if (path.includes('/unit-investments')) return 'unit-investments';
     if (path.includes('/investments')) return 'investments';
     return 'loans';
   };
 
-  const [activeTab, setActiveTab] = useState<'consolidated' | 'debt' | 'loans' | 'investments'>(getActiveTabFromPath());
+  const [activeTab, setActiveTab] = useState<'consolidated' | 'debt' | 'loans' | 'investments' | 'unit-investments'>(getActiveTabFromPath());
 
   useEffect(() => {
     setActiveTab(getActiveTabFromPath());
@@ -544,6 +546,13 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
       {activeTab === 'investments' && (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
           <HoldingInvestments investments={investments} onUpdate={refreshData} />
+        </motion.div>
+      )}
+
+      {/* 5. Módulo: Controle de Investimentos - Unidades */}
+      {activeTab === 'unit-investments' && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <UnitInvestmentsControl />
         </motion.div>
       )}
 

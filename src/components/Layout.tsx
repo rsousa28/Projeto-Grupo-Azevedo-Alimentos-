@@ -67,24 +67,32 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     const runRoutineCheck = async () => {
       const todayStr = new Date().toISOString().split('T')[0];
 
-      // Check if checklist complete today
-      let isChecklistCompleteToday = false;
-      try {
-        const storedSubmissions = localStorage.getItem(`checklist_submissions_${currentStore.id}`);
-        if (storedSubmissions) {
-          const parsed = JSON.parse(storedSubmissions);
-          const subs: any[] = Array.isArray(parsed)
-            ? parsed
-            : (parsed && typeof parsed === 'object' ? Object.values(parsed) : []);
-          if (Array.isArray(subs)) {
-            isChecklistCompleteToday = subs.some((s: any) => {
-              const dateStr = s?.submittedAt ? String(s.submittedAt).split('T')[0] : (s?.date ? String(s.date) : '');
-              return dateStr === todayStr;
-            });
+      // Check if checklist complete today (Vero Pasta does not use checklists)
+      const isVeroPasta = 
+        currentStore.code === 'VERO' || 
+        currentStore.id === '3' || 
+        currentStore.brand === 'VERO PASTA' || 
+        (currentStore.name || '').toUpperCase().includes('VERO PASTA');
+
+      let isChecklistCompleteToday = isVeroPasta;
+      if (!isVeroPasta) {
+        try {
+          const storedSubmissions = localStorage.getItem(`checklist_submissions_${currentStore.id}`);
+          if (storedSubmissions) {
+            const parsed = JSON.parse(storedSubmissions);
+            const subs: any[] = Array.isArray(parsed)
+              ? parsed
+              : (parsed && typeof parsed === 'object' ? Object.values(parsed) : []);
+            if (Array.isArray(subs)) {
+              isChecklistCompleteToday = subs.some((s: any) => {
+                const dateStr = s?.submittedAt ? String(s.submittedAt).split('T')[0] : (s?.date ? String(s.date) : '');
+                return dateStr === todayStr;
+              });
+            }
           }
+        } catch (e) {
+          console.warn('Checklist routine check error:', e);
         }
-      } catch (e) {
-        console.warn('Checklist routine check error:', e);
       }
 
       // Check if cash closed today
