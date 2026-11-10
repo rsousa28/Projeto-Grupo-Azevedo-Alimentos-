@@ -14,6 +14,13 @@ dotenv.config();
 // Safe directory root resolution compatible with ESM, CJS (esbuild bundle), and native Node
 const appDir = process.cwd();
 
+// Set DISABLE_BACKGROUND_JOBS=true for local development so this instance does not
+// process the shared email queue or broadcast hourly push notifications to real devices.
+const backgroundJobsDisabled = process.env.DISABLE_BACKGROUND_JOBS === "true";
+if (backgroundJobsDisabled) {
+  console.log("[Server] DISABLE_BACKGROUND_JOBS=true: email queue listener and hourly AP worker are off.");
+}
+
 // Initialize Firebase for server-side hourly background tasks
 let db: any = null;
 try {
@@ -23,7 +30,9 @@ try {
     const firebaseApp = initializeApp(firebaseConfig, "server-app");
     db = getFirestore(firebaseApp, firebaseConfig.firestoreDatabaseId);
     console.log("[Server Firebase] Initialized Firestore connection for background hourly worker.");
-    setupEmailQueueListener();
+    if (!backgroundJobsDisabled) {
+      setupEmailQueueListener();
+    }
   }
 } catch (fbErr) {
   console.warn("[Server Firebase] Error initializing Firestore:", fbErr);
@@ -531,19 +540,21 @@ async function executeHourlyAccountsPayableCheck(force = false): Promise<{ succe
   }
 }
 
-// Start background interval (runs every 60 seconds)
-setInterval(() => {
-  executeHourlyAccountsPayableCheck().catch((e) => {
-    console.warn("[Hourly AP Worker] Unhandled interval error:", e);
-  });
-}, 60 * 1000);
+if (!backgroundJobsDisabled) {
+  // Start background interval (runs every 60 seconds)
+  setInterval(() => {
+    executeHourlyAccountsPayableCheck().catch((e) => {
+      console.warn("[Hourly AP Worker] Unhandled interval error:", e);
+    });
+  }, 60 * 1000);
 
-// Also run initial check 15 seconds after server start
-setTimeout(() => {
-  executeHourlyAccountsPayableCheck().catch((e) => {
-    console.warn("[Hourly AP Worker] Initial run error:", e);
-  });
-}, 15 * 1000);
+  // Also run initial check 15 seconds after server start
+  setTimeout(() => {
+    executeHourlyAccountsPayableCheck().catch((e) => {
+      console.warn("[Hourly AP Worker] Initial run error:", e);
+    });
+  }, 15 * 1000);
+}
 
 async function startServer() {
   const app = express();
