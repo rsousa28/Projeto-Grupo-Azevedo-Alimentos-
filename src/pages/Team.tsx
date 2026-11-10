@@ -23,9 +23,11 @@ import { useStore } from '../contexts/StoreContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 import { User } from '../types';
-import { db, OperationType, handleFirestoreError } from '../lib/firebase';
+import { db, OperationType, handleFirestoreError, usernameToEmail } from '../lib/firebase';
+import firebaseConfig from '../../firebase-applet-config.json';
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, signOut, connectAuthEmulator } from 'firebase/auth';
 import { AuditService } from '../services/AuditService';
-import { sha256 } from '../utils/crypto';
 import { 
   collection, 
   getDocs, 
@@ -39,12 +41,17 @@ import {
   setDoc
 } from 'firebase/firestore';
 
-const DEFAULT_SYSTEM_USERS: { id: string; name: string; username: string; role: User['role']; defaultPassword: string }[] = [
-  { id: 'root-admin', name: 'Admin Geral Grupo AZ', username: 'adm', role: 'ADMIN', defaultPassword: '88028837' },
-  { id: 'patricia-b28', name: 'Patrícia - Bebelu Papicu', username: 'patriciab28', role: 'MANAGER_BEBELU_RIOMAR_PAPICU', defaultPassword: 'b28' },
-  { id: 'andressa-b32', name: 'Andressa - Bebelu Mossoró', username: 'andressab32', role: 'MANAGER_BEBELU_MOSSORO', defaultPassword: 'b32' },
-  { id: 'jef-mossoro', name: 'Jefferson - Bebelu Mossoró', username: 'jefb32', role: 'MANAGER_BEBELU_MOSSORO', defaultPassword: 'jqc26' }
-];
+// Creating a Firebase Auth account signs that auth instance in as the new user, so use a separate
+// app instance to keep the admin's own session untouched.
+function getUserAdminAuth() {
+  const existing = getApps().find(a => a.name === 'user-admin');
+  const adminApp = existing || initializeApp(firebaseConfig, 'user-admin');
+  const adminAuth = getAuth(adminApp);
+  if (!existing && import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+    connectAuthEmulator(adminAuth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  }
+  return adminAuth;
+}
 
 export default function Team() {
   const { isDarkMode } = useStore();
@@ -76,50 +83,10 @@ export default function Team() {
         id: doc.id,
         ...doc.data()
       })) as User[];
-      
-      // Determine if any default system users are missing from Firestore
-      const missingUsers = DEFAULT_SYSTEM_USERS.filter(
-        su => !fetchedUsers.some(fu => fu.username?.toLowerCase() === su.username.toLowerCase())
-      );
-
-      if (missingUsers.length > 0) {
-        console.log(`Seeding ${missingUsers.length} missing default system users to Firestore...`);
-        for (const mu of missingUsers) {
-          try {
-            const { id, defaultPassword, ...data } = mu;
-            const hashedPassword = await sha256(defaultPassword);
-            await setDoc(doc(db, 'users', id), {
-              ...data,
-              password: hashedPassword
-            });
-          } catch (seedErr) {
-            console.warn(`Could not seed user ${mu.username}:`, seedErr);
-          }
-        }
-        
-        // Re-fetch since we just seeded the missing ones
-        const reSnapshot = await getDocs(q);
-        const refetchedUsers = reSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as User[];
-        setUsers(refetchedUsers);
-      } else {
-        setUsers(fetchedUsers);
-      }
+      setUsers(fetchedUsers);
     } catch (error) {
-      console.error("Error fetching or seeding users:", error);
-      // Fallback: merge defaults as best-effort
-      const mergedUsersMap = new Map<string, User>();
-      DEFAULT_SYSTEM_USERS.forEach(su => {
-        mergedUsersMap.set(su.username, {
-          id: su.id,
-          name: su.name,
-          username: su.username,
-          role: su.role
-        });
-      });
-      setUsers(Array.from(mergedUsersMap.values()));
+      console.error("Error fetching users:", error);
+      toastError("Erro ao carregar usuários.");
     } finally {
       setLoading(false);
     }
@@ -135,7 +102,7 @@ export default function Team() {
       setFormData({
         name: user.name,
         username: user.username,
-        password: user.password || '', 
+        password: '',
         role: user.role
       });
     } else {
@@ -157,17 +124,14 @@ export default function Team() {
 
     try {
       if (editingUser) {
+        // Username is the login and password lives in Firebase Auth, so only name and role change here
         const userRef = doc(db, path, editingUser.id);
         const updateData: any = {
           name: formData.name,
-          username: formData.username,
+          username: editingUser.username,
           role: formData.role,
           updatedAt: serverTimestamp()
         };
-        // Hash password if modifying it
-        if (formData.password && formData.password !== editingUser.password) {
-          updateData.password = await sha256(formData.password);
-        }
         await updateDoc(userRef, updateData);
         if (currentUser) {
           await AuditService.logAction({
@@ -180,15 +144,22 @@ export default function Team() {
         }
         setUsers(prev => prev.map(u => u.id === editingUser.id ? { ...u, ...updateData } : u));
       } else {
-        const hashedPassword = await sha256(formData.password);
+        const username = formData.username.trim().toLowerCase();
+        if (users.some(u => u.username?.toLowerCase() === username)) {
+          toastError("Já existe um usuário com esse username.");
+          return;
+        }
+        const adminAuth = getUserAdminAuth();
+        const credential = await createUserWithEmailAndPassword(adminAuth, usernameToEmail(username), formData.password);
+        await signOut(adminAuth);
+
         const newUser = {
           name: formData.name,
-          username: formData.username,
-          password: hashedPassword,
+          username,
           role: formData.role,
           createdAt: serverTimestamp()
         };
-        const docRef = await addDoc(collection(db, path), newUser);
+        await setDoc(doc(db, path, credential.user.uid), newUser);
         if (currentUser) {
           await AuditService.logAction({
             userId: currentUser.id,
@@ -198,13 +169,19 @@ export default function Team() {
             description: `Cadastrou o novo colaborador '${newUser.name}' com privilégios '${newUser.role}'.`
           }).catch(e => console.error(e));
         }
-        setUsers(prev => [...prev, { id: docRef.id, ...newUser } as User]);
+        setUsers(prev => [...prev, { id: credential.user.uid, ...newUser } as User]);
       }
       setIsModalOpen(false);
       toastSuccess("Definições do usuário salvas com sucesso!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving user:", error);
-      toastError("Erro ao salvar usuário. Tente novamente.");
+      if (error?.code === 'auth/email-already-in-use') {
+        toastError("Já existe uma conta com esse username.");
+      } else if (error?.code === 'auth/weak-password') {
+        toastError("Senha fraca: use pelo menos 6 caracteres.");
+      } else {
+        toastError("Erro ao salvar usuário. Tente novamente.");
+      }
     } finally {
       setLoading(false);
     }
@@ -547,6 +524,7 @@ export default function Team() {
                            type="text" 
                            required
                            value={formData.username}
+                           readOnly={!!editingUser}
                            onChange={(e) => setFormData({...formData, username: e.target.value.toLowerCase().replace(/\s/g, '.')})}
                            className={`w-full pl-8 pr-4 py-4 rounded-2xl border outline-none font-bold text-sm transition-all focus:ring-4 ${
                              isDarkMode ? 'bg-black/20 border-[#333] text-white focus:ring-indigo-500/20' : 'bg-slate-50 border-slate-100 focus:bg-white focus:ring-indigo-50/50'
@@ -557,6 +535,11 @@ export default function Team() {
                     </div>
                   </div>
 
+                  {editingUser ? (
+                    <p className="text-[11px] font-bold text-slate-500 ml-1">
+                      A senha não é alterada aqui: a própria pessoa troca em Configurações &gt; Alterar minha senha.
+                    </p>
+                  ) : (
                   <div className="space-y-2">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Senha de Acesso</label>
                     <div className="relative">
@@ -564,6 +547,7 @@ export default function Team() {
                       <input 
                         type="password" 
                         required
+                        minLength={6}
                         value={formData.password}
                         onChange={(e) => setFormData({...formData, password: e.target.value})}
                         className={`w-full pl-11 pr-4 py-4 rounded-2xl border outline-none font-bold text-sm transition-all focus:ring-4 ${
@@ -573,6 +557,7 @@ export default function Team() {
                       />
                     </div>
                   </div>
+                  )}
 
                   <div className="space-y-3">
                     <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1">Nível de Permissão</label>

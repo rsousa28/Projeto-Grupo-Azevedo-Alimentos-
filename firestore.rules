@@ -8,8 +8,37 @@ service cloud.firestore {
     }
 
     // Primitive Definitions & Helpers
+
+    // A person logged in with their username/password (Firebase Auth email/password account)
     function isSignedIn() {
-      return true;
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password';
+    }
+
+    // Logged in AND has a profile at users/{uid}. Accounts without a profile get no access.
+    function hasProfile() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function role() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return hasProfile() && role() == 'ADMIN';
+    }
+
+    // Mirrors getPermittedStoreIdsForUser in src/lib/firestoreQueryCache.ts
+    function canAccessStore(storeId) {
+      return hasProfile() && (
+        role() == 'ADMIN'
+        || (role() == 'MANAGER_BEBELU_MOSSORO' && storeId == '1')
+        || (role() == 'MANAGER_BEBELU_RIOMAR_PAPICU' && storeId == '2')
+        || (role() == 'MANAGER_VERO_PASTA' && storeId == '3')
+        || (!(role() in ['MANAGER_BEBELU_MOSSORO', 'MANAGER_BEBELU_RIOMAR_PAPICU', 'MANAGER_VERO_PASTA'])
+            && storeId in ['1', '2', '3'])
+      );
     }
 
     function isValidId(id) {
@@ -36,10 +65,11 @@ service cloud.firestore {
         && data.userAgent is string && data.userAgent.size() <= 512;
     }
 
+    // Passwords live only in Firebase Auth, never in the profile
     function isValidUser(data) {
       return data.name is string && data.name.size() <= 128
         && data.username is string && data.username.size() <= 128
-        && (!('password' in data) || (data.password is string && data.password.size() <= 256))
+        && !('password' in data)
         && data.role is string && data.role.size() <= 128
         && (!('biometricEnabled' in data) || data.biometricEnabled is bool);
     }
@@ -54,65 +84,72 @@ service cloud.firestore {
 
     // 1. Audit Logs (Append-Only Global Collection)
     match /audit_logs/{logId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidAuditLog(incoming()) && isValidId(logId);
+      allow read: if isAdmin();
+      allow create: if isValidAuditLog(incoming()) && isValidId(logId) && (
+        hasProfile()
+        // Failed logins are recorded before anyone is authenticated
+        || (incoming().action == 'LOGIN_FAILED' && incoming().userId == 'anonymous')
+      );
       allow update, delete: if false; // Audit logs are immutable and append-only
     }
 
-    // 2. Users Collection
+    // 2. Users Collection (profiles: name, username, role). Admins manage everyone;
+    // people can read their own profile and toggle their own biometric preference.
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn() && isValidUser(incoming()) && isValidId(userId);
-      allow update: if isSignedIn() && isValidUser(incoming()) && isValidId(userId);
-      allow delete: if isSignedIn() && isValidId(userId);
+      allow get: if isAdmin() || (hasProfile() && request.auth.uid == userId);
+      allow list: if isAdmin();
+      allow create: if isAdmin() && isValidUser(incoming()) && isValidId(userId);
+      allow update: if (isAdmin() && isValidUser(incoming()) && isValidId(userId))
+        || (hasProfile() && request.auth.uid == userId
+            && incoming().diff(existing()).affectedKeys().hasOnly(['biometricEnabled', 'updatedAt']));
+      allow delete: if isAdmin() && isValidId(userId) && request.auth.uid != userId;
     }
 
-    // 3. Stores Collection
+    // 3. Stores Collection (each manager only reaches their own store)
     match /stores/{storeId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidStore(incoming()) && isValidId(storeId);
-      allow delete: if isSignedIn() && isValidId(storeId);
+      allow read: if canAccessStore(storeId);
+      allow create, update: if canAccessStore(storeId) && isValidStore(incoming()) && isValidId(storeId);
+      allow delete: if isAdmin() && isValidId(storeId);
 
       // Subcollections of Stores
       match /{collectionId}/{document=**} {
-        allow read, write: if isSignedIn();
+        allow read, write: if canAccessStore(storeId);
       }
     }
 
-    // Backups collection
+    // Backups contain every store and the users list
     match /backups/{backupId} {
-      allow read: if isSignedIn();
-      allow create, update: if isSignedIn() && isValidId(backupId);
-      allow delete: if isSignedIn() && isValidId(backupId);
+      allow read: if isAdmin();
+      allow create, update, delete: if isAdmin() && isValidId(backupId);
 
       match /chunks/{chunkId} {
-        allow read: if isSignedIn();
-        allow create, update, delete: if isSignedIn() && isValidId(backupId) && isValidId(chunkId);
+        allow read: if isAdmin();
+        allow create, update, delete: if isAdmin() && isValidId(backupId) && isValidId(chunkId);
       }
     }
 
     // Global notifications for system-wide sync and alerts
     match /global_notifications/{notifId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if hasProfile();
     }
 
     // FCM tokens and Push subscriptions for background notifications
     match /fcm_tokens/{tokenId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if hasProfile();
     }
 
     match /push_subscriptions/{subId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if hasProfile();
     }
 
     // Email dispatch queue for reliable background delivery
     match /email_requests/{reqId} {
-      allow read, write: if isSignedIn();
+      allow read, write: if hasProfile();
     }
 
-    // Test collection for SDK initialization checks
+    // Test document for SDK initialization checks (runs before login)
     match /test/connection {
-      allow read: if isSignedIn();
+      allow read: if true;
     }
   }
 }

@@ -121,8 +121,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       // Check hourly Accounts Payable report reminder
       NotificationService.checkAccountsPayableHourlyReminder();
 
-      // Automated daily cloud backup check (Data Loss Prevention)
-      try {
+      // Automated daily cloud backup check (Data Loss Prevention). Backups read every store and
+      // the users list, which only admins can access.
+      if (user?.role === 'ADMIN') try {
         const backupHealth = await BackupService.getHealthStatus();
         if (!backupHealth.hasRecentBackup) {
           console.log('[Auto-Backup] No recent backup found (< 24h). Creating automated cloud backup...');
@@ -136,7 +137,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     runRoutineCheck();
     const interval = setInterval(runRoutineCheck, 60 * 1000); // Check every 1 min for hourly accuracy
     return () => clearInterval(interval);
-  }, [currentStore.id, currentStore.code, currentStore.name]);
+  }, [currentStore.id, currentStore.code, currentStore.name, user?.role]);
 
   // Listen for push notifications to trigger in-app floating Toast alerts
   useEffect(() => {

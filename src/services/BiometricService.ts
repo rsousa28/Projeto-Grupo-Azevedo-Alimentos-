@@ -1,6 +1,6 @@
 import { User } from '../types';
 import { db } from '../lib/firebase';
-import { doc, setDoc, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 
 export interface BiometricCredential {
   credentialId: string;
@@ -258,37 +258,12 @@ export class BiometricService {
    */
   static async syncBiometricToFirestore(user: User, enabled: boolean): Promise<void> {
     try {
-      if (!user) return;
-      const u = user.username ? user.username.toLowerCase() : '';
-      if (user.id && !user.id.startsWith('simulated_') && user.id !== 'root-admin') {
-        const userRef = doc(db, 'users', user.id);
-        await setDoc(userRef, { 
-          biometricEnabled: enabled, 
-          updatedAt: new Date().toISOString() 
-        }, { merge: true });
-      } else if (u) {
-        const usersRef = collection(db, 'users');
-        const qUsers = query(usersRef, where('username', '==', u), limit(1));
-        const snap = await getDocs(qUsers);
-        if (!snap.empty) {
-          const docId = snap.docs[0].id;
-          await setDoc(doc(db, 'users', docId), { 
-            biometricEnabled: enabled, 
-            updatedAt: new Date().toISOString() 
-          }, { merge: true });
-        } else {
-          // Create document for user in users collection if missing
-          const docId = user.id || `user_${u}`;
-          await setDoc(doc(db, 'users', docId), {
-            id: docId,
-            username: u,
-            name: user.name || u,
-            role: user.role || 'MANAGER',
-            biometricEnabled: enabled,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-        }
-      }
+      if (!user?.id) return;
+      // user.id is the Firebase Auth uid, so this is always the signed-in person's own profile
+      await setDoc(doc(db, 'users', user.id), {
+        biometricEnabled: enabled,
+        updatedAt: new Date().toISOString()
+      }, { merge: true });
     } catch (err) {
       console.warn('Error persisting biometric preference to Firestore user profile:', err);
     }

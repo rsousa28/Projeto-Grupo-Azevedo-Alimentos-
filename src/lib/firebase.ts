@@ -1,12 +1,13 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, signInAnonymously } from 'firebase/auth';
+import { getAuth, onAuthStateChanged, connectAuthEmulator } from 'firebase/auth';
 import { getMessaging, isSupported as isMessagingSupported, Messaging } from 'firebase/messaging';
 import { 
   getFirestore,
   setLogLevel,
   doc,
   getDoc,
-  Firestore
+  Firestore,
+  connectFirestoreEmulator
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -61,14 +62,28 @@ export const db: Firestore = getFirestore(app, databaseId);
 
 export const auth = getAuth(app);
 
-// Authenticate the client instance anonymously to establish secure session credentials in Firestore rules
-export const authReadyPromise = signInAnonymously(auth)
-  .then(() => {
-    console.log("Firebase secure anonymous session established.");
-  })
-  .catch((error) => {
-    console.warn("Silent authentication session fell back to unauthenticated:", error.message || error);
+// Local development against the Firebase emulators (npm run emulators + VITE_USE_FIREBASE_EMULATORS=true)
+if (import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true') {
+  connectAuthEmulator(auth, 'http://127.0.0.1:9099', { disableWarnings: true });
+  connectFirestoreEmulator(db, '127.0.0.1', 8080);
+  console.warn('[Firebase] Using local emulators (Auth :9099, Firestore :8080).');
+}
+
+// Accounts live in Firebase Authentication as email/password users. People log in with a
+// username, which maps to a placeholder email on this domain (it never receives mail).
+export const AUTH_EMAIL_DOMAIN = 'grupoazevedo.app';
+
+export function usernameToEmail(username: string): string {
+  return `${username.trim().toLowerCase()}@${AUTH_EMAIL_DOMAIN}`;
+}
+
+// Resolves once Firebase has restored (or ruled out) a persisted login session
+export const authReadyPromise = new Promise<void>((resolve) => {
+  const unsubscribe = onAuthStateChanged(auth, () => {
+    unsubscribe();
+    resolve();
   });
+});
 
 export enum OperationType {
   CREATE = 'create',

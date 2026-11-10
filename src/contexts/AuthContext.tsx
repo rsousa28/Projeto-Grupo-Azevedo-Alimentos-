@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { User } from '../types';
-import { db, authReadyPromise } from '../lib/firebase';
-import { collection, query, where, getDocs, limit, doc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { db, auth, usernameToEmail } from '../lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { AuditService } from '../services/AuditService';
-import { sha256 } from '../utils/crypto';
 import { useToast } from './ToastContext';
 
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos em milissegundos
@@ -28,52 +28,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const userRef = useRef<User | null>(null);
   userRef.current = user;
 
-  // Clear user on mount to force login every time and clean up deleted users from DB
+  // Clear user on mount to force login every time. The Firebase session itself stays persisted
+  // so biometric unlock can reuse it; password login always works.
   useEffect(() => {
     localStorage.removeItem('auth_user');
-
-    // Clean up restricted users from firestore after auth session is established
-    const cleanupBadUsers = async () => {
-      try {
-        await authReadyPromise;
-        const usersRef = collection(db, 'users');
-        const qUsers = await getDocs(usersRef);
-        qUsers.forEach(async (docSnap) => {
-          const uData = docSnap.data();
-          const usernameLower = (uData.username || '').toLowerCase();
-          const nameLower = (uData.name || '').toLowerCase();
-          if (
-            usernameLower === 'victordiretor' || 
-            usernameLower === 'paloma' ||
-            nameLower.includes('paloma') ||
-            nameLower.includes('victor') ||
-            usernameLower.includes('michele') ||
-            nameLower.includes('michele') ||
-            docSnap.id === 'michele-4e09' ||
-            usernameLower.includes('4estylos') ||
-            nameLower.includes('4estylos') ||
-            nameLower.includes('4 estylos') ||
-            uData.role === 'MANAGER_4ESTYLOS_MOSSORO' ||
-            (!usernameLower.includes('jef') && usernameLower.includes('4e09'))
-          ) {
-            console.log(`Auto-deleting restricted user: ${uData.name} (@${uData.username})`);
-            await deleteDoc(doc(db, 'users', docSnap.id));
-          } else if (usernameLower.includes('jef') || nameLower.includes('jefferson')) {
-            if (uData.role === 'MANAGER_4ESTYLOS_MOSSORO' || uData.name?.includes('4 Estylos') || uData.username === 'jef4e09') {
-              await updateDoc(doc(db, 'users', docSnap.id), {
-                name: 'Jefferson - Bebelu Mossoró',
-                username: 'jefb32',
-                role: 'MANAGER_BEBELU_MOSSORO'
-              });
-            }
-          }
-        });
-      } catch (err) {
-        console.warn("Notice: restricted users cleanup skipped or unauthorized:", err);
-      }
-    };
-    cleanupBadUsers();
-
     setIsLoading(false);
   }, []);
 
@@ -169,151 +127,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, [user, handleSessionTimeout]);
 
+  // Load the profile (name, role) stored at users/{uid} for a Firebase Auth account
+  const loadProfile = async (uid: string): Promise<User> => {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (!snap.exists()) {
+      throw new Error('Usuário sem perfil de acesso. Fale com o administrador.');
+    }
+    const userData = snap.data();
+    return {
+      id: uid,
+      name: userData.name,
+      username: userData.username,
+      role: userData.role,
+      email: userData.email,
+      biometricEnabled: userData.biometricEnabled !== undefined ? userData.biometricEnabled : BiometricService.isBiometricEnabled(userData.username)
+    };
+  };
+
   const login = async (username: string, password: string) => {
     setIsLoading(true);
     const u = username?.trim().toLowerCase();
     const p = password?.trim();
     try {
-      // 1. Check Firestore for custom / database-saved users first (so custom edits/passwords take precedence)
       try {
-        const usersRef = collection(db, 'users');
-        const qUsers = query(usersRef, where('username', '==', u), limit(1));
-        const querySnapshot = await getDocs(qUsers);
-
-        if (!querySnapshot.empty) {
-          const docUser = querySnapshot.docs[0];
-          const userData = docUser.data();
-          
-          // Verify password (stored in Firestore as SHA-256 with plaintext fallback)
-          const hashedEntered = await sha256(p);
-          const isMatched = userData.password === p || userData.password === hashedEntered;
-          
-          if (isMatched) {
-            const newUser: User = {
-              id: docUser.id,
-              name: userData.name,
-              username: userData.username,
-              role: userData.role,
-              email: userData.email,
-              biometricEnabled: userData.biometricEnabled !== undefined ? userData.biometricEnabled : BiometricService.isBiometricEnabled(userData.username)
-            };
-            setUser(newUser);
-            localStorage.setItem('auth_user', JSON.stringify(newUser));
-            localStorage.setItem('last_activity_timestamp', Date.now().toString());
-            await AuditService.logAction({
-              userId: newUser.id,
-              userName: newUser.name,
-              userRole: newUser.role,
-              action: 'LOGIN_SUCCESS',
-              description: `Login via Banco de Dados com sucesso.`
-            });
-            return;
-          }
+        await signInWithEmailAndPassword(auth, usernameToEmail(u), p);
+      } catch (authError: any) {
+        const code = authError?.code || '';
+        if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-email') {
+          await AuditService.logAction({
+            userId: 'anonymous',
+            userName: u || 'unknown',
+            userRole: 'NONE',
+            action: 'LOGIN_FAILED',
+            description: `Tentativa de login malsucedida para usuário '${u}'.`
+          });
+          throw new Error('Credenciais inválidas.');
         }
-      } catch (dbError) {
-        console.error("Database access error during login:", dbError);
+        if (code === 'auth/too-many-requests') {
+          throw new Error('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
+        }
+        throw authError;
       }
 
-      // 2. Check for root administrator fallback
-      if (u === 'adm' && p === '88028837') {
-        const adminUser: User = { 
-          id: 'root-admin', 
-          name: 'Admin Geral Grupo AZ', 
-          username: 'adm', 
-          role: 'ADMIN' 
-        };
-        setUser(adminUser);
-        localStorage.setItem('auth_user', JSON.stringify(adminUser));
-        localStorage.setItem('last_activity_timestamp', Date.now().toString());
-        await AuditService.logAction({
-          userId: adminUser.id,
-          userName: adminUser.name,
-          userRole: adminUser.role,
-          action: 'LOGIN_SUCCESS',
-          description: `Login realizado com sucesso como Admin Geral.`
-        });
-        return;
-      }
-
-      if (u === 'patriciab28' && p === 'b28') {
-        const pUser: User = { 
-          id: 'patricia-b28', 
-          name: 'Patrícia - Bebelu Papicu', 
-          username: 'patriciab28', 
-          role: 'MANAGER_BEBELU_RIOMAR_PAPICU' 
-        };
-        setUser(pUser);
-        localStorage.setItem('auth_user', JSON.stringify(pUser));
-        localStorage.setItem('last_activity_timestamp', Date.now().toString());
-        await AuditService.logAction({
-          userId: pUser.id,
-          userName: pUser.name,
-          userRole: pUser.role,
-          action: 'LOGIN_SUCCESS',
-          description: `Login realizado com sucesso como Gerente de Bebelu Papicu.`
-        });
-        return;
-      }
-
-      if ((u === 'andressa' || u === 'andressab32') && p === 'b32') {
-        const andressaUser: User = { 
-          id: 'andressa-b32', 
-          name: 'Andressa - Bebelu Mossoró', 
-          username: 'andressab32', 
-          role: 'MANAGER_BEBELU_MOSSORO' 
-        };
-        setUser(andressaUser);
-        localStorage.setItem('auth_user', JSON.stringify(andressaUser));
-        localStorage.setItem('last_activity_timestamp', Date.now().toString());
-        await AuditService.logAction({
-          userId: andressaUser.id,
-          userName: andressaUser.name,
-          userRole: andressaUser.role,
-          action: 'LOGIN_SUCCESS',
-          description: `Login realizado com sucesso como Gerente de Bebelu Mossoró.`
-        });
-        return;
-      }
-
-      if ((u === 'jef' || u === 'jefb32' || u === 'jef4e09') && (p === 'jqc26' || p === 'b32' || p === '4e09')) {
-        const jefUser: User = { 
-          id: 'jef-mossoro', 
-          name: 'Jefferson - Bebelu Mossoró', 
-          username: 'jefb32', 
-          role: 'MANAGER_BEBELU_MOSSORO' 
-        };
-        setUser(jefUser);
-        localStorage.setItem('auth_user', JSON.stringify(jefUser));
-        localStorage.setItem('last_activity_timestamp', Date.now().toString());
-        await AuditService.logAction({
-          userId: jefUser.id,
-          userName: jefUser.name,
-          userRole: jefUser.role,
-          action: 'LOGIN_SUCCESS',
-          description: `Login realizado com sucesso como Gerente de Bebelu Mossoró.`
-        });
-        return;
-      }
-
-      // If we fall through, it's failed credentials
+      const newUser = await loadProfile(auth.currentUser!.uid);
+      setUser(newUser);
+      localStorage.setItem('auth_user', JSON.stringify(newUser));
+      localStorage.setItem('last_activity_timestamp', Date.now().toString());
       await AuditService.logAction({
-        userId: 'anonymous',
-        userName: u || 'unknown',
-        userRole: 'NONE',
-        action: 'LOGIN_FAILED',
-        description: `Tentativa de login malsucedida para usuário '${u}'.`
+        userId: newUser.id,
+        userName: newUser.name,
+        userRole: newUser.role,
+        action: 'LOGIN_SUCCESS',
+        description: `Login realizado com sucesso.`
       });
-      throw new Error('Credenciais inválidas.');
     } catch (error: any) {
-      if (error.message !== 'Credenciais inválidas.') {
-        await AuditService.logAction({
-          userId: 'anonymous',
-          userName: u || 'unknown',
-          userRole: 'NONE',
-          action: 'LOGIN_FAILED',
-          description: `Erro durante o processo de login do usuário '${u}': ${error.message || error}`
-        });
-      }
       console.error('Login error:', error);
       throw error;
     } finally {
@@ -325,37 +192,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     try {
       const bioCred = await BiometricService.authenticate(username);
-      
-      // Attempt to load full user details from Firestore
-      let authenticatedUser: User = {
-        id: bioCred.userId,
-        name: bioCred.userName,
-        username: bioCred.username,
-        role: bioCred.userRole as any,
-      };
 
-      try {
-        const usersRef = collection(db, 'users');
-        const qUsers = query(usersRef, where('username', '==', bioCred.username.toLowerCase()), limit(1));
-        const querySnapshot = await getDocs(qUsers);
-        if (!querySnapshot.empty) {
-          const docUser = querySnapshot.docs[0];
-          const userData = docUser.data();
-          if (userData.biometricEnabled === false) {
-            throw new Error('A autenticação biométrica foi desativada nas configurações do seu perfil.');
-          }
-          authenticatedUser = {
-            id: docUser.id,
-            name: userData.name || bioCred.userName,
-            username: userData.username || bioCred.username,
-            role: userData.role || bioCred.userRole,
-            email: userData.email,
-            biometricEnabled: true,
-          };
-        }
-      } catch (err) {
-        console.warn('Could not refresh user details from Firestore during biometric login:', err);
+      // Biometrics only unlock a Firebase session this device already has for the same person
+      const firebaseUser = auth.currentUser;
+      const expectedEmail = usernameToEmail(bioCred.username);
+      if (!firebaseUser || (firebaseUser.uid !== bioCred.userId && firebaseUser.email !== expectedEmail)) {
+        throw new Error('Entre com usuário e senha uma vez neste aparelho para liberar o acesso por biometria.');
       }
+
+      const authenticatedUser = await loadProfile(firebaseUser.uid);
+      if (authenticatedUser.biometricEnabled === false) {
+        throw new Error('A autenticação biométrica foi desativada nas configurações do seu perfil.');
+      }
+      authenticatedUser.biometricEnabled = true;
 
       setUser(authenticatedUser);
       localStorage.setItem('auth_user', JSON.stringify(authenticatedUser));
@@ -402,9 +251,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         description: `Usuário '${user.name}' deslogou temporariamente do sistema.`
       });
     }
-    NotificationService.unregisterFCMUser().catch(err => 
-      console.warn('Error unregistering FCM user on logout:', err)
-    );
+    // Sign out of Firebase only after the device token cleanup, which still needs the session
+    NotificationService.unregisterFCMUser()
+      .catch(err => console.warn('Error unregistering FCM user on logout:', err))
+      .finally(() => signOut(auth).catch(err => console.warn('Error signing out of Firebase:', err)));
     setUser(null);
     localStorage.removeItem('auth_user');
     localStorage.removeItem('active_store_id');

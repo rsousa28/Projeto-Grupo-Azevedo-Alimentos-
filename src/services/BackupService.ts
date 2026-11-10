@@ -407,7 +407,8 @@ export const BackupService = {
         for (const user of payload.users) {
           if (!user.id) continue;
           const userRef = doc(db, 'users', user.id);
-          const { id, ...data } = user;
+          // Passwords live in Firebase Auth now; older backups may still carry a password field
+          const { id, password, ...data } = user;
           await setDoc(userRef, this.sanitizeData(data));
         }
       }

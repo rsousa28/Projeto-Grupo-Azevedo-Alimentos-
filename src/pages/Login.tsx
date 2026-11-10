@@ -432,7 +432,7 @@ export default function Login() {
                     required
                     value={registerUsername}
                     onChange={(e) => setRegisterUsername(e.target.value)}
-                    placeholder="ex: adm, patriciab28, andressab32..."
+                    placeholder="seu usuário"
                     className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none focus:border-[#FFCB05] text-sm font-bold text-slate-800 bg-slate-50"
                   />
                 </div>

@@ -12,8 +12,11 @@ import {
   CheckCircle2, 
   AlertCircle,
   Loader2,
-  HardDrive
+  HardDrive,
+  KeyRound
 } from 'lucide-react';
+import { EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
@@ -33,6 +36,46 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [platformAuthAvailable, setPlatformAuthAvailable] = useState<boolean>(false);
   const [biometricEnabled, setBiometricEnabled] = useState<boolean>(false);
   const [loadingBio, setLoadingBio] = useState<boolean>(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser?.email) {
+      toastError('Sessão expirada. Faça login novamente para trocar a senha.');
+      return;
+    }
+    if (newPassword.length < 6) {
+      toastError('A nova senha precisa ter pelo menos 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toastError('A confirmação não confere com a nova senha.');
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      await reauthenticateWithCredential(firebaseUser, EmailAuthProvider.credential(firebaseUser.email, currentPassword));
+      await updatePassword(firebaseUser, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      success('Senha alterada com sucesso.');
+    } catch (err: any) {
+      if (err?.code === 'auth/invalid-credential' || err?.code === 'auth/wrong-password') {
+        toastError('Senha atual incorreta.');
+      } else if (err?.code === 'auth/too-many-requests') {
+        toastError('Muitas tentativas. Aguarde alguns minutos.');
+      } else {
+        toastError('Não foi possível alterar a senha. Tente novamente.');
+      }
+    } finally {
+      setSavingPassword(false);
+    }
+  };
 
   // Load initial settings
   useEffect(() => {
@@ -185,6 +228,62 @@ export default function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   )}
                 </button>
               </div>
+            </div>
+
+            {/* Section: Change own password */}
+            <div className="space-y-3">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Alterar minha senha</span>
+              </span>
+
+              <form onSubmit={handleChangePassword} className={`p-4 rounded-2xl border space-y-3 ${
+                isDarkMode ? 'bg-[#222] border-[#333]' : 'bg-slate-50 border-slate-200/80'
+              }`}>
+                <input
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Senha atual"
+                  className={`w-full px-4 py-3 rounded-xl border outline-none text-sm font-bold ${
+                    isDarkMode ? 'bg-black/20 border-[#333] text-white' : 'bg-white border-slate-200'
+                  }`}
+                />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Nova senha (mínimo 6 caracteres)"
+                  className={`w-full px-4 py-3 rounded-xl border outline-none text-sm font-bold ${
+                    isDarkMode ? 'bg-black/20 border-[#333] text-white' : 'bg-white border-slate-200'
+                  }`}
+                />
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirmar nova senha"
+                  className={`w-full px-4 py-3 rounded-xl border outline-none text-sm font-bold ${
+                    isDarkMode ? 'bg-black/20 border-[#333] text-white' : 'bg-white border-slate-200'
+                  }`}
+                />
+                <button
+                  type="submit"
+                  disabled={savingPassword}
+                  className="w-full px-4 py-3 rounded-xl bg-indigo-600 text-white font-black uppercase tracking-wider text-xs italic hover:bg-indigo-700 transition cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {savingPassword && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Salvar nova senha
+                </button>
+              </form>
             </div>
 
             {/* Section 2: Appearance / Dark Mode */}
