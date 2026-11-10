@@ -10,7 +10,7 @@
  * 5. Inscrição nativa (PushManager.subscribe) e envio da PushSubscription para o servidor
  */
 
-import { db } from '../lib/firebase';
+import { db, auth, apiFetch } from '../lib/firebase';
 import { doc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 
 export interface PushDeviceInfo {
@@ -140,10 +140,7 @@ export async function registerServiceWorker(swUrl: string = '/sw.js'): Promise<S
  */
 export async function getVapidPublicKey(): Promise<string> {
   try {
-    const res = await fetch('/api/push/vapid-public-key', {
-      method: 'GET',
-      credentials: 'include',
-    });
+    const res = await apiFetch('/api/push/vapid-public-key');
 
     if (res.ok) {
       const data = await res.json();
@@ -199,6 +196,7 @@ export async function sendPushSubscriptionToServer(
       id: docId,
       subscription: subJson,
       deviceId,
+      uid: auth.currentUser?.uid || null,
       userName: storedUser?.name || 'Usuário PWA',
       userRole: storedUser?.role || 'ADMIN',
       username: storedUser?.username || 'user',
@@ -214,9 +212,8 @@ export async function sendPushSubscriptionToServer(
 
   // 2. Notificar backend via /api/push/subscribe
   try {
-    const response = await fetch('/api/push/subscribe', {
+    const response = await apiFetch('/api/push/subscribe', {
       method: 'POST',
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -360,9 +357,8 @@ export async function triggerServerPushTest(
   body?: string
 ): Promise<{ success: boolean; message: string; scheduled?: boolean }> {
   try {
-    const res = await fetch('/api/push/test', {
+    const res = await apiFetch('/api/push/test', {
       method: 'POST',
-      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         delaySeconds,

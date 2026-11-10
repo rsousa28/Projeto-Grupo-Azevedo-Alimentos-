@@ -39,6 +39,7 @@ import {
   getExistingPushSubscription,
   DEFAULT_VAPID_PUBLIC_KEY 
 } from '../utils/pushConfig';
+import { apiFetch } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
@@ -105,7 +106,7 @@ export default function NotificationCenter() {
       }
     });
 
-    fetch('/api/push/vapid-public-key', { credentials: 'include' })
+    apiFetch('/api/push/vapid-public-key')
       .then(res => res.json())
       .then(data => {
         if (data.publicKey) setServerVapidKey(data.publicKey);

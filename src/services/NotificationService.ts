@@ -1,4 +1,4 @@
-import { db, getFirebaseMessaging } from '../lib/firebase';
+import { db, getFirebaseMessaging, apiFetch } from '../lib/firebase';
 import { doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot, getDocs } from 'firebase/firestore';
 import { getToken, onMessage } from 'firebase/messaging';
 import { STORES } from '../contexts/StoreContext';
@@ -948,9 +948,14 @@ export class NotificationService {
       url: '/accounts-payable',
     });
 
-    // Also ping server background worker to broadcast real Web Push to subscribed devices
+    // Also ask the server to broadcast real Web Push (admins only). The automatic hourly call
+    // is skipped server-side if GitHub Actions already notified this hour; a manual one is forced.
     try {
-      fetch('/api/notifications/trigger-hourly-payable', { method: 'POST', credentials: 'include' }).catch(() => {});
+      apiFetch('/api/notifications/trigger-hourly-payable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force: !hourKey }),
+      }).catch(() => {});
     } catch (e) {}
 
     if (hourKey) {

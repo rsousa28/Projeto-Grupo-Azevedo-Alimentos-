@@ -1,4 +1,4 @@
-import { db } from '../lib/firebase';
+import { db, apiFetch } from '../lib/firebase';
 import { collection, addDoc, doc, onSnapshot } from 'firebase/firestore';
 
 export interface EmailReportItem {
@@ -165,9 +165,9 @@ export class EmailService {
     let response: Response | null = null;
     let httpErrorMsg = '';
 
-    // Step 1: Direct HTTP Dispatch (without credentials: 'include' to avoid proxy cookie 405 redirect)
+    // Step 1: Direct HTTP Dispatch with the login token (no cookies, to avoid proxy cookie 405 redirect)
     try {
-      response = await fetch('/api/send-email', {
+      response = await apiFetch('/api/send-email', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

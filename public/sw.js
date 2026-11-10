@@ -41,7 +41,7 @@ try {
   console.warn('[SW] Firebase messaging import in Service Worker warning:', e);
 }
 
-const CACHE_NAME = 'grupo-azevedo-v13';
+const CACHE_NAME = 'grupo-azevedo-v14';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -123,6 +123,11 @@ self.addEventListener('fetch', (event) => {
 
   // Skip external APIs or third-party origins (Firestore, Firebase Auth, Google Maps, etc.)
   if (!url.origin.includes(self.location.origin)) {
+    return;
+  }
+
+  // Never cache our own API: responses depend on who is logged in and must be fresh
+  if (url.pathname.startsWith('/api/')) {
     return;
   }
 
