@@ -8,6 +8,15 @@ import nodemailer from "nodemailer";
 import webpush from "web-push";
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, getDocs, getDoc, doc, setDoc, addDoc, deleteDoc, query, where, onSnapshot } from "firebase/firestore";
+import {
+  PAYABLE_STORES,
+  getPayableTimeParts,
+  parseAccountsDoc,
+  parseAccountsChunks,
+  summarizeStorePayables,
+  buildPayableNotification,
+  isPermanentPushError,
+} from "./server/payableSummary";
 
 dotenv.config();
 
@@ -15,10 +24,10 @@ dotenv.config();
 const appDir = process.cwd();
 
 // Set DISABLE_BACKGROUND_JOBS=true for local development so this instance does not
-// process the shared email queue or broadcast hourly push notifications to real devices.
+// process the shared email queue.
 const backgroundJobsDisabled = process.env.DISABLE_BACKGROUND_JOBS === "true";
 if (backgroundJobsDisabled) {
-  console.log("[Server] DISABLE_BACKGROUND_JOBS=true: email queue listener and hourly AP worker are off.");
+  console.log("[Server] DISABLE_BACKGROUND_JOBS=true: email queue listener is off.");
 }
 
 // Initialize Firebase for server-side hourly background tasks
@@ -281,200 +290,42 @@ const ai = new GoogleGenAI({
 });
 
 // Helper to format currency in BRL
-function formatBrl(val: number): string {
-  return (val || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-}
-
-// Server-side Accounts Payable hourly calculation and broadcast
-let lastProcessedHourKey = "";
-
-async function executeHourlyAccountsPayableCheck(force = false): Promise<{ success: boolean; summary?: string; error?: string }> {
+// Server-side Accounts Payable calculation and broadcast.
+// The hourly schedule runs in GitHub Actions (scripts/hourly-payable.ts); this is only used by the
+// manual trigger endpoint below.
+async function executeHourlyAccountsPayableCheck(): Promise<{ success: boolean; summary?: string; error?: string }> {
   if (!db) {
     return { success: false, error: "Database not connected" };
   }
 
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const todayStr = `${year}-${month}-${day}`;
-  const hour = now.getHours();
-  const currentHourKey = `${todayStr}_H${hour}`;
-
-  if (!force && lastProcessedHourKey === currentHourKey) {
-    return { success: true, summary: "Already ran for this hour" };
-  }
+  const time = getPayableTimeParts();
 
   try {
-    console.log(`[Hourly AP Worker] Running check for ${currentHourKey}...`);
+    console.log(`[Hourly AP Worker] Running check for ${time.hourKey}...`);
 
-    const storeConfigs = [
-      { id: "1", name: "B32 (Mossoró)" },
-      { id: "2", name: "B28 (Bebelu Rio Mar)" },
-      { id: "3", name: "Vero Pasta" },
-    ];
-
-    const storeSummaries: any[] = [];
-    let groupOverdue = 0;
-    let groupToday = 0;
-    let groupPaid = 0;
-    let groupUpcoming = 0;
-    let totalOverdueCount = 0;
-    const currentMonthYear = `${year}-${month}`;
-
-    for (const store of storeConfigs) {
+    const summaries = [];
+    for (const store of PAYABLE_STORES) {
       let accounts: any[] = [];
       try {
-        const docRef = doc(db, "stores", store.id, "accounts_payable", "all");
-        const snap = await getDoc(docRef);
-        if (snap.exists()) {
-          const data = snap.data();
-          if (Array.isArray(data.data)) {
-            accounts = data.data;
-          } else if (Array.isArray(data.items)) {
-            accounts = data.items;
-          }
-        }
+        const snap = await getDoc(doc(db, "stores", store.id, "accounts_payable", "all"));
+        accounts = parseAccountsDoc(snap.exists() ? snap.data() : null);
 
         // If chunked subcollection exists, load and reassemble
         if (accounts.length === 0) {
           const chunksSnap = await getDocs(collection(db, "stores", store.id, "accounts_payable", "all", "chunks"));
-          if (!chunksSnap.empty) {
-            const list = chunksSnap.docs.map((d) => d.data() as { index: number; data: string });
-            list.sort((a, b) => (a.index || 0) - (b.index || 0));
-            const jsonText = list.map((c) => c.data).join("");
-            const parsed = JSON.parse(jsonText);
-            accounts = Array.isArray(parsed.data) ? parsed.data : Array.isArray(parsed.items) ? parsed.items : Array.isArray(parsed) ? parsed : [];
-          }
+          accounts = parseAccountsChunks(chunksSnap.docs.map((d) => d.data() as { index: number; data: string }));
         }
       } catch (err) {
         console.warn(`[Hourly AP Worker] Error reading accounts for store ${store.id}:`, err);
       }
-
-      // Filter accounts strictly belonging to this store
-      const filteredAccounts = accounts.filter((ac: any) => {
-        if (!ac || !ac.dueDate || ac.deleted) return false;
-
-        // Strict store isolation boundary matching AccountsPayable.tsx & NotificationService.ts
-        if (store.id === "1") {
-          if (ac.storeId === "2" || ac.storeId === "3") return false;
-          const sName = String(ac.storeName || "").toUpperCase();
-          if (sName.includes("RIO MAR") || sName.includes("B28") || sName.includes("PAPICU") || sName.includes("VERO") || sName.includes("PASTA")) {
-            return false;
-          }
-          return true;
-        }
-
-        if (store.id === "2") {
-          if (ac.storeId === "2") return true;
-          const sName = String(ac.storeName || "").toUpperCase();
-          return sName.includes("RIO MAR") || sName.includes("B28") || sName.includes("PAPICU");
-        }
-
-        if (store.id === "3") {
-          if (ac.storeId === "3") return true;
-          const sName = String(ac.storeName || "").toUpperCase();
-          return sName.includes("VERO") || sName.includes("PASTA");
-        }
-
-        return !ac.storeId || ac.storeId === store.id;
-      });
-
-      let storeToday = 0;
-      let storeOverdue = 0;
-      let storePaid = 0;
-      let storeUpcoming = 0;
-      let storeOverdueCount = 0;
-
-      for (const ac of filteredAccounts) {
-        const val = Number(ac.value) || 0;
-        const partial = Number(ac.partialAmountPaid) || 0;
-        const fine = Number(ac.fine) || 0;
-        const interest = Number(ac.interest) || 0;
-        const discount = Number(ac.discount) || 0;
-        const remaining = Math.max(0, val - partial);
-
-        const statusNorm = String(ac.status || "Pendente").trim().toLowerCase();
-        const due = String(ac.dueDate);
-
-        const isPaid = statusNorm === "pago" || statusNorm === "paid";
-        const isCanceled = statusNorm === "cancelado" || statusNorm === "canceled";
-        const isPartiallyPaid = statusNorm === "parcialmente pago" || statusNorm === "partially_paid";
-        const isOverdue = statusNorm === "vencido" || statusNorm === "overdue" || 
-          ((statusNorm === "pendente" || statusNorm === "agendado" || isPartiallyPaid) && due < todayStr);
-
-        if (isCanceled) continue;
-
-        // A Pagar Hoje: due today and not paid
-        if (due === todayStr && !isPaid) {
-          if (remaining > 0) storeToday += remaining;
-        }
-
-        // Total Vencido: overdue unpaid/partially-unpaid balance
-        if (isOverdue && !isPaid) {
-          if (remaining > 0) {
-            storeOverdue += remaining;
-            storeOverdueCount++;
-          }
-        }
-
-        // Pagas no Mês: strictly assigned to their actual payment execution month
-        const hasDueDateInRange = due.startsWith(currentMonthYear);
-        const hasPaymentDateInRange = ac.paymentDate && String(ac.paymentDate).startsWith(currentMonthYear);
-        const matchesPaymentPeriod = ac.paymentDate ? hasPaymentDateInRange : hasDueDateInRange;
-
-        if (isPaid && matchesPaymentPeriod) {
-          storePaid += (val + fine + interest - discount);
-        } else if (isPartiallyPaid && matchesPaymentPeriod && partial > 0) {
-          storePaid += partial;
-        }
-
-        // Compromissos Futuros: due in future (after today) and not paid
-        if (due > todayStr && !isPaid) {
-          if (remaining > 0) storeUpcoming += remaining;
-        }
-      }
-
-      groupOverdue += storeOverdue;
-      groupToday += storeToday;
-      groupPaid += storePaid;
-      groupUpcoming += storeUpcoming;
-      totalOverdueCount += storeOverdueCount;
-
-      storeSummaries.push({
-        storeName: store.name,
-        overdue: storeOverdue,
-        overdueCount: storeOverdueCount,
-        today: storeToday,
-        paid: storePaid,
-        upcoming: storeUpcoming,
-      });
+      summaries.push(summarizeStorePayables(store, accounts, time));
     }
 
-    // Build concise push message text strictly matching Contas a Pagar
-    const title = `📊 Contas a Pagar (${hour}:00h) - ${groupOverdue > 0 ? "🚨 ATENÇÃO" : "✅ REGULAR"}`;
-    const lines: string[] = [];
-
-    storeSummaries.forEach((s) => {
-      lines.push(`📍 ${s.storeName}:\nHoje: ${formatBrl(s.today)} | Vencido: ${formatBrl(s.overdue)} (${s.overdueCount} boletos) | Pagas Mês: ${formatBrl(s.paid)} | Futuro: ${formatBrl(s.upcoming)}`);
-    });
-
-    lines.push(`💰 TOTAL GRUPO:\nHoje: ${formatBrl(groupToday)} | Vencido: ${formatBrl(groupOverdue)} (${totalOverdueCount} boletos) | Pagas Mês: ${formatBrl(groupPaid)} | Futuro: ${formatBrl(groupUpcoming)}`);
-
-    const body = lines.join("\n\n");
+    const notification = buildPayableNotification(summaries, time);
 
     // 1. Save to global_notifications in Firestore
     try {
-      await addDoc(collection(db, "global_notifications"), {
-        title,
-        body,
-        type: "PAYABLE_HOURLY",
-        tag: `payable_hourly_${currentHourKey}`,
-        url: "/accounts-payable",
-        icon: "/logo_azevedo.png?v=11",
-        createdAt: new Date().toISOString(),
-        createdByDeviceId: "cloud_server_worker",
-      });
+      await addDoc(collection(db, "global_notifications"), notification.notificationDoc);
       console.log("[Hourly AP Worker] Saved notification to Firestore global_notifications.");
     } catch (dbErr) {
       console.warn("[Hourly AP Worker] Could not write to global_notifications:", dbErr);
@@ -485,18 +336,6 @@ async function executeHourlyAccountsPayableCheck(force = false): Promise<{ succe
       const subDocs = await getDocs(collection(db, "push_subscriptions"));
       console.log(`[Hourly AP Worker] Found ${subDocs.size} push subscriptions in Firestore.`);
 
-      const pushPayload = JSON.stringify({
-        title,
-        body,
-        icon: "/logo_azevedo.png?v=11",
-        badge: "/logo_azevedo.png?v=11",
-        tag: `payable_hourly_${currentHourKey}`,
-        data: {
-          url: "/accounts-payable",
-          hourKey: currentHourKey,
-        },
-      });
-
       let sentCount = 0;
       let expiredCount = 0;
 
@@ -504,18 +343,10 @@ async function executeHourlyAccountsPayableCheck(force = false): Promise<{ succe
         const subData = sDoc.data();
         if (subData && subData.subscription && subData.subscription.endpoint) {
           try {
-            await webpush.sendNotification(subData.subscription, pushPayload);
+            await webpush.sendNotification(subData.subscription, notification.pushPayload);
             sentCount++;
           } catch (pushErr: any) {
-            const isPermanentPushError = 
-              pushErr.statusCode === 400 ||
-              pushErr.statusCode === 401 ||
-              pushErr.statusCode === 403 ||
-              pushErr.statusCode === 404 ||
-              pushErr.statusCode === 410 ||
-              String(pushErr.message || '').includes('unexpected response code');
-
-            if (isPermanentPushError) {
+            if (isPermanentPushError(pushErr)) {
               // Expired, revoked, or key-mismatched subscription, safely prune from Firestore
               await deleteDoc(doc(db, "push_subscriptions", sDoc.id)).catch(() => {});
               expiredCount++;
@@ -532,28 +363,11 @@ async function executeHourlyAccountsPayableCheck(force = false): Promise<{ succe
       console.warn("[Hourly AP Worker] Error dispatching push notifications:", pushErr);
     }
 
-    lastProcessedHourKey = currentHourKey;
-    return { success: true, summary: `Notified for ${currentHourKey}` };
+    return { success: true, summary: `Notified for ${time.hourKey}` };
   } catch (err: any) {
     console.error("[Hourly AP Worker] Error in check:", err);
     return { success: false, error: err.message };
   }
-}
-
-if (!backgroundJobsDisabled) {
-  // Start background interval (runs every 60 seconds)
-  setInterval(() => {
-    executeHourlyAccountsPayableCheck().catch((e) => {
-      console.warn("[Hourly AP Worker] Unhandled interval error:", e);
-    });
-  }, 60 * 1000);
-
-  // Also run initial check 15 seconds after server start
-  setTimeout(() => {
-    executeHourlyAccountsPayableCheck().catch((e) => {
-      console.warn("[Hourly AP Worker] Initial run error:", e);
-    });
-  }, 15 * 1000);
 }
 
 async function startServer() {
@@ -590,7 +404,6 @@ async function startServer() {
       keyPrefix: key ? key.substring(0, 4) + "..." : "none",
       vapidConfigured: !!vapidPublicKey,
       smtpConfigured: !!process.env.SMTP_USER,
-      lastHourlyKey: lastProcessedHourKey,
       availableEnvVars: envKeys.filter(k => k.includes("API") || k.includes("KEY") || k.includes("GOOGLE") || k.includes("GEMINI") || k.includes("SMTP") || k.includes("VAPID"))
     });
   });
@@ -750,7 +563,7 @@ async function startServer() {
   // Manual trigger for testing hourly payable push
   app.post("/api/notifications/trigger-hourly-payable", async (req, res) => {
     try {
-      const result = await executeHourlyAccountsPayableCheck(true);
+      const result = await executeHourlyAccountsPayableCheck();
       res.json(result);
     } catch (err: any) {
       res.status(500).json({ error: err.message });

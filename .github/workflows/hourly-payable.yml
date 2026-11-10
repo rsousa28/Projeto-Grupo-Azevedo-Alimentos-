@@ -1,0 +1,42 @@
+name: Hourly Accounts Payable notification
+
+on:
+  schedule:
+    # Every hour at minute 7 (UTC). Off the top of the hour, when GitHub delays scheduled runs the most.
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "normal: send if this hour was not sent yet | force: send again | dry-run: only print"
+        type: choice
+        options: [normal, force, dry-run]
+        default: normal
+
+concurrency:
+  group: hourly-payable
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: Send notification
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
+          MODE: ${{ inputs.mode || 'normal' }}
+        run: |
+          case "$MODE" in
+            force) npx tsx scripts/hourly-payable.ts --force ;;
+            dry-run) npx tsx scripts/hourly-payable.ts --dry-run ;;
+            *) npx tsx scripts/hourly-payable.ts ;;
+          esac
