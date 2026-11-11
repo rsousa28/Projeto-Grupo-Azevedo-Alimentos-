@@ -1,9 +1,13 @@
 // Card do relatório horário de Contas a Pagar (aparece no app quando o relatório chega).
 import React from 'react';
-import { ArrowRight, CalendarClock, CheckCircle2, Clock3, Receipt, TrendingUp, X } from 'lucide-react';
+import { CalendarClock, CheckCircle2, Receipt, TrendingUp } from 'lucide-react';
 import type { PayableReport, PayableStatus } from '../../server/payableSummary';
+import type { NotifTone } from '../lib/notifications';
+import { CARD_SURFACE, NotifAction, NotifHeader } from './notifications/NotificationCard';
 
 const brl = (v: number) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+const STATUS_TONE: Record<PayableStatus, NotifTone> = { critical: 'critical', attention: 'warning', ok: 'success' };
 
 const STATUS: Record<PayableStatus, { label: string; pill: string; dot: string; accent: string }> = {
   critical: {
@@ -58,36 +62,17 @@ export default function PayableReportCard({
   const stores = [...report.stores].sort((a, b) => rank[a.status] - rank[b.status] || b.overdue - a.overdue);
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#0d1117]/95 text-slate-100 shadow-2xl shadow-black/50 ring-1 ring-black/5 backdrop-blur-xl">
+    <div className={CARD_SURFACE}>
       {/* Cabeçalho */}
       <div className={`bg-gradient-to-br ${s.accent} to-transparent px-4 pb-3 pt-3.5`}>
-        <div className="flex items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white/10 ring-1 ring-white/10">
-            <Receipt className="h-[18px] w-[18px] text-white" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="text-[13px] font-semibold tracking-tight text-white">Contas a Pagar</p>
-              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${s.pill}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
-                {s.label}
-              </span>
-            </div>
-            <p className="mt-0.5 flex items-center gap-1 text-[11px] text-slate-400">
-              <Clock3 className="h-3 w-3" /> Relatório das {reportDateLabel(report)}
-            </p>
-          </div>
-          {onDismiss && (
-            <button
-              type="button"
-              onClick={onDismiss}
-              className="-mr-1 rounded-lg p-1 text-slate-500 transition hover:bg-white/10 hover:text-white"
-              aria-label="Fechar relatório"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          )}
-        </div>
+        <NotifHeader
+          icon={Receipt}
+          tone={STATUS_TONE[report.status]}
+          category="Contas a Pagar"
+          pill={s.label}
+          meta={`Relatório das ${reportDateLabel(report)}`}
+          onDismiss={onDismiss}
+        />
 
         {/* Número principal */}
         <div className="mt-3">
@@ -166,15 +151,7 @@ export default function PayableReportCard({
       {/* Rodapé */}
       <div className="flex items-center justify-between gap-2 border-t border-white/5 bg-white/[0.02] px-4 py-2.5 pb-3">
         <span className="text-[10.5px] text-slate-500">Envio automático a cada hora</span>
-        {onOpen && (
-          <button
-            type="button"
-            onClick={onOpen}
-            className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-[11px] font-semibold text-slate-900 transition hover:bg-slate-200"
-          >
-            Abrir Contas a Pagar <ArrowRight className="h-3.5 w-3.5" />
-          </button>
-        )}
+        {onOpen && <NotifAction label="Abrir Contas a Pagar" onClick={onOpen} />}
       </div>
     </div>
   );

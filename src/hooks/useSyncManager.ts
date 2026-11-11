@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { IndexedDBService, PendingSubmission } from '../services/IndexedDBService';
 import { OfflineSyncManager } from '../services/OfflineSyncManager';
 import { NotificationService } from '../services/NotificationService';
+import { pushText, syncNotification } from '../lib/notifications';
 import { useAuth } from '../contexts/AuthContext';
 
 export interface UseSyncManagerReturn {
@@ -45,41 +46,19 @@ export function useSyncManager(): UseSyncManagerReturn {
     }
   }, []);
 
-  // Helper to trigger Service Worker notification & NotificationService
+  // Aviso local (só neste aparelho: o envio offline é dele) no padrão visual das notificações
   const sendSyncNotification = useCallback((syncedCount: number) => {
     if (syncedCount <= 0) return;
-
-    const title = '⚡ Dados Sincronizados!';
-    const body = `${syncedCount} checklist(s) e plano(s) salvo(s) offline foram transmitidos com sucesso para a nuvem.`;
-
-    // 1. Log in internal notification system and attempt native browser push
+    const card = syncNotification(syncedCount);
+    const { title, body } = pushText(card);
     NotificationService.sendPushNotification(title, {
       body,
       type: 'CHECKLIST',
       tag: 'sync_success_notification',
       url: '/checklist',
+      card,
+      skipFirestoreSync: true,
     });
-
-    // 2. Direct Service Worker notification integration
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((registration) => {
-        if (registration && registration.showNotification) {
-          try {
-            registration.showNotification(title, {
-              body,
-              icon: '/logo_azevedo.png?v=7',
-              badge: '/logo_azevedo.png?v=7',
-              tag: 'sw_sync_success',
-              data: { url: '/checklist' },
-            });
-          } catch (e) {
-            console.warn('SW showNotification error:', e);
-          }
-        }
-      }).catch((err) => {
-        console.warn('Service worker not ready for sync notification:', err);
-      });
-    }
   }, []);
 
   // Sync execution logic

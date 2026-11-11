@@ -1,27 +1,40 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, AlertTriangle, XCircle, Info, X } from 'lucide-react';
+import { ToastCard } from '../components/notifications/NotificationCard';
+import type { NotifTone } from '../lib/notifications';
+
+type ToastType = 'success' | 'info' | 'error' | 'warning';
 
 export interface Toast {
   id: string;
   message: string;
   title?: string;
-  type: 'success' | 'info' | 'error' | 'warning';
+  type: ToastType;
   duration: number; // in ms
-  content?: (dismiss: () => void) => React.ReactNode; // card próprio (ex.: relatório de contas a pagar)
+  content?: (dismiss: () => void) => React.ReactNode; // card próprio (notificações do sistema)
 }
 
 interface ToastContextType {
-  showToast: (message: string, type?: 'success' | 'info' | 'error' | 'warning', title?: string, duration?: number) => void;
+  showToast: (message: string, type?: ToastType, title?: string, duration?: number) => void;
   success: (message: string, title?: string, duration?: number) => void;
   error: (message: string, title?: string, duration?: number) => void;
   warning: (message: string, title?: string, duration?: number) => void;
   info: (message: string, title?: string, duration?: number) => void;
-  /** Mostra um card com layout próprio no lugar do toast padrão. */
+  /** Mostra um card com layout próprio no lugar do aviso padrão. */
   showCustomToast: (content: (dismiss: () => void) => React.ReactNode, duration?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
+
+// Avisos empilhados ao mesmo tempo: o mais antigo sai quando chega um novo
+const MAX_VISIBLE = 4;
+
+const TONE: Record<ToastType, NotifTone> = {
+  success: 'success',
+  error: 'critical',
+  warning: 'warning',
+  info: 'info',
+};
 
 export function useToast() {
   const context = useContext(ToastContext);
@@ -34,151 +47,69 @@ export function useToast() {
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const showToast = useCallback(
-    (message: string, type: 'success' | 'info' | 'error' | 'warning' = 'success', title?: string, duration = 4500) => {
+  const dismiss = useCallback((id: string) => setToasts((prev) => prev.filter((t) => t.id !== id)), []);
+
+  const push = useCallback(
+    (toast: Omit<Toast, 'id'>) => {
       const id = Math.random().toString(36).substring(2, 9);
-      
-      // Default titles if not supplied
-      const defaultTitle = 
-        type === 'success' ? 'Sucesso' :
-        type === 'error' ? 'Erro' :
-        type === 'warning' ? 'Atenção' : 'Informação';
-
-      setToasts((prev) => [...prev, { id, message, type, title: title || defaultTitle, duration }]);
-
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t.id !== id));
-      }, duration);
+      setToasts((prev) => [...prev, { ...toast, id }].slice(-MAX_VISIBLE));
+      setTimeout(() => dismiss(id), toast.duration);
     },
-    []
+    [dismiss],
   );
 
-  const showCustomToast = useCallback((content: (dismiss: () => void) => React.ReactNode, duration = 15000) => {
-    const id = Math.random().toString(36).substring(2, 9);
-    setToasts((prev) => [...prev, { id, message: '', type: 'info', duration, content }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, duration);
-  }, []);
+  const showToast = useCallback(
+    (message: string, type: ToastType = 'success', title?: string, duration = 4500) => push({ message, type, title, duration }),
+    [push],
+  );
 
-  const success = useCallback((message: string, title?: string, duration?: number) => {
-    showToast(message, 'success', title, duration);
-  }, [showToast]);
+  const showCustomToast = useCallback(
+    (content: (dismiss: () => void) => React.ReactNode, duration = 15000) => push({ message: '', type: 'info', duration, content }),
+    [push],
+  );
 
-  const error = useCallback((message: string, title?: string, duration?: number) => {
-    showToast(message, 'error', title, duration);
-  }, [showToast]);
-
-  const warning = useCallback((message: string, title?: string, duration?: number) => {
-    showToast(message, 'warning', title, duration);
-  }, [showToast]);
-
-  const info = useCallback((message: string, title?: string, duration?: number) => {
-    showToast(message, 'info', title, duration);
-  }, [showToast]);
+  const success = useCallback((message: string, title?: string, duration?: number) => showToast(message, 'success', title, duration), [showToast]);
+  const error = useCallback((message: string, title?: string, duration?: number) => showToast(message, 'error', title, duration ?? 6000), [showToast]);
+  const warning = useCallback((message: string, title?: string, duration?: number) => showToast(message, 'warning', title, duration), [showToast]);
+  const info = useCallback((message: string, title?: string, duration?: number) => showToast(message, 'info', title, duration), [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast, success, error, warning, info, showCustomToast }}>
       {children}
-      
-      {/* Toast Render View Overlay with Safe Area clearance for Mobile */}
-      <div 
-        id="global-toast-container" 
+
+      {/* Pilha de avisos (respeita a área segura do celular) */}
+      <div
+        id="global-toast-container"
         className="fixed top-[max(3.75rem,calc(env(safe-area-inset-top)+0.75rem))] inset-x-3 sm:top-6 sm:right-6 sm:left-auto sm:inset-x-auto z-[9999] flex flex-col gap-2.5 max-w-md w-[calc(100%-1.5rem)] sm:w-full pointer-events-none sm:max-w-[26rem] mx-auto sm:mx-0"
+        aria-live="polite"
       >
         <AnimatePresence mode="popLayout">
           {toasts.map((toast) => {
-            if (toast.content) {
-              const dismiss = () => setToasts((prev) => prev.filter((t) => t.id !== toast.id));
-              return (
-                <motion.div
-                  key={toast.id}
-                  id={`toast-item-${toast.id}`}
-                  layout
-                  initial={{ opacity: 0, y: -20, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: -15, scale: 0.97, transition: { duration: 0.15 } }}
-                  className="relative pointer-events-auto"
-                >
-                  {toast.content(dismiss)}
-                  <div className="absolute inset-x-5 bottom-0 h-[2px] overflow-hidden rounded-full">
-                    <motion.div
-                      initial={{ width: '100%' }}
-                      animate={{ width: '0%' }}
-                      transition={{ duration: toast.duration / 1000, ease: 'linear' }}
-                      className="h-full bg-white/30"
-                    />
-                  </div>
-                </motion.div>
-              );
-            }
-            const colors = {
-              success: {
-                bg: 'bg-emerald-950/95 border-emerald-500/50 text-emerald-50 shadow-emerald-950/50',
-                bar: 'bg-emerald-400',
-                icon: <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />,
-              },
-              error: {
-                bg: 'bg-red-950/95 border-red-500/50 text-red-50 shadow-red-950/50',
-                bar: 'bg-red-400',
-                icon: <XCircle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />,
-              },
-              warning: {
-                bg: 'bg-amber-950/95 border-amber-500/50 text-amber-50 shadow-amber-950/50',
-                bar: 'bg-amber-400',
-                icon: <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />,
-              },
-              info: {
-                bg: 'bg-slate-900/95 border-sky-500/50 text-sky-50 shadow-slate-950/50',
-                bar: 'bg-sky-400',
-                icon: <Info className="w-5 h-5 text-sky-400 shrink-0 mt-0.5" />,
-              },
-            }[toast.type];
-
+            const close = () => dismiss(toast.id);
             return (
               <motion.div
                 key={toast.id}
                 id={`toast-item-${toast.id}`}
                 layout
-                initial={{ opacity: 0, y: -20, scale: 0.95 }}
+                initial={{ opacity: 0, y: -16, scale: 0.97 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -15, scale: 0.95, transition: { duration: 0.15 } }}
-                className={`relative overflow-hidden p-3.5 sm:p-4 rounded-xl shadow-2xl border backdrop-blur-md flex items-start gap-3 pointer-events-auto cursor-pointer ${colors.bg}`}
-                onClick={() => setToasts((prev) => prev.filter((t) => t.id !== toast.id))}
+                exit={{ opacity: 0, y: -12, scale: 0.97, transition: { duration: 0.15 } }}
+                className="relative pointer-events-auto"
+                role={toast.type === 'error' ? 'alert' : 'status'}
               >
-                {/* Visual Icon */}
-                {colors.icon}
-
-                {/* Toast Content */}
-                <div className="flex-1 min-w-0 pr-1">
-                  <h4 className="font-semibold text-xs sm:text-sm tracking-tight leading-none mb-1 text-white">
-                    {toast.title}
-                  </h4>
-                  <p className="text-xs leading-relaxed text-slate-200 antialiased font-medium whitespace-pre-line">
-                    {toast.message}
-                  </p>
+                {toast.content ? (
+                  toast.content(close)
+                ) : (
+                  <ToastCard tone={TONE[toast.type]} title={toast.title} message={toast.message} onDismiss={close} />
+                )}
+                <div className="absolute inset-x-5 bottom-0 h-[2px] overflow-hidden rounded-full">
+                  <motion.div
+                    initial={{ width: '100%' }}
+                    animate={{ width: '0%' }}
+                    transition={{ duration: toast.duration / 1000, ease: 'linear' }}
+                    className="h-full bg-white/25"
+                  />
                 </div>
-
-                {/* Close Button */}
-                <button
-                  id={`toast-close-${toast.id}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setToasts((prev) => prev.filter((t) => t.id !== toast.id));
-                  }}
-                  className="text-slate-400 hover:text-white transition-colors duration-150 p-1 rounded-lg hover:bg-white/10 shrink-0"
-                  aria-label="Fechar notificação"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-
-                {/* Auto-dismiss progress bar timer */}
-                <motion.div
-                  initial={{ width: '100%' }}
-                  animate={{ width: '0%' }}
-                  transition={{ duration: toast.duration / 1000, ease: 'linear' }}
-                  className={`absolute bottom-0 left-0 h-[3px] ${colors.bar}`}
-                />
               </motion.div>
             );
           })}

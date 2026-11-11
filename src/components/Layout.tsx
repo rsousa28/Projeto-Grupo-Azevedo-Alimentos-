@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import PayableReportCard from './PayableReportCard';
+import NotificationCard from './notifications/NotificationCard';
+import { useAppUpdate } from '../hooks/useAppUpdate';
 import { Logo } from './Logo';
 import { 
   Settings, 
@@ -32,6 +34,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const { user } = useAuth();
   const { showToast, showCustomToast } = useToast();
   const navigate = useNavigate();
+  useAppUpdate();
   const location = useLocation();
 
   // Dynamic route redirection to enforce isolation between holding and store operations
@@ -121,8 +124,8 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         isCashClosedToday,
       });
 
-      // Check hourly Accounts Payable report reminder
-      NotificationService.checkAccountsPayableHourlyReminder();
+      // O relatório horário de Contas a Pagar vem da função agendada do Firebase (functions/),
+      // que grava em global_notifications; o app só exibe o que chega.
 
       // Automated daily cloud backup check (Data Loss Prevention). Backups read every store and
       // the users list, which only admins can access.
@@ -145,7 +148,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   // Listen for push notifications to trigger in-app floating Toast alerts
   useEffect(() => {
     const handlePushEvent = (e: any) => {
-      const { title, body, report, url } = e.detail || {};
+      const { title, body, report, card, url } = e.detail || {};
+      const openAndClose = (dismiss: () => void, target?: string) => () => {
+        dismiss();
+        navigate(target || url || '/accounts-payable');
+      };
       // Relatório de Contas a Pagar: card próprio com os números por unidade
       if (report?.version === 1) {
         showCustomToast(
@@ -153,13 +160,20 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
             <PayableReportCard
               report={report}
               onDismiss={dismiss}
-              onOpen={() => {
-                dismiss();
-                navigate(url || '/accounts-payable');
-              }}
+              onOpen={openAndClose(dismiss)}
             />
           ),
           15000,
+        );
+        return;
+      }
+      // Demais eventos (caixa, checklist, contas, sincronização): mesmo padrão visual
+      if (card?.version === 1) {
+        showCustomToast(
+          (dismiss) => (
+            <NotificationCard notification={card} onDismiss={dismiss} onOpen={card.url ? openAndClose(dismiss, card.url) : undefined} />
+          ),
+          card.tone === 'critical' ? 12000 : 9000,
         );
         return;
       }

@@ -11,6 +11,17 @@ import {
   getPushDiagnosticStatus 
 } from '../utils/pushConfig';
 import { buildPayableReport, getPayableTimeParts, payableReportText, type PayableReport } from '../../server/payableSummary';
+import {
+  cashClosingNotification,
+  cashReminderNotification,
+  checklistNotification,
+  parseCard,
+  parseReport,
+  payableChangeNotification,
+  pushText,
+  testNotification,
+  type AppNotification,
+} from '../lib/notifications';
 
 export interface NotificationPreferences {
   enabled: boolean;
@@ -20,7 +31,6 @@ export interface NotificationPreferences {
   cashClosingTimes: string[]; // e.g. ['14:00', '21:00']
   lastNotifiedChecklistDate?: string;
   lastNotifiedCashClosingSlot?: string;
-  lastNotifiedAccountsPayableHour?: string;
 }
 
 export interface NotificationLogItem {
@@ -32,6 +42,7 @@ export interface NotificationLogItem {
   timestamp: string;
   read: boolean;
   report?: PayableReport; // relatório horário estruturado (desenha o card no app)
+  card?: AppNotification;  // evento estruturado (caixa, checklist, conta...) no padrão visual único
 }
 
 const PREFS_KEY = 'grupo_azevedo_notification_prefs';
@@ -147,7 +158,8 @@ export class NotificationService {
                 tag: data.tag || 'remote_notif',
                 url: data.url || '/accounts-payable',
                 icon: data.icon || '/logo_azevedo.png?v=10',
-                report: data.report?.version === 1 ? data.report : undefined,
+                report: parseReport(data.report),
+                card: parseCard(data.card),
                 skipFirestoreSync: true, // Prevent infinite loop back to Firestore
               });
             }
@@ -410,27 +422,6 @@ export class NotificationService {
   }
 
   /**
-   * Dispatch push notification for Financial Alerts (overdue bills, high value payments, due today)
-   */
-  static notifyFinancialAlert(data: {
-    title: string;
-    body: string;
-    type?: 'FINANCIAL_ALERT' | 'PAYABLE_HOURLY';
-    tag?: string;
-    url?: string;
-  }): boolean {
-    const prefs = this.getPreferences();
-    if (!prefs.enabled) return false;
-
-    return this.sendPushNotification(data.title, {
-      body: data.body,
-      type: data.type || 'FINANCIAL_ALERT',
-      tag: data.tag || `financial_alert_${Date.now()}`,
-      url: data.url || '/accounts-payable',
-    });
-  }
-
-  /**
    * Send a local push browser notification & broadcast to Firestore for cross-device delivery
    */
   static sendPushNotification(
@@ -443,6 +434,7 @@ export class NotificationService {
       url?: string;
       skipFirestoreSync?: boolean;
       report?: PayableReport;
+      card?: AppNotification;
     }
   ): boolean {
     const type = options.type || 'SYSTEM';
@@ -469,6 +461,7 @@ export class NotificationService {
           url: options.url || '/accounts-payable',
           icon: options.icon || '/logo_azevedo.png?v=10',
           ...(options.report ? { report: options.report } : {}),
+          ...(options.card ? { card: options.card } : {}),
           createdAt: new Date().toISOString(),
           createdByDeviceId: getDeviceId(),
         }).catch(err => console.warn('Error broadcasting notification to Firestore:', err));
@@ -489,6 +482,7 @@ export class NotificationService {
       timestamp: new Date().toISOString(),
       read: false,
       ...(options.report ? { report: options.report } : {}),
+      ...(options.card ? { card: options.card } : {}),
     });
 
     // 3. Play audio chime and vibrate mobile device
@@ -509,6 +503,7 @@ export class NotificationService {
             type,
             url: options.url || '/accounts-payable',
             report: options.report,
+            card: options.card,
           },
         })
       );
@@ -595,17 +590,15 @@ export class NotificationService {
     const prefs = this.getPreferences();
     if (!prefs.enabled || prefs.checklistReminder === false) return false;
 
-    const statusEmoji = data.conformityIndex >= 80 ? '🟢' : data.conformityIndex >= 60 ? '🟡' : '🔴';
-    const plansStr = data.plansCount > 0 ? ` | ⚠️ ${data.plansCount} Plano(s) de Ação` : '';
-
-    const title = `📋 Checklist Realizado: ${data.storeName}`;
-    const body = `Vistoria: ${data.templateTitle}\n• Responsável: ${data.userName}\n• Conformidade: ${statusEmoji} ${data.conformityIndex.toFixed(0)}%${plansStr}`;
+    const card = checklistNotification(data);
+    const { title, body } = pushText(card);
 
     return this.sendPushNotification(title, {
       body,
       type: 'CHECKLIST',
       tag: `checklist_completed_${data.storeName}_${Date.now()}`,
       url: '/checklist',
+      card,
     });
   }
 
@@ -623,24 +616,15 @@ export class NotificationService {
     const prefs = this.getPreferences();
     if (!prefs.enabled || prefs.cashClosingReminder === false) return false;
 
-    const dateFormatted = data.date.includes('-') 
-      ? data.date.split('-').reverse().join('/') 
-      : data.date;
-    const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const diffStr = data.diff === 0 
-      ? '✅ Caixa Bateu' 
-      : data.diff > 0 
-        ? `🟢 Sobra: +${fmt(data.diff)}` 
-        : `🔴 Falta: ${fmt(data.diff)}`;
-
-    const title = `💰 Caixa Fechado: ${data.storeName}`;
-    const body = `Operador: ${data.userName} | Data: ${dateFormatted}\n• Receita: ${fmt(data.totalGeral)}\n• Sistema: ${fmt(data.totalSistema)}\n• Balanço: ${diffStr}`;
+    const card = cashClosingNotification(data);
+    const { title, body } = pushText(card);
 
     return this.sendPushNotification(title, {
       body,
       type: 'CASH_CLOSING',
       tag: `cash_closed_${data.storeName}_${data.date}_${Date.now()}`,
       url: '/cash-closing',
+      card,
     });
   }
 
@@ -657,59 +641,25 @@ export class NotificationService {
     const prefs = this.getPreferences();
     if (!prefs.enabled) return false;
 
-    const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-    const actionMap = {
-      CREATED: '📝 Nova Conta Cadastrada',
-      UPDATED: '✏️ Conta Atualizada',
-      PAID: '✅ Pagamento Confirmado',
-      DELETED: '🗑️ Conta Removida'
-    };
-
-    const actionText = actionMap[data.action] || 'Alteração em Contas a Pagar';
-    const title = `💳 ${actionText}: ${data.storeName}`;
-    const body = `Fornecedor: ${data.supplier}\n• Valor: ${fmt(data.value)}\n• Responsável: ${data.userName || 'Usuário'}\n• Loja: ${data.storeName}`;
+    const card = payableChangeNotification(data);
+    const { title, body } = pushText(card);
 
     const sent = this.sendPushNotification(title, {
       body,
       type: 'PAYABLE_HOURLY',
       tag: `payable_change_${Date.now()}`,
       url: '/accounts-payable',
+      card,
     });
 
     return sent;
   }
 
   /**
-   * Check and trigger hourly Accounts Payable report for all store units
-   */
-  static async checkAccountsPayableHourlyReminder(): Promise<void> {
-    if (!this.isCurrentUserAdmin()) return;
-    const prefs = this.getPreferences();
-    if (!prefs.enabled || prefs.accountsPayableHourlyReminder === false) return;
-
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const todayStr = `${year}-${month}-${day}`;
-    const currentHourKey = `${todayStr}_H${now.getHours()}`;
-
-    if (prefs.lastNotifiedAccountsPayableHour === currentHourKey) {
-      return; // Already notified for this hour
-    }
-
-    try {
-      await this.triggerAccountsPayableReport(currentHourKey);
-    } catch (err) {
-      console.error('Error triggering hourly accounts payable notification:', err);
-    }
-  }
-
-  /**
    * Helper to fetch AP data from Firestore and cache for each store with strict store isolation,
    * calculate exact metrics matching AccountsPayable.tsx, and dispatch notification
    */
-  static async triggerAccountsPayableReport(hourKey?: string): Promise<boolean> {
+  static async triggerAccountsPayableReport(): Promise<boolean> {
     if (!this.isCurrentUserAdmin()) return false;
     const now = new Date();
     const year = now.getFullYear();
@@ -928,31 +878,28 @@ export class NotificationService {
     const report = buildPayableReport(storeSummaries, getPayableTimeParts(now), functionalStores.map((s) => s.id));
     const { title, body } = payableReportText(report);
 
-    const sent = this.sendPushNotification(title, {
-      body,
-      type: 'PAYABLE_HOURLY',
-      tag: `payable_hourly_${hourKey || Date.now()}`,
-      url: '/accounts-payable',
-      report,
-    });
-
-    // Also ask the server to broadcast real Web Push (admins only). The automatic hourly call
-    // is skipped server-side if GitHub Actions already notified this hour; a manual one is forced.
+    // The server sends the report to every phone and device. Only when it can't (e.g. /api offline)
+    // does this device broadcast it through Firestore itself, so nobody receives it twice.
+    let serverSent = false;
     try {
-      apiFetch('/api/notifications/trigger-hourly-payable', {
+      const res = await apiFetch('/api/notifications/trigger-hourly-payable', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ force: !hourKey }),
-      }).catch(() => {});
-    } catch (e) {}
-
-    if (hourKey) {
-      const prefs = this.getPreferences();
-      prefs.lastNotifiedAccountsPayableHour = hourKey;
-      this.savePreferences(prefs);
+        body: JSON.stringify({ force: true }),
+      });
+      serverSent = res.ok;
+    } catch (e) {
+      serverSent = false;
     }
 
-    return sent;
+    return this.sendPushNotification(title, {
+      body,
+      type: 'PAYABLE_HOURLY',
+      tag: `payable_manual_${Date.now()}`,
+      url: '/accounts-payable',
+      report,
+      skipFirestoreSync: serverSent,
+    });
   }
 
   /**
@@ -967,10 +914,13 @@ export class NotificationService {
       }
     }
 
-    return this.sendPushNotification('🔔 Teste de Notificação Push', {
-      body: 'As notificações locais para o Grupo Azevedo Alimentos estão ativas e funcionando perfeitamente!',
+    const card = testNotification();
+    const { title, body } = pushText(card);
+    return this.sendPushNotification(title, {
+      body,
       type: 'TEST',
       tag: 'test_notification',
+      card,
     });
   }
 
@@ -1051,11 +1001,14 @@ export class NotificationService {
       const slotKey = `${todayStr}_${params.storeCode}_${slot}`;
 
       if (slot && prefs.lastNotifiedCashClosingSlot !== slotKey) {
-        this.sendPushNotification(`💰 Lembrete de Fechamento de Caixa: ${params.storeName}`, {
-          body: `Lembre-se de realizar o lançamento do Fechamento de Caixa do turno atual da loja ${params.storeName}.`,
+        const card = cashReminderNotification(params.storeName);
+        const { title, body } = pushText(card);
+        this.sendPushNotification(title, {
+          body,
           type: 'CASH_CLOSING',
           tag: `cash_closing_${slotKey}`,
           url: '/cash-closing',
+          card,
         });
 
         prefs.lastNotifiedCashClosingSlot = slotKey;
