@@ -38,10 +38,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     const isHolding = currentStore.type === 'HOLDING' || currentStore.code === 'ROOT';
     const isHoldingRoute = location.pathname.startsWith('/holding');
     const isGovernanceRoute = ['/team', '/audit-logs', '/security-summary', '/backups', '/diagnostics'].includes(location.pathname);
+    // Fichas técnicas também aparece no menu da holding (abre as da Vero Pasta)
+    const isSharedRoute = location.pathname.startsWith('/fichas-tecnicas');
 
     if (isHolding) {
       // If holding is active and user tries to browse operational routes, smoothly redirect to holding consolidated
-      if (!isHoldingRoute && !isGovernanceRoute) {
+      if (!isHoldingRoute && !isGovernanceRoute && !isSharedRoute) {
         navigate('/holding/loans', { replace: true });
       }
     } else {

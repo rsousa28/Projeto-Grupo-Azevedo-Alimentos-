@@ -35,6 +35,7 @@ import DailyControl from "./pages/DailyControl";
 import HoldingManagement from "./pages/HoldingManagement";
 import UnitInvestmentsControl from "./pages/UnitInvestmentsControl";
 import TechnicalSheets from "./pages/TechnicalSheets";
+import PricingPro from "./pages/PricingPro";
 
 /**
  * Detects if the current environment is a preview/proxy environment.
@@ -172,7 +173,8 @@ function AppRoutes() {
           <Route path="/analysis" element={<Dashboard />} />
           <Route path="/reports" element={<Dashboard />} />
           <Route path="/cash-closing" element={<CashClosing />} />
-          <Route path="/fichas-tecnicas" element={<TechnicalSheets />} />
+          <Route path="/fichas-tecnicas" element={<PricingPro />} />
+          <Route path="/fichas-tecnicas/legado" element={<TechnicalSheets />} />
           <Route path="/data-entry" element={<DataEntry />} />
           <Route path="/daily-control" element={<DailyControl />} />
 

@@ -137,3 +137,12 @@
   @apply flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider px-4 py-2.5 rounded-xl border transition-all active:scale-95 duration-150 cursor-pointer text-center whitespace-nowrap;
 }
 
+
+/* Ficha técnica da cozinha (Precificação PRO): só aparece na impressão */
+#ops-print-root { display: none; }
+@media print {
+  @page { size: A4; margin: 10mm; }
+  body > *:not(#ops-print-root) { display: none !important; }
+  #ops-print-root { display: block !important; }
+  #ops-print-root * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
