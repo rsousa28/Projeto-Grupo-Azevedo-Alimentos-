@@ -10,6 +10,7 @@ import {
   getNotificationPermission, 
   getPushDiagnosticStatus 
 } from '../utils/pushConfig';
+import { buildPayableReport, getPayableTimeParts, payableReportText, type PayableReport } from '../../server/payableSummary';
 
 export interface NotificationPreferences {
   enabled: boolean;
@@ -30,6 +31,7 @@ export interface NotificationLogItem {
   tag?: string;
   timestamp: string;
   read: boolean;
+  report?: PayableReport; // relatório horário estruturado (desenha o card no app)
 }
 
 const PREFS_KEY = 'grupo_azevedo_notification_prefs';
@@ -145,6 +147,7 @@ export class NotificationService {
                 tag: data.tag || 'remote_notif',
                 url: data.url || '/accounts-payable',
                 icon: data.icon || '/logo_azevedo.png?v=10',
+                report: data.report?.version === 1 ? data.report : undefined,
                 skipFirestoreSync: true, // Prevent infinite loop back to Firestore
               });
             }
@@ -439,6 +442,7 @@ export class NotificationService {
       tag?: string;
       url?: string;
       skipFirestoreSync?: boolean;
+      report?: PayableReport;
     }
   ): boolean {
     const type = options.type || 'SYSTEM';
@@ -464,6 +468,7 @@ export class NotificationService {
           tag: options.tag || 'grupo_azevedo_alert',
           url: options.url || '/accounts-payable',
           icon: options.icon || '/logo_azevedo.png?v=10',
+          ...(options.report ? { report: options.report } : {}),
           createdAt: new Date().toISOString(),
           createdByDeviceId: getDeviceId(),
         }).catch(err => console.warn('Error broadcasting notification to Firestore:', err));
@@ -483,6 +488,7 @@ export class NotificationService {
       tag: options.tag || 'grupo_azevedo_alert',
       timestamp: new Date().toISOString(),
       read: false,
+      ...(options.report ? { report: options.report } : {}),
     });
 
     // 3. Play audio chime and vibrate mobile device
@@ -502,6 +508,7 @@ export class NotificationService {
             body: options.body,
             type,
             url: options.url || '/accounts-payable',
+            report: options.report,
           },
         })
       );
@@ -734,11 +741,6 @@ export class NotificationService {
       upcoming: number;
     }> = [];
 
-    let totalGroupToday = 0;
-    let totalGroupOverdue = 0;
-    let totalGroupOverdueCount = 0;
-    let totalGroupPaid = 0;
-    let totalGroupUpcoming = 0;
 
     // Process each functional store in complete isolation (Store 1, Store 2, Store 3)
     for (const store of functionalStores) {
@@ -920,32 +922,18 @@ export class NotificationService {
         paid: storePaid,
         upcoming: storeUpcoming,
       });
-
-      totalGroupToday += storeToday;
-      totalGroupOverdue += storeOverdue;
-      totalGroupOverdueCount += storeOverdueCount;
-      totalGroupPaid += storePaid;
-      totalGroupUpcoming += storeUpcoming;
     }
 
-    const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-    // Build concise notification text
-    const lines: string[] = [];
-    storeSummaries.forEach(s => {
-      lines.push(`📍 ${s.storeName}:\nHoje: ${fmt(s.today)} | Vencido: ${fmt(s.overdue)} (${s.overdueCount} boletos) | Pagas Mês: ${fmt(s.paid)} | Futuro: ${fmt(s.upcoming)}`);
-    });
-
-    lines.push(`💰 TOTAL GRUPO:\nHoje: ${fmt(totalGroupToday)} | Vencido: ${fmt(totalGroupOverdue)} (${totalGroupOverdueCount} boletos) | Pagas Mês: ${fmt(totalGroupPaid)} | Futuro: ${fmt(totalGroupUpcoming)}`);
-
-    const title = `📊 Contas a Pagar - Relatório Horário (${now.getHours()}:00h) - ${totalGroupOverdue > 0 ? "🚨 ATENÇÃO" : "✅ REGULAR"}`;
-    const body = lines.join('\n\n');
+    // Same layout as the server-side hourly job (server/payableSummary.ts)
+    const report = buildPayableReport(storeSummaries, getPayableTimeParts(now), functionalStores.map((s) => s.id));
+    const { title, body } = payableReportText(report);
 
     const sent = this.sendPushNotification(title, {
       body,
       type: 'PAYABLE_HOURLY',
       tag: `payable_hourly_${hourKey || Date.now()}`,
       url: '/accounts-payable',
+      report,
     });
 
     // Also ask the server to broadcast real Web Push (admins only). The automatic hourly call

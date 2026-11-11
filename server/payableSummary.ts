@@ -153,9 +153,53 @@ export function summarizeStorePayables(
   return summary;
 }
 
-// Build concise push message text strictly matching Contas a Pagar
-export function buildPayableNotification(summaries: StorePayableSummary[], time: PayableTimeParts) {
-  const group = summaries.reduce(
+export type PayableStatus = "critical" | "attention" | "ok";
+
+export interface PayableReportStore {
+  storeId: string;
+  storeName: string;
+  status: PayableStatus;
+  today: number;
+  overdue: number;
+  overdueCount: number;
+  paid: number;
+  upcoming: number;
+}
+
+/** Structured hourly report: the app draws its own card from this; the text versions are for phones. */
+export interface PayableReport {
+  version: 1;
+  hourKey: string;
+  hour: number;
+  date: string; // YYYY-MM-DD in store local time
+  status: PayableStatus;
+  stores: PayableReportStore[];
+  total: Omit<PayableReportStore, "storeId" | "storeName" | "status">;
+}
+
+// Short store labels so each phone line fits: "B32 (Mossoró)" -> "B32 Mossoró"
+function shortStoreName(name: string): string {
+  return name.replace(/[()]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function storeStatus(s: { overdue: number; today: number }): PayableStatus {
+  if (s.overdue > 0) return "critical";
+  if (s.today > 0) return "attention";
+  return "ok";
+}
+
+export function buildPayableReport(summaries: StorePayableSummary[], time: PayableTimeParts, storeIds?: string[]): PayableReport {
+  const stores = summaries.map((s, i) => ({
+    storeId: storeIds?.[i] ?? PAYABLE_STORES.find((p) => p.name === s.storeName)?.id ?? String(i + 1),
+    storeName: s.storeName,
+    status: storeStatus(s),
+    today: s.today,
+    overdue: s.overdue,
+    overdueCount: s.overdueCount,
+    paid: s.paid,
+    upcoming: s.upcoming,
+  }));
+  const total = stores.reduce(
     (acc, s) => ({
       today: acc.today + s.today,
       overdue: acc.overdue + s.overdue,
@@ -165,22 +209,63 @@ export function buildPayableNotification(summaries: StorePayableSummary[], time:
     }),
     { today: 0, overdue: 0, overdueCount: 0, paid: 0, upcoming: 0 }
   );
+  return {
+    version: 1,
+    hourKey: time.hourKey,
+    hour: time.hour,
+    date: time.todayStr,
+    status: storeStatus(total),
+    stores,
+    total,
+  };
+}
 
-  const title = `📊 Contas a Pagar (${time.hour}:00h) - ${group.overdue > 0 ? "🚨 ATENÇÃO" : "✅ REGULAR"}`;
-  const lines = summaries.map(
-    (s) => `📍 ${s.storeName}:\nHoje: ${formatBrl(s.today)} | Vencido: ${formatBrl(s.overdue)} (${s.overdueCount} boletos) | Pagas Mês: ${formatBrl(s.paid)} | Futuro: ${formatBrl(s.upcoming)}`
-  );
-  lines.push(`💰 TOTAL GRUPO:\nHoje: ${formatBrl(group.today)} | Vencido: ${formatBrl(group.overdue)} (${group.overdueCount} boletos) | Pagas Mês: ${formatBrl(group.paid)} | Futuro: ${formatBrl(group.upcoming)}`);
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-  const body = lines.join("\n\n");
+/**
+ * Phone push text (no HTML possible there): one headline, one line per store ordered by urgency.
+ * Example title: "Contas a Pagar · 07h · R$ 17.327,90 vencidos"
+ */
+export function payableReportText(report: PayableReport): { title: string; body: string } {
+  const hh = String(report.hour).padStart(2, "0");
+  const { total } = report;
+  const headline =
+    report.status === "critical"
+      ? `${formatBrl(total.overdue)} vencidos`
+      : report.status === "attention"
+        ? `${formatBrl(total.today)} vencem hoje`
+        : "tudo em dia";
+  const title = `${report.status === "critical" ? "🔴" : report.status === "attention" ? "🟡" : "🟢"} Contas a Pagar · ${hh}h · ${headline}`;
+
+  const rank = { critical: 0, attention: 1, ok: 2 } as const;
+  const lines = [...report.stores]
+    .sort((a, b) => rank[a.status] - rank[b.status] || b.overdue - a.overdue)
+    .map((s) => {
+      const name = shortStoreName(s.storeName);
+      const parts: string[] = [];
+      if (s.overdue > 0) parts.push(`vencido ${formatBrl(s.overdue)} (${plural(s.overdueCount, "boleto", "boletos")})`);
+      if (s.today > 0) parts.push(`hoje ${formatBrl(s.today)}`);
+      if (parts.length === 0) parts.push(s.upcoming > 0 ? `em dia · a vencer ${formatBrl(s.upcoming)}` : "em dia");
+      const dot = s.status === "critical" ? "🔴" : s.status === "attention" ? "🟡" : "🟢";
+      return `${dot} ${name}: ${parts.join(" · ")}`;
+    });
+  lines.push(`Grupo · hoje ${formatBrl(total.today)} · pago no mês ${formatBrl(total.paid)} · a vencer ${formatBrl(total.upcoming)}`);
+  return { title, body: lines.join("\n") };
+}
+
+export function buildPayableNotification(summaries: StorePayableSummary[], time: PayableTimeParts) {
+  const report = buildPayableReport(summaries, time);
+  const { title, body } = payableReportText(report);
   const tag = `payable_hourly_${time.hourKey}`;
   return {
     title,
     body,
     tag,
+    report,
     notificationDoc: {
       title,
       body,
+      report,
       type: "PAYABLE_HOURLY",
       tag,
       url: "/accounts-payable",
