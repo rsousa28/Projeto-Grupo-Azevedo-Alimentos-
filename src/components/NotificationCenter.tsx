@@ -39,6 +39,7 @@ import {
   getExistingPushSubscription,
   DEFAULT_VAPID_PUBLIC_KEY 
 } from '../utils/pushConfig';
+import { apiFetch } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
@@ -105,7 +106,7 @@ export default function NotificationCenter() {
       }
     });
 
-    fetch('/api/push/vapid-public-key', { credentials: 'include' })
+    apiFetch('/api/push/vapid-public-key')
       .then(res => res.json())
       .then(data => {
         if (data.publicKey) setServerVapidKey(data.publicKey);
@@ -586,9 +587,23 @@ export default function NotificationCenter() {
                                 {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
-                            <p className="text-[10.5px] font-medium leading-normal mt-0.5 opacity-90 line-clamp-2">
-                              {item.body}
-                            </p>
+                            {item.report ? (
+                              <div className="mt-1 flex flex-wrap gap-1 text-[10px] font-semibold tabular-nums">
+                                {[
+                                  ['Vencido', item.report.total.overdue, 'text-rose-600 dark:text-rose-300 bg-rose-500/10'],
+                                  ['Hoje', item.report.total.today, 'text-amber-700 dark:text-amber-300 bg-amber-500/10'],
+                                  ['A vencer', item.report.total.upcoming, 'text-slate-600 dark:text-slate-300 bg-slate-500/10'],
+                                ].map(([label, value, cls]) => (
+                                  <span key={label as string} className={`rounded-md px-1.5 py-0.5 ${cls}`}>
+                                    {label}: {(value as number).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-[10.5px] font-medium leading-normal mt-0.5 opacity-90 line-clamp-2 whitespace-pre-line">
+                                {item.body}
+                              </p>
+                            )}
                           </div>
                         </div>
                       ))}

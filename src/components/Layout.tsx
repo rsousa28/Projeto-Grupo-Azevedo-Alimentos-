@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
+import PayableReportCard from './PayableReportCard';
 import { Logo } from './Logo';
 import { 
   Settings, 
@@ -29,7 +30,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   const [showUnitModal, setShowUnitModal] = useState(false);
   const { currentStore, isDarkMode, brandColors } = useStore();
   const { user } = useAuth();
-  const { showToast } = useToast();
+  const { showToast, showCustomToast } = useToast();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -38,10 +39,12 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
     const isHolding = currentStore.type === 'HOLDING' || currentStore.code === 'ROOT';
     const isHoldingRoute = location.pathname.startsWith('/holding');
     const isGovernanceRoute = ['/team', '/audit-logs', '/security-summary', '/backups', '/diagnostics'].includes(location.pathname);
+    // Fichas técnicas também aparece no menu da holding (abre as da Vero Pasta)
+    const isSharedRoute = location.pathname.startsWith('/fichas-tecnicas');
 
     if (isHolding) {
       // If holding is active and user tries to browse operational routes, smoothly redirect to holding consolidated
-      if (!isHoldingRoute && !isGovernanceRoute) {
+      if (!isHoldingRoute && !isGovernanceRoute && !isSharedRoute) {
         navigate('/holding/loans', { replace: true });
       }
     } else {
@@ -142,7 +145,24 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
   // Listen for push notifications to trigger in-app floating Toast alerts
   useEffect(() => {
     const handlePushEvent = (e: any) => {
-      const { title, body } = e.detail || {};
+      const { title, body, report, url } = e.detail || {};
+      // Relatório de Contas a Pagar: card próprio com os números por unidade
+      if (report?.version === 1) {
+        showCustomToast(
+          (dismiss) => (
+            <PayableReportCard
+              report={report}
+              onDismiss={dismiss}
+              onOpen={() => {
+                dismiss();
+                navigate(url || '/accounts-payable');
+              }}
+            />
+          ),
+          15000,
+        );
+        return;
+      }
       if (title && body) {
         showToast(body, 'info', title, 9000);
       }
@@ -150,7 +170,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
     window.addEventListener('app_push_notification', handlePushEvent);
     return () => window.removeEventListener('app_push_notification', handlePushEvent);
-  }, [showToast]);
+  }, [showToast, showCustomToast, navigate]);
 
   // Automatically sync Web Push subscription with server for mobile background notifications
   useEffect(() => {

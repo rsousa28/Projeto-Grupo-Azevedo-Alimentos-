@@ -156,3 +156,15 @@ async function testConnection() {
 // Periodically check auth state or handle login redirect if needed
 // Removed auth state listener and test connection to avoid restricted operation errors in preview
 // as the user requested a simple hardcoded login gate.
+
+// Calls our own /api/* routes with the logged-in person's Firebase ID token
+// (the routes verify it with firebase-admin, see server/api.ts).
+export async function apiFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  await authReadyPromise;
+  const headers = new Headers(init.headers);
+  const token = await auth.currentUser?.getIdToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+  return fetch(input, { ...init, headers });
+}

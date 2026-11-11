@@ -1,14 +1,35 @@
-# Notificação de Contas a Pagar agendada (GitHub Actions)
+# Notificação de Contas a Pagar agendada
 
-A notificação de hora em hora de Contas a Pagar roda no GitHub Actions
-(`.github/workflows/hourly-payable.yml`), não mais dentro do `server.ts`.
-Assim ela chega mesmo com o AI Studio fechado, já que a Vercel só hospeda o frontend.
+A notificação de hora em hora roda como uma **função agendada do Firebase**
+(`functions/src/index.ts`, `hourlyPayableNotification`), às xx:00 no horário de Fortaleza.
+O agendador do GitHub Actions se mostrou pouco confiável (atrasava ou não disparava), então o
+workflow `.github/workflows/hourly-payable.yml` fica só como **disparo manual de reserva**.
 
-- Tenta a cada 10 minutos e envia **uma vez por hora** (o GitHub às vezes atrasa ou pula execuções agendadas; as tentativas extras garantem o envio).
 - Usa o horário de Fortaleza/Mossoró (`America/Fortaleza`) para "hoje", "vencido" e a hora do título.
-- Grava a última hora enviada em `system_state/payable_hourly` no Firestore, então nunca envia duas vezes na mesma hora.
+- Grava a última hora enviada em `system_state/payable_hourly` no Firestore, então nunca envia duas
+  vezes na mesma hora (nem se a função for repetida ou se alguém disparar o GitHub manualmente).
 
-## Configuração (uma vez)
+## Publicar a função do Firebase
+
+As chaves VAPID ficam em `functions/.env` (não vai para o GitHub):
+
+```
+VAPID_PUBLIC_KEY=...
+VAPID_PRIVATE_KEY=...
+VAPID_SUBJECT=mailto:...
+```
+
+Depois, na pasta do projeto:
+
+```bash
+npx firebase login
+npx firebase deploy --only functions --project gen-lang-client-0790951913
+```
+
+Os logs de cada execução ficam no Console do Firebase > Functions > `hourlyPayableNotification` > Logs.
+
+## Disparo manual pelo GitHub (reserva)
+
 
 ### 1. Criar a chave da conta de serviço do Firebase
 

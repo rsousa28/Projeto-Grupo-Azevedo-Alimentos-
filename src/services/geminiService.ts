@@ -1,4 +1,5 @@
 import { Type } from "@google/genai";
+import { apiFetch } from "../lib/firebase";
 
 export interface ExtractedProduct {
   name: string;
@@ -17,7 +18,7 @@ export interface ExtractedInsumo {
 }
 
 async function callAIApi(contents: any, model: string = "gemini-1.5-flash", config: any = {}) {
-  const response = await fetch("/api/ai/generate", {
+  const response = await apiFetch("/api/ai/generate", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

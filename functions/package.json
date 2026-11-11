@@ -1,0 +1,17 @@
+{
+  "name": "azevedo-functions",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": { "node": "22" },
+  "scripts": {
+    "build": "esbuild src/index.ts --bundle --platform=node --format=cjs --target=node22 --outfile=lib/index.js --external:firebase-functions --external:firebase-admin --external:web-push"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.10.0",
+    "firebase-functions": "^7.4.0",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

@@ -8,6 +8,7 @@ export interface Toast {
   title?: string;
   type: 'success' | 'info' | 'error' | 'warning';
   duration: number; // in ms
+  content?: (dismiss: () => void) => React.ReactNode; // card próprio (ex.: relatório de contas a pagar)
 }
 
 interface ToastContextType {
@@ -16,6 +17,8 @@ interface ToastContextType {
   error: (message: string, title?: string, duration?: number) => void;
   warning: (message: string, title?: string, duration?: number) => void;
   info: (message: string, title?: string, duration?: number) => void;
+  /** Mostra um card com layout próprio no lugar do toast padrão. */
+  showCustomToast: (content: (dismiss: () => void) => React.ReactNode, duration?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -50,6 +53,14 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const showCustomToast = useCallback((content: (dismiss: () => void) => React.ReactNode, duration = 15000) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { id, message: '', type: 'info', duration, content }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, duration);
+  }, []);
+
   const success = useCallback((message: string, title?: string, duration?: number) => {
     showToast(message, 'success', title, duration);
   }, [showToast]);
@@ -67,16 +78,40 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, [showToast]);
 
   return (
-    <ToastContext.Provider value={{ showToast, success, error, warning, info }}>
+    <ToastContext.Provider value={{ showToast, success, error, warning, info, showCustomToast }}>
       {children}
       
       {/* Toast Render View Overlay with Safe Area clearance for Mobile */}
       <div 
         id="global-toast-container" 
-        className="fixed top-[max(3.75rem,calc(env(safe-area-inset-top)+0.75rem))] inset-x-3 sm:top-6 sm:right-6 sm:left-auto sm:inset-x-auto z-[9999] flex flex-col gap-2.5 max-w-md w-[calc(100%-1.5rem)] sm:w-full pointer-events-none sm:max-w-sm mx-auto sm:mx-0"
+        className="fixed top-[max(3.75rem,calc(env(safe-area-inset-top)+0.75rem))] inset-x-3 sm:top-6 sm:right-6 sm:left-auto sm:inset-x-auto z-[9999] flex flex-col gap-2.5 max-w-md w-[calc(100%-1.5rem)] sm:w-full pointer-events-none sm:max-w-[26rem] mx-auto sm:mx-0"
       >
         <AnimatePresence mode="popLayout">
           {toasts.map((toast) => {
+            if (toast.content) {
+              const dismiss = () => setToasts((prev) => prev.filter((t) => t.id !== toast.id));
+              return (
+                <motion.div
+                  key={toast.id}
+                  id={`toast-item-${toast.id}`}
+                  layout
+                  initial={{ opacity: 0, y: -20, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -15, scale: 0.97, transition: { duration: 0.15 } }}
+                  className="relative pointer-events-auto"
+                >
+                  {toast.content(dismiss)}
+                  <div className="absolute inset-x-5 bottom-0 h-[2px] overflow-hidden rounded-full">
+                    <motion.div
+                      initial={{ width: '100%' }}
+                      animate={{ width: '0%' }}
+                      transition={{ duration: toast.duration / 1000, ease: 'linear' }}
+                      className="h-full bg-white/30"
+                    />
+                  </div>
+                </motion.div>
+              );
+            }
             const colors = {
               success: {
                 bg: 'bg-emerald-950/95 border-emerald-500/50 text-emerald-50 shadow-emerald-950/50',
