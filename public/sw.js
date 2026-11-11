@@ -41,7 +41,7 @@ try {
   console.warn('[SW] Firebase messaging import in Service Worker warning:', e);
 }
 
-const CACHE_NAME = 'grupo-azevedo-v14';
+const CACHE_NAME = 'grupo-azevedo-v15';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -128,6 +128,16 @@ self.addEventListener('fetch', (event) => {
 
   // Never cache our own API: responses depend on who is logged in and must be fresh
   if (url.pathname.startsWith('/api/')) {
+    return;
+  }
+
+  // Explicitly fresh requests (e.g. the app's new-version check) always go to the network
+  if (url.searchParams.has('__fresh') || request.cache === 'no-store') {
+    return;
+  }
+
+  // Local development: never serve Vite modules from cache (stale code, duplicate React)
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
     return;
   }
 

@@ -1,1191 +1,459 @@
-import React, { useState, useEffect, useRef } from 'react';
+// Sino de notificações: histórico no padrão visual único e preferências essenciais.
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Bell, 
-  BellOff, 
-  BellRing,
-  AlertTriangle,
-  Check, 
-  CheckCircle2, 
-  ClipboardList, 
-  DollarSign, 
-  Info, 
-  Loader2, 
-  Receipt,
-  Send, 
-  Settings, 
-  Sparkles, 
-  Smartphone,
-  Volume2, 
-  ScanFace,
-  X,
-  BookOpen,
-  Key,
-  Copy,
-  ExternalLink,
-  ShieldCheck,
-  Timer,
-  BatteryCharging,
-  Apple,
-  Radio,
-  Wifi
-} from 'lucide-react';
-import { NotificationService, NotificationPreferences, NotificationLogItem } from '../services/NotificationService';
-import { BiometricService } from '../services/BiometricService';
-import { 
-  triggerServerPushTest, 
-  getPushDiagnosticStatus, 
-  subscribeUserToPush, 
-  getExistingPushSubscription,
-  DEFAULT_VAPID_PUBLIC_KEY 
-} from '../utils/pushConfig';
-import { apiFetch } from '../lib/firebase';
+import { Bell, BellOff, CheckCheck, Loader2, Receipt, Send, Smartphone, X } from 'lucide-react';
+import { NotificationService, NotificationLogItem, NotificationPreferences } from '../services/NotificationService';
+import { getPushDiagnosticStatus, subscribeUserToPush, triggerServerPushTest } from '../utils/pushConfig';
+import { pushText, testNotification, type NotifKind, type NotifTone } from '../lib/notifications';
+import { kindIcon, timeLabel } from './notifications/NotificationCard';
 import { useAuth } from '../contexts/AuthContext';
 import { useStore } from '../contexts/StoreContext';
 import { useToast } from '../contexts/ToastContext';
 
+// Tons para fundo claro e escuro (o painel segue o tema do app)
+const LIST_TONE: Record<NotifTone, { tile: string; dot: string }> = {
+  critical: { tile: 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300', dot: 'bg-rose-500' },
+  warning: { tile: 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-300', dot: 'bg-amber-500' },
+  success: { tile: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300', dot: 'bg-emerald-500' },
+  info: { tile: 'bg-sky-50 text-sky-600 dark:bg-sky-500/10 dark:text-sky-300', dot: 'bg-sky-500' },
+};
+
+const TYPE_KIND: Record<NotificationLogItem['type'], NotifKind> = {
+  PAYABLE_HOURLY: 'payable_report',
+  FINANCIAL_ALERT: 'payable_change',
+  CASH_CLOSING: 'cash_closing',
+  CHECKLIST: 'checklist',
+  TEST: 'test',
+  SYSTEM: 'system',
+};
+
+const brl = (v: number) => (v || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+const stripEmoji = (t: string) => t.replace(/[\p{Extended_Pictographic}️]/gu, '').replace(/\s+/g, ' ').trim();
+
+interface Row {
+  id: string;
+  kind: NotifKind;
+  tone: NotifTone;
+  category: string;
+  title: string;
+  subtitle?: string;
+  url?: string;
+  timestamp: string;
+  read: boolean;
+}
+
+/** Converte o histórico (inclusive itens antigos, só com texto) para a mesma linha visual. */
+function toRow(item: NotificationLogItem): Row {
+  if (item.card) {
+    return {
+      id: item.id,
+      kind: item.card.kind,
+      tone: item.card.tone,
+      category: item.card.category,
+      title: item.card.title,
+      subtitle: item.card.subtitle,
+      url: item.card.url,
+      timestamp: item.timestamp,
+      read: item.read,
+    };
+  }
+  if (item.report) {
+    const r = item.report;
+    return {
+      id: item.id,
+      kind: 'payable_report',
+      tone: r.status === 'critical' ? 'critical' : r.status === 'attention' ? 'warning' : 'success',
+      category: 'Contas a Pagar',
+      title: `Relatório das ${String(r.hour).padStart(2, '0')}:00`,
+      subtitle: r.status === 'ok' ? 'Nenhuma conta vencida' : `Vencido ${brl(r.total.overdue)} · hoje ${brl(r.total.today)}`,
+      url: '/accounts-payable',
+      timestamp: item.timestamp,
+      read: item.read,
+    };
+  }
+  const kind = TYPE_KIND[item.type] || 'system';
+  return {
+    id: item.id,
+    kind,
+    tone: item.type === 'PAYABLE_HOURLY' && item.title.includes('ATENÇÃO') ? 'critical' : 'info',
+    category: kind.startsWith('payable') ? 'Contas a Pagar' : kind === 'cash_closing' ? 'Caixa' : kind === 'checklist' ? 'Checklist' : 'Sistema',
+    title: stripEmoji(item.title),
+    subtitle: stripEmoji(item.body.split('\n')[0] || ''),
+    timestamp: item.timestamp,
+    read: item.read,
+  };
+}
+
+function dayGroup(iso: string): string {
+  const d = new Date(iso);
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return 'Hoje';
+  if (d.toDateString() === new Date(Date.now() - 86400000).toDateString()) return 'Ontem';
+  return 'Anteriores';
+}
+
 export default function NotificationCenter() {
   const [isOpen, setIsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'notifications' | 'settings'>('notifications');
-  const [permission, setPermission] = useState<NotificationPermission>('default');
+  const [tab, setTab] = useState<'recent' | 'prefs'>('recent');
+  const [permission, setPermission] = useState<NotificationPermission>(NotificationService.getPermission());
   const [preferences, setPreferences] = useState<NotificationPreferences>(NotificationService.getPreferences());
-  const [logs, setLogs] = useState<NotificationLogItem[]>([]);
-  const [testing, setTesting] = useState(false);
-  const [testingPayable, setTestingPayable] = useState(false);
-  const [biometricEnabled, setBiometricEnabled] = useState(false);
-  const [biometricSupported, setBiometricSupported] = useState(false);
-  
-  // Push & Device registration states
-  const [deviceSubscribed, setDeviceSubscribed] = useState<boolean>(false);
-  const [serverDevicesCount, setServerDevicesCount] = useState<number>(0);
-  const [subscribing, setSubscribing] = useState<boolean>(false);
-
-  // VAPID & Background Guide States
-  const [showVapidGuide, setShowVapidGuide] = useState(false);
-  const [guideTab, setGuideTab] = useState<'overview' | 'ios' | 'android' | 'vapid'>('overview');
-  const [serverVapidKey, setServerVapidKey] = useState<string>(DEFAULT_VAPID_PUBLIC_KEY);
-  const [copiedKey, setCopiedKey] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
+  const [logs, setLogs] = useState<NotificationLogItem[]>(() => NotificationService.getLogs());
+  const [deviceSubscribed, setDeviceSubscribed] = useState(false);
+  const [devicesCount, setDevicesCount] = useState(0);
+  const [busy, setBusy] = useState<'device' | 'test' | 'report' | null>(null);
 
   const { user } = useAuth();
-  const { isDarkMode, currentStore } = useStore();
-  const { success, warning, error: toastError, info } = useToast();
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const { currentStore } = useStore();
+  const { success, warning, error: toastError } = useToast();
+  const navigate = useNavigate();
+  const ref = useRef<HTMLDivElement>(null);
+  const isAdmin = NotificationService.isCurrentUserAdmin();
+
+  // Histórico atualizado em tempo real quando chega uma notificação
+  useEffect(() => {
+    const refresh = () => setLogs(NotificationService.getLogs());
+    window.addEventListener('app_push_notification', refresh);
+    return () => window.removeEventListener('app_push_notification', refresh);
+  }, []);
 
   useEffect(() => {
-    setPermission(NotificationService.getPermission());
+    if (!isOpen) return;
     setLogs(NotificationService.getLogs());
-    
-    if (user) {
-      setBiometricSupported(BiometricService.isSupported());
-      setBiometricEnabled(BiometricService.isBiometricEnabled(user.username));
-    }
-
-    // Real-time permission listener in modern browsers
-    if (typeof window !== 'undefined' && 'permissions' in navigator) {
-      try {
-        navigator.permissions.query({ name: 'notifications' as any }).then((status) => {
-          status.onchange = () => {
-            setPermission(NotificationService.getPermission());
-          };
-        }).catch(() => {});
-      } catch {
-        // Ignored on browsers that don't support notification permission query
-      }
-    }
-
-    // Fetch server VAPID public key and device diagnostic status
-    getPushDiagnosticStatus().then(diag => {
-      setDeviceSubscribed(diag.isSubscribed);
-      if (diag.serverDevicesCount !== undefined) {
-        setServerDevicesCount(diag.serverDevicesCount);
-      }
-      if (diag.isSubscribed && permission === 'granted' && user) {
-        // Silent sync with server & Firestore
-        subscribeUserToPush(user).catch(() => {});
-      }
-    });
-
-    apiFetch('/api/push/vapid-public-key')
-      .then(res => res.json())
-      .then(data => {
-        if (data.publicKey) setServerVapidKey(data.publicKey);
+    setPermission(NotificationService.getPermission());
+    getPushDiagnosticStatus()
+      .then((d) => {
+        setDeviceSubscribed(d.isSubscribed);
+        setDevicesCount(d.serverDevicesCount || 0);
       })
       .catch(() => {});
-  }, [isOpen, user, permission]);
+  }, [isOpen]);
 
-  const handleToggleBiometric = async () => {
-    if (!user) return;
-    if (!BiometricService.isSupported()) {
-      toastError('Biometria não é suportada neste navegador.');
-      return;
-    }
-
-    try {
-      const nextState = !biometricEnabled;
-      await BiometricService.toggleBiometricForUser(user, nextState);
-      setBiometricEnabled(nextState);
-      if (nextState) {
-        success('Login por Face ID / Touch ID ativado com sucesso!', 'Biometria Ativada');
-      } else {
-        warning('Login biométrico desativado.', 'Biometria Desativada');
-      }
-    } catch (e: any) {
-      toastError(e.message || 'Erro ao alterar biometria');
-    }
-  };
-
-  // Close popover when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    if (!isOpen) return;
+    const onClick = (e: MouseEvent) => ref.current && !ref.current.contains(e.target as Node) && setIsOpen(false);
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setIsOpen(false);
+    document.addEventListener('mousedown', onClick);
+    document.addEventListener('keydown', onKey);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', onClick);
+      document.removeEventListener('keydown', onKey);
     };
   }, [isOpen]);
 
-  const unreadCount = logs.filter((l) => !l.read).length;
-
-  const handleRegisterThisDevice = async () => {
-    setSubscribing(true);
-    try {
-      if ('serviceWorker' in navigator) {
-        await navigator.serviceWorker.register('/sw.js');
-      }
-      const perm = await Notification.requestPermission();
-      setPermission(perm);
-      if (perm !== 'granted') {
-        warning('Permissão de notificação não concedida no navegador.', 'Permissão Negada');
-        return;
-      }
-
-      const sub = await subscribeUserToPush(user, true);
-      if (sub) {
-        setDeviceSubscribed(true);
-        success('Aparelho registrado no Web Push com sucesso! Você receberá os alertas em segundo plano.', 'Dispositivo Conectado');
-        const diag = await getPushDiagnosticStatus();
-        setServerDevicesCount(diag.serverDevicesCount || 1);
-        
-        // Immediate server push confirmation
-        await triggerServerPushTest(0, '📲 Aparelho Registrado no Push!', 'Seu smartphone agora receberá todos os alertas de contas a pagar e auditorias em tempo real.');
-      } else {
-        toastError('Não foi possível registrar o aparelho no Push.');
-      }
-    } catch (err: any) {
-      toastError(err.message || 'Erro ao registrar aparelho no Push.');
-    } finally {
-      setSubscribing(false);
+  const rows = useMemo(() => logs.map(toRow), [logs]);
+  const unread = rows.filter((r) => !r.read).length;
+  const groups = useMemo(() => {
+    const out: Array<{ label: string; items: Row[] }> = [];
+    for (const r of rows) {
+      const label = dayGroup(r.timestamp);
+      const g = out.find((x) => x.label === label);
+      if (g) g.items.push(r);
+      else out.push({ label, items: [r] });
     }
-  };
+    return out;
+  }, [rows]);
 
-  const handleRequestPermission = async () => {
-    try {
-      if ('serviceWorker' in navigator) {
-        await navigator.serviceWorker.register('/sw.js');
-      }
-      const res = await NotificationService.requestPermission();
-      setPermission(res);
-      if (res === 'granted') {
-        success('Notificações Push ativadas com sucesso no seu dispositivo!', 'Permissão Concedida');
-        setPreferences(NotificationService.getPreferences());
-        
-        // Register device subscription with VAPID
-        const sub = await subscribeUserToPush(user);
-        if (sub) {
-          setDeviceSubscribed(true);
-          const diag = await getPushDiagnosticStatus();
-          setServerDevicesCount(diag.serverDevicesCount || 1);
-        }
-
-        // Trigger real server push notification test
-        await triggerServerPushTest(0, '🔔 Push PWA Ativado!', 'Dispositivo registrado com sucesso para receber alertas do Grupo Azevedo em segundo plano.');
-        await NotificationService.sendTestNotification();
-      } else {
-        warning('A permissão de notificações foi negada no navegador. Habilite nas configurações do seu celular.', 'Permissão Negada');
-      }
-    } catch (err: any) {
-      toastError(err.message || 'Erro ao solicitar permissão de notificações.');
-    }
-  };
-
-  const handleTogglePreference = (key: keyof NotificationPreferences) => {
-    const updated = { ...preferences, [key]: !preferences[key] };
-    setPreferences(updated as NotificationPreferences);
-    NotificationService.savePreferences(updated as NotificationPreferences);
-    success('Preferências de notificação atualizadas!');
-  };
-
-  const handleTestNotification = async () => {
-    setTesting(true);
-    try {
-      // Ensure subscription is active
-      await subscribeUserToPush(user);
-      setDeviceSubscribed(true);
-
-      // Trigger cloud push to all registered devices
-      await triggerServerPushTest(
-        0,
-        '🔔 Teste de Notificação Web Push',
-        'Notificação enviada através do servidor em nuvem (VAPID) para todos os dispositivos cadastrados!'
-      );
-      await NotificationService.sendTestNotification();
-      success('Notificação de teste disparada pelo servidor! Verifique a barra do sistema.', 'Push Enviado');
-      setLogs(NotificationService.getLogs());
-
-      const diag = await getPushDiagnosticStatus();
-      setServerDevicesCount(diag.serverDevicesCount || 1);
-    } catch (err: any) {
-      toastError(err.message || 'Não foi possível disparar a notificação de teste.');
-    } finally {
-      setTesting(false);
-    }
-  };
-
-  const handleTriggerPayableReport = async () => {
-    setTestingPayable(true);
-    try {
-      await NotificationService.triggerAccountsPayableReport();
-      success('Relatório de Contas a Pagar disparado para todas as lojas com sucesso!', 'Relatório Enviado');
-      setLogs(NotificationService.getLogs());
-    } catch (err: any) {
-      toastError(err.message || 'Erro ao disparar relatório de contas a pagar.');
-    } finally {
-      setTestingPayable(false);
-    }
-  };
-
-  const handleTestDelayedPush = async () => {
-    if (permission !== 'granted') {
-      warning('Ative as permissões de notificação antes de testar em segundo plano.');
-      return;
-    }
-
-    try {
-      // Ensure subscription is active
-      await subscribeUserToPush(user);
-      setDeviceSubscribed(true);
-
-      setCountdown(5);
-      info('Bloqueie a tela do celular AGORA! O servidor disparará o push em 5 segundos.', 'Teste em Segundo Plano');
-      
-      // Server-side delayed Web Push dispatch (Node.js cloud background timer)
-      await triggerServerPushTest(
-        5,
-        '📲 Alerta em Segundo Plano Recebido!',
-        'Seu smartphone recebeu o push com sucesso mesmo com a tela bloqueada!'
-      );
-
-      let counter = 5;
-      const interval = setInterval(() => {
-        counter -= 1;
-        if (counter > 0) {
-          setCountdown(counter);
-        } else {
-          clearInterval(interval);
-          setCountdown(null);
-          success('Push disparado pelo servidor em nuvem!');
-          setLogs(NotificationService.getLogs());
-        }
-      }, 1000);
-    } catch (err: any) {
-      setCountdown(null);
-      toastError(err.message || 'Erro ao agendar push no servidor.');
-    }
-  };
-
-  const handleMarkAllRead = () => {
+  const markAllRead = () => {
     NotificationService.markAllAsRead();
     setLogs(NotificationService.getLogs());
-    success('Todas as notificações foram marcadas como lidas.');
   };
 
-  const getLogIcon = (type: string) => {
-    switch (type) {
-      case 'CHECKLIST':
-        return <ClipboardList className="w-4 h-4 text-emerald-500" />;
-      case 'CASH_CLOSING':
-        return <DollarSign className="w-4 h-4 text-amber-500" />;
-      case 'PAYABLE_HOURLY':
-        return <Receipt className="w-4 h-4 text-rose-500" />;
-      case 'TEST':
-        return <Sparkles className="w-4 h-4 text-indigo-500" />;
-      default:
-        return <Bell className="w-4 h-4 text-blue-500" />;
+  const openRow = (r: Row) => {
+    markAllRead();
+    if (r.url) {
+      setIsOpen(false);
+      navigate(r.url);
     }
   };
 
+  const enableDevice = async () => {
+    setBusy('device');
+    try {
+      if ('serviceWorker' in navigator) await navigator.serviceWorker.register('/sw.js');
+      const perm = await NotificationService.requestPermission();
+      setPermission(perm);
+      if (perm !== 'granted') {
+        warning('Libere as notificações nas configurações do navegador ou do celular.', 'Permissão negada');
+        return;
+      }
+      const sub = await subscribeUserToPush(user, true);
+      if (!sub) throw new Error('Não foi possível registrar este aparelho.');
+      setDeviceSubscribed(true);
+      const d = await getPushDiagnosticStatus();
+      setDevicesCount(d.serverDevicesCount || 1);
+      success('Este aparelho vai receber os alertas, inclusive com o app fechado.', 'Notificações ativadas');
+    } catch (err: any) {
+      toastError(err?.message || 'Não foi possível ativar as notificações.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const togglePref = (key: keyof NotificationPreferences) => {
+    const next = { ...preferences, [key]: !preferences[key] } as NotificationPreferences;
+    setPreferences(next);
+    NotificationService.savePreferences(next);
+  };
+
+  const sendTest = async () => {
+    setBusy('test');
+    try {
+      await subscribeUserToPush(user);
+      const { title, body } = pushText(testNotification());
+      await triggerServerPushTest(0, title, body).catch(() => null); // push no celular (servidor)
+      await NotificationService.sendTestNotification(); // aviso neste aparelho
+      setLogs(NotificationService.getLogs());
+    } catch (err: any) {
+      toastError(err?.message || 'Não foi possível enviar o teste.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const sendReport = async () => {
+    setBusy('report');
+    try {
+      await NotificationService.triggerAccountsPayableReport();
+      setLogs(NotificationService.getLogs());
+    } catch (err: any) {
+      toastError(err?.message || 'Não foi possível gerar o relatório.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const prefsList: Array<{ key: keyof NotificationPreferences; title: string; text: string; show: boolean }> = [
+    {
+      key: 'accountsPayableHourlyReminder',
+      title: 'Relatório de Contas a Pagar',
+      text: 'De hora em hora: vencidos, vencendo hoje e a vencer por unidade.',
+      show: isAdmin,
+    },
+    { key: 'cashClosingReminder', title: 'Fechamento de caixa', text: 'Quando um caixa for fechado e lembrete de turno pendente.', show: true },
+    { key: 'checklistReminder', title: 'Checklists', text: 'Quando um checklist for concluído, com a conformidade.', show: true },
+  ];
+
   return (
-    <div className="relative inline-flex items-center gap-1.5 sm:gap-2" ref={dropdownRef}>
-      {/* Bell Trigger Button with Status Badges */}
+    <div className="relative inline-flex items-center" ref={ref}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
-        title={
-          permission === 'granted'
-            ? 'Notificações Push PWA: Ativas e Conectadas'
-            : permission === 'denied'
-            ? 'Notificações Bloqueadas no Navegador - Clique para ver instruções'
-            : 'Notificações Pendentes - Clique para habilitar alertas no PWA'
-        }
-        className={`p-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 flex items-center justify-center relative shrink-0 ${
-          isDarkMode
-            ? 'bg-[#1E1E1E] border-[#2A2A2A] text-slate-300 hover:bg-[#252525] hover:text-white'
-            : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
-        } ${
-          permission === 'default'
-            ? 'ring-2 ring-amber-500/30 border-amber-500/50'
-            : permission === 'denied'
-            ? 'border-rose-500/40 ring-1 ring-rose-500/20'
-            : ''
-        }`}
+        type="button"
+        onClick={() => setIsOpen((v) => !v)}
+        aria-label={unread ? `Notificações: ${unread} não lidas` : 'Notificações'}
+        className="relative flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-slate-100 text-slate-600 transition hover:bg-slate-200 hover:text-slate-900 dark:border-[#2A2A2A] dark:bg-[#1E1E1E] dark:text-slate-300 dark:hover:bg-[#252525] dark:hover:text-white"
       >
-        {permission === 'denied' ? (
-          <BellOff className="w-4 h-4 text-rose-400" />
-        ) : permission === 'default' ? (
-          <BellRing className="w-4 h-4 text-amber-500 animate-pulse" />
-        ) : (
-          <Bell className="w-4 h-4" />
-        )}
-
-        {/* Unread badge (Top Right) */}
-        {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 min-w-4 h-4 px-1 bg-amber-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center shadow-xs z-10 animate-bounce">
-            {unreadCount > 9 ? '9+' : unreadCount}
+        {permission === 'denied' ? <BellOff className="h-4 w-4 text-rose-400" /> : <Bell className="h-4 w-4" />}
+        {unread > 0 ? (
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold text-white ring-2 ring-white dark:ring-[#0F0F0F]">
+            {unread > 9 ? '9+' : unread}
           </span>
-        )}
-
-        {/* PWA Permission Status Indicator (Bottom Right) */}
-        {permission === 'granted' ? (
-          <span
-            className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white dark:border-[#1E1E1E] shadow-xs"
-            title="Permissão Concedida: Push PWA Ativo"
-          />
-        ) : permission === 'default' ? (
-          <span
-            className="absolute -bottom-1 -right-1 flex h-3 w-3 z-10"
-            title="Permissão Pendente: Clique para ativar no PWA"
-          >
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500 border border-white dark:border-[#1E1E1E] text-[7px] font-black text-slate-950 items-center justify-center leading-none">
-              !
-            </span>
-          </span>
-        ) : (
-          <span
-            className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-rose-500 border border-white dark:border-[#1E1E1E] flex items-center justify-center text-[7px] font-black text-white leading-none shadow-xs z-10"
-            title="Permissão Bloqueada no Navegador"
-          >
-            ✕
-          </span>
-        )}
+        ) : permission !== 'granted' ? (
+          <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-amber-500 ring-2 ring-white dark:ring-[#0F0F0F]" title="Notificações desativadas neste aparelho" />
+        ) : null}
       </button>
 
-      {/* Popover Panel */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            initial={{ opacity: 0, y: 6, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8, scale: 0.98 }}
-            className={`fixed inset-x-2.5 top-[calc(env(safe-area-inset-top,0px)+4.25rem)] sm:absolute sm:top-full sm:right-0 sm:left-auto sm:bottom-auto sm:mt-2.5 w-auto sm:w-[420px] max-h-[calc(100dvh-5.5rem)] sm:max-h-[calc(100dvh-6.5rem)] flex flex-col rounded-3xl border shadow-2xl z-50 overflow-hidden ${
-              isDarkMode ? 'bg-[#181818] border-[#333] text-white' : 'bg-white border-slate-200 text-slate-900'
-            }`}
+            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            className="fixed inset-x-2.5 top-[calc(env(safe-area-inset-top,0px)+4.25rem)] z-50 flex max-h-[calc(100dvh-5.5rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:max-h-[calc(100dvh-6.5rem)] sm:w-[400px] dark:border-white/10 dark:bg-[#161616] dark:text-slate-100"
           >
-            {/* Fixed Header */}
-            <div className={`p-3.5 sm:p-4 border-b flex items-center justify-between shrink-0 ${isDarkMode ? 'border-[#282828] bg-[#1F1F1F]' : 'border-slate-100 bg-slate-50/90'}`}>
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-[#FFCB05] text-[#7F300C] flex items-center justify-center font-black shadow-xs shrink-0">
-                  <Bell className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-black uppercase italic tracking-tight leading-none">
-                    Lembretes e Notificações
-                  </h3>
-                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">
-                    Unidade: {currentStore.code}
-                  </p>
-                </div>
+            {/* Cabeçalho */}
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-white/5">
+              <div>
+                <p className="text-sm font-semibold">Notificações</p>
+                <p className="text-[11px] text-slate-500">{currentStore.name}</p>
               </div>
-
-              <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1">
+                {tab === 'recent' && unread > 0 && (
+                  <button
+                    type="button"
+                    onClick={markAllRead}
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/5 dark:hover:text-white"
+                  >
+                    <CheckCheck className="h-3.5 w-3.5" /> Marcar como lidas
+                  </button>
+                )}
                 <button
+                  type="button"
                   onClick={() => setIsOpen(false)}
-                  className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 transition cursor-pointer"
-                  title="Fechar"
+                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-white/5 dark:hover:text-white"
+                  aria-label="Fechar"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
-            {/* Navigation Tabs - Always visible at the top */}
-            <div className={`p-1.5 border-b grid grid-cols-2 gap-1.5 shrink-0 ${
-              isDarkMode ? 'border-[#262626] bg-[#141414]' : 'border-slate-100 bg-slate-100/70'
-            }`}>
-              <button
-                onClick={() => setActiveTab('notifications')}
-                className={`py-2 px-3 rounded-xl text-[11px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                  activeTab === 'notifications'
-                    ? 'bg-[#FFCB05] text-[#7F300C] shadow-xs'
-                    : isDarkMode
-                    ? 'text-slate-400 hover:text-white hover:bg-white/5'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                }`}
-              >
-                <Bell className="w-3.5 h-3.5" />
-                <span>Alertas</span>
-                {unreadCount > 0 && (
-                  <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-black leading-none ${
-                    activeTab === 'notifications' ? 'bg-[#7F300C] text-[#FFCB05]' : 'bg-amber-500 text-slate-950'
-                  }`}>
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`py-2 px-3 rounded-xl text-[11px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer ${
-                  activeTab === 'settings'
-                    ? 'bg-[#FFCB05] text-[#7F300C] shadow-xs'
-                    : isDarkMode
-                    ? 'text-slate-400 hover:text-white hover:bg-white/5'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
-                }`}
-              >
-                <Settings className="w-3.5 h-3.5" />
-                <span>Ajustes & Push</span>
-              </button>
+            <div className="flex gap-1 border-b border-slate-100 px-3 pt-1 dark:border-white/5">
+              {([
+                ['recent', `Recentes${unread ? ` · ${unread}` : ''}`],
+                ['prefs', 'Preferências'],
+              ] as const).map(([id, label]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setTab(id)}
+                  className={`-mb-px border-b-2 px-2.5 py-2 text-xs font-semibold transition ${
+                    tab === id ? 'border-slate-900 text-slate-900 dark:border-white dark:text-white' : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
-            {/* Content area */}
-            <div className="p-3.5 sm:p-4 flex-1 overflow-y-auto space-y-3 custom-scrollbar">
-              {/* Permission Request Banner if default/denied */}
-              {permission !== 'granted' && (
-                <div className={`p-3.5 rounded-2xl border flex flex-col gap-2 ${
-                  permission === 'denied'
-                    ? 'bg-red-500/10 border-red-500/30 text-red-400'
-                    : 'bg-amber-500/10 border-amber-500/30 text-amber-500'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    <Info className="w-4 h-4 shrink-0" />
-                    <span className="text-xs font-black uppercase italic tracking-tight">
-                      {permission === 'denied' ? 'Notificações Bloqueadas' : 'Ativar Notificações Push'}
-                    </span>
-                  </div>
-                  <p className="text-[10.5px] font-medium leading-relaxed opacity-90">
-                    {permission === 'denied'
-                      ? 'As notificações estão bloqueadas nas configurações do seu navegador ou celular. Toque nas configurações do site para permitir.'
-                      : 'Receba alertas automáticos no seu celular sobre fechamentos de caixa, movimentações e pendências do Grupo Azevedo.'}
-                  </p>
-                  <div className="text-[9.5px] text-slate-400 font-medium bg-black/20 p-2 rounded-xl border border-white/5 space-y-0.5">
-                    <p className="font-bold text-amber-300">💡 Dica para Celulares (PWA):</p>
-                    <p>• <strong>iPhone (iOS):</strong> É necessário adicionar o app à <strong>"Tela de Início"</strong> (Compartilhar &gt; Adicionar à Tela de Início).</p>
-                    <p>• <strong>Android:</strong> Toque no botão abaixo para autorizar alertas e vibrações do sistema.</p>
-                  </div>
-                  {permission === 'default' && (
-                    <button
-                      onClick={handleRequestPermission}
-                      className="mt-1 w-full py-2.5 bg-[#FFCB05] text-[#7F300C] font-black uppercase tracking-wider text-[10px] rounded-xl shadow-xs hover:bg-[#F3BD00] transition italic flex items-center justify-center gap-1.5 cursor-pointer"
-                    >
-                      <Bell className="w-3.5 h-3.5" />
-                      <span>Ativar Notificações no Celular</span>
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {/* Permission Granted Status Card */}
-              {permission === 'granted' && (
-                <div className={`p-2.5 rounded-2xl border flex items-center justify-between gap-2.5 ${
-                  isDarkMode 
-                    ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' 
-                    : 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                }`}>
-                  <div className="flex items-center gap-2 min-w-0">
-                    <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
-                    <div className="min-w-0">
-                      <span className="text-[11px] font-black uppercase italic tracking-tight block leading-tight truncate">
-                        {deviceSubscribed ? 'Push PWA Ativo' : 'Permissão Concedida'}
-                      </span>
-                      <span className="text-[9.5px] opacity-80 block leading-tight mt-0.5 truncate">
-                        {deviceSubscribed 
-                          ? `${serverDevicesCount || 1} aparelho(s) conectado(s)` 
-                          : 'Aparelho aguardando conexão em 2º plano'}
-                      </span>
+            <div className="flex-1 overflow-y-auto">
+              {tab === 'recent' ? (
+                rows.length === 0 ? (
+                  <div className="flex flex-col items-center px-6 py-12 text-center">
+                    <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-white/5">
+                      <Bell className="h-5 w-5" />
                     </div>
+                    <p className="text-sm font-semibold">Tudo em dia</p>
+                    <p className="mt-0.5 text-xs text-slate-500">Os alertas de caixa, checklists e contas aparecem aqui.</p>
                   </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {!deviceSubscribed ? (
-                      <button
-                        onClick={handleRegisterThisDevice}
-                        disabled={subscribing}
-                        className="py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[9px] uppercase tracking-wider transition cursor-pointer shadow-xs disabled:opacity-50 flex items-center gap-1"
-                        title="Conectar este aparelho ao servidor de Web Push"
-                      >
-                        {subscribing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Smartphone className="w-3 h-3" />}
-                        <span>Conectar</span>
-                      </button>
-                    ) : (
-                      <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 font-black text-[8.5px] tracking-wider uppercase">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <span>Online</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Tab: Notifications List */}
-              {activeTab === 'notifications' && (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between pb-1">
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Alertas Recentes
-                    </span>
-                    {unreadCount > 0 && (
-                      <button
-                        onClick={handleMarkAllRead}
-                        className="text-[10px] font-bold text-[#7F300C] dark:text-amber-400 hover:underline flex items-center gap-1"
-                      >
-                        <Check className="w-3 h-3" />
-                        <span>Marcar Lidas</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {logs.length > 0 ? (
-                    <div className="space-y-2">
-                      {logs.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`p-3 rounded-2xl border transition-all flex items-start gap-3 ${
-                            !item.read
-                              ? isDarkMode
-                                ? 'bg-amber-500/10 border-amber-500/30'
-                                : 'bg-amber-50/80 border-amber-200'
-                              : isDarkMode
-                              ? 'bg-[#202020] border-[#303030] text-slate-300'
-                              : 'bg-slate-50 border-slate-100 text-slate-700'
-                          }`}
-                        >
-                          <div className="p-2 rounded-xl bg-white dark:bg-[#181818] border border-slate-200/50 dark:border-white/10 shrink-0">
-                            {getLogIcon(item.type)}
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-center justify-between gap-2">
-                              <h4 className="text-xs font-black uppercase italic tracking-tight truncate">
-                                {item.title}
-                              </h4>
-                              <span className="text-[9px] font-bold text-slate-400 shrink-0">
-                                {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                            </div>
-                            {item.report ? (
-                              <div className="mt-1 flex flex-wrap gap-1 text-[10px] font-semibold tabular-nums">
-                                {[
-                                  ['Vencido', item.report.total.overdue, 'text-rose-600 dark:text-rose-300 bg-rose-500/10'],
-                                  ['Hoje', item.report.total.today, 'text-amber-700 dark:text-amber-300 bg-amber-500/10'],
-                                  ['A vencer', item.report.total.upcoming, 'text-slate-600 dark:text-slate-300 bg-slate-500/10'],
-                                ].map(([label, value, cls]) => (
-                                  <span key={label as string} className={`rounded-md px-1.5 py-0.5 ${cls}`}>
-                                    {label}: {(value as number).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                ) : (
+                  groups.map((g) => (
+                    <div key={g.label}>
+                      <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wider text-slate-400">{g.label}</p>
+                      <ul>
+                        {g.items.map((r) => {
+                          const Icon = kindIcon(r.kind);
+                          const t = LIST_TONE[r.tone];
+                          return (
+                            <li key={r.id}>
+                              <button
+                                type="button"
+                                onClick={() => openRow(r)}
+                                className="flex w-full items-start gap-3 px-4 py-2.5 text-left transition hover:bg-slate-50 dark:hover:bg-white/[0.03]"
+                              >
+                                <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${t.tile}`}>
+                                  <Icon className="h-4 w-4" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                  <span className="flex items-center justify-between gap-2">
+                                    <span className="truncate text-[11px] font-medium text-slate-500">{r.category}</span>
+                                    <span className="shrink-0 text-[10.5px] text-slate-400">{timeLabel(r.timestamp)}</span>
                                   </span>
-                                ))}
-                              </div>
-                            ) : (
-                              <p className="text-[10.5px] font-medium leading-normal mt-0.5 opacity-90 line-clamp-2 whitespace-pre-line">
-                                {item.body}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
+                                  <span className={`mt-0.5 block truncate text-[13px] ${r.read ? 'font-medium text-slate-700 dark:text-slate-300' : 'font-semibold text-slate-900 dark:text-white'}`}>
+                                    {r.title}
+                                  </span>
+                                  {r.subtitle && <span className="mt-0.5 block truncate text-xs text-slate-500">{r.subtitle}</span>}
+                                </span>
+                                {!r.read && <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${t.dot}`} aria-label="Não lida" />}
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     </div>
-                  ) : (
-                    <div className="p-6 text-center text-slate-400 text-xs font-bold italic">
-                      Nenhuma notificação registrada recentemente.
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Tab: Settings */}
-              {activeTab === 'settings' && (
-                <div className="space-y-4">
-                  {/* Biometric Toggle Section */}
-                  {user && (
-                    <>
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
-                        Segurança & Acesso
+                  ))
+                )
+              ) : (
+                <div className="space-y-4 p-4">
+                  {/* Este aparelho */}
+                  <section className="rounded-xl border border-slate-200 p-3 dark:border-white/10">
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                          permission === 'granted' && deviceSubscribed ? LIST_TONE.success.tile : permission === 'denied' ? LIST_TONE.critical.tile : LIST_TONE.warning.tile
+                        }`}
+                      >
+                        <Smartphone className="h-4 w-4" />
                       </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[13px] font-semibold">
+                          {permission === 'granted' && deviceSubscribed
+                            ? 'Este aparelho recebe notificações'
+                            : permission === 'denied'
+                              ? 'Notificações bloqueadas'
+                              : 'Notificações desativadas neste aparelho'}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {permission === 'granted' && deviceSubscribed
+                            ? `Inclusive com o app fechado${isAdmin && devicesCount ? ` · ${devicesCount} aparelhos conectados` : ''}.`
+                            : permission === 'denied'
+                              ? 'Libere nas configurações do navegador (cadeado ao lado do endereço) ou do celular.'
+                              : 'No iPhone, adicione o sistema à Tela de Início antes de ativar.'}
+                        </p>
+                      </div>
+                    </div>
+                    {permission !== 'denied' && !(permission === 'granted' && deviceSubscribed) && (
+                      <button
+                        type="button"
+                        onClick={enableDevice}
+                        disabled={busy === 'device'}
+                        className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+                      >
+                        {busy === 'device' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Bell className="h-3.5 w-3.5" />}
+                        Ativar notificações neste aparelho
+                      </button>
+                    )}
+                  </section>
 
-                      <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
-                        isDarkMode ? 'bg-[#202020] border-[#303030]' : 'bg-slate-50 border-slate-100'
-                      }`}>
-                        <div className="flex items-center gap-2.5">
-                          <ScanFace className="w-4 h-4 text-amber-500 shrink-0" />
-                          <div>
-                            <div className="text-xs font-black uppercase italic tracking-tight">
-                              Login Biométrico (Face ID)
-                            </div>
-                            <div className="text-[9.5px] text-slate-500 font-medium">
-                              {biometricSupported ? 'Entrar com sensores de hardware' : 'Não suportado no navegador'}
-                            </div>
-                          </div>
-                        </div>
+                  {/* O que receber */}
+                  <section>
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">O que receber</p>
+                    <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-white/5 dark:border-white/10">
+                      {prefsList
+                        .filter((p) => p.show)
+                        .map((p) => {
+                          const on = preferences[p.key] !== false;
+                          return (
+                            <label key={p.key} className="flex cursor-pointer items-center gap-3 px-3 py-2.5">
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-[13px] font-medium">{p.title}</span>
+                                <span className="block text-xs text-slate-500">{p.text}</span>
+                              </span>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={on}
+                                onClick={() => togglePref(p.key)}
+                                className={`relative h-5 w-9 shrink-0 rounded-full transition ${on ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-white/15'}`}
+                              >
+                                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${on ? 'left-[18px]' : 'left-0.5'}`} />
+                              </button>
+                            </label>
+                          );
+                        })}
+                    </div>
+                  </section>
+
+                  {/* Ferramentas do administrador */}
+                  {isAdmin && (
+                    <section>
+                      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">Administração</p>
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={handleToggleBiometric}
-                          disabled={!biometricSupported}
-                          className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-0.5 cursor-pointer disabled:opacity-40 ${
-                            biometricEnabled ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                          }`}
+                          onClick={sendTest}
+                          disabled={!!busy}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 disabled:opacity-60 dark:border-white/10 dark:hover:bg-white/5"
                         >
-                          <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
-                            biometricEnabled ? 'translate-x-5' : 'translate-x-0'
-                          }`} />
+                          {busy === 'test' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                          Enviar teste
                         </button>
-                      </div>
-                    </>
-                  )}
-
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block pt-1">
-                    Configuração de Lembretes Automáticos
-                  </span>
-
-                  {/* Toggle Accounts Payable Hourly Report (Admin Only) */}
-                  {(user?.role === 'ADMIN' || user?.role === 'FINANCIAL' || user?.username?.toLowerCase() === 'rennan' || user?.username?.toLowerCase().includes('admin') || user?.username?.toLowerCase() === 'victordiretor') && (
-                    <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
-                      isDarkMode ? 'bg-[#202020] border-[#303030]' : 'bg-slate-50 border-slate-100'
-                    }`}>
-                      <div className="flex items-center gap-2.5">
-                        <Receipt className="w-4 h-4 text-rose-500 shrink-0" />
-                        <div>
-                          <div className="text-xs font-black uppercase italic tracking-tight">
-                            Relatório Horário de Contas a Pagar
-                          </div>
-                          <div className="text-[9.5px] text-slate-500 font-medium">
-                            Resumo a cada 1h: A Pagar Hoje, Vencido, Pagas Mês e Futuro de cada unidade (Exclusivo ADM)
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleTogglePreference('accountsPayableHourlyReminder')}
-                        className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-0.5 cursor-pointer ${
-                          preferences.accountsPayableHourlyReminder !== false ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                        }`}
-                      >
-                        <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
-                          preferences.accountsPayableHourlyReminder !== false ? 'translate-x-5' : 'translate-x-0'
-                        }`} />
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Toggle Cash Closing Reminder */}
-                  <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
-                    isDarkMode ? 'bg-[#202020] border-[#303030]' : 'bg-slate-50 border-slate-100'
-                  }`}>
-                    <div className="flex items-center gap-2.5">
-                      <DollarSign className="w-4 h-4 text-amber-500 shrink-0" />
-                      <div>
-                        <div className="text-xs font-black uppercase italic tracking-tight">
-                          Fechamento de Caixa
-                        </div>
-                        <div className="text-[9.5px] text-slate-500 font-medium">
-                          Notificação em tempo real quando qualquer operador finalizar o caixa
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleTogglePreference('cashClosingReminder')}
-                      className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-0.5 ${
-                        preferences.cashClosingReminder ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
-                        preferences.cashClosingReminder ? 'translate-x-5' : 'translate-x-0'
-                      }`} />
-                    </button>
-                  </div>
-
-                  {/* Firebase Cloud Messaging (FCM) Status Card */}
-                  <div className={`p-3.5 rounded-2xl border space-y-2 ${
-                    isDarkMode ? 'bg-[#181818] border-amber-500/20' : 'bg-amber-500/5 border-amber-500/20'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Smartphone className="w-4 h-4 text-amber-500 shrink-0" />
-                        <div>
-                          <div className="text-xs font-black uppercase italic tracking-tight text-amber-500">
-                            Firebase Cloud Messaging (FCM)
-                          </div>
-                          <div className="text-[9.5px] text-slate-400 font-medium">
-                            Notificações Push nativas e em segundo plano ativas no PWA
-                          </div>
-                        </div>
-                      </div>
-                      <span className="px-2 py-0.5 text-[9px] font-black uppercase tracking-wider rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                        Ativo
-                      </span>
-                    </div>
-
-                    {NotificationService.getFCMToken() ? (
-                      <div className="pt-1 space-y-2">
-                        <div className="flex items-center justify-between gap-2 bg-black/20 p-2 rounded-xl border border-white/5">
-                          <div className="truncate text-[9px] font-mono text-slate-400">
-                            Token FCM: <span className="text-amber-300 font-bold">{NotificationService.getFCMToken()?.slice(0, 18)}...</span>
-                          </div>
-                          <button
-                            onClick={() => {
-                              const token = NotificationService.getFCMToken();
-                              if (token) {
-                                navigator.clipboard.writeText(token);
-                                success('Token FCM copiado para a área de transferência!');
-                              }
-                            }}
-                            className="text-[9px] font-bold text-amber-400 hover:underline shrink-0"
-                          >
-                            Copiar Token
-                          </button>
-                        </div>
-
                         <button
-                          onClick={async () => {
-                            const sent = NotificationService.notifyFinancialAlert({
-                              title: '🚨 Alerta Financeiro FCM: Contas Vencendo',
-                              body: '⚠️ Existem contas a pagar pendentes com vencimento hoje totalizando R$ 4.850,00. Clique para conferir no PWA.',
-                              type: 'FINANCIAL_ALERT',
-                              url: '/accounts-payable',
-                            });
-                            if (sent) {
-                              success('Alerta Financeiro enviado via Push FCM!');
-                              setLogs(NotificationService.getLogs());
-                            } else {
-                              warning('Não foi possível enviar o alerta financeiro.');
-                            }
-                          }}
-                          className="w-full py-1.5 px-3 bg-red-500/15 hover:bg-red-500/25 text-red-400 font-bold text-[10px] rounded-xl border border-red-500/30 transition flex items-center justify-center gap-1.5 italic"
+                          type="button"
+                          onClick={sendReport}
+                          disabled={!!busy}
+                          className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold transition hover:bg-slate-50 disabled:opacity-60 dark:border-white/10 dark:hover:bg-white/5"
                         >
-                          <DollarSign className="w-3.5 h-3.5" />
-                          Testar Alerta Financeiro Push
+                          {busy === 'report' ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Receipt className="h-3.5 w-3.5" />}
+                          Relatório agora
                         </button>
                       </div>
-                    ) : (
-                      <button
-                        onClick={async () => {
-                          const tok = await NotificationService.initFCMToken();
-                          if (tok) {
-                            success('Token FCM registrado com sucesso!');
-                          } else {
-                            warning('Não foi possível obter o Token FCM. Verifique as permissões de notificação.');
-                          }
-                        }}
-                        className="w-full py-1.5 bg-amber-500/20 text-amber-400 font-bold text-[10px] rounded-xl border border-amber-500/30 hover:bg-amber-500/30 transition italic"
-                      >
-                        ⚡ Conectar / Atualizar Token FCM
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Toggle Checklist Completed Notification */}
-                  <div className={`p-3 rounded-2xl border flex items-center justify-between gap-3 ${
-                    isDarkMode ? 'bg-[#202020] border-[#303030]' : 'bg-slate-50 border-slate-100'
-                  }`}>
-                    <div className="flex items-center gap-2.5">
-                      <ClipboardList className="w-4 h-4 text-emerald-500 shrink-0" />
-                      <div>
-                        <div className="text-xs font-black uppercase italic tracking-tight">
-                          Checklist Realizado
-                        </div>
-                        <div className="text-[9.5px] text-slate-500 font-medium">
-                          Notificação em tempo real quando qualquer checklist for concluído
-                        </div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => handleTogglePreference('checklistReminder')}
-                      className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-0.5 ${
-                        preferences.checklistReminder ? 'bg-emerald-500' : 'bg-slate-300 dark:bg-slate-700'
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
-                        preferences.checklistReminder ? 'translate-x-5' : 'translate-x-0'
-                      }`} />
-                    </button>
-                  </div>
-
-                  {/* Seção Resumida & Compacta de Testes Push */}
-                  <div className={`p-3 rounded-2xl border space-y-2.5 ${
-                    isDarkMode ? 'bg-[#202020] border-[#303030]' : 'bg-slate-50 border-slate-100'
-                  }`}>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                        Testes de Disparo Push
-                      </span>
-                      <button
-                        onClick={() => setShowVapidGuide(true)}
-                        className="text-[9.5px] font-bold text-amber-500 hover:text-amber-400 flex items-center gap-1 cursor-pointer transition"
-                        title="Ver instruções passo a passo para iPhone e Android"
-                      >
-                        <BookOpen className="w-3 h-3" />
-                        <span>Guia 2º plano</span>
-                      </button>
-                    </div>
-
-                    {/* 2 botões compactos lado a lado */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={handleTestNotification}
-                        disabled={testing}
-                        className={`py-2 px-2.5 rounded-xl border text-[9.5px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs disabled:opacity-50 ${
-                          isDarkMode
-                            ? 'bg-white/5 hover:bg-white/10 border-white/10 text-white'
-                            : 'bg-white hover:bg-slate-100 border-slate-200 text-slate-800'
-                        }`}
-                        title="Envia um push instantâneo para testar se este aparelho está recebendo"
-                      >
-                        {testing ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Send className="w-3 h-3 text-[#FFCB05]" />
-                        )}
-                        <span>Testar Push</span>
-                      </button>
-
-                      <button
-                        onClick={handleTestDelayedPush}
-                        disabled={countdown !== null}
-                        className={`py-2 px-2.5 rounded-xl border text-[9.5px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs ${
-                          countdown !== null
-                            ? 'bg-amber-500 text-slate-950 border-amber-400 animate-pulse font-black'
-                            : isDarkMode
-                            ? 'bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/30 text-emerald-400'
-                            : 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200 text-emerald-700'
-                        }`}
-                        title="Dispara com 5s de atraso para você bloquear a tela do celular e ver a notificação nativa"
-                      >
-                        <Timer className="w-3 h-3" />
-                        <span>{countdown !== null ? `Bloqueie (${countdown}s)` : 'Tela Bloqueada (5s)'}</span>
-                      </button>
-                    </div>
-
-                    {/* Disparo do Relatório de Contas a Pagar (Apenas Admin/Financeiro) */}
-                    {(user?.role === 'ADMIN' || user?.role === 'FINANCIAL' || user?.username?.toLowerCase() === 'rennan' || user?.username?.toLowerCase().includes('admin') || user?.username?.toLowerCase() === 'victordiretor') && (
-                      <button
-                        onClick={handleTriggerPayableReport}
-                        disabled={testingPayable}
-                        className={`w-full py-2 px-2.5 rounded-xl border text-[9.5px] font-black uppercase tracking-wider italic flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs disabled:opacity-50 ${
-                          isDarkMode
-                            ? 'bg-rose-500/10 hover:bg-rose-500/20 border-rose-500/30 text-rose-300'
-                            : 'bg-rose-50 hover:bg-rose-100 border-rose-200 text-rose-700'
-                        }`}
-                      >
-                        {testingPayable ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Receipt className="w-3.5 h-3.5 text-rose-500" />
-                        )}
-                        <span>Disparar Relatório Contas a Pagar</span>
-                      </button>
-                    )}
-                  </div>
+                    </section>
+                  )}
                 </div>
               )}
             </div>
           </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal Guia VAPID e Notificações em Segundo Plano */}
-      <AnimatePresence>
-        {showVapidGuide && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className={`w-full max-w-2xl rounded-3xl border shadow-2xl overflow-hidden my-auto ${
-                isDarkMode ? 'bg-[#181818] border-[#333] text-white' : 'bg-white border-slate-200 text-slate-900'
-              }`}
-            >
-              {/* Modal Header */}
-              <div className={`p-4 sm:p-5 border-b flex items-center justify-between ${
-                isDarkMode ? 'bg-[#1F1F1F] border-[#2A2A2A]' : 'bg-slate-50 border-slate-100'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-slate-950 flex items-center justify-center shadow-md">
-                    <Smartphone className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-base font-black uppercase italic tracking-tight flex items-center gap-2">
-                      Guia VAPID & Notificações em Segundo Plano
-                    </h2>
-                    <p className="text-[11px] text-slate-400 font-medium">
-                      Como receber alertas sem precisar manter o app aberto
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowVapidGuide(false)}
-                  className="p-2 rounded-xl hover:bg-white/10 text-slate-400 transition cursor-pointer"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Navigation Tabs */}
-              <div className={`flex border-b text-xs font-bold ${
-                isDarkMode ? 'border-[#2A2A2A] bg-[#141414]' : 'border-slate-100 bg-slate-100/50'
-              }`}>
-                <button
-                  onClick={() => setGuideTab('overview')}
-                  className={`flex-1 py-3 px-3 border-b-2 flex items-center justify-center gap-1.5 transition ${
-                    guideTab === 'overview'
-                      ? 'border-amber-500 text-amber-500 bg-amber-500/5'
-                      : 'border-transparent text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <ShieldCheck className="w-4 h-4" />
-                  <span>Como Funciona</span>
-                </button>
-                <button
-                  onClick={() => setGuideTab('ios')}
-                  className={`flex-1 py-3 px-3 border-b-2 flex items-center justify-center gap-1.5 transition ${
-                    guideTab === 'ios'
-                      ? 'border-amber-500 text-amber-500 bg-amber-500/5'
-                      : 'border-transparent text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Apple className="w-4 h-4" />
-                  <span>iPhone (iOS)</span>
-                </button>
-                <button
-                  onClick={() => setGuideTab('android')}
-                  className={`flex-1 py-3 px-3 border-b-2 flex items-center justify-center gap-1.5 transition ${
-                    guideTab === 'android'
-                      ? 'border-amber-500 text-amber-500 bg-amber-500/5'
-                      : 'border-transparent text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Smartphone className="w-4 h-4" />
-                  <span>Android</span>
-                </button>
-                <button
-                  onClick={() => setGuideTab('vapid')}
-                  className={`flex-1 py-3 px-3 border-b-2 flex items-center justify-center gap-1.5 transition ${
-                    guideTab === 'vapid'
-                      ? 'border-amber-500 text-amber-500 bg-amber-500/5'
-                      : 'border-transparent text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <Key className="w-4 h-4" />
-                  <span>Chaves VAPID</span>
-                </button>
-              </div>
-
-              {/* Tab Content */}
-              <div className="p-5 max-h-[60vh] overflow-y-auto space-y-4 custom-scrollbar text-xs leading-relaxed">
-                {guideTab === 'overview' && (
-                  <div className="space-y-4">
-                    <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300">
-                      <p className="font-bold text-xs">💡 O que é o VAPID?</p>
-                      <p className="text-[11px] text-slate-300 mt-1">
-                        VAPID (Voluntary Application Server Identification) é o protocolo oficial da Web que permite ao servidor do Grupo Azevedo enviar notificações push criptografadas diretamente para os servidores da Apple (APNs) e Google (FCM). O celular acorda em segundo plano e exibe o alerta sem que você precise estar com o app aberto.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h4 className="font-black uppercase tracking-wider text-[11px] text-slate-400">
-                        Fluxo de Entrega em 4 Etapas:
-                      </h4>
-                      <ol className="list-decimal pl-4 space-y-2 text-slate-300 text-[11.5px]">
-                        <li>
-                          <strong className="text-white">Autorização no PWA:</strong> Ao permitir notificações, seu navegador gera uma assinatura exclusiva ligada à chave pública VAPID do sistema.
-                        </li>
-                        <li>
-                          <strong className="text-white">Registro no Banco de Dados:</strong> A assinatura é salva automaticamente no Firestore em <code className="text-amber-400 font-mono">push_subscriptions</code>.
-                        </li>
-                        <li>
-                          <strong className="text-white">Robô em Background:</strong> O robô no servidor verifica as contas a pagar de hora em hora (08h às 22h) ou rotinas atrasadas e dispara a notificação via Web Push.
-                        </li>
-                        <li>
-                          <strong className="text-white">Exibição Nativa:</strong> O sistema operacional do seu celular (iOS ou Android) recebe o sinal, acorda o Service Worker e emite o som e banner na tela bloqueada.
-                        </li>
-                      </ol>
-                    </div>
-                  </div>
-                )}
-
-                {guideTab === 'ios' && (
-                  <div className="space-y-4">
-                    <div className="p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300">
-                      <p className="font-bold text-xs">⚠️ Requisito Obrigatório da Apple (iOS 16.4+):</p>
-                      <p className="text-[11px] text-slate-300 mt-1">
-                        O Safari no iPhone <strong>NÃO</strong> permite notificações push em abas comuns do navegador. É <strong>obrigatório</strong> instalar o PWA na Tela de Início!
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <h4 className="font-black uppercase tracking-wider text-[11px] text-slate-400">
-                        Passo a Passo no iPhone:
-                      </h4>
-                      <div className="space-y-2.5 text-slate-300 text-[11.5px]">
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
-                          <div>
-                            <strong className="text-white">Instalar na Tela de Início:</strong> Abra o sistema no <strong>Safari</strong>, toque no botão <strong>Compartilhar</strong> (quadrado com seta para cima) e escolha <strong>"Adicionar à Tela de Início"</strong>.
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
-                          <div>
-                            <strong className="text-white">Abrir pelo Ícone Novo:</strong> Feche o Safari e abra o app através do ícone recém-criado na tela inicial do seu iPhone.
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
-                          <div>
-                            <strong className="text-white">Conceder Permissão:</strong> Abra o sino de notificações, clique em <strong>"Ativar Notificações Push"</strong> e confirme no diálogo nativo do iOS tocando em <strong>"Permitir"</strong>.
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">4</span>
-                          <div>
-                            <strong className="text-white">Conferir Ajustes do iOS:</strong> Em <strong>Ajustes &gt; Notificações &gt; Grupo AZ</strong>, verifique se "Permitir Notificações", "Sons" e "Tela Bloqueada" estão ativos.
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {guideTab === 'android' && (
-                  <div className="space-y-4">
-                    <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
-                      <p className="font-bold text-xs">🔋 Dica Crítica de Bateria no Android:</p>
-                      <p className="text-[11px] text-slate-300 mt-1">
-                        Sistemas Android (Samsung, Motorola, Xiaomi) possuem economia agressiva de bateria que pode atrasar notificações em segundo plano se o app estiver configurado como "Otimizado".
-                      </p>
-                    </div>
-
-                    <div className="space-y-3">
-                      <h4 className="font-black uppercase tracking-wider text-[11px] text-slate-400">
-                        Configuração Recomendada no Android:
-                      </h4>
-                      <div className="space-y-2.5 text-slate-300 text-[11.5px]">
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">1</span>
-                          <div>
-                            <strong className="text-white">Instalar o App:</strong> No Google Chrome, toque no botão <strong>"Instalar Aplicativo"</strong> ou nos 3 pontinhos &gt; <strong>"Instalar aplicativo"</strong>.
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">2</span>
-                          <div>
-                            <strong className="text-white">Permitir Notificações:</strong> Toque no sino do sistema e clique em <strong>"Permitir"</strong> quando o Chrome solicitar.
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-xl bg-white/5 border border-white/10 flex items-start gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-emerald-500 text-slate-950 font-bold flex items-center justify-center text-[10px] shrink-0">3</span>
-                          <div>
-                            <strong className="text-white">Desativar Restrição de Bateria:</strong> Vá em <strong>Configurações do Celular &gt; Aplicativos &gt; Grupo AZ (ou Chrome) &gt; Bateria</strong> e mude para <strong>"Sem restrições"</strong>. Isso garante que a notificação chegue no mesmo segundo mesmo com o celular em modo de espera!
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {guideTab === 'vapid' && (
-                  <div className="space-y-4">
-                    <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-amber-400">Chave VAPID Pública do Servidor</span>
-                        <span className="px-2 py-0.5 text-[9px] font-black uppercase rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          Ativa
-                        </span>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-black/40 font-mono text-[10px] text-slate-300 break-all select-all border border-white/5 flex items-center justify-between gap-2">
-                        <span>{serverVapidKey || 'BICKQSsomQNxolxMgOH8zuTiBR0qEuFX6zSUbt462NkBtbqZ3gO2DHc6IJizJgZupwKk6o-64Jdr04aL5QMHvYk'}</span>
-                        <button
-                          onClick={() => {
-                            const key = serverVapidKey || 'BICKQSsomQNxolxMgOH8zuTiBR0qEuFX6zSUbt462NkBtbqZ3gO2DHc6IJizJgZupwKk6o-64Jdr04aL5QMHvYk';
-                            navigator.clipboard.writeText(key);
-                            setCopiedKey(true);
-                            setTimeout(() => setCopiedKey(false), 2000);
-                            success('Chave VAPID copiada com sucesso!');
-                          }}
-                          className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white shrink-0 transition cursor-pointer"
-                          title="Copiar Chave Pública"
-                        >
-                          {copiedKey ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                      <p className="text-[10px] text-slate-400">
-                        Armazenada de forma persistente em <code className="text-amber-300">vapid-keys.json</code> e em variáveis de ambiente.
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h4 className="font-black uppercase tracking-wider text-[11px] text-slate-400">
-                        Como Configurar no .env do Projeto:
-                      </h4>
-                      <pre className="p-3 rounded-xl bg-black/40 border border-white/10 text-[10px] font-mono text-amber-300 overflow-x-auto">
-{`# Variáveis de Ambiente no Servidor
-VAPID_PUBLIC_KEY="BICKQSsomQNxolxMgOH8zuTiBR0qEuFX6zSUbt462NkBtbqZ3gO2DHc6IJizJgZupwKk6o-64Jdr04aL5QMHvYk"
-VAPID_PRIVATE_KEY="..."
-VAPID_SUBJECT="mailto:rennaninacio0003@gmail.com"`}
-                      </pre>
-                      <p className="text-[10.5px] text-slate-400">
-                        O guia técnico completo e diagramas de arquitetura estão disponíveis no arquivo <strong className="text-white">GUIA_NOTIFICACOES_VAPID.md</strong> na raiz do projeto.
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Footer */}
-              <div className={`p-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 ${
-                isDarkMode ? 'bg-[#1F1F1F] border-[#2A2A2A]' : 'bg-slate-50 border-slate-100'
-              }`}>
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <ShieldCheck className="w-4 h-4 text-emerald-500" />
-                  <span>Push Criptografado de Ponta a Ponta</span>
-                </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <button
-                    onClick={() => {
-                      setShowVapidGuide(false);
-                      handleTestDelayedPush();
-                    }}
-                    className="flex-1 sm:flex-none py-2 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs italic flex items-center justify-center gap-2 transition cursor-pointer"
-                  >
-                    <Timer className="w-3.5 h-3.5" />
-                    <span>Testar na Tela Bloqueada (5s)</span>
-                  </button>
-                  <button
-                    onClick={() => setShowVapidGuide(false)}
-                    className="py-2 px-4 rounded-xl bg-white/10 hover:bg-white/15 text-white font-bold text-xs transition cursor-pointer"
-                  >
-                    Fechar
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
         )}
       </AnimatePresence>
     </div>
