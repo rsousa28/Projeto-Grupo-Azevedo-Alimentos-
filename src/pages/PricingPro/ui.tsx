@@ -50,7 +50,7 @@ export const cx = (...c: Array<string | false | null | undefined>) => twMerge(c.
 
 export function Panel({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={cx('rounded-2xl border border-stone-200 bg-white shadow-sm dark:border-white/10 dark:bg-[#171513]', className)}>
+    <div className={cx('rounded-2xl border border-stone-200 bg-white text-stone-800 shadow-sm dark:border-white/10 dark:bg-[#171513] dark:text-stone-200', className)}>
       {children}
     </div>
   );
