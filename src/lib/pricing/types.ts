@@ -22,6 +22,7 @@ export interface PricePoint {
   date: string; // ISO
   price: number;
   purchaseQty: number;
+  source?: string; // ex.: "NF 12345 · Laticínios Serra"
 }
 
 export interface Ingredient {
@@ -178,6 +179,7 @@ export interface Combo {
 }
 
 export interface PricingConfig {
+  cnpj?: string;             // CNPJ da loja (confere o destinatário das notas)
   taxPct: number;            // imposto sobre venda (Simples)
   cardFeePct: number;        // taxa média de cartão no salão
   deliveryFeePct: number;    // comissão do app de delivery
@@ -201,4 +203,60 @@ export interface PricingData {
   recipes: BaseRecipe[];
   products: Product[];
   combos: Combo[];
+}
+
+// ---------------------------------------------------------------
+// Notas fiscais de entrada (NF-e) e vínculo item do fornecedor -> cadastro
+// ---------------------------------------------------------------
+
+export type InvoiceTarget = 'ingredient' | 'packaging' | 'ignore';
+
+export interface InvoiceItem {
+  index: number;       // nItem
+  code: string;        // cProd (código do produto no fornecedor)
+  ean?: string;        // cEAN
+  description: string; // xProd
+  ncm?: string;
+  unit: string;        // uCom (KG, UN, CX...)
+  qty: number;         // qCom
+  unitPrice: number;   // vUnCom
+  total: number;       // vProd
+  discount: number;    // vDesc
+  // Conferência (preenchido ao revisar a nota)
+  target?: InvoiceTarget;
+  refId?: string;      // ingrediente ou embalagem vinculada
+  factor?: number;     // quantas unidades do cadastro (g, ml, un) vêm em 1 unidade da nota
+  apply?: boolean;     // atualizar o preço deste item ao autorizar
+}
+
+export interface Invoice {
+  id: string;          // chave de acesso (44 dígitos)
+  number: string;
+  series: string;
+  issuedAt: string;    // ISO
+  supplierCnpj: string;
+  supplierName: string;
+  recipientCnpj: string;
+  recipientName?: string;
+  total: number;
+  items: InvoiceItem[];
+  status: 'pending' | 'applied' | 'dismissed';
+  source: 'xml' | 'sefaz';
+  appliedAt?: string;
+  appliedBy?: string;
+  appliedCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Memória dos vínculos: o mesmo produto do mesmo fornecedor é reconhecido sozinho nas próximas notas. */
+export interface SupplierItemMap {
+  id: string;          // `${supplierCnpj}_${code}`
+  supplierCnpj: string;
+  code: string;
+  description: string;
+  target: InvoiceTarget;
+  refId?: string;
+  factor: number;
+  updatedAt: string;
 }

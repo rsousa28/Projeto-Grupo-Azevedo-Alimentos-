@@ -50,14 +50,31 @@ removido do sistema junto com os dados que ele guardava só no navegador.
 
 Em **Taxas e margem → Exportar tudo para Excel** sai a planilha de produtos, ingredientes e receitas.
 
-## 4. Arquivos
+## 4. Notas fiscais (atualizar preços pela NF-e)
 
-- `src/lib/pricing/` → `types.ts` (modelo), `engine.ts` (cálculos), `seed.ts` (cardápio exemplo), `usePricingData.ts` (Firestore)
+Na aba **Notas fiscais**:
+
+1. Importe o **XML** da nota (o arquivo .xml que o fornecedor envia por e-mail; o PDF/DANFE não serve).
+2. O sistema lê fornecedor, número, data e itens, e já sugere o cadastro de cada item. Na primeira nota de um fornecedor,
+   confira os vínculos e a conversão (ex.: "1 CX da nota = 12.000 g" para creme de leite 1 kg caixa com 12).
+3. Ao lado, aparece o que muda: preço antigo → novo de cada ingrediente e as fichas técnicas afetadas, com a margem
+   antes e depois.
+4. Clique em **Autorizar**. Só então os preços mudam. O histórico do ingrediente guarda a nota de origem.
+
+O sistema **lembra os vínculos** por fornecedor e código do produto: a partir da segunda nota, os itens já vêm prontos.
+Itens que não interessam (brinde, sacola) podem ser marcados como "Não atualizar" e também ficam lembrados.
+Se o CNPJ da loja estiver salvo (Taxas e margem), o sistema avisa quando a nota foi emitida para outro CNPJ.
+
+**Próximo passo:** buscar as notas sozinhas na SEFAZ (Distribuição DF-e), o que exige o certificado digital A1 da empresa.
+
+## 5. Arquivos
+
+- `src/lib/pricing/` → `types.ts` (modelo), `engine.ts` (cálculos), `nfe.ts` (leitura da NF-e e novos preços), `seed.ts` (cardápio exemplo), `usePricingData.ts` (Firestore)
 - `src/pages/PricingPro/` → uma tela por aba, `ProductEditor.tsx` (wizard), `NutritionPanel.tsx` + `labelImage.ts` (rótulo),
   `OperationalSheetModal.tsx` (ficha da cozinha)
 - `tests/pricingEngine.test.ts`
 
-## 5. Limites conhecidos
+## 6. Limites conhecidos
 
 - A tabela nutricional depende dos dados do rótulo de cada ingrediente (ícone da maçã). Para rótulo de produto embalado,
   valide com um nutricionista.

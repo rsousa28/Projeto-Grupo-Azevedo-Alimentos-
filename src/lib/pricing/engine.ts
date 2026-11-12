@@ -391,17 +391,29 @@ export interface PriceImpact {
   losesTarget: boolean;
 }
 
-/** Simula a troca de um ingrediente e devolve os produtos afetados (direta ou indiretamente). */
-export function ingredientPriceImpact(data: PricingData, updated: Ingredient): PriceImpact[] {
+/**
+ * Simula a troca de preços (ingredientes e/ou embalagens) e devolve os produtos afetados,
+ * inclusive os que usam o item por dentro de uma receita base.
+ */
+export function priceChangeImpact(
+  data: PricingData,
+  ingredients: Ingredient[] = [],
+  packaging: Packaging[] = [],
+): PriceImpact[] {
+  const ing = new Map(ingredients.map((i) => [i.id, i]));
+  const pack = new Map(packaging.map((p) => [p.id, p]));
   const before = buildContext(data);
   const after = buildContext({
     ...data,
-    ingredients: data.ingredients.map((i) => (i.id === updated.id ? updated : i)),
+    ingredients: data.ingredients.map((i) => ing.get(i.id) || i),
+    packaging: data.packaging.map((p) => pack.get(p.id) || p),
   });
+  const ohBefore = overheadPct(before.data);
+  const ohAfter = overheadPct(after.data);
   const impacts: PriceImpact[] = [];
   for (const p of data.products) {
-    const b = productMetrics(before, p);
-    const a = productMetrics(after, p);
+    const b = productMetrics(before, p, 'salao', ohBefore);
+    const a = productMetrics(after, p, 'salao', ohAfter);
     if (Math.abs(a.cost.total - b.cost.total) < 0.0001) continue;
     impacts.push({
       productId: p.id,
@@ -413,7 +425,12 @@ export function ingredientPriceImpact(data: PricingData, updated: Ingredient): P
       losesTarget: b.marginReached && !a.marginReached,
     });
   }
-  return impacts.sort((x, y) => y.costAfter - y.costBefore - (x.costAfter - x.costBefore));
+  return impacts.sort((x, y) => Math.abs(y.costAfter - y.costBefore) - Math.abs(x.costAfter - x.costBefore));
+}
+
+/** Simula a troca de um ingrediente e devolve os produtos afetados (direta ou indiretamente). */
+export function ingredientPriceImpact(data: PricingData, updated: Ingredient): PriceImpact[] {
+  return priceChangeImpact(data, [updated]);
 }
 
 /** Onde um ingrediente ou receita é usado (para avisar antes de excluir). */

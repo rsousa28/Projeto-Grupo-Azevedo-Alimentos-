@@ -5,7 +5,7 @@ import { collection, deleteDoc, doc, onSnapshot, setDoc, writeBatch } from 'fire
 import { db } from '../firebase';
 import { sanitizeForFirestore } from '../../utils/firestoreSanitizer';
 import { defaultConfig } from './seed';
-import type { BaseRecipe, Combo, Ingredient, Packaging, PricingConfig, PricingData, Product } from './types';
+import type { BaseRecipe, Combo, Ingredient, Invoice, Packaging, PricingConfig, PricingData, Product, SupplierItemMap } from './types';
 
 export const PRICING_COLLECTIONS = {
   ingredients: 'pricing_ingredients',
@@ -13,6 +13,8 @@ export const PRICING_COLLECTIONS = {
   recipes: 'pricing_recipes',
   products: 'pricing_products',
   combos: 'pricing_combos',
+  invoices: 'pricing_invoices',
+  itemMaps: 'pricing_item_maps',
 } as const;
 
 export type PricingCollection = keyof typeof PRICING_COLLECTIONS;
@@ -23,18 +25,28 @@ type ItemOf<K extends PricingCollection> = {
   recipes: BaseRecipe;
   products: Product;
   combos: Combo;
+  invoices: Invoice;
+  itemMaps: SupplierItemMap;
 }[K];
 
 const KEYS = Object.keys(PRICING_COLLECTIONS) as PricingCollection[];
+// Cadastros que formam o cardápio (as notas e os vínculos ficam à parte)
+const CORE_KEYS: PricingCollection[] = ['ingredients', 'packaging', 'recipes', 'products', 'combos'];
+
+export type PricingWrite = { [K in PricingCollection]: { kind: K; item: ItemOf<K> } }[PricingCollection];
 
 export interface PricingStore {
   data: PricingData;
+  invoices: Invoice[];
+  itemMaps: SupplierItemMap[];
   loading: boolean;
   error: string | null;
   isEmpty: boolean;
   save: <K extends PricingCollection>(kind: K, item: ItemOf<K>) => Promise<void>;
   remove: (kind: PricingCollection, id: string) => Promise<void>;
   saveConfig: (patch: Partial<PricingConfig>) => Promise<void>;
+  /** Grava vários cadastros de uma vez (tudo ou nada), ex.: autorizar uma nota fiscal. */
+  saveMany: (writes: PricingWrite[]) => Promise<void>;
   importAll: (data: PricingData) => Promise<void>;
 }
 
@@ -48,6 +60,8 @@ export function usePricingData(storeId: string): PricingStore {
     recipes: [],
     products: [],
     combos: [],
+    invoices: [],
+    itemMaps: [],
   });
   const [loaded, setLoaded] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -65,7 +79,14 @@ export function usePricingData(storeId: string): PricingStore {
       onSnapshot(
         collection(db, 'stores', storeId, PRICING_COLLECTIONS[key]),
         (snap) => {
-          setLists((prev) => ({ ...prev, [key]: snap.docs.map((d) => ({ ...d.data(), id: d.id })).sort(byCode) }));
+          const rows = snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+          const sorted =
+            key === 'invoices'
+              ? rows.sort((a: any, b: any) => String(b.issuedAt).localeCompare(String(a.issuedAt)))
+              : key === 'itemMaps'
+                ? rows
+                : rows.sort(byCode);
+          setLists((prev) => ({ ...prev, [key]: sorted }));
           markLoaded(key);
         },
         onError,
@@ -97,11 +118,22 @@ export function usePricingData(storeId: string): PricingStore {
   );
 
   const loading = loaded.size < KEYS.length + 1 && !error;
-  const isEmpty = !loading && !config && KEYS.every((k) => lists[k].length === 0);
+  const isEmpty = !loading && !config && CORE_KEYS.every((k) => lists[k].length === 0);
 
   const save: PricingStore['save'] = async (kind, item) => {
     const stamped = { ...item, updatedAt: new Date().toISOString() };
     await setDoc(doc(db, 'stores', storeId, PRICING_COLLECTIONS[kind], item.id), sanitizeForFirestore(stamped));
+  };
+
+  const saveMany: PricingStore['saveMany'] = async (writes) => {
+    const now = new Date().toISOString();
+    for (let i = 0; i < writes.length; i += 400) {
+      const batch = writeBatch(db);
+      for (const w of writes.slice(i, i + 400)) {
+        batch.set(doc(db, 'stores', storeId, PRICING_COLLECTIONS[w.kind], w.item.id), sanitizeForFirestore({ ...w.item, updatedAt: now }));
+      }
+      await batch.commit();
+    }
   };
 
   const remove: PricingStore['remove'] = async (kind, id) => {
@@ -116,8 +148,8 @@ export function usePricingData(storeId: string): PricingStore {
   // Grava tudo em lotes (limite do Firestore: 500 operações por lote)
   const importAll: PricingStore['importAll'] = async (incoming) => {
     const ops: Array<[string, string, any]> = [['pricing_config', 'main', incoming.config]];
-    for (const key of KEYS) {
-      for (const item of incoming[key] as any[]) ops.push([PRICING_COLLECTIONS[key], item.id, item]);
+    for (const key of CORE_KEYS) {
+      for (const item of (incoming as any)[key] || []) ops.push([PRICING_COLLECTIONS[key], item.id, item]);
     }
     for (let i = 0; i < ops.length; i += 400) {
       const batch = writeBatch(db);
@@ -128,7 +160,19 @@ export function usePricingData(storeId: string): PricingStore {
     }
   };
 
-  return { data, loading, error, isEmpty, save, remove, saveConfig, importAll };
+  return {
+    data,
+    invoices: lists.invoices,
+    itemMaps: lists.itemMaps,
+    loading,
+    error,
+    isEmpty,
+    save,
+    saveMany,
+    remove,
+    saveConfig,
+    importAll,
+  };
 }
 
 /** Reduz uma foto para caber no documento do Firestore (lado maior em px, JPEG). */

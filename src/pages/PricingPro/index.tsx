@@ -6,6 +6,7 @@ import {
   Box,
   ChefHat,
   CupSoda,
+  FileText,
   Layers,
   Loader2,
   Package,
@@ -28,14 +29,16 @@ import RecipesTab from './RecipesTab';
 import ProductsTab from './ProductsTab';
 import CombosTab from './CombosTab';
 import SettingsTab from './SettingsTab';
+import InvoicesTab from './InvoicesTab';
 
-type TabId = 'dashboard' | 'despesas' | 'ingredientes' | 'embalagens' | 'receitas' | 'fichas' | 'bebidas' | 'combos' | 'config';
+type TabId = 'dashboard' | 'despesas' | 'ingredientes' | 'embalagens' | 'notas' | 'receitas' | 'fichas' | 'bebidas' | 'combos' | 'config';
 
 const TABS: Array<{ id: TabId; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: 'Visão geral', icon: BarChart3 },
   { id: 'despesas', label: 'Despesas', icon: Receipt },
   { id: 'ingredientes', label: 'Ingredientes', icon: Wheat },
   { id: 'embalagens', label: 'Embalagens', icon: Box },
+  { id: 'notas', label: 'Notas fiscais', icon: FileText },
   { id: 'receitas', label: 'Receitas base', icon: ChefHat },
   { id: 'fichas', label: 'Fichas técnicas', icon: BookOpen },
   { id: 'bebidas', label: 'Bebidas', icon: CupSoda },
@@ -110,6 +113,7 @@ function PricingShell({ storeId }: { storeId: string }) {
     fichas: store.data.products.filter((p) => p.kind === 'product').length,
     bebidas: store.data.products.filter((p) => p.kind === 'drink').length,
     combos: store.data.combos.length,
+    notas: store.invoices.filter((i) => i.status === 'pending').length,
   };
 
   return (
@@ -143,6 +147,7 @@ function PricingShell({ storeId }: { storeId: string }) {
           {tab === 'despesas' && <ExpensesTab />}
           {tab === 'ingredientes' && <IngredientsTab />}
           {tab === 'embalagens' && <PackagingTab />}
+          {tab === 'notas' && <InvoicesTab />}
           {tab === 'receitas' && <RecipesTab />}
           {tab === 'fichas' && <ProductsTab kind="product" />}
           {tab === 'bebidas' && <ProductsTab kind="drink" />}
