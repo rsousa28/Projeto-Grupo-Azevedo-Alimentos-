@@ -11,7 +11,8 @@ import {
 } from '../../lib/pricing/engine';
 import type { PricingConfig } from '../../lib/pricing/types';
 import { usePricing } from './PricingContext';
-import { Btn, Field, NumInput, Panel, PanelHeader, brl, inputClass, pct } from './ui';
+import { Btn, Field, NumInput, Panel, PanelHeader, TextInput, brl, inputClass, pct } from './ui';
+import { formatCnpj } from '../../lib/pricing/nfe';
 
 export default function SettingsTab() {
   const { store, ctx, overhead, run } = usePricing();
@@ -52,6 +53,14 @@ export default function SettingsTab() {
           </Field>
           <Field label="Meta de CMV (máximo)" hint="Ingredientes + embalagens sobre o preço. Food service: 28% a 35%">
             <NumInput mode="pct" value={config.cmvTargetPct} onChange={(cmvTargetPct) => patch({ cmvTargetPct })} />
+          </Field>
+          <Field label="CNPJ da loja" hint="Usado para conferir se as notas fiscais importadas foram emitidas para esta loja" className="col-span-2">
+            <TextInput
+              value={config.cnpj ? formatCnpj(config.cnpj) : ''}
+              onChange={(v) => patch({ cnpj: v.replace(/\D/g, '') })}
+              placeholder="00.000.000/0000-00"
+              inputMode="numeric"
+            />
           </Field>
           <Field
             label="Faturamento mensal estimado"
