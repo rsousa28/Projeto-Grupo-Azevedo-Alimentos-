@@ -1,7 +1,7 @@
 # Fichas técnicas · Precificação PRO
 
-Nova aba **Fichas Técnicas** (Vero Pasta e qualquer outra loja). Ela substitui o módulo antigo, que continua
-acessível pelo link **"Abrir módulo antigo"** no topo da página (`/fichas-tecnicas/legado`).
+Aba **Fichas Técnicas** (Vero Pasta e qualquer outra loja). Ela substituiu por completo o módulo antigo, que foi
+removido do sistema junto com os dados que ele guardava só no navegador.
 
 ## 1. Análise do sistema de referência (Ficha Técnica PRO / Acelera Gastro)
 
@@ -48,9 +48,7 @@ acessível pelo link **"Abrir módulo antigo"** no topo da página (`/fichas-tec
 4. **Ingredientes e embalagens:** coloque o preço das notas. Os preços do exemplo são só referência.
 5. Revise cada ficha, coloque a foto e as **vendas por mês** (alimentam a visão geral e a engenharia de cardápio).
 
-Os insumos que alguém já cadastrou no módulo antigo podem ser trazidos em **Taxas e margem → Importar insumos do módulo
-antigo** (funciona no aparelho onde foram cadastrados). **Exportar tudo para Excel** gera a planilha de produtos,
-ingredientes e receitas.
+Em **Taxas e margem → Exportar tudo para Excel** sai a planilha de produtos, ingredientes e receitas.
 
 ## 4. Arquivos
 

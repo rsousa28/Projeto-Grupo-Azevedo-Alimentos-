@@ -1,6 +1,5 @@
 // Precificação PRO: fichas técnicas ligadas a ingredientes, receitas base, despesas e embalagens.
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
 import {
   BarChart3,
   BookOpen,
@@ -19,7 +18,8 @@ import { useStore } from '../../contexts/StoreContext';
 import { usePricingData } from '../../lib/pricing/usePricingData';
 import { defaultConfig, seedVeroPasta } from '../../lib/pricing/seed';
 import { PricingProvider, usePricing } from './PricingContext';
-import { Btn, Panel, cx } from './ui';
+import { Btn, Panel } from './ui';
+import ScrollTabs from './ScrollTabs';
 import DashboardTab from './DashboardTab';
 import ExpensesTab from './ExpensesTab';
 import IngredientsTab from './IngredientsTab';
@@ -45,6 +45,30 @@ const TABS: Array<{ id: TabId; label: string; icon: React.ElementType }> = [
 
 const TAB_KEY = 'pricing_pro_tab';
 
+// Dados que o módulo antigo deixava só no navegador (já substituídos pelo Firestore)
+const LEGACY_PREFIXES = [
+  'grupo_azevedo_technical_sheets',
+  'grupo_azevedo_sub_recipes',
+  'grupo_azevedo_ingredients_v1',
+  'grupo_azevedo_ing_history_v1',
+  'grupo_azevedo_migration_v2',
+  'grupo_azevedo_backup_pre_v2',
+  'grupo_azevedo_food_service',
+];
+
+function purgeLegacyStorage() {
+  try {
+    const keys: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && LEGACY_PREFIXES.some((p) => k.startsWith(p))) keys.push(k);
+    }
+    keys.forEach((k) => localStorage.removeItem(k));
+  } catch {
+    /* armazenamento indisponível: nada a limpar */
+  }
+}
+
 export default function PricingPro() {
   const { currentStore } = useStore();
   // A visão da holding abre a Vero Pasta, dona das fichas técnicas do grupo.
@@ -63,11 +87,13 @@ function PricingShell({ storeId }: { storeId: string }) {
   const { store, storeName } = usePricing();
   const [tab, setTabState] = useState<TabId>(() => {
     try {
-      return (localStorage.getItem(TAB_KEY) as TabId) || 'dashboard';
+      const saved = localStorage.getItem(TAB_KEY) as TabId | null;
+      return saved && TABS.some((t) => t.id === saved) ? saved : 'dashboard';
     } catch {
       return 'dashboard';
     }
   });
+  useEffect(purgeLegacyStorage, []);
   const setTab = (t: TabId) => {
     setTabState(t);
     try {
@@ -88,40 +114,20 @@ function PricingShell({ storeId }: { storeId: string }) {
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-5 px-4 pb-16 pt-5 sm:px-6 lg:px-8">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400">{storeName} · Precificação PRO</p>
-          <h1 className="text-2xl font-black tracking-tight text-stone-900 sm:text-3xl dark:text-stone-50">Fichas técnicas</h1>
-          <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">
-            Do ingrediente ao preço de venda, tudo ligado. Mudou um custo, o cardápio recalcula sozinho.
-          </p>
-        </div>
-        <Link to="/fichas-tecnicas/legado" className="text-xs font-semibold text-stone-400 underline-offset-2 hover:text-stone-600 hover:underline">
-          Abrir módulo antigo
-        </Link>
+      <header>
+        <p className="text-xs font-bold uppercase tracking-widest text-orange-600 dark:text-orange-400">{storeName} · Precificação PRO</p>
+        <h1 className="text-2xl font-black tracking-tight text-stone-900 sm:text-3xl dark:text-stone-50">Fichas técnicas</h1>
+        <p className="mt-0.5 text-sm text-stone-500 dark:text-stone-400">
+          Do ingrediente ao preço de venda, tudo ligado. Mudou um custo, o cardápio recalcula sozinho.
+        </p>
       </header>
 
-      <nav className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0" aria-label="Seções da precificação">
-        <div className="inline-flex min-w-full gap-1 rounded-2xl bg-stone-900 p-1.5 sm:min-w-0 dark:bg-black/40">
-          {TABS.map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setTab(id)}
-              className={cx(
-                'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl px-3 py-2 text-sm font-semibold transition',
-                tab === id ? 'bg-orange-500 text-white shadow' : 'text-stone-300 hover:bg-white/10 hover:text-white',
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-              {counts[id] !== undefined && (
-                <span className={cx('rounded-full px-1.5 text-[10px] font-bold', tab === id ? 'bg-white/25' : 'bg-white/10')}>{counts[id]}</span>
-              )}
-            </button>
-          ))}
-        </div>
-      </nav>
+      <ScrollTabs
+        label="Seções da precificação"
+        value={tab}
+        onChange={setTab}
+        tabs={TABS.map((t) => ({ ...t, count: counts[t.id] }))}
+      />
 
       {store.error ? (
         <Panel className="p-6 text-sm text-rose-600">Não foi possível carregar os dados desta loja: {store.error}</Panel>

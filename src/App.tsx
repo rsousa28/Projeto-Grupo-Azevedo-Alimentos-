@@ -34,7 +34,6 @@ import Marketing from "./pages/Marketing";
 import DailyControl from "./pages/DailyControl";
 import HoldingManagement from "./pages/HoldingManagement";
 import UnitInvestmentsControl from "./pages/UnitInvestmentsControl";
-import TechnicalSheets from "./pages/TechnicalSheets";
 import PricingPro from "./pages/PricingPro";
 
 /**
@@ -174,7 +173,6 @@ function AppRoutes() {
           <Route path="/reports" element={<Dashboard />} />
           <Route path="/cash-closing" element={<CashClosing />} />
           <Route path="/fichas-tecnicas" element={<PricingPro />} />
-          <Route path="/fichas-tecnicas/legado" element={<TechnicalSheets />} />
           <Route path="/data-entry" element={<DataEntry />} />
           <Route path="/daily-control" element={<DailyControl />} />
 

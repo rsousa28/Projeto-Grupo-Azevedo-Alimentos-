@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
-import { Download, Percent, Plus, Store, Tags, Upload, X } from 'lucide-react';
+import { Download, Percent, Plus, Store, Tags, X } from 'lucide-react';
 import {
   channelFeePct,
   correctionFactor,
   ingredientUnitCost,
   monthlyRevenue,
-  nextCode,
   productMetrics,
   recipeCost,
 } from '../../lib/pricing/engine';
-import type { Ingredient, PricingConfig } from '../../lib/pricing/types';
+import type { PricingConfig } from '../../lib/pricing/types';
 import { usePricing } from './PricingContext';
 import { Btn, Field, NumInput, Panel, PanelHeader, brl, inputClass, pct } from './ui';
 
@@ -96,17 +95,11 @@ export default function SettingsTab() {
       </Panel>
 
       <Panel>
-        <PanelHeader icon={<Download className="h-5 w-5" />} title="Planilhas e importação" />
-        <div className="space-y-3 p-5 text-sm">
+        <PanelHeader icon={<Download className="h-5 w-5" />} title="Planilha" subtitle="Produtos, ingredientes e receitas base com todos os custos." />
+        <div className="p-5 text-sm">
           <Btn variant="outline" onClick={() => exportWorkbook()}>
             <Download className="h-4 w-4 text-emerald-600" /> Exportar tudo para Excel
           </Btn>
-          <div>
-            <Btn variant="outline" onClick={importLegacy}>
-              <Upload className="h-4 w-4 text-orange-500" /> Importar insumos do módulo antigo
-            </Btn>
-            <p className="mt-1 text-xs text-stone-500">Traz os insumos salvos neste aparelho pelo módulo antigo. Nomes repetidos são ignorados.</p>
-          </div>
         </div>
       </Panel>
     </div>
@@ -157,48 +150,6 @@ export default function SettingsTab() {
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ingredients), 'Ingredientes');
     XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(recipes), 'Receitas base');
     XLSX.writeFile(wb, `precificacao-${new Date().toISOString().slice(0, 10)}.xlsx`);
-  }
-
-  async function importLegacy() {
-    let legacy: any[] = [];
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('grupo_azevedo_ingredients_v1_')) legacy = legacy.concat(JSON.parse(localStorage.getItem(k) || '[]'));
-      }
-    } catch {
-      legacy = [];
-    }
-    const existing = new Set(store.data.ingredients.map((i) => i.name.trim().toLowerCase()));
-    const codes = store.data.ingredients.map((i) => i.code);
-    const toAdd: Ingredient[] = [];
-    for (const old of legacy) {
-      const name = String(old?.nome || '').trim();
-      if (!name || existing.has(name.toLowerCase())) continue;
-      const scale = old.unidadeUso === 'kg' || old.unidadeUso === 'l' ? 1000 : 1;
-      const purchaseQty = Number(old.quantidadeEmbalagemCompra || 0) * scale;
-      const factor = Number(old.fatorCorrecao) > 0 ? Number(old.fatorCorrecao) : 1;
-      const code = nextCode('', codes, 4);
-      codes.push(code);
-      existing.add(name.toLowerCase());
-      toAdd.push({
-        id: `ing-legado-${String(old.id || code).replace(/[^a-zA-Z0-9_-]/g, '')}`,
-        code,
-        name,
-        unit: old.unidadeUso === 'ml' || old.unidadeUso === 'l' ? 'ml' : old.unidadeUso === 'un' ? 'un' : 'g',
-        purchaseQty,
-        netQty: Number((purchaseQty / factor).toFixed(3)),
-        price: Number(old.precoEmbalagemCompraCentavos || 0) / 100,
-        supplier: old.fornecedorPadrao || '',
-        updatedAt: '',
-      });
-    }
-    if (toAdd.length === 0) {
-      window.alert('Nenhum insumo novo encontrado no módulo antigo deste aparelho.');
-      return;
-    }
-    if (!window.confirm(`Importar ${toAdd.length} insumos do módulo antigo?`)) return;
-    await run(() => store.importAll({ ...store.data, ingredients: toAdd, packaging: [], recipes: [], products: [], combos: [] }), `${toAdd.length} insumos importados.`);
   }
 }
 
