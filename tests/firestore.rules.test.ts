@@ -101,7 +101,8 @@ describe("admin", () => {
     const db = as("admin");
     for (const id of ["1", "2", "3", "admin-global"]) {
       await assertSucceeds(getDoc(doc(db, "stores", id, "accounts_payable", "all")));
-      await assertSucceeds(setDoc(doc(db, "stores", id, "accounts_payable", "all"), { data: [1] }));
+      await assertSucceeds(setDoc(doc(db, "stores", id, "accounts_payable", "ap1"), { storeId: id, value: 10 }));
+      await assertSucceeds(setDoc(doc(db, "stores", id, "daily_control", "p1"), { ok: true }));
     }
   });
 
@@ -239,6 +240,37 @@ describe("shared notifications", () => {
 });
 
 const db_ = (uid: string) => as(uid);
+
+describe("accounts payable (one document per account)", () => {
+  it("a manager writes accounts of their store, always tagged with that store", async () => {
+    const db = as("b32");
+    await assertSucceeds(setDoc(doc(db, "stores", "1", "accounts_payable", "ap1"), { storeId: "1", value: 100 }));
+    await assertSucceeds(updateDoc(doc(db, "stores", "1", "accounts_payable", "ap1"), { value: 120 }));
+    await assertFails(setDoc(doc(db, "stores", "1", "accounts_payable", "ap2"), { storeId: "2", value: 1 }));
+    await assertFails(setDoc(doc(db, "stores", "2", "accounts_payable", "ap3"), { storeId: "2", value: 1 }));
+    await assertSucceeds(deleteDoc(doc(db, "stores", "1", "accounts_payable", "ap1")));
+  });
+
+  it("the legacy single document can't be overwritten, only marked as migrated", async () => {
+    const db = as("admin");
+    await assertFails(setDoc(doc(db, "stores", "1", "accounts_payable", "all"), { data: [{ id: "old-full-list" }] }));
+    await assertFails(updateDoc(doc(db, "stores", "1", "accounts_payable", "all"), { data: [1] }));
+    await assertFails(deleteDoc(doc(db, "stores", "1", "accounts_payable", "all")));
+    await assertFails(setDoc(doc(db, "stores", "1", "accounts_payable", "all", "chunks", "0"), { index: 0, data: "x" }));
+    await assertSucceeds(updateDoc(doc(db, "stores", "1", "accounts_payable", "all"), { migratedAt: "2026-11-12", migratedBy: "admin" }));
+    await assertSucceeds(getDoc(doc(as("b32"), "stores", "1", "accounts_payable", "all")));
+  });
+});
+
+describe("holding", () => {
+  it("only admin and finance reach the holding data", async () => {
+    await assertSucceeds(setDoc(doc(as("admin"), "holding", "loans"), { data: "[]" }));
+    await assertSucceeds(getDoc(doc(as("fin"), "holding", "loans")));
+    await assertSucceeds(setDoc(doc(as("fin"), "holding", "investments"), { data: "[]" }));
+    await assertFails(getDoc(doc(as("b32"), "holding", "loans")));
+    await assertFails(setDoc(doc(as("b28"), "holding", "loans"), { data: "[]" }));
+  });
+});
 
 describe("financial", () => {
   it("reaches the three stores but not admin-global", async () => {

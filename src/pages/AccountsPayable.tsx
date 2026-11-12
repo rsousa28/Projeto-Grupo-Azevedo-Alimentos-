@@ -48,9 +48,14 @@ import { useToast } from '../contexts/ToastContext';
 import { NotificationService } from '../services/NotificationService';
 import { EmailService } from '../services/EmailService';
 import { AccountPayable } from '../types';
-import { db } from '../lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { getDocCached, setDocCached } from '../lib/firestoreQueryCache';
+import {
+  MassDeleteError,
+  cleanPayable,
+  migrateLegacyPayables,
+  savePayablesDiff,
+  subscribeStorePayables,
+  type SyncedPayable,
+} from '../services/payablesRepository';
 import { AuditService } from '../services/AuditService';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -337,6 +342,9 @@ export default function AccountsPayable() {
 
   // State
   const [accounts, setAccounts] = useState<AccountPayable[]>([]);
+  // Estado do banco (por conta) e aviso de que a primeira leitura terminou
+  const syncedRef = useRef<Map<string, SyncedPayable>>(new Map());
+  const readyRef = useRef<Promise<void>>(Promise.resolve());
   const [formStoreId, setFormStoreId] = useState(currentStore.id === 'admin-global' ? '1' : currentStore.id);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -724,93 +732,53 @@ export default function AccountsPayable() {
 
     setAccounts(processItems(itemsList));
 
-    // Async load from Firestore for synchronization
-    let isMounted = true;
-    const fetchCloudAccounts = async () => {
-      try {
-        if (currentStore.code === 'ROOT') {
-          // Fetch from all stores and merge
-          const allPromises = STORES.map(async (store) => {
-            try {
-              const docRef = doc(db, 'stores', store.id, 'accounts_payable', 'all');
-              const docSnap = await getDocCached(docRef, currentStore.id, user);
-              if (docSnap.exists()) {
-                return docSnap.data().data || [];
-              }
-            } catch (innerErr) {
-              console.warn(`Erro ao carregar contas da loja ${store.id}:`, innerErr);
-            }
-            return [];
-          });
-          
-          const results = await Promise.all(allPromises);
-          const mergedCloudData: AccountPayable[] = [];
-          const seenIds = new Set<string>();
-          for (const list of results) {
-            for (const item of list) {
-              if (item && item.id && !seenIds.has(item.id)) {
-                seenIds.add(item.id);
-                mergedCloudData.push(item);
-              }
-            }
-          }
-          
-          if (isMounted) {
-            const processed = processItems(mergedCloudData);
-            setAccounts(processed);
-            safeSetItemToLocalStorage(currentStore.id, processed);
-          }
-        } else {
-          // Single store scenario (e.g. Manager like Patricia, Andressa, Jef)
-          const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
-          const docSnap = await getDocCached(docRef, currentStore.id, user);
-          
-          let cloudData: AccountPayable[] = [];
-          let hasCloudDoc = false;
-          if (docSnap.exists()) {
-            cloudData = docSnap.data().data || [];
-            hasCloudDoc = true;
-          }
+    // Tempo real: um documento por conta. As lojas visíveis (todas no consolidado do admin)
+    // são escutadas em paralelo; a primeira leitura de cada loja também migra o documento antigo.
+    const storeIds = currentStore.code === 'ROOT'
+      ? STORES.filter(s => s.code !== 'ROOT').map(s => s.id)
+      : [currentStore.id];
+    const byStore = new Map<string, AccountPayable[]>();
+    const synced = new Map<string, SyncedPayable>();
+    const loaded = new Set<string>();
+    const migrationTried = new Set<string>();
+    syncedRef.current = synced;
+    let markReady: () => void = () => {};
+    readyRef.current = new Promise<void>((resolve) => { markReady = resolve; });
 
-          let finalAccounts: AccountPayable[] = [];
-
-          if (hasCloudDoc) {
-            // Firestore is the authoritative database record.
-            finalAccounts = cloudData;
-          } else {
-            // Fallback to local storage if Firestore document does not exist yet
-            let localItems: AccountPayable[] = [];
-            const locallyStored = localStorage.getItem(storageKey);
-            if (locallyStored) {
-              try {
-                localItems = JSON.parse(locallyStored);
-              } catch (e) {
-                console.warn("Error parsing local accounts payable:", e);
-              }
-            }
-            finalAccounts = localItems;
-          }
-
-          if (isMounted) {
-            const processed = processItems(finalAccounts);
-            setAccounts(processed);
-            safeSetItemToLocalStorage(currentStore.id, processed);
+    const unsubs = storeIds.map(storeId => subscribeStorePayables(
+      storeId,
+      (raw) => {
+        if (!migrationTried.has(storeId)) {
+          migrationTried.add(storeId);
+          migrateLegacyPayables(storeId, new Set(raw.map(a => a.id)))
+            .then(n => { if (n) console.info(`[Contas a pagar] ${n} contas da loja ${storeId} migradas para documentos individuais.`); })
+            .catch(err => console.warn(`[Contas a pagar] Migração da loja ${storeId} adiada:`, err));
+        }
+        const processed = processItems(raw.map(a => ({ ...a, storeId: a.storeId || storeId })));
+        byStore.set(storeId, processed);
+        for (const [id, entry] of synced) if (entry.storeId === storeId) synced.delete(id);
+        for (const item of processed) {
+          synced.set(item.id, { storeId: item.storeId, json: JSON.stringify(cleanPayable(item)), item });
+        }
+        const seen = new Set<string>();
+        const merged = storeIds.flatMap(id => byStore.get(id) || []).filter(a => !seen.has(a.id) && (seen.add(a.id), true));
+        setAccounts(merged);
+        safeSetItemToLocalStorage(currentStore.id, merged);
+        if (!loaded.has(storeId)) {
+          loaded.add(storeId);
+          if (loaded.size === storeIds.length) {
+            markReady();
+            setIsSyncing(false);
           }
         }
-      } catch (err) {
+      },
+      (err) => {
         console.error("Erro ao sincronizar contas a pagar do Firestore:", err);
-      } finally {
-        if (isMounted) {
-          setIsSyncing(false);
-        }
-      }
-    };
+        setIsSyncing(false);
+      },
+    ));
 
-    fetchCloudAccounts();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => unsubs.forEach(u => u());
   }, [currentStore.id]);
 
   // Set alert badges when accounts change or store changes
@@ -889,48 +857,20 @@ export default function AccountsPayable() {
     }
   }
 
-  const saveAccountsToStorage = async (fullList: AccountPayable[]) => {
+  const saveAccountsToStorage = async (fullList: AccountPayable[], options: { allowMassDelete?: boolean } = {}) => {
     safeSetItemToLocalStorage(currentStore.id, fullList);
-
     try {
-      // Clean undefined fields recursively so Firestore doesn't reject the write operation
-      const cleanAccounts = JSON.parse(JSON.stringify(fullList));
-      
-      if (currentStore.code === 'ROOT') {
-        // Administrator saves all stores' accounts to their respective individual collections
-        const grouped: { [key: string]: AccountPayable[] } = {};
-        STORES.forEach(s => {
-          grouped[s.id] = [];
-        });
-        
-        cleanAccounts.forEach((ac: AccountPayable) => {
-          const sId = ac.storeId || 'admin-global';
-          if (!grouped[sId]) {
-            grouped[sId] = [];
-          }
-          grouped[sId].push(ac);
-        });
-
-        // Sync individual unit local storages so switching between units has no visual lags or stale caches
-        Object.entries(grouped).forEach(([storeId, storeAccounts]) => {
-          safeSetItemToLocalStorage(storeId, storeAccounts);
-        });
-        
-        const savePromises = Object.entries(grouped).map(async ([storeId, storeAccounts]) => {
-          const docRef = doc(db, 'stores', storeId, 'accounts_payable', 'all');
-          await setDocCached(docRef, { data: storeAccounts }, currentStore.id, user);
-        });
-        
-        await Promise.all(savePromises);
-      } else {
-        // Manager saves only their own store to prevent cross-contamination
-        const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
-        await setDocCached(docRef, { data: cleanAccounts }, currentStore.id, user);
-      }
+      // Nunca calcular a diferença antes da primeira leitura do banco
+      await readyRef.current;
+      await savePayablesDiff(syncedRef.current, fullList, options);
     } catch (firebaseErr: any) {
-      console.error("Erro ao sincronizar com o Firestore automaticamente:", firebaseErr);
-      if (firebaseErr?.message?.includes("too large") || firebaseErr?.message?.includes("maximum size")) {
+      console.error("Erro ao salvar contas a pagar:", firebaseErr);
+      if (firebaseErr instanceof MassDeleteError) {
+        showToast(firebaseErr.message, "error");
+      } else if (firebaseErr?.message?.includes("too large") || firebaseErr?.message?.includes("maximum size")) {
         showToast("Aviso: O comprovante ou boleto em anexo é grande demais para ser salvo na nuvem (limite do banco de dados). Delete o anexo ou anexe arquivos menores.", "error");
+      } else {
+        showToast("Não foi possível salvar no servidor. Confira a conexão e tente de novo.", "error");
       }
     }
   };
@@ -938,41 +878,9 @@ export default function AccountsPayable() {
   const handleSavePeriod = async () => {
     setIsSaving(true);
     try {
-      // Clean undefined fields recursively so Firestore doesn't reject the write operation
-      const cleanAccounts = JSON.parse(JSON.stringify(accounts));
-      
-      if (currentStore.code === 'ROOT') {
-        // Administrator saves all stores' accounts to their respective individual collections
-        const grouped: { [key: string]: AccountPayable[] } = {};
-        STORES.forEach(s => {
-          grouped[s.id] = [];
-        });
-        
-        cleanAccounts.forEach((ac: AccountPayable) => {
-          const sId = ac.storeId || 'admin-global';
-          if (!grouped[sId]) {
-            grouped[sId] = [];
-          }
-          grouped[sId].push(ac);
-        });
+      await readyRef.current;
+      await savePayablesDiff(syncedRef.current, accounts);
 
-        // Sync individual unit local storages so switching between units has no visual lags or stale caches
-        Object.entries(grouped).forEach(([storeId, storeAccounts]) => {
-          safeSetItemToLocalStorage(storeId, storeAccounts);
-        });
-        
-        const savePromises = Object.entries(grouped).map(async ([storeId, storeAccounts]) => {
-          const docRef = doc(db, 'stores', storeId, 'accounts_payable', 'all');
-          await setDocCached(docRef, { data: storeAccounts }, currentStore.id, user);
-        });
-        
-        await Promise.all(savePromises);
-      } else {
-        // Manager saves only their own store
-        const docRef = doc(db, 'stores', currentStore.id, 'accounts_payable', 'all');
-        await setDocCached(docRef, { data: cleanAccounts }, currentStore.id, user);
-      }
-      
       if (user) {
         const monthLabel = months.find(m => m.value === selectedMonth)?.label || selectedMonth;
         await AuditService.logAction({
@@ -985,13 +893,13 @@ export default function AccountsPayable() {
           storeName: currentStore.name
         }).catch(err => console.error(err));
       }
-      
+
       setIsSaving(false);
       showToast(`Dados do contas a pagar de ${months.find(m => m.value === selectedMonth)?.label}/${selectedYear} salvos com sucesso no servidor do Grupo Azevedo!`, "success");
     } catch (err) {
       console.error("Erro ao salvar contas a pagar no Firestore:", err);
       setIsSaving(false);
-      showToast("Erro ao salvar dados do contas a pagar no servidor do Grupo Azevedo.", "error");
+      showToast(err instanceof MassDeleteError ? err.message : "Erro ao salvar dados do contas a pagar no servidor do Grupo Azevedo.", "error");
     }
   };
 
@@ -4583,7 +4491,7 @@ export default function AccountsPayable() {
                 <button
                   onClick={() => {
                     setAccounts([]);
-                    saveAccountsToStorage([]);
+                    saveAccountsToStorage([], { allowMassDelete: true });
                     setSelectedAccounts([]);
                     setShowResetConfirm(false);
                   }}
@@ -4596,7 +4504,7 @@ export default function AccountsPayable() {
                 <button
                   onClick={() => {
                     setAccounts([...INITIAL_MOCK_ACCOUNTS]);
-                    saveAccountsToStorage([...INITIAL_MOCK_ACCOUNTS]);
+                    saveAccountsToStorage([...INITIAL_MOCK_ACCOUNTS], { allowMassDelete: true });
                     setSelectedAccounts([]);
                     setShowResetConfirm(false);
                   }}

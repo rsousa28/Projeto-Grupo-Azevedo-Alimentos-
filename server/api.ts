@@ -14,13 +14,12 @@ import { dispatchEmailMessage } from "./email.js";
 import {
   PAYABLE_STORES,
   getPayableTimeParts,
-  parseAccountsDoc,
-  parseAccountsChunks,
   summarizeStorePayables,
   buildPayableNotification,
   isPermanentPushError,
 } from "./payableSummary.js";
 import { financeSubscriptions } from "./pushRecipients.js";
+import { loadStorePayables } from "./payablesStore.js";
 
 export interface ApiRequest {
   method: string;
@@ -318,12 +317,7 @@ export const triggerHourlyPayable = route({ methods: ["POST"], access: "admin" }
 
   const summaries = [];
   for (const store of PAYABLE_STORES) {
-    const allRef = db.collection("stores").doc(store.id).collection("accounts_payable").doc("all");
-    let accounts = parseAccountsDoc((await allRef.get()).data());
-    if (accounts.length === 0) {
-      const chunksSnap = await allRef.collection("chunks").get();
-      accounts = parseAccountsChunks(chunksSnap.docs.map((d) => d.data() as { index: number; data: string }));
-    }
+    const accounts = await loadStorePayables(db, store.id);
     summaries.push(summarizeStorePayables(store, accounts, time));
   }
 

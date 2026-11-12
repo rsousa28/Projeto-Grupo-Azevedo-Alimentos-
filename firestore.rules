@@ -117,10 +117,33 @@ service cloud.firestore {
       allow create, update: if canAccessStore(storeId) && isValidStore(incoming()) && isValidId(storeId);
       allow delete: if isAdmin() && isValidId(storeId);
 
-      // Subcollections of Stores
-      match /{collectionId}/{document=**} {
-        allow read, write: if canAccessStore(storeId);
+      // Accounts payable: one document per account, always under the store it belongs to.
+      // The legacy single document "all" (and its chunks) is read-only; only the migration marker
+      // may be added, so an outdated app can't overwrite the per-account data with an old full list.
+      match /accounts_payable/{docId} {
+        allow read: if canAccessStore(storeId);
+        allow create: if canAccessStore(storeId) && docId != 'all' && isValidId(docId)
+          && incoming().storeId == storeId;
+        allow update: if canAccessStore(storeId) && (
+          (docId != 'all' && incoming().storeId == storeId)
+          || (docId == 'all' && incoming().diff(existing()).affectedKeys().hasOnly(['migratedAt', 'migratedBy']))
+        );
+        allow delete: if canAccessStore(storeId) && docId != 'all';
+
+        match /chunks/{chunkId} {
+          allow read: if canAccessStore(storeId);
+        }
       }
+
+      // Other subcollections of Stores
+      match /{collectionId}/{document=**} {
+        allow read, write: if canAccessStore(storeId) && collectionId != 'accounts_payable';
+      }
+    }
+
+    // Holding (bank loans, liabilities, investments, cash balances): admin and finance only
+    match /holding/{docId} {
+      allow read, write: if isFinance() && isValidId(docId);
     }
 
     // Backups contain every store and the users list

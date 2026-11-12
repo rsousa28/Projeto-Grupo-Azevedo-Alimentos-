@@ -1,4 +1,5 @@
 import { BankLoan, StoreLiability, StoreBenchmark, UnitBinding, StoreOnlyBinding, InvestmentProject } from '../types/holding';
+import { scheduleHoldingPush } from './holdingCloudSync';
 
 export const DEFAULT_STORE_BENCHMARKS: Record<StoreOnlyBinding, StoreBenchmark> = {
   B32: {
@@ -114,6 +115,12 @@ if (typeof window !== 'undefined' && window.localStorage) {
 
 export const INITIAL_CLOSED_STORES: string[] = [];
 
+/** Grava no navegador e agenda o envio ao banco (holdingCloudSync). */
+function persist(key: string, json: string) {
+  localStorage.setItem(key, json);
+  scheduleHoldingPush(key);
+}
+
 export const HoldingStorage = {
   getLoans(): BankLoan[] {
     try {
@@ -129,7 +136,7 @@ export const HoldingStorage = {
 
   saveLoans(loans: BankLoan[]) {
     try {
-      localStorage.setItem(LOANS_KEY, JSON.stringify(loans));
+      persist(LOANS_KEY, JSON.stringify(loans));
     } catch (e) {
       console.error('Error saving bank loans:', e);
     }
@@ -196,7 +203,7 @@ export const HoldingStorage = {
             !li.unitName?.toLowerCase().includes('north shopping')
           );
           if (filtered.length !== parsed.length) {
-            localStorage.setItem(LIABILITIES_KEY, JSON.stringify(filtered));
+            persist(LIABILITIES_KEY, JSON.stringify(filtered));
           }
           return filtered;
         }
@@ -209,7 +216,7 @@ export const HoldingStorage = {
 
   saveLiabilities(liabilities: StoreLiability[]) {
     try {
-      localStorage.setItem(LIABILITIES_KEY, JSON.stringify(liabilities));
+      persist(LIABILITIES_KEY, JSON.stringify(liabilities));
     } catch (e) {
       console.error('Error saving liabilities:', e);
     }
@@ -301,7 +308,7 @@ export const HoldingStorage = {
             (s: string) => !s.toLowerCase().includes('benfica') && !s.toLowerCase().includes('north shopping')
           );
           if (filtered.length !== parsed.length) {
-            localStorage.setItem(CLOSED_STORES_KEY, JSON.stringify(filtered));
+            persist(CLOSED_STORES_KEY, JSON.stringify(filtered));
           }
           return filtered;
         }
@@ -314,7 +321,7 @@ export const HoldingStorage = {
 
   saveClosedStores(stores: string[]) {
     try {
-      localStorage.setItem(CLOSED_STORES_KEY, JSON.stringify(stores));
+      persist(CLOSED_STORES_KEY, JSON.stringify(stores));
     } catch (e) {
       console.error('Error saving closed stores:', e);
     }
@@ -360,7 +367,7 @@ export const HoldingStorage = {
   saveInvestments(investments: InvestmentProject[]) {
     try {
       const sanitized = investments.map(sanitizeInvestment);
-      localStorage.setItem(INVESTMENTS_KEY, JSON.stringify(sanitized));
+      persist(INVESTMENTS_KEY, JSON.stringify(sanitized));
     } catch (e) {
       console.error('Error saving investment projects:', e);
     }
@@ -439,7 +446,7 @@ export const HoldingStorage = {
         ...balances,
         lastUpdated: new Date().toISOString()
       };
-      localStorage.setItem(CASH_BALANCES_KEY, JSON.stringify(payload));
+      persist(CASH_BALANCES_KEY, JSON.stringify(payload));
       return payload;
     } catch (e) {
       console.error('Error saving cash balances:', e);
@@ -477,7 +484,7 @@ export const HoldingStorage = {
 
   saveStoreBenchmarks(benchmarks: Record<StoreOnlyBinding, StoreBenchmark>) {
     try {
-      localStorage.setItem(STORES_BENCHMARKS_KEY, JSON.stringify(benchmarks));
+      persist(STORES_BENCHMARKS_KEY, JSON.stringify(benchmarks));
     } catch (e) {
       console.error('Error saving store benchmarks:', e);
     }
@@ -512,14 +519,11 @@ export const HoldingStorage = {
     this.saveInvestments([]);
     this.saveClosedStores([]);
     this.saveStoreBenchmarks(DEFAULT_STORE_BENCHMARKS);
+    // As chaves atuais ficam com os valores vazios acima: é isso que vai para o banco.
+    // Apagá-las faria o banco devolver os dados antigos no próximo acesso.
     try {
-      localStorage.removeItem(LOANS_KEY);
-      localStorage.removeItem(LIABILITIES_KEY);
-      localStorage.removeItem(INVESTMENTS_KEY);
-      localStorage.removeItem(STORES_BENCHMARKS_KEY);
       localStorage.removeItem('holding_bank_loans_v2');
       localStorage.removeItem('holding_investments_v2');
-      localStorage.removeItem('holding_closed_stores_v1');
       localStorage.removeItem('holding_benchmarks_v2');
     } catch (e) {}
   },

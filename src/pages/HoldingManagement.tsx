@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { HOLDING_CHANGED_EVENT } from '../services/holdingCloudSync';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -99,6 +100,12 @@ export default function HoldingManagement({ initialTab }: HoldingManagementProps
     setStoreBenchmarks(HoldingStorage.getStoreBenchmarks());
     setCashBalances(HoldingStorage.getCashBalances());
   }, []);
+
+  // Dados da holding alterados em outro aparelho (ou trazidos do banco no primeiro acesso)
+  useEffect(() => {
+    window.addEventListener(HOLDING_CHANGED_EVENT, refreshData);
+    return () => window.removeEventListener(HOLDING_CHANGED_EVENT, refreshData);
+  }, [refreshData]);
 
   // Sincronização automática inicial com os DREs preenchidos no Dashboard
   useEffect(() => {

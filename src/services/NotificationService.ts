@@ -1,9 +1,9 @@
 import { auth, db, getFirebaseMessaging, apiFetch } from '../lib/firebase';
 import { doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot, getDocs, where } from 'firebase/firestore';
 import { isFinanceUser, permittedStoreIds } from '../lib/permissions';
+import { fetchStorePayables } from './payablesRepository';
 import { getToken, onMessage } from 'firebase/messaging';
 import { STORES } from '../contexts/StoreContext';
-import { getDocCached } from '../lib/firestoreQueryCache';
 import { 
   urlBase64ToUint8Array, 
   subscribeUserToPush, 
@@ -678,18 +678,6 @@ export class NotificationService {
     const currentYear = String(year);
     const currentMonth = month;
 
-    // Prepare admin user context for cache authorization
-    let adminUser: any = { role: 'ADMIN', username: 'admin' };
-    if (typeof window !== 'undefined' && window.localStorage) {
-      try {
-        const rawUser = localStorage.getItem('auth_user');
-        if (rawUser) {
-          const parsed = JSON.parse(rawUser);
-          if (parsed) adminUser = parsed;
-        }
-      } catch (e) {}
-    }
-
     const functionalStores = STORES.filter(s => s.code !== 'ROOT');
     const storeSummaries: Array<{
       storeName: string;
@@ -706,48 +694,9 @@ export class NotificationService {
       let storeItems: any[] = [];
       const storeId = store.id;
 
-      // 1. Try reading from Firestore for this specific store (authoritative source)
+      // 1. Firestore: one document per account (or the legacy single document before migration)
       try {
-        const docRef = doc(db, 'stores', storeId, 'accounts_payable', 'all');
-
-        // A. Try cached read
-        try {
-          const docSnap = await getDocCached(docRef, storeId, adminUser);
-          if (docSnap && docSnap.exists()) {
-            const d = docSnap.data();
-            if (Array.isArray(d?.data)) {
-              storeItems = d.data;
-            } else if (Array.isArray(d)) {
-              storeItems = d;
-            }
-          }
-        } catch (cachedErr) {
-          console.warn(`[NotificationService] getDocCached failed for store ${storeId}:`, cachedErr);
-        }
-
-        // B. If still empty, read directly from Firestore with explicit chunk reassembly
-        if (storeItems.length === 0) {
-          const directSnap = await getDoc(docRef);
-          if (directSnap.exists()) {
-            let rawData = directSnap.data();
-            if (rawData?._isChunked) {
-              try {
-                const chunksSnap = await getDocs(collection(db, `${docRef.path}/chunks`));
-                const chunksList = chunksSnap.docs.map(d => d.data() as { index: number; data: string });
-                chunksList.sort((a, b) => a.index - b.index);
-                const reassembled = chunksList.map(c => c.data).join('');
-                rawData = JSON.parse(reassembled);
-              } catch (chunkErr) {
-                console.warn(`[NotificationService] Error reassembling chunks for ${docRef.path}:`, chunkErr);
-              }
-            }
-            if (Array.isArray(rawData?.data)) {
-              storeItems = rawData.data;
-            } else if (Array.isArray(rawData)) {
-              storeItems = rawData;
-            }
-          }
-        }
+        storeItems = await fetchStorePayables(storeId);
       } catch (storeErr) {
         console.warn(`[NotificationService] Error reading cloud accounts for store ${storeId}:`, storeErr);
       }
