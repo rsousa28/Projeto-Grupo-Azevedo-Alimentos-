@@ -3,6 +3,7 @@ import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import PayableReportCard from './PayableReportCard';
 import NotificationCard from './notifications/NotificationCard';
 import { useAppUpdate } from '../hooks/useAppUpdate';
+import { startHoldingSync } from '../services/holdingCloudSync';
 import { Logo } from './Logo';
 import { 
   Settings, 
@@ -65,6 +66,9 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
       if (typeof unsub === 'function') unsub();
     };
   }, [user?.id, user?.role]);
+
+  // Holding (empréstimos, passivos, investimentos, saldos) sincronizada com o banco para admin/financeiro
+  React.useEffect(() => startHoldingSync(user), [user?.id, user?.role]);
 
   // Routine manager check for pending checklist and cash closing notifications
   React.useEffect(() => {

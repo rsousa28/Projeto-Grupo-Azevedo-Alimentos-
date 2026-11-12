@@ -6,13 +6,12 @@ import webpush from "web-push";
 import {
   PAYABLE_STORES,
   getPayableTimeParts,
-  parseAccountsDoc,
-  parseAccountsChunks,
   summarizeStorePayables,
   buildPayableNotification,
   isPermanentPushError,
 } from "./payableSummary";
 import { financeSubscriptions } from "./pushRecipients";
+import { loadStorePayables } from "./payablesStore";
 
 export interface HourlyPayableOptions {
   dryRun?: boolean; // read and build the message only, write and send nothing
@@ -49,12 +48,7 @@ export async function runHourlyPayable(db: Firestore, options: HourlyPayableOpti
 
   const summaries = [];
   for (const store of PAYABLE_STORES) {
-    const allRef = db.collection("stores").doc(store.id).collection("accounts_payable").doc("all");
-    let accounts = parseAccountsDoc((await allRef.get()).data());
-    if (accounts.length === 0) {
-      const chunksSnap = await allRef.collection("chunks").get();
-      accounts = parseAccountsChunks(chunksSnap.docs.map((d) => d.data() as { index: number; data: string }));
-    }
+    const accounts = await loadStorePayables(db, store.id);
     summaries.push(summarizeStorePayables(store, accounts, time));
   }
 

@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { AuditService } from './AuditService';
+import { fetchStorePayables } from './payablesRepository';
 
 export interface BackupHealthStatus {
   hasRecentBackup: boolean;
@@ -38,6 +39,7 @@ export interface BackupRecord {
   payload: {
     users: any[];
     stores: any[];
+    holding?: any[]; // holding/{loans|liabilities|investments|...}
     subcollections: {
       [storeId: string]: {
         dre_periods: any[];
@@ -87,6 +89,10 @@ export const BackupService = {
       const usersSnap = await getDocs(collection(db, 'users'));
       const users = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
+      // Holding (empréstimos, passivos, investimentos, saldos)
+      const holdingSnap = await getDocs(collection(db, 'holding'));
+      const holding = holdingSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
       // 2. Fetch all stores
       const storesSnap = await getDocs(collection(db, 'stores'));
       const stores = storesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -122,8 +128,8 @@ export const BackupService = {
         submissionsCount += checklist_submissions.length;
 
         // Fetch accounts_payable
-        const apSnap = await getDocs(collection(db, 'stores', storeId, 'accounts_payable'));
-        const accounts_payable = apSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        // One document per account; before the migration, the legacy chunked document (read in full)
+        const accounts_payable = await fetchStorePayables(storeId);
         accountsPayableCount += accounts_payable.length;
 
         // Fetch closings
@@ -192,6 +198,7 @@ export const BackupService = {
         payload: {
           users,
           stores,
+          holding,
           subcollections
         }
       };
@@ -413,6 +420,15 @@ export const BackupService = {
         }
       }
 
+      // 1b. Restore Holding
+      if (payload.holding && Array.isArray(payload.holding)) {
+        for (const item of payload.holding) {
+          if (!item.id) continue;
+          const { id, ...data } = item;
+          await setDoc(doc(db, 'holding', id), this.sanitizeData(data));
+        }
+      }
+
       // 2. Restore Stores
       if (payload.stores && Array.isArray(payload.stores)) {
         for (const store of payload.stores) {
@@ -471,7 +487,7 @@ export const BackupService = {
           // E. Restore accounts_payable
           if (collections.accounts_payable && Array.isArray(collections.accounts_payable)) {
             for (const item of collections.accounts_payable) {
-              if (!item.id) continue;
+              if (!item.id || item.id === 'all') continue; // legacy single document is never restored
               const itemRef = doc(db, 'stores', storeId, 'accounts_payable', item.id);
               const { id, ...data } = item;
               await setDoc(itemRef, this.sanitizeData(data));
