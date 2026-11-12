@@ -23,6 +23,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { DREData } from '../types';
 import DataEntrySection from '../components/DataEntrySection';
 import { getDocCached } from '../lib/firestoreQueryCache';
+import { isStoreManager } from '../lib/permissions';
 import { formatCleanYAxisCurrency } from '../utils/formatters';
 
 
@@ -757,11 +758,7 @@ export default function Dashboard() {
     };
   }, [margemOperacional, previousMonthData]);
 
-  const isPatriciab = 
-    user?.role === 'MANAGER' ||
-    user?.role?.startsWith('MANAGER_') ||
-    user?.username === 'patriciab28' || 
-    user?.username?.toLowerCase().includes('andressa');
+  const isPatriciab = isStoreManager(user);
 
   const displayMetrics = [
     { 

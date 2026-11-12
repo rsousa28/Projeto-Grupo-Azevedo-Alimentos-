@@ -1,4 +1,4 @@
-import { db, apiFetch } from '../lib/firebase';
+import { auth, db, apiFetch } from '../lib/firebase';
 import { collection, addDoc, doc, onSnapshot } from 'firebase/firestore';
 
 export interface EmailReportItem {
@@ -201,6 +201,7 @@ export class EmailService {
     try {
       console.log('[EmailService] Enqueuing email in Firestore for automatic background processing...');
       const docRef = await addDoc(collection(db, 'email_requests'), {
+        requestedBy: auth.currentUser?.uid || null,
         to: recipients,
         subject: options.subject,
         text: options.body,

@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect } from "react";
+import { isAdminUser, isFinanceUser } from "./lib/permissions";
 import {
   BrowserRouter,
   HashRouter,
@@ -108,9 +109,7 @@ function RootAdminOnlyRoute({ children }: { children: React.ReactNode }) {
 
 function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const isRennan = Boolean(user && ((user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan')));
-  const hasAccess =
-    user && (user.role === "ADMIN" || user.username === "adm" || isRennan);
+  const hasAccess = isAdminUser(user);
   if (!hasAccess) {
     return (
       <UnauthorizedRedirect routeName="Demonstrativo DRE / Fluxo Financeiro" />
@@ -121,8 +120,7 @@ function FinanceAccessRoute({ children }: { children: React.ReactNode }) {
 
 function MarketingAccessRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const isRennan = Boolean(user && ((user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan')));
-  const hasAccess = user && (user.role === "ADMIN" || user.username === "adm" || isRennan);
+  const hasAccess = isAdminUser(user);
   if (!hasAccess) {
     return (
       <UnauthorizedRedirect routeName="Módulo de Marketing" />
@@ -133,8 +131,7 @@ function MarketingAccessRoute({ children }: { children: React.ReactNode }) {
 
 function HoldingAccessRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const isRennan = user && ((user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan'));
-  const hasAccess = user && (user.role === "ADMIN" || user.username === "adm" || user.role === "FINANCIAL" || isRennan);
+  const hasAccess = isFinanceUser(user);
   if (!hasAccess) {
     return (
       <UnauthorizedRedirect routeName="Gestão Grupo AZ (Holding)" />

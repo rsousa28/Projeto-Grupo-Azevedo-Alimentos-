@@ -12,6 +12,7 @@ import {
   buildPayableNotification,
   isPermanentPushError,
 } from "./payableSummary";
+import { financeSubscriptions } from "./pushRecipients";
 
 export interface HourlyPayableOptions {
   dryRun?: boolean; // read and build the message only, write and send nothing
@@ -71,12 +72,13 @@ export async function runHourlyPayable(db: Firestore, options: HourlyPayableOpti
   await db.collection("global_notifications").add(notification.notificationDoc);
   log("[Hourly AP] Saved notification to global_notifications.");
 
-  const subDocs = await db.collection("push_subscriptions").get();
+  // Only admin/finance devices: the report has the payables of every store
+  const subDocs = await financeSubscriptions(db);
   let sent = 0;
   let expired = 0;
   let failed = 0;
 
-  for (const sDoc of subDocs.docs) {
+  for (const sDoc of subDocs) {
     const subscription = sDoc.data()?.subscription;
     if (!subscription?.endpoint) continue;
     try {
@@ -94,6 +96,6 @@ export async function runHourlyPayable(db: Firestore, options: HourlyPayableOpti
     }
   }
 
-  log(`[Hourly AP] Push delivered to ${sent} of ${subDocs.size} devices (${expired} expired removed, ${failed} failed).`);
+  log(`[Hourly AP] Push delivered to ${sent} of ${subDocs.length} devices (${expired} expired removed, ${failed} failed).`);
   return { status: "sent" as const, hourKey: time.hourKey, title: notification.title, sent, expired, failed };
 }

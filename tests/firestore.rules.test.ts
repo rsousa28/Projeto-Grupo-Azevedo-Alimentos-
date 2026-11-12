@@ -7,7 +7,7 @@ import {
   initializeTestEnvironment,
   RulesTestEnvironment,
 } from "@firebase/rules-unit-testing";
-import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, addDoc } from "firebase/firestore";
+import { doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, collection, addDoc, query, where, orderBy, limit } from "firebase/firestore";
 
 let env: RulesTestEnvironment;
 
@@ -156,12 +156,89 @@ describe("store manager (B32)", () => {
     await assertSucceeds(addDoc(collection(db, "audit_logs"), auditLog({ userId: "b32", action: "LOGIN_SUCCESS" })));
   });
 
-  it("can register push subscriptions and read notifications", async () => {
+  it("registers only their own push subscription and cannot read or take over others", async () => {
     const db = as("b32");
-    await assertSucceeds(setDoc(doc(db, "push_subscriptions", "dev1"), { subscription: { endpoint: "x" } }));
-    await assertSucceeds(getDocs(collection(db, "global_notifications")));
+    await assertSucceeds(setDoc(doc(db, "push_subscriptions", "dev1_b32"), { uid: "b32", subscription: { endpoint: "x" } }));
+    await assertSucceeds(getDoc(doc(db, "push_subscriptions", "dev1_b32")));
+    // Someone else's device: cannot read, overwrite or delete it
+    await assertFails(getDoc(doc(db, "push_subscriptions", "devA_admin")));
+    await assertFails(setDoc(doc(db, "push_subscriptions", "devA_admin"), { uid: "b32", subscription: { endpoint: "evil" } }));
+    await assertFails(setDoc(doc(db, "push_subscriptions", "devA_admin"), { uid: "admin", subscription: { endpoint: "evil" } }));
+    await assertFails(deleteDoc(doc(db, "push_subscriptions", "devA_admin")));
+    await assertFails(getDocs(collection(db, "push_subscriptions")));
   });
 });
+
+describe("shared notifications", () => {
+  const note = (over: Record<string, unknown>) => ({
+    title: "t",
+    body: "b",
+    adminOnly: false,
+    storeId: "1",
+    createdByUid: "b32",
+    createdAt: new Date().toISOString(),
+    ...over,
+  });
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "global_notifications", "cash-b32"), note({ storeId: "1" }));
+      await setDoc(doc(db, "global_notifications", "cash-b28"), note({ storeId: "2", createdByUid: "b28" }));
+      await setDoc(doc(db, "global_notifications", "payable"), note({ adminOnly: true, storeId: "group", createdByUid: "server" }));
+      await setDoc(doc(db, "push_subscriptions", "devA_admin"), { uid: "admin", subscription: { endpoint: "a" } });
+    });
+  });
+
+  it("a store manager reads only their store's events, never the payable report", async () => {
+    const db = as("b32");
+    await assertSucceeds(getDoc(doc(db, "global_notifications", "cash-b32")));
+    await assertFails(getDoc(doc(db, "global_notifications", "cash-b28")));
+    await assertFails(getDoc(doc(db, "global_notifications", "payable")));
+    // The app's query for managers
+    await assertSucceeds(
+      getDocs(query(collection(db, "global_notifications"), where("adminOnly", "==", false), where("storeId", "==", "1"), orderBy("createdAt", "desc"), limit(20))),
+    );
+    // Listing everything (or another store) is refused
+    await assertFails(getDocs(collection(db, "global_notifications")));
+    await assertFails(getDocs(query(collection(db, "global_notifications"), where("adminOnly", "==", false), where("storeId", "==", "2"))));
+  });
+
+  it("admin and finance read everything", async () => {
+    for (const uid of ["admin", "fin"]) {
+      await assertSucceeds(getDocs(query(collection(db_(uid), "global_notifications"), orderBy("createdAt", "desc"), limit(20))));
+      await assertSucceeds(getDoc(doc(db_(uid), "global_notifications", "payable")));
+    }
+  });
+
+  it("creates only in their own name, for their store or to the admins", async () => {
+    const db = as("b32");
+    await assertSucceeds(setDoc(doc(db, "global_notifications", "n1"), note({ storeId: "1" })));
+    await assertSucceeds(setDoc(doc(db, "global_notifications", "n2"), note({ adminOnly: true, storeId: "1" })));
+    await assertFails(setDoc(doc(db, "global_notifications", "n3"), note({ storeId: "2" })));
+    await assertFails(setDoc(doc(db, "global_notifications", "n4"), note({ createdByUid: "admin" })));
+    await assertFails(setDoc(doc(db, "global_notifications", "n5"), { title: "sem campos" }));
+  });
+
+  it("only admins edit or delete notifications", async () => {
+    await assertFails(deleteDoc(doc(as("b32"), "global_notifications", "cash-b32")));
+    await assertFails(updateDoc(doc(as("b32"), "global_notifications", "cash-b32"), { title: "x" }));
+    await assertSucceeds(deleteDoc(doc(as("admin"), "global_notifications", "cash-b32")));
+  });
+
+  it("audit entries cannot be written in someone else's name", async () => {
+    await assertFails(addDoc(collection(as("b32"), "audit_logs"), auditLog({ userId: "admin", action: "PAYMENT" })));
+    await assertSucceeds(addDoc(collection(as("admin"), "audit_logs"), auditLog({ userId: "system", action: "BACKUP" })));
+  });
+
+  it("email queue: only finance, in their own name", async () => {
+    await assertFails(addDoc(collection(as("b32"), "email_requests"), { requestedBy: "b32", to: "x@y.com" }));
+    await assertSucceeds(addDoc(collection(as("fin"), "email_requests"), { requestedBy: "fin", to: "x@y.com" }));
+    await assertFails(addDoc(collection(as("fin"), "email_requests"), { requestedBy: "admin", to: "x@y.com" }));
+  });
+});
+
+const db_ = (uid: string) => as(uid);
 
 describe("financial", () => {
   it("reaches the three stores but not admin-global", async () => {
