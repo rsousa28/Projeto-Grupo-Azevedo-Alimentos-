@@ -202,14 +202,7 @@ export default function Sidebar({
   };
 
   // Check if current user has administrator privileges
-  const isUserAdmin = Boolean(
-    user && (
-      user.role === 'ADMIN' || 
-      user.username === 'adm' || 
-      (user.username || '').toLowerCase().includes('rennan') ||
-      (user.email || '').toLowerCase().includes('rennan')
-    )
-  );
+  const isUserAdmin = user?.role === 'ADMIN';
 
   // Check if current active store is Vero Pasta
   const isVeroPasta = 

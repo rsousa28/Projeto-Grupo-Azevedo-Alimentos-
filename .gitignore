@@ -7,3 +7,6 @@ coverage/
 .env*
 !.env.example
 .vercel
+
+# Chaves VAPID: só em variáveis de ambiente (functions/.env, Vercel, GitHub secrets)
+vapid-keys.json

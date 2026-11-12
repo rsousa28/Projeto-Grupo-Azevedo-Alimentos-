@@ -264,6 +264,7 @@ export default function CashClosing() {
 
         const activeOperator = user.name || user.username || 'Operador';
         NotificationService.notifyCashClosingCompleted({
+          storeId: currentStore.id,
           storeName: currentStore.name,
           userName: activeOperator,
           date: `${monthLabel}/${selectedYear}`,
@@ -1306,6 +1307,7 @@ export default function CashClosing() {
 
                         const activeOperator = user?.name || user?.username || formData.operator || 'Operador';
                         NotificationService.notifyCashClosingCompleted({
+                          storeId: currentStore.id,
                           storeName: currentStore.name,
                           userName: activeOperator,
                           date: formData.date,

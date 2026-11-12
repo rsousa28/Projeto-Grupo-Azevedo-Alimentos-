@@ -11,7 +11,7 @@
  */
 
 import { db, auth, apiFetch } from '../lib/firebase';
-import { doc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, collection, getDocs, deleteDoc, query, where } from 'firebase/firestore';
 
 export interface PushDeviceInfo {
   deviceId: string;
@@ -33,11 +33,16 @@ export interface PushDiagnosticStatus {
 }
 
 const DEVICE_ID_KEY = 'g_azevedo_push_device_id';
-export const DEFAULT_VAPID_PUBLIC_KEY = 'BICKQSsomQNxolxMgOH8zuTiBR0qEuFX6zSUbt462NkBtbqZ3gO2DHc6IJizJgZupwKk6o-64Jdr04aL5QMHvYk';
+export const DEFAULT_VAPID_PUBLIC_KEY = 'BAzUX0OTvnKyDYdk-B0bIHoW1IFwxjTM3HRQPp5JYUdXqA1H9Hb-Mgbt2kSLDRLBRidqZi0XXuuIGS3bqo71M78';
 
 /**
  * Retorna ou gera um identificador estável para o dispositivo atual
  */
+/** Id do documento em push_subscriptions: aparelho + dono (precisa bater com server/api.ts e firestore.rules). */
+export function pushSubscriptionDocId(deviceId: string, uid: string): string {
+  return `${deviceId}_${uid}`.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
 export function getPushDeviceIdentifier(): string {
   if (typeof window === 'undefined') return 'server_environment';
   
@@ -187,8 +192,10 @@ export async function sendPushSubscriptionToServer(
   };
 
   const subJson = subscription.toJSON();
-  const rawEndpoint = subscription.endpoint || '';
-  const docId = deviceId || `sub_${btoa(rawEndpoint).slice(-24).replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const uid = auth.currentUser?.uid;
+  if (!uid) return false; // a inscrição sempre pertence a quem está logado
+  // Um documento por aparelho e pessoa; o uid no fim do id impede gravar no aparelho de outra pessoa
+  const docId = pushSubscriptionDocId(deviceId, uid);
 
   // 1. Gravação direta no Firestore push_subscriptions (Redundância 100% confiável independente de proxy)
   try {
@@ -196,7 +203,7 @@ export async function sendPushSubscriptionToServer(
       id: docId,
       subscription: subJson,
       deviceId,
-      uid: auth.currentUser?.uid || null,
+      uid,
       userName: storedUser?.name || 'Usuário PWA',
       userRole: storedUser?.role || 'ADMIN',
       username: storedUser?.username || 'user',
@@ -335,8 +342,9 @@ export async function unsubscribeUserFromPush(): Promise<boolean> {
     if (!subscription) return true;
 
     const deviceId = getPushDeviceIdentifier();
+    const uid = auth.currentUser?.uid;
     try {
-      await deleteDoc(doc(db, 'push_subscriptions', deviceId));
+      if (uid) await deleteDoc(doc(db, 'push_subscriptions', pushSubscriptionDocId(deviceId, uid)));
     } catch {}
 
     const successful = await subscription.unsubscribe();
@@ -417,8 +425,12 @@ export async function getPushDiagnosticStatus(): Promise<PushDiagnosticStatus> {
   } catch {}
 
   try {
-    const snap = await getDocs(collection(db, 'push_subscriptions'));
-    serverDevicesCount = snap.size;
+    // Só o admin lista todos os aparelhos (firestore.rules); os demais contam os próprios
+    const uid = auth.currentUser?.uid;
+    const snap = await getDocs(collection(db, 'push_subscriptions')).catch(() =>
+      uid ? getDocs(query(collection(db, 'push_subscriptions'), where('uid', '==', uid))) : null,
+    );
+    serverDevicesCount = snap?.size ?? 0;
   } catch {}
 
   return {

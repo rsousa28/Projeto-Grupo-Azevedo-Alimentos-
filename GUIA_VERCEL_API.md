@@ -62,7 +62,8 @@ Para **cada** variável da tabela abaixo:
 - Precisam ser **exatamente as mesmas** que você cadastrou nos segredos do GitHub
   (guia `GUIA_NOTIFICACAO_AGENDADA.md`). Se forem diferentes, os celulares param de receber push.
 - O GitHub não mostra o valor de um segredo depois de salvo. Use o mesmo lugar de onde você copiou
-  na época (o arquivo `vapid-keys.json` do projeto: `publicKey` é a pública, `privateKey` é a privada).
+  na época. As chaves atuais ficam só em `functions/.env` (fora do GitHub), na Vercel e nos segredos do GitHub.
+  Se precisar trocar, gere um par novo (`npx web-push generate-vapid-keys`) e atualize os três lugares de uma vez.
 
 **GEMINI_API_KEY**
 - Crie ou copie em https://aistudio.google.com/apikey (botão **Create API key**).

@@ -80,13 +80,11 @@ export default function UnitSelector({
   // Filter available stores based on user role
   const availableUnits = React.useMemo(() => {
     if (!user) return STORES;
-
-    const isRennan = (user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan');
-    if (isRennan || user.role === 'ADMIN' || user.role === 'FINANCIAL') {
+    if (user.role === 'ADMIN' || user.role === 'FINANCIAL') {
       return STORES;
     }
 
-    if (user.role === 'MANAGER_BEBELU_MOSSORO' || (user.username || '').toLowerCase().includes('jef')) {
+    if (user.role === 'MANAGER_BEBELU_MOSSORO') {
       return STORES.filter(s => s.code === 'B32');
     }
 

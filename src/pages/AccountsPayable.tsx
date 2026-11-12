@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { isStoreManager } from '../lib/permissions';
 import { 
   DollarSign, 
   Plus, 
@@ -1603,6 +1604,7 @@ export default function AccountsPayable() {
 
       // Dispatch real-time push notification and recalculate hourly AP report
       NotificationService.notifyAccountsPayableChanged({
+        storeId: currentStore.id,
         action: 'CREATED',
         supplier: formSupplier,
         value: Number(formValue) || 0,
@@ -1652,6 +1654,7 @@ export default function AccountsPayable() {
 
     // Dispatch real-time push notification and recalculate hourly AP report
     NotificationService.notifyAccountsPayableChanged({
+      storeId: currentStore.id,
       action: 'PAID',
       supplier: selectedPayAccount.supplier,
       value: finalPaidAmount,
@@ -1741,6 +1744,7 @@ export default function AccountsPayable() {
     showToast('Conta excluída.', "success");
 
     NotificationService.notifyAccountsPayableChanged({
+      storeId: currentStore.id,
       action: 'DELETED',
       supplier: deletedSupplier,
       value: 0,
@@ -1786,6 +1790,7 @@ export default function AccountsPayable() {
     saveAccountsToStorage(updated);
     
     NotificationService.notifyAccountsPayableChanged({
+      storeId: currentStore.id,
       action: 'UPDATED',
       supplier: editSupplier,
       value: valueNum,
@@ -2498,13 +2503,7 @@ export default function AccountsPayable() {
     return vals.length > 0 ? Math.max(...vals, 1) : 1;
   }, [expensesByCategory]);
 
-  const isManagerUser = user && (
-    user.role === 'MANAGER' || 
-    user.role?.startsWith('MANAGER_') ||
-    user.username === 'patriciab28' || 
-    user.username?.toLowerCase().includes('andressa') ||
-    user.username?.toLowerCase().includes('jef')
-  ) && user.username !== 'adm' && user.username !== 'victordiretor';
+  const isManagerUser = isStoreManager(user);
 
   if (isManagerUser) {
     // Filter accounts belonging only to current store and selected period

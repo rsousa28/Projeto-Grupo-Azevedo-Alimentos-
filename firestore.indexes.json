@@ -1,0 +1,14 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "global_notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "adminOnly", "order": "ASCENDING" },
+        { "fieldPath": "storeId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}

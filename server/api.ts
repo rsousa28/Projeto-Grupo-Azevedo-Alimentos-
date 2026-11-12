@@ -20,6 +20,7 @@ import {
   buildPayableNotification,
   isPermanentPushError,
 } from "./payableSummary.js";
+import { financeSubscriptions } from "./pushRecipients.js";
 
 export interface ApiRequest {
   method: string;
@@ -46,6 +47,24 @@ interface Caller {
 class HttpError extends Error {
   constructor(public status: number, message: string) {
     super(message);
+  }
+}
+
+// Daily per-person limits for paid services (AI tokens, outgoing email). Counters live in
+// api_usage, which clients can't read or write (catch-all deny in firestore.rules).
+async function consumeDailyQuota(kind: "ai" | "email", caller: Caller, limit: number): Promise<void> {
+  const day = new Date().toISOString().slice(0, 10);
+  const ref = adminDb().collection("api_usage").doc(`${kind}_${caller.uid}_${day}`);
+  const used = await adminDb().runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const next = (snap.exists ? Number(snap.get("count")) || 0 : 0) + 1;
+    if (next <= limit) {
+      tx.set(ref, { kind, uid: caller.uid, day, count: next, updatedAt: new Date().toISOString() }, { merge: true });
+    }
+    return next;
+  });
+  if (used > limit) {
+    throw new HttpError(429, `Limite diário de ${limit} ${kind === "ai" ? "consultas à IA" : "e-mails"} atingido. Tente de novo amanhã.`);
   }
 }
 
@@ -104,7 +123,7 @@ function route(
         return { status: err.status, body: { error: err.message } };
       }
       console.error("[API] Unhandled error:", err);
-      return { status: 500, body: { error: err?.message || "Erro interno" } };
+      return { status: 500, body: { error: "Erro interno no servidor. Tente de novo em instantes." } };
     }
   };
 }
@@ -181,16 +200,18 @@ export const pushSubscribe = route({ methods: ["POST"], access: "profile" }, asy
   if (!subscription?.endpoint) {
     return { status: 400, body: { error: "Invalid subscription payload" } };
   }
-  const id =
-    typeof deviceId === "string" && /^[a-zA-Z0-9_\-]{1,128}$/.test(deviceId)
+  const device =
+    typeof deviceId === "string" && /^[a-zA-Z0-9_\-]{1,96}$/.test(deviceId)
       ? deviceId
       : `sub_${Buffer.from(subscription.endpoint).toString("base64").slice(-24).replace(/[^a-zA-Z0-9]/g, "_")}`;
+  // One document per device and person (same scheme as src/utils/pushConfig.ts and firestore.rules)
+  const id = `${device}_${caller!.uid}`.replace(/[^a-zA-Z0-9_-]/g, "_");
 
   // Name and role come from the verified profile, not from the request body
   await adminDb().collection("push_subscriptions").doc(id).set({
     id,
     subscription,
-    deviceId: id,
+    deviceId: device,
     uid: caller!.uid,
     userName: caller!.name || "Usuário PWA",
     userRole: caller!.role,
@@ -309,17 +330,37 @@ export const triggerHourlyPayable = route({ methods: ["POST"], access: "admin" }
   const notification = buildPayableNotification(summaries, time);
   await db.collection("global_notifications").add(notification.notificationDoc);
 
-  const subs = await db.collection("push_subscriptions").get();
-  const result = await sendPushToDocs(subs.docs, notification.pushPayload, "[Hourly AP Trigger]");
+  const result = await sendPushToDocs(await financeSubscriptions(db), notification.pushPayload, "[Hourly AP Trigger]");
   return { status: 200, body: { success: true, summary: `Notified for ${time.hourKey}`, ...result } };
 });
 
-export const sendEmail = route({ methods: ["POST"], access: "profile" }, async (req) => {
+// Reports go only to the group's own addresses, so the route can't be used to send spam or
+// phishing in the company's name. Set EMAIL_ALLOWED_RECIPIENTS (comma separated) to change the list.
+const DEFAULT_EMAIL_RECIPIENTS = ["rennaninacio0003@gmail.com", "azevedogas@yahoo.com.br"];
+
+function allowedRecipients(): Set<string> {
+  const fromEnv = (process.env.EMAIL_ALLOWED_RECIPIENTS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return new Set(fromEnv.length ? fromEnv : DEFAULT_EMAIL_RECIPIENTS);
+}
+
+export const sendEmail = route({ methods: ["POST"], access: "profile" }, async (req, caller) => {
   const { to, subject, text, html, storeName, reportType } = req.body || {};
   if (!to || !subject || (!text && !html)) {
     return { status: 400, body: { error: "Campos obrigatórios ausentes (to, subject, text/html)" } };
   }
-  const result = await dispatchEmailMessage({ to, subject, text, html, storeName, reportType });
+  const recipients = (Array.isArray(to) ? to : String(to).split(","))
+    .map((e: unknown) => String(e).trim().toLowerCase())
+    .filter(Boolean);
+  const allowed = allowedRecipients();
+  const blocked = recipients.filter((e: string) => !allowed.has(e));
+  if (recipients.length === 0 || recipients.length > 10 || blocked.length) {
+    throw new HttpError(403, blocked.length ? `Destinatário não autorizado: ${blocked.join(", ")}` : "Informe de 1 a 10 destinatários");
+  }
+  if (String(subject).length > 200 || String(html || text).length > 500_000) {
+    throw new HttpError(413, "E-mail grande demais");
+  }
+  await consumeDailyQuota("email", caller!, 50);
+  const result = await dispatchEmailMessage({ to: recipients.join(","), subject: String(subject), text, html, storeName, reportType });
   return { status: 200, body: result };
 });
 
@@ -334,7 +375,22 @@ export function resolveGeminiModel(requested?: unknown): string {
   return DEFAULT_GEMINI_MODEL;
 }
 
-export const aiGenerate = route({ methods: ["POST"], access: "profile" }, async (req) => {
+const AI_MAX_INPUT_CHARS = 600_000;
+const AI_CONFIG_KEYS = ["temperature", "topP", "topK", "maxOutputTokens", "responseMimeType", "responseSchema", "systemInstruction"];
+
+/** Only generation settings the app uses; output is capped so one call can't run up the bill. */
+function safeAiConfig(config: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  if (config && typeof config === "object") {
+    for (const key of AI_CONFIG_KEYS) {
+      if (key in (config as Record<string, unknown>)) out[key] = (config as Record<string, unknown>)[key];
+    }
+  }
+  out.maxOutputTokens = Math.min(Number(out.maxOutputTokens) || 8192, 16384);
+  return out;
+}
+
+export const aiGenerate = route({ methods: ["POST"], access: "profile" }, async (req, caller) => {
   const key = geminiApiKey();
   if (!key) {
     return { status: 503, body: { error: "GEMINI_API_KEY não configurada no servidor" } };
@@ -344,11 +400,16 @@ export const aiGenerate = route({ methods: ["POST"], access: "profile" }, async 
   }
 
   const { model, contents, config } = req.body || {};
+  if (!contents) throw new HttpError(400, "Envie o conteúdo para a IA");
+  if (JSON.stringify(contents).length > AI_MAX_INPUT_CHARS) {
+    throw new HttpError(413, "Conteúdo grande demais para uma consulta. Divida em partes menores.");
+  }
+  await consumeDailyQuota("ai", caller!, caller!.role === "ADMIN" ? 300 : 100);
 
   const response = await geminiClient.ai.models.generateContent({
     model: resolveGeminiModel(model),
     contents: Array.isArray(contents) ? contents : [{ role: "user", parts: [{ text: String(contents) }] }],
-    config,
+    config: safeAiConfig(config),
   });
   return { status: 200, body: { text: response.text || "" } };
 });

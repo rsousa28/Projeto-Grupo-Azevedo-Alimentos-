@@ -572,6 +572,7 @@ export default function Checklist() {
 
     // 3. Dispatch real-time push notification
     NotificationService.notifyChecklistCompleted({
+      storeId: currentStore.id,
       storeName: currentStore.name,
       templateTitle: sub.templateTitle,
       userName: sub.submittedBy || user?.name || user?.username || 'Colaborador',

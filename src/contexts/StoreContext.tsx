@@ -334,10 +334,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       try {
         const u = JSON.parse(savedUserStr);
         if (u && u.role) {
-          const isRennan = (u.username || '').toLowerCase().includes('rennan') || (u.email || '').toLowerCase().includes('rennan');
-          if (u.role === 'ADMIN' || isRennan) {
+          if (u.role === 'ADMIN') {
             return STORES.find(s => s.code === 'ROOT') || STORES[0];
-          } else if (u.role === 'MANAGER_BEBELU_MOSSORO' || (u.username || '').toLowerCase().includes('jef')) {
+          } else if (u.role === 'MANAGER_BEBELU_MOSSORO') {
             return STORES.find(s => s.code === 'B32') || STORES[0];
           } else if (u.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
             return STORES.find(s => s.code === 'B28') || STORES[0];
@@ -378,13 +377,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       // Get list of permitted stores for user's role
       let allowed: Store[] = [];
-      const isRennan = (user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan');
-
-      if (user.role === 'ADMIN' || isRennan) {
+      if (user.role === 'ADMIN') {
         allowed = STORES;
       } else if (user.role === 'FINANCIAL') {
         allowed = STORES;
-      } else if (user.role === 'MANAGER_BEBELU_MOSSORO' || (user.username || '').toLowerCase().includes('jef')) {
+      } else if (user.role === 'MANAGER_BEBELU_MOSSORO') {
         allowed = STORES.filter(s => s.code === 'B32');
       } else if (user.role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
         allowed = STORES.filter(s => s.code === 'B28');

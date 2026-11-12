@@ -7,6 +7,7 @@ import {
 } from 'firebase/firestore';
 import { db } from './firebase';
 import { sanitizeForFirestore } from '../utils/firestoreSanitizer';
+import { permittedStoreIds } from './permissions';
 
 export function safeLocalStorageSet(key: string, value: string): void {
   try {
@@ -58,25 +59,7 @@ export function extractStoreIdFromPath(path: string): string | null {
  * Retrieves the list of permitted store IDs for a given user based on their role and metadata.
  */
 export function getPermittedStoreIdsForUser(user: any): string[] {
-  if (!user) return [];
-  
-  const isRennan = user && ((user.username || '').toLowerCase().includes('rennan') || (user.email || '').toLowerCase().includes('rennan'));
-  const role = user.role;
-
-  if (role === 'ADMIN' || isRennan) {
-    return ['1', '2', '3', 'admin-global'];
-  } else if (role === 'FINANCIAL') {
-    return ['1', '2', '3'];
-  } else if (role === 'MANAGER_BEBELU_MOSSORO' || (user.username || '').toLowerCase().includes('jef')) {
-    return ['1'];
-  } else if (role === 'MANAGER_BEBELU_RIOMAR_PAPICU') {
-    return ['2'];
-  } else if (role === 'MANAGER_VERO_PASTA') {
-    return ['3'];
-  } else {
-    // Other users / default fallback: standard stores except ROOT
-    return ['1', '2', '3'];
-  }
+  return permittedStoreIds(user);
 }
 
 /**

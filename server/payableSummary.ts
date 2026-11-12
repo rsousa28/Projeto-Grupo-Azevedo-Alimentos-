@@ -266,6 +266,9 @@ export function buildPayableNotification(summaries: StorePayableSummary[], time:
       title,
       body,
       report,
+      // Only admin/finance read it (firestore.rules): it has the payables of every store
+      adminOnly: true,
+      storeId: "group",
       type: "PAYABLE_HOURLY",
       tag,
       url: "/accounts-payable",

@@ -29,6 +29,11 @@ service cloud.firestore {
       return hasProfile() && role() == 'ADMIN';
     }
 
+    // Admin e financeiro: veem os números de contas a pagar de todas as lojas
+    function isFinance() {
+      return hasProfile() && role() in ['ADMIN', 'FINANCIAL'];
+    }
+
     // Mirrors getPermittedStoreIdsForUser in src/lib/firestoreQueryCache.ts
     function canAccessStore(storeId) {
       return hasProfile() && (
@@ -86,9 +91,10 @@ service cloud.firestore {
     match /audit_logs/{logId} {
       allow read: if isAdmin();
       allow create: if isValidAuditLog(incoming()) && isValidId(logId) && (
-        hasProfile()
+        // Each person can only record actions in their own name (admins also record system actions)
+        (hasProfile() && (incoming().userId == request.auth.uid || isAdmin()))
         // Failed logins are recorded before anyone is authenticated
-        || (incoming().action == 'LOGIN_FAILED' && incoming().userId == 'anonymous')
+        || (incoming().action == 'LOGIN_FAILED' && incoming().userId == 'anonymous' && request.auth == null)
       );
       allow update, delete: if false; // Audit logs are immutable and append-only
     }
@@ -128,23 +134,41 @@ service cloud.firestore {
       }
     }
 
-    // Global notifications for system-wide sync and alerts
+    // Notifications shared between devices. Store events (cash closing, checklist) are seen only by
+    // whoever can access that store; payable notifications (adminOnly) only by admin and finance.
     match /global_notifications/{notifId} {
-      allow read, write: if hasProfile();
+      allow read: if isFinance()
+        || (hasProfile() && resource.data.adminOnly == false && canAccessStore(resource.data.storeId));
+      allow create: if hasProfile() && isValidId(notifId)
+        && incoming().createdByUid == request.auth.uid
+        && incoming().adminOnly is bool
+        && incoming().storeId is string && incoming().storeId.size() <= 32
+        && incoming().title is string && incoming().title.size() <= 300
+        && incoming().body is string && incoming().body.size() <= 4000
+        && (incoming().adminOnly == true || canAccessStore(incoming().storeId));
+      allow update, delete: if isAdmin();
     }
 
-    // FCM tokens and Push subscriptions for background notifications
+    // FCM tokens and Push subscriptions: each person manages only their own devices.
+    // The document id ends with the owner's uid, so nobody can overwrite someone else's device.
     match /fcm_tokens/{tokenId} {
-      allow read, write: if hasProfile();
+      allow read: if isAdmin() || (hasProfile() && resource.data.uid == request.auth.uid);
+      allow create, update: if hasProfile() && incoming().uid == request.auth.uid;
+      allow delete: if isAdmin() || (hasProfile() && resource.data.uid == request.auth.uid);
     }
 
     match /push_subscriptions/{subId} {
-      allow read, write: if hasProfile();
+      allow read: if isAdmin() || (hasProfile() && resource.data.uid == request.auth.uid);
+      allow create, update: if hasProfile() && incoming().uid == request.auth.uid
+        && subId.matches('.*_' + request.auth.uid + '$');
+      allow delete: if isAdmin() || (hasProfile() && resource.data.uid == request.auth.uid);
     }
 
-    // Email dispatch queue for reliable background delivery
+    // Email queue (local development server only): only finance profiles, only in their own name
     match /email_requests/{reqId} {
-      allow read, write: if hasProfile();
+      allow read: if isAdmin() || (hasProfile() && resource.data.requestedBy == request.auth.uid);
+      allow create: if isFinance() && incoming().requestedBy == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
 
     // Test document for SDK initialization checks (runs before login)

@@ -60,11 +60,11 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
 
   // Initialize cross-device real-time notification listener
   React.useEffect(() => {
-    const unsub = NotificationService.initRealtimeListener();
+    const unsub = NotificationService.initRealtimeListener(user);
     return () => {
       if (typeof unsub === 'function') unsub();
     };
-  }, []);
+  }, [user?.id, user?.role]);
 
   // Routine manager check for pending checklist and cash closing notifications
   React.useEffect(() => {
@@ -310,7 +310,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
                   {user?.username || user?.name || 'Visitante'}
                 </div>
                 <div className="text-[8px] sm:text-[9px] text-slate-500 font-black uppercase tracking-[0.1em] italic leading-none truncate">
-                  {user?.role === 'ADMIN' ? 'CEO' : (user?.username === 'victordiretor' || user?.role === 'FINANCIAL') ? 'Diretor' : 'Gerente'}
+                  {user?.role === 'ADMIN' ? 'CEO' : user?.role === 'FINANCIAL' ? 'Diretor' : 'Gerente'}
                 </div>
               </div>
             </div>

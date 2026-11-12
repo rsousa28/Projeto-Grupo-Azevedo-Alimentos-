@@ -22,10 +22,10 @@ Este documento é o guia oficial e definitivo para configurar, testar e garantir
 O sistema possui gerenciamento automático de chaves VAPID, mas você também pode definir suas próprias chaves fixas.
 
 ### Onde ficam as chaves no projeto:
-1. **Arquivo Local Automático**: O servidor gera e salva automaticamente as chaves no arquivo `/vapid-keys.json`:
+1. **(Desativado)** O arquivo `/vapid-keys.json` não é mais usado nem versionado: as chaves ficam só em variáveis de ambiente (`functions/.env`, Vercel e segredos do GitHub). O exemplo abaixo é apenas histórico:
    ```json
    {
-     "publicKey": "BICKQSsomQNxolxMgOH8zuTiBR0qEuFX6zSUbt462NkBtbqZ3gO2DHc6IJizJgZupwKk6o-64Jdr04aL5QMHvYk",
+     "publicKey": "BAzUX0OTvnKyDYdk-B0bIHoW1IFwxjTM3HRQPp5JYUdXqA1H9Hb-Mgbt2kSLDRLBRidqZi0XXuuIGS3bqo71M78",
      "privateKey": "..."
    }
    ```

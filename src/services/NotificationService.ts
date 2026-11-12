@@ -1,5 +1,6 @@
-import { db, getFirebaseMessaging, apiFetch } from '../lib/firebase';
-import { doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot, getDocs } from 'firebase/firestore';
+import { auth, db, getFirebaseMessaging, apiFetch } from '../lib/firebase';
+import { doc, getDoc, setDoc, collection, query, orderBy, limit, onSnapshot, getDocs, where } from 'firebase/firestore';
+import { isFinanceUser, permittedStoreIds } from '../lib/permissions';
 import { getToken, onMessage } from 'firebase/messaging';
 import { STORES } from '../contexts/StoreContext';
 import { getDocCached } from '../lib/firestoreQueryCache';
@@ -102,11 +103,7 @@ export class NotificationService {
     try {
       const raw = localStorage.getItem('auth_user');
       if (!raw) return false;
-      const user = JSON.parse(raw);
-      if (!user) return false;
-      const role = (user.role || '').toUpperCase();
-      const username = (user.username || '').toLowerCase();
-      return role === 'ADMIN' || role === 'FINANCIAL' || username === 'rennan' || username.includes('admin') || username === 'victordiretor';
+      return isFinanceUser(JSON.parse(raw));
     } catch {
       return false;
     }
@@ -115,44 +112,40 @@ export class NotificationService {
   /**
    * Initialize real-time Firestore listener for notifications across all devices
    */
-  static initRealtimeListener(): () => void {
-    if (this.unsubscribeRealtime) return this.unsubscribeRealtime;
+  static initRealtimeListener(user?: { role?: string } | null): () => void {
+    // Recria a escuta quando muda quem está logado (cada cargo vê um conjunto diferente)
+    this.unsubscribeRealtime?.();
+    this.unsubscribeRealtime = null;
+    if (!user?.role) return () => {};
 
     try {
-      const q = query(
-        collection(db, 'global_notifications'),
-        orderBy('createdAt', 'desc'),
-        limit(20)
-      );
+      const base = collection(db, 'global_notifications');
+      // Admin e financeiro leem tudo; os demais, só os eventos das próprias lojas (firestore.rules)
+      const queries = isFinanceUser(user)
+        ? [query(base, orderBy('createdAt', 'desc'), limit(20))]
+        : permittedStoreIds(user)
+            .filter((id) => id !== 'admin-global')
+            .map((storeId) =>
+              query(base, where('adminOnly', '==', false), where('storeId', '==', storeId), orderBy('createdAt', 'desc'), limit(20)),
+            );
 
-      let isInitialLoad = true;
-
-      const unsub = onSnapshot(q, (snapshot) => {
-        if (isInitialLoad) {
-          isInitialLoad = false;
-          snapshot.docs.forEach(docSnap => markNotifProcessedLocally(docSnap.id));
-          return;
-        }
-
-        snapshot.docChanges().forEach(change => {
-          if (change.type === 'added') {
-            const data = change.doc.data();
-            const notifId = change.doc.id;
-
-            if (data && data.createdByDeviceId !== getDeviceId() && !isNotifProcessedLocally(notifId)) {
+      const unsubs = queries.map((q) => {
+        let isInitialLoad = true;
+        return onSnapshot(
+          q,
+          (snapshot) => {
+            if (isInitialLoad) {
+              isInitialLoad = false;
+              snapshot.docs.forEach((docSnap) => markNotifProcessedLocally(docSnap.id));
+              return;
+            }
+            snapshot.docChanges().forEach((change) => {
+              if (change.type !== 'added') return;
+              const data = change.doc.data();
+              const notifId = change.doc.id;
+              if (!data || data.createdByDeviceId === getDeviceId() || isNotifProcessedLocally(notifId)) return;
               markNotifProcessedLocally(notifId);
-
-              // Restrict Accounts Payable notifications strictly to Admin logins
-              const isPayableNotif = data.type === 'PAYABLE_HOURLY' || 
-                                     (data.title && data.title.includes('Contas a Pagar')) || 
-                                     (data.tag && data.tag.includes('payable'));
-
-              if (isPayableNotif && !this.isCurrentUserAdmin()) {
-                return; // Skip notification delivery for non-admin users
-              }
-              
-              // Trigger local push notification & in-app floating banner for remote update
-              this.sendPushNotification(data.title || '🔔 Notificação Grupo Azevedo', {
+              this.sendPushNotification(data.title || 'Notificação Grupo Azevedo', {
                 body: data.body || '',
                 type: data.type || 'SYSTEM',
                 tag: data.tag || 'remote_notif',
@@ -162,15 +155,15 @@ export class NotificationService {
                 card: parseCard(data.card),
                 skipFirestoreSync: true, // Prevent infinite loop back to Firestore
               });
-            }
-          }
-        });
-      }, (err) => {
-        console.warn("Erro ao escutar notificações em tempo real:", err);
+            });
+          },
+          (err) => console.warn('Erro ao escutar notificações em tempo real:', err),
+        );
       });
 
+      const unsub = () => unsubs.forEach((u) => u());
       this.unsubscribeRealtime = unsub;
-      
+
       // Also initialize Firebase Cloud Messaging (FCM) push token & foreground listener
       this.initFCMToken().catch(err => console.warn('FCM registration error:', err));
 
@@ -235,7 +228,8 @@ export class NotificationService {
 
         // Store / update token document in Firestore fcm_tokens collection
         try {
-          await setDoc(doc(db, 'fcm_tokens', getDeviceId()), {
+          if (auth.currentUser) await setDoc(doc(db, 'fcm_tokens', getDeviceId()), {
+            uid: auth.currentUser.uid,
             token,
             updatedAt: new Date().toISOString(),
             lastActiveAt: new Date().toISOString(),
@@ -435,6 +429,8 @@ export class NotificationService {
       skipFirestoreSync?: boolean;
       report?: PayableReport;
       card?: AppNotification;
+      storeId?: string;     // loja do evento: só quem acessa essa loja recebe
+      adminOnly?: boolean;  // só admin e financeiro recebem (contas a pagar)
     }
   ): boolean {
     const type = options.type || 'SYSTEM';
@@ -449,11 +445,15 @@ export class NotificationService {
     }
 
     // 1. Broadcast to Firestore for real-time delivery to mobile phones and other devices
-    if (!options.skipFirestoreSync) {
+    const uid = auth.currentUser?.uid;
+    if (!options.skipFirestoreSync && uid) {
       try {
         const notifDocRef = doc(collection(db, 'global_notifications'));
         setDoc(notifDocRef, {
           id: notifDocRef.id,
+          adminOnly: options.adminOnly ?? isPayableNotif,
+          storeId: options.storeId || 'group',
+          createdByUid: uid,
           title,
           body: options.body,
           type,
@@ -581,6 +581,7 @@ export class NotificationService {
    * Dispatch push notification when any user completes/submits a checklist
    */
   static notifyChecklistCompleted(data: {
+    storeId: string;
     storeName: string;
     templateTitle: string;
     userName: string;
@@ -599,6 +600,8 @@ export class NotificationService {
       tag: `checklist_completed_${data.storeName}_${Date.now()}`,
       url: '/checklist',
       card,
+      storeId: data.storeId,
+      adminOnly: false,
     });
   }
 
@@ -606,6 +609,7 @@ export class NotificationService {
    * Dispatch push notification when any user completes a cash closing
    */
   static notifyCashClosingCompleted(data: {
+    storeId: string;
     storeName: string;
     userName: string;
     date: string;
@@ -625,6 +629,8 @@ export class NotificationService {
       tag: `cash_closed_${data.storeName}_${data.date}_${Date.now()}`,
       url: '/cash-closing',
       card,
+      storeId: data.storeId,
+      adminOnly: false,
     });
   }
 
@@ -635,6 +641,7 @@ export class NotificationService {
     action: 'CREATED' | 'UPDATED' | 'PAID' | 'DELETED';
     supplier: string;
     value: number;
+    storeId: string;
     storeName: string;
     userName?: string;
   }): boolean {
@@ -650,6 +657,8 @@ export class NotificationService {
       tag: `payable_change_${Date.now()}`,
       url: '/accounts-payable',
       card,
+      storeId: data.storeId,
+      adminOnly: true,
     });
 
     return sent;
@@ -898,6 +907,7 @@ export class NotificationService {
       tag: `payable_manual_${Date.now()}`,
       url: '/accounts-payable',
       report,
+      adminOnly: true,
       skipFirestoreSync: serverSent,
     });
   }
@@ -921,6 +931,7 @@ export class NotificationService {
       type: 'TEST',
       tag: 'test_notification',
       card,
+      skipFirestoreSync: true,
     });
   }
 
@@ -1009,6 +1020,7 @@ export class NotificationService {
           tag: `cash_closing_${slotKey}`,
           url: '/cash-closing',
           card,
+          skipFirestoreSync: true, // lembrete gerado em cada aparelho
         });
 
         prefs.lastNotifiedCashClosingSlot = slotKey;
