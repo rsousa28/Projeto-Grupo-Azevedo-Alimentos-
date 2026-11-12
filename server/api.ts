@@ -325,6 +325,15 @@ export const sendEmail = route({ methods: ["POST"], access: "profile" }, async (
 
 let geminiClient: { key: string; ai: GoogleGenAI } | null = null;
 
+// Os modelos Gemini 1.5 e 2.x foram aposentados para chaves novas. O alias "latest" sempre aponta para o
+// Flash atual, então o sistema não quebra quando o Google troca de versão. GEMINI_MODEL permite fixar outro.
+const DEFAULT_GEMINI_MODEL = (process.env.GEMINI_MODEL || "gemini-flash-latest").trim();
+
+export function resolveGeminiModel(requested?: unknown): string {
+  if (typeof requested === "string" && /^gemini-(flash|flash-lite|pro)-latest$/.test(requested)) return requested;
+  return DEFAULT_GEMINI_MODEL;
+}
+
 export const aiGenerate = route({ methods: ["POST"], access: "profile" }, async (req) => {
   const key = geminiApiKey();
   if (!key) {
@@ -335,13 +344,9 @@ export const aiGenerate = route({ methods: ["POST"], access: "profile" }, async 
   }
 
   const { model, contents, config } = req.body || {};
-  let modelName = model || "gemini-1.5-flash";
-  if (modelName.includes("gemini-3")) {
-    modelName = "gemini-1.5-flash"; // Fallback to stable for now to ensure it works
-  }
 
   const response = await geminiClient.ai.models.generateContent({
-    model: modelName,
+    model: resolveGeminiModel(model),
     contents: Array.isArray(contents) ? contents : [{ role: "user", parts: [{ text: String(contents) }] }],
     config,
   });
