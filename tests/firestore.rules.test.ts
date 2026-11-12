@@ -272,6 +272,27 @@ describe("holding", () => {
   });
 });
 
+describe("sefaz", () => {
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "stores", "3", "sefaz_state", "main"), { cnpj: "00000000000191", ultNSU: "000000000000010" });
+      await setDoc(doc(db, "stores", "3", "sefaz_documents", "k1"), { kind: "summary", supplierName: "Fornecedor" });
+    });
+  });
+
+  it("the store reads what came from SEFAZ but only the server writes it", async () => {
+    await assertSucceeds(getDoc(doc(as("admin"), "stores", "3", "sefaz_state", "main")));
+    await assertSucceeds(getDocs(query(collection(as("fin"), "stores", "3", "sefaz_documents"), where("kind", "==", "summary"))));
+    await assertFails(getDoc(doc(as("b32"), "stores", "3", "sefaz_state", "main")));
+    await assertFails(setDoc(doc(as("admin"), "stores", "3", "sefaz_state", "main"), { ultNSU: "000000000000000" }));
+    await assertFails(setDoc(doc(as("admin"), "stores", "3", "sefaz_documents", "k2"), { kind: "full" }));
+    await assertFails(deleteDoc(doc(as("fin"), "stores", "3", "sefaz_documents", "k1")));
+    // Invoices themselves stay editable by the store (review, authorize, dismiss)
+    await assertSucceeds(setDoc(doc(as("admin"), "stores", "3", "pricing_invoices", "k1"), { status: "pending" }));
+  });
+});
+
 describe("financial", () => {
   it("reaches the three stores but not admin-global", async () => {
     const db = as("fin");

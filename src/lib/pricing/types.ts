@@ -242,6 +242,9 @@ export interface Invoice {
   items: InvoiceItem[];
   status: 'pending' | 'applied' | 'dismissed';
   source: 'xml' | 'sefaz';
+  archived?: boolean;  // chegou da SEFAZ já antiga: fica no Histórico até alguém reabrir
+  cancelled?: boolean; // o fornecedor cancelou a nota na SEFAZ
+  sefazNsu?: string;
   appliedAt?: string;
   appliedBy?: string;
   appliedCount?: number;

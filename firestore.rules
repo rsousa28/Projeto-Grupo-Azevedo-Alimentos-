@@ -135,9 +135,18 @@ service cloud.firestore {
         }
       }
 
+      // SEFAZ (notes issued against the store's CNPJ): written only by the server with the certificate
+      match /sefaz_state/{docId} {
+        allow read: if canAccessStore(storeId);
+      }
+      match /sefaz_documents/{docId} {
+        allow read: if canAccessStore(storeId);
+      }
+
       // Other subcollections of Stores
       match /{collectionId}/{document=**} {
-        allow read, write: if canAccessStore(storeId) && collectionId != 'accounts_payable';
+        allow read, write: if canAccessStore(storeId)
+          && !(collectionId in ['accounts_payable', 'sefaz_state', 'sefaz_documents']);
       }
     }
 
