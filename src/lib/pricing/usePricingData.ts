@@ -36,6 +36,7 @@ const CORE_KEYS: PricingCollection[] = ['ingredients', 'packaging', 'recipes', '
 export type PricingWrite = { [K in PricingCollection]: { kind: K; item: ItemOf<K> } }[PricingCollection];
 
 export interface PricingStore {
+  storeId: string;
   data: PricingData;
   invoices: Invoice[];
   itemMaps: SupplierItemMap[];
@@ -161,6 +162,7 @@ export function usePricingData(storeId: string): PricingStore {
   };
 
   return {
+    storeId,
     data,
     invoices: lists.invoices,
     itemMaps: lists.itemMaps,

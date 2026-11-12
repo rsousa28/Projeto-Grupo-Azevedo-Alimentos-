@@ -1,15 +1,21 @@
 // Firebase Cloud Functions for Azevedo ERP.
 // Deploy: npx firebase deploy --only functions (see GUIA_NOTIFICACAO_AGENDADA.md)
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { defineSecret } from "firebase-functions/params";
 import { logger } from "firebase-functions";
 import { initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
 import firebaseConfig from "../../firebase-applet-config.json";
 import { STORE_TIME_ZONE } from "../../server/payableSummary";
 import { runHourlyPayable } from "../../server/hourlyPayableJob";
+import { certificateInfo, createDfeClient, parseCertificateSecret } from "../../server/sefazDfe";
+import { SEFAZ_COMPANIES, runSefazSync } from "../../server/sefazJob";
 
 initializeApp();
 const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+
+// Company A1 certificate as JSON {certPem, keyPem}, kept in Google Secret Manager (never in the repo)
+const sefazCertificate = defineSecret("SEFAZ_CERTIFICATE");
 
 // Contas a Pagar summary pushed to every registered device at the top of each hour (store time).
 // VAPID keys come from functions/.env, which is not committed.
@@ -35,5 +41,32 @@ export const hourlyPayableNotification = onSchedule(
       },
       log: (message) => logger.info(message),
     });
+  }
+);
+
+// NF-e issued against the company's CNPJ (SEFAZ Distribuição DF-e). Runs every 15 minutes, but each
+// company only asks SEFAZ again when its state allows (SEFAZ requires an hour's wait once caught up).
+export const sefazInvoices = onSchedule(
+  {
+    schedule: "*/15 * * * *",
+    timeZone: STORE_TIME_ZONE,
+    retryCount: 0,
+    memory: "512MiB",
+    timeoutSeconds: 300,
+    secrets: [sefazCertificate],
+  },
+  async () => {
+    const cert = parseCertificateSecret(sefazCertificate.value());
+    const info = certificateInfo(cert.certPem);
+    for (const company of SEFAZ_COMPANIES) {
+      if (company.cnpj !== info.cnpj) {
+        logger.warn(`[SEFAZ] Certificate is for ${info.cnpj}, skipping ${company.cnpj}`);
+        continue;
+      }
+      await runSefazSync(db, company, createDfeClient(cert, company), {
+        certificate: { name: info.name, validTo: info.validTo },
+        log: (message) => logger.info(message),
+      });
+    }
   }
 );

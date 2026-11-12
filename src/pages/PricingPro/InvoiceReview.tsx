@@ -76,6 +76,7 @@ export default function InvoiceReview({ invoice, onBack }: { invoice: Invoice; o
       });
 
   const authorize = async () => {
+    if (invoice.cancelled && !window.confirm('O fornecedor cancelou esta nota na SEFAZ. Autorizar mesmo assim?')) return;
     if (wrongRecipient && !window.confirm(`Esta nota foi emitida para outro CNPJ (${formatCnpj(invoice.recipientCnpj)}). Autorizar mesmo assim?`)) return;
     setBusy('apply');
     const now = new Date().toISOString();
@@ -111,7 +112,10 @@ export default function InvoiceReview({ invoice, onBack }: { invoice: Invoice; o
 
   const setStatus = async (status: Invoice['status']) => {
     setBusy('dismiss');
-    const ok = await run(() => store.save('invoices', { ...invoice, items, status }), status === 'dismissed' ? 'Nota descartada.' : 'Nota reaberta.');
+    const ok = await run(
+      () => store.save('invoices', { ...invoice, items, status, ...(status === 'pending' ? { archived: false } : {}) }),
+      status === 'dismissed' ? 'Nota descartada.' : 'Nota reaberta.',
+    );
     setBusy(null);
     if (ok && status === 'dismissed') onBack();
   };
@@ -187,6 +191,12 @@ export default function InvoiceReview({ invoice, onBack }: { invoice: Invoice; o
           </div>
         </div>
 
+        {invoice.cancelled && (
+          <div className="mt-4 flex items-start gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            O fornecedor cancelou esta nota na SEFAZ. Os preços dela não devem ser usados.
+          </div>
+        )}
         {wrongRecipient ? (
           <div className="mt-4 flex items-start gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />

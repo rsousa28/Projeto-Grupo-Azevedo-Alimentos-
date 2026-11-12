@@ -1,15 +1,18 @@
 // Notas fiscais de entrada: importa o XML da NF-e, confere os itens e, com autorização,
 // atualiza o preço dos ingredientes e embalagens (as fichas recalculam sozinhas).
 import React, { useMemo, useRef, useState } from 'react';
-import { CheckCircle2, ChevronRight, CloudDownload, FileText, Inbox, Loader2, Upload, XCircle } from 'lucide-react';
+import { Archive, CheckCircle2, ChevronRight, FileText, Inbox, Loader2, Upload, XCircle } from 'lucide-react';
 import { InvoiceParseError, formatCnpj, parseNFeXml, prepareInvoiceItems } from '../../lib/pricing/nfe';
 import type { Invoice } from '../../lib/pricing/types';
 import { usePricing } from './PricingContext';
 import InvoiceReview from './InvoiceReview';
+import SefazPanel from './SefazPanel';
 import { Badge, EmptyState, Panel, Segmented, brl, cx } from './ui';
 import { useToast } from '../../contexts/ToastContext';
 
-type Filter = 'pending' | 'applied' | 'dismissed';
+type Filter = 'pending' | 'applied' | 'dismissed' | 'history';
+
+const filterOf = (i: Invoice): Filter => (i.status === 'dismissed' && i.archived ? 'history' : i.status);
 
 export default function InvoicesTab() {
   const { store, run } = usePricing();
@@ -20,15 +23,12 @@ export default function InvoicesTab() {
   const [dragging, setDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const counts = useMemo(
-    () => ({
-      pending: store.invoices.filter((i) => i.status === 'pending').length,
-      applied: store.invoices.filter((i) => i.status === 'applied').length,
-      dismissed: store.invoices.filter((i) => i.status === 'dismissed').length,
-    }),
-    [store.invoices],
-  );
-  const rows = store.invoices.filter((i) => i.status === filter);
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { pending: 0, applied: 0, dismissed: 0, history: 0 };
+    for (const i of store.invoices) c[filterOf(i)]++;
+    return c;
+  }, [store.invoices]);
+  const rows = store.invoices.filter((i) => filterOf(i) === filter);
   const opened = store.invoices.find((i) => i.id === openId);
 
   const importFiles = async (files: FileList | File[]) => {
@@ -128,10 +128,7 @@ export default function InvoicesTab() {
             data-testid="nfe-input"
           />
         </div>
-        <div className="flex items-center gap-2 border-t border-stone-100 px-5 py-3 text-xs text-stone-500 dark:border-white/5">
-          <CloudDownload className="h-4 w-4 shrink-0 text-stone-400" />
-          Em breve: as notas emitidas para o CNPJ da loja chegam sozinhas da SEFAZ (precisa do certificado digital A1).
-        </div>
+        <SefazPanel storeId={store.storeId} />
       </Panel>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -142,15 +139,29 @@ export default function InvoicesTab() {
             { value: 'pending', label: `Para conferir (${counts.pending})` },
             { value: 'applied', label: `Autorizadas (${counts.applied})` },
             { value: 'dismissed', label: `Descartadas (${counts.dismissed})` },
+            ...(counts.history ? [{ value: 'history' as const, label: `Histórico (${counts.history})` }] : []),
           ]}
         />
       </div>
+      {filter === 'history' && (
+        <p className="-mt-2 text-xs text-stone-500">
+          Notas que já chegaram da SEFAZ com mais de 15 dias. Ficam aqui para consulta; abra uma e use “Reabrir para conferir” se quiser usar os preços dela.
+        </p>
+      )}
 
       <Panel className="overflow-hidden">
         {rows.length === 0 ? (
           <EmptyState
             icon={<Inbox className="h-6 w-6" />}
-            title={filter === 'pending' ? 'Nenhuma nota para conferir' : filter === 'applied' ? 'Nenhuma nota autorizada ainda' : 'Nenhuma nota descartada'}
+            title={
+              filter === 'pending'
+                ? 'Nenhuma nota para conferir'
+                : filter === 'applied'
+                  ? 'Nenhuma nota autorizada ainda'
+                  : filter === 'history'
+                    ? 'Nenhuma nota no histórico'
+                    : 'Nenhuma nota descartada'
+            }
             text={filter === 'pending' ? 'Importe o XML de uma compra para atualizar os preços dos ingredientes.' : undefined}
           />
         ) : (
@@ -165,7 +176,10 @@ export default function InvoicesTab() {
                       <FileText className="h-5 w-5" />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate font-semibold text-stone-900 dark:text-stone-100">{inv.supplierName}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="truncate font-semibold text-stone-900 dark:text-stone-100">{inv.supplierName}</span>
+                        {inv.source === 'sefaz' && <Badge tone="blue">SEFAZ</Badge>}
+                      </span>
                       <span className="block truncate text-xs text-stone-500">
                         NF {inv.number}
                         {inv.series ? `-${inv.series}` : ''} · {new Date(inv.issuedAt).toLocaleDateString('pt-BR')} · {formatCnpj(inv.supplierCnpj)}
@@ -176,13 +190,17 @@ export default function InvoicesTab() {
                       <span className="block text-xs text-stone-500">{inv.items.length} itens</span>
                     </span>
                     <span className="shrink-0">
-                      {inv.status === 'applied' ? (
+                      {inv.cancelled ? (
+                        <Badge tone="red">
+                          <XCircle className="h-3 w-3" /> Cancelada
+                        </Badge>
+                      ) : inv.status === 'applied' ? (
                         <Badge tone="green">
                           <CheckCircle2 className="h-3 w-3" /> {inv.appliedCount ?? linked} preços
                         </Badge>
                       ) : inv.status === 'dismissed' ? (
                         <Badge tone="slate">
-                          <XCircle className="h-3 w-3" /> Descartada
+                          {inv.archived ? <Archive className="h-3 w-3" /> : <XCircle className="h-3 w-3" />} {inv.archived ? 'Histórico' : 'Descartada'}
                         </Badge>
                       ) : missing > 0 ? (
                         <Badge tone="amber">{missing} sem vínculo</Badge>
