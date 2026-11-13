@@ -251,6 +251,9 @@ export class NotificationService {
       if (!this.fcmInitialized && messaging) {
         this.fcmInitialized = true;
         onMessage(messaging, (payload) => {
+          // Avisos do sistema (Web Push) chegam aqui repassados pelo Firebase sem título FCM:
+          // o service worker já mostra esses, então não repetimos um aviso genérico.
+          if (!payload.notification?.title && !payload.data?.title) return;
           console.log('[Foreground FCM Notification]', payload);
           const title = payload.notification?.title || payload.data?.title || '🔔 Grupo Azevedo';
           const body = payload.notification?.body || payload.data?.body || '';

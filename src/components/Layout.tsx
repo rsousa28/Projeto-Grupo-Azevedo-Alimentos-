@@ -322,7 +322,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         </header>
 
         <div 
-          className="flex-1 overflow-y-auto p-3 sm:p-5 lg:p-8 overscroll-contain custom-scrollbar relative" 
+          className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5 lg:p-8 overscroll-contain custom-scrollbar relative app-content" 
           style={{ 
             WebkitOverflowScrolling: 'touch',
             paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 2.5rem)',

@@ -143,7 +143,7 @@ export default function Login() {
         id="login_main_card"
       >
         {/* Left Side: Editorial Banner Panel */}
-        <div className="md:col-span-5 relative bg-[#120F0D] text-white overflow-hidden flex flex-col justify-between p-7 sm:p-8 md:p-10 min-h-[380px] md:min-h-[580px]">
+        <div className="md:col-span-5 relative bg-[#120F0D] text-white overflow-hidden flex flex-col justify-between p-5 sm:p-8 md:p-10 min-h-[200px] sm:min-h-[380px] md:min-h-[580px]">
           {/* Cyber Gradient Background Mesh */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/30 to-black/70 z-0" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,_rgba(255,203,5,0.15),_transparent_60%)] z-0" />
@@ -156,12 +156,12 @@ export default function Login() {
               transition={{ delay: 0.2 }}
               id="login_logo_container"
             >
-              <Logo className="w-16 sm:w-20 md:w-22 h-auto hover:scale-105 transition-transform duration-300" variant="white" showSubtext={false} />
+              <Logo className="w-11 sm:w-20 md:w-22 h-auto hover:scale-105 transition-transform duration-300" variant="white" showSubtext={false} />
             </motion.div>
           </div>
 
           {/* 2. Centered Typography Block (Centro do painel) */}
-          <div className="z-10 relative my-auto py-6 flex flex-col items-center justify-center text-center w-full">
+          <div className="z-10 relative my-auto py-2 sm:py-6 flex flex-col items-center justify-center text-center w-full">
             <motion.div
               initial={{ y: 10, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -170,17 +170,17 @@ export default function Login() {
               style={{ fontFamily: "'Montserrat', sans-serif" }}
             >
               <h1 className="leading-[0.88] tracking-tight">
-                <span className="text-4xl sm:text-5xl md:text-[3.25rem] font-black uppercase italic text-white block">
+                <span className="text-3xl sm:text-5xl md:text-[3.25rem] font-black uppercase italic text-white block">
                   GRUPO
                 </span>
-                <span className="text-4xl sm:text-5xl md:text-[3.25rem] font-black uppercase italic text-[#FFCB05] block mt-1.5">
+                <span className="text-3xl sm:text-5xl md:text-[3.25rem] font-black uppercase italic text-[#FFCB05] block mt-1.5">
                   AZEVEDO
                 </span>
-                <span className="text-2xl sm:text-3xl md:text-[2rem] font-black uppercase italic text-slate-100 block mt-2 tracking-normal">
+                <span className="text-xl sm:text-3xl md:text-[2rem] font-black uppercase italic text-slate-100 block mt-2 tracking-normal">
                   ALIMENTOS
                 </span>
               </h1>
-              <div className="w-16 h-[3.5px] bg-[#FFCB05] my-5 rounded-full" />
+              <div className="w-16 h-[3.5px] bg-[#FFCB05] my-3 sm:my-5 rounded-full" />
               <p className="text-[10px] sm:text-[11.5px] font-black uppercase tracking-[0.25em] text-[#FFCB05] italic">
                 PORTAL DE GOVERNANÇA & OPERAÇÕES
               </p>

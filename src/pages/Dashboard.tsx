@@ -1415,7 +1415,7 @@ export default function Dashboard() {
       ) : (
         <>
       {/* Main KPIs */}
-      <div className={`grid grid-cols-1 sm:grid-cols-2 ${isPatriciab ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-4`}>
+      <div className={`grid grid-cols-2 ${isPatriciab ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-2.5 sm:gap-4`}>
         {displayMetrics.map((metric, i) => {
           const isCmv = metric.label === 'CMV Médio';
           const isHealthy = isCmv 
@@ -1449,7 +1449,7 @@ export default function Dashboard() {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.05 }}
-              className={`p-4 rounded-2xl border transition-all duration-300 ${cardBg} ${cardBorder}`}
+              className={`p-3 sm:p-4 min-w-0 rounded-2xl border transition-all duration-300 ${cardBg} ${cardBorder}`}
             >
               <div className="flex items-center justify-between mb-2">
                 <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>{metric.label}</span>

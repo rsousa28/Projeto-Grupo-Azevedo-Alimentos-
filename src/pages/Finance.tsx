@@ -2317,9 +2317,9 @@ export default function Finance() {
 
           {/* Comparativo Anual do Mês Chart */}
           <div
-            className={`p-8 rounded-[2.5rem] border ${isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"}`}
+            className={`p-4 sm:p-8 rounded-3xl sm:rounded-[2.5rem] border ${isDarkMode ? "bg-[#1E1E1E] border-[#333]" : "bg-white border-slate-100 shadow-sm"}`}
           >
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6 sm:mb-8">
               <div>
                 <h3
                   className={`font-black uppercase tracking-tighter italic text-xl flex items-center gap-2 ${isDarkMode ? "text-white" : "text-black"}`}
@@ -2335,7 +2335,7 @@ export default function Finance() {
                   {yearsToCompare.join(", ")}
                 </p>
               </div>
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-x-4 gap-y-1">
                 {yearlyComparisonData.map((item) => (
                   <div key={item.year} className="flex items-center gap-2">
                     <div
