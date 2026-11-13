@@ -30,11 +30,13 @@ import ProductsTab from './ProductsTab';
 import CombosTab from './CombosTab';
 import SettingsTab from './SettingsTab';
 import InvoicesTab from './InvoicesTab';
+import AiImportTab from './AiImportTab';
 
-type TabId = 'dashboard' | 'despesas' | 'ingredientes' | 'embalagens' | 'notas' | 'receitas' | 'fichas' | 'bebidas' | 'combos' | 'config';
+type TabId = 'dashboard' | 'importar' | 'despesas' | 'ingredientes' | 'embalagens' | 'notas' | 'receitas' | 'fichas' | 'bebidas' | 'combos' | 'config';
 
 const TABS: Array<{ id: TabId; label: string; icon: React.ElementType }> = [
   { id: 'dashboard', label: 'Visão geral', icon: BarChart3 },
+  { id: 'importar', label: 'Importar com IA', icon: Sparkles },
   { id: 'despesas', label: 'Despesas', icon: Receipt },
   { id: 'ingredientes', label: 'Ingredientes', icon: Wheat },
   { id: 'embalagens', label: 'Embalagens', icon: Box },
@@ -139,8 +141,10 @@ function PricingShell({ storeId }: { storeId: string }) {
         <div className="flex items-center justify-center gap-2 py-24 text-stone-500">
           <Loader2 className="h-5 w-5 animate-spin" /> Carregando a precificação…
         </div>
+      ) : tab === 'importar' ? (
+        <AiImportTab onDone={() => setTab('fichas')} />
       ) : store.isEmpty ? (
-        <Onboarding storeId={storeId} />
+        <Onboarding storeId={storeId} onImport={() => setTab('importar')} />
       ) : (
         <>
           {tab === 'dashboard' && <DashboardTab onNavigate={(t) => setTab(t as TabId)} />}
@@ -159,7 +163,7 @@ function PricingShell({ storeId }: { storeId: string }) {
   );
 }
 
-function Onboarding({ storeId }: { storeId: string }) {
+function Onboarding({ storeId, onImport }: { storeId: string; onImport: () => void }) {
   const { store, run } = usePricing();
   const [busy, setBusy] = useState<'seed' | 'empty' | null>(null);
 
@@ -190,9 +194,12 @@ function Onboarding({ storeId }: { storeId: string }) {
             <li><b>4. Fichas técnicas:</b> o produto em etapas, com preço sugerido, tabela nutricional e ficha da cozinha.</li>
           </ol>
           <div className="flex flex-wrap gap-2 pt-2">
-            <Btn onClick={() => start('seed')} disabled={!!busy}>
+            <Btn onClick={onImport} disabled={!!busy}>
+              <Sparkles className="h-4 w-4" /> Importar minhas fichas com IA
+            </Btn>
+            <Btn variant="outline" onClick={() => start('seed')} disabled={!!busy}>
               {busy === 'seed' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Package className="h-4 w-4" />}
-              Começar com o cardápio exemplo da Vero Pasta
+              Ver um cardápio de exemplo
             </Btn>
             <Btn variant="outline" onClick={() => start('empty')} disabled={!!busy}>
               Começar vazio

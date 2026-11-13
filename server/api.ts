@@ -369,7 +369,8 @@ export function resolveGeminiModel(requested?: unknown): string {
   return DEFAULT_GEMINI_MODEL;
 }
 
-const AI_MAX_INPUT_CHARS = 600_000;
+// Cabe um PDF ou foto de até ~2,5 MB em base64 (a Vercel recusa corpos acima de 4,5 MB)
+const AI_MAX_INPUT_CHARS = 3_600_000;
 const AI_CONFIG_KEYS = ["temperature", "topP", "topK", "maxOutputTokens", "responseMimeType", "responseSchema", "systemInstruction"];
 
 /** Only generation settings the app uses; output is capped so one call can't run up the bill. */
