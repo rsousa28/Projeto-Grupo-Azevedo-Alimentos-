@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildImportPlan, findExampleData, mergeExtractions, planWrites, toBase, type AiExtraction, type ImportPlan } from '../src/lib/pricing/aiImport';
-import { buildContext, productCost } from '../src/lib/pricing/engine';
+import { buildImportPlan, cleanIngredientName, findExampleData, looksLikePackaging, mergeExtractions, planWrites, toBase, type AiExtraction, type ImportPlan } from '../src/lib/pricing/aiImport';
+import { buildContext, buyUnitOf, ingredientBuyUnitCost, productCost } from '../src/lib/pricing/engine';
 import { defaultConfig, seedVeroPasta } from '../src/lib/pricing/seed';
 import type { PricingData } from '../src/lib/pricing/types';
 
@@ -183,5 +183,103 @@ describe('IA das fichas: gravação', () => {
     expect(out.deletes.filter((d) => d.kind === 'products')).toHaveLength(seed.products.length);
     expect(out.deletes.filter((d) => d.kind === 'combos')).toHaveLength(seed.combos.length);
     expect(out.config).toMatchObject({ expenses: [], employees: [], equipment: [], energy: [] });
+  });
+});
+
+describe('IA das fichas: nomes com porção e unidade de compra (casos reais da Vero Pasta)', () => {
+  it('tira a porção e o "1 KG" / "UND" do nome', () => {
+    expect(cleanIngredientName('Queijo Mussarela (40g)')).toEqual({ name: 'Queijo Mussarela', portion: { qty: 40, unit: 'g' } });
+    expect(cleanIngredientName('Carne de Sol 1 KG (60 g)')).toEqual({ name: 'Carne de Sol', portion: { qty: 60, unit: 'g' }, buyHint: 'kg' });
+    expect(cleanIngredientName('Mussarela KG Cabeça (60 g)')).toEqual({ name: 'Mussarela Cabeça', portion: { qty: 60, unit: 'g' }, buyHint: 'kg' });
+    expect(cleanIngredientName('Sache de Ketchup UND (3 un)')).toEqual({ name: 'Sache de Ketchup', portion: { qty: 3, unit: 'un' }, buyHint: 'un' });
+    expect(cleanIngredientName('Wrap 1 Und')).toEqual({ name: 'Wrap', buyHint: 'un' });
+    expect(cleanIngredientName('Spaguetti 1 KG (90 g Cru)')).toMatchObject({ name: 'Spaguetti', portion: { qty: 90, unit: 'g' } });
+    expect(cleanIngredientName('Alface Maço (0,08g)')).toMatchObject({ name: 'Alface Maço', portion: { qty: 0.08, unit: 'g' } });
+    // medida que identifica o produto fica no nome
+    expect(cleanIngredientName('Coca-Cola lata 350 ml')).toEqual({ name: 'Coca-Cola lata 350 ml' });
+  });
+
+  it('reconhece descartáveis como embalagem', () => {
+    for (const n of ['Papel Bandeja', 'Guardanapo', 'Sache de Ketchup', 'Embalagem marmitex', 'Pote 500ml com tampa']) expect(looksLikePackaging(n)).toBe(true);
+    for (const n of ['Queijo Mussarela', 'Sal', 'Bacon']) expect(looksLikePackaging(n)).toBe(false);
+  });
+
+  const ficha: AiExtraction = {
+    fichas: [
+      {
+        name: 'Wrap de Carne de Sol',
+        kind: 'product',
+        ingredients: [
+          { name: 'Wrap 1 Und', qty: 1, unit: 'un', unitCost: 1.12 },
+          { name: 'Queijo Coalho (40g)', qty: 40, unit: 'g', unitCost: 32.9, costUnit: 'kg' },
+          { name: 'Carnde de Sol (60g)', qty: 60, unit: 'g', unitCost: 60.67, costUnit: 'kg' },
+          { name: 'Papel Bandeja (2 un)', qty: 2, unit: 'un', lineCost: 0.22 },
+          { name: 'Guardanapo (1 un)', qty: 1, unit: 'un', lineCost: 0.1 },
+        ],
+      },
+      {
+        name: 'Spaghetti C/ Carne de Sol',
+        kind: 'product',
+        ingredients: [
+          { name: 'Spaguetti 1 KG (90 g Cru)', qty: 90, unit: 'g', unitCost: 19.1 },
+          { name: 'Carne de Sol 1 KG (60 g)', qty: 60, unit: 'g', unitCost: 60.67 },
+          { name: 'Azeite (10 ml)', qty: 1000, unit: 'ml', lineCost: 0.46 }, // a IA leu a garrafa de 1 L
+          { name: 'Queijo Coalho (40g)', qty: 40, unit: 'g' },
+        ],
+      },
+    ],
+    sales: [],
+    warnings: [],
+  };
+
+  it('um ingrediente por insumo, com nome limpo, preço por kg e porção certa no prato', () => {
+    const plan = buildImportPlan(ficha, empty(), { removeExample: false, salesMode: 'average', now: NOW });
+    const names = plan.newIngredients.map((i) => i.name).sort();
+    expect(names).toEqual(['Azeite', 'Carnde de Sol', 'Queijo Coalho', 'Spaguetti', 'Wrap']); // "Carne de Sol" casou com "Carnde de Sol"
+    const by = Object.fromEntries(plan.newIngredients.map((i) => [i.name, i]));
+    expect(by['Queijo Coalho']).toMatchObject({ unit: 'g', buyUnit: 'kg', purchaseQty: 1000, price: 32.9 });
+    expect(by['Spaguetti']).toMatchObject({ price: 19.1 }); // R$ 19,10 o quilo ("1 KG" no nome)
+    expect(by['Wrap']).toMatchObject({ unit: 'un', buyUnit: 'un', price: 1.12 });
+    expect(by['Azeite']).toMatchObject({ unit: 'ml', buyUnit: 'L', price: 46 }); // R$ 0,46 por 10 ml = R$ 46 o litro
+    expect(plan.newPackaging.map((p) => p.name).sort()).toEqual(['Guardanapo', 'Papel Bandeja']);
+
+    const spaghetti = plan.products[1].item;
+    const azeite = spaghetti.lines.find((l) => l.refId === by['Azeite'].id)!;
+    expect(azeite.qty).toBe(10); // e não 1000 ml
+    expect(plan.warnings.some((w) => w.includes('Azeite') && w.includes('10 ml'))).toBe(true);
+    const wrap = plan.products[0].item;
+    expect(wrap.packaging).toHaveLength(2);
+    expect(wrap.lines.find((l) => l.refId === by['Queijo Coalho'].id)?.qty).toBe(40);
+  });
+
+  it('o cadastro mostra 1 kg a R$ 35 em vez de 1000 g', () => {
+    const ing = { id: 'x', code: '0001', name: 'Queijo Mussarela', unit: 'g' as const, purchaseQty: 1000, netQty: 1000, price: 35, updatedAt: '' };
+    expect(buyUnitOf(ing)).toBe('kg');
+    expect(ingredientBuyUnitCost(ing)).toBeCloseTo(35, 6);
+    expect(buyUnitOf({ ...ing, purchaseQty: 500 })).toBe('g');
+    expect(buyUnitOf({ ...ing, unit: 'ml', purchaseQty: 1000 })).toBe('L');
+    expect(buyUnitOf({ ...ing, buyUnit: 'g' })).toBe('g');
+    expect(buyUnitOf({ ...ing, unit: 'un', purchaseQty: 1, buyUnit: 'kg' })).toBe('un'); // unidade de compra incompatível é ignorada
+  });
+
+  it('substituir o cadastro apaga tudo de hoje, recomeça os códigos e mantém despesas', () => {
+    const seed = seedVeroPasta();
+    const plan = buildImportPlan(ficha, seed, { removeExample: false, replaceAll: true, salesMode: 'average', now: NOW });
+    expect(plan.products.every((p) => p.action === 'create')).toBe(true);
+    expect(plan.products[0].item.code).toBe('P01');
+    expect(plan.newIngredients[0].code).toBe('0001');
+    const out = planWrites(plan, seed, {
+      products: new Set(plan.products.map((p) => p.key)),
+      recipes: new Set(),
+      priceUpdates: new Set(),
+      applySales: false,
+      removeExample: false,
+      replaceAll: true,
+    });
+    expect(out.deletes.filter((d) => d.kind === 'ingredients')).toHaveLength(seed.ingredients.length);
+    expect(out.deletes.filter((d) => d.kind === 'products')).toHaveLength(seed.products.length);
+    expect(out.deletes.filter((d) => d.kind === 'combos')).toHaveLength(seed.combos.length);
+    // despesas e equipe ficam; só entra a categoria nova das fichas sem categoria
+    expect(out.config).toEqual({ categories: [...seed.config.categories, 'Outros'] });
   });
 });

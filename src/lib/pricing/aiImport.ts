@@ -119,7 +119,13 @@ Para cada ficha encontrada:
 - yieldQty e yieldUnit: rendimento total da ficha (para preparo base) ou peso da porção.
 - salePrice e deliveryPrice: preço de venda no salão e no delivery, só se aparecerem.
 - prepMinutes: tempo de preparo em minutos, só se aparecer.
-- ingredients: cada linha com name, qty e unit exatamente como na ficha (kg, g, L, ml, un, fatia...). Se houver custo, use lineCost para o custo total da linha ou unitCost + costUnit para o preço por kg/litro/unidade. isPackaging = true para embalagens e descartáveis (caixa, pote, tampa, sacola, guardanapo, talher). isRecipe = true quando o item for um preparo da casa que tem ficha própria.
+- ingredients: uma linha por insumo da ficha.
+  · name: só o nome do insumo, como se compra. NÃO coloque no nome a porção nem a unidade de compra: "Queijo Mussarela (40g)" vira name "Queijo Mussarela"; "Carne de Sol 1 KG (60 g)" vira "Carne de Sol"; "Sache de Ketchup UND (3 un)" vira "Sache de Ketchup".
+  · qty e unit: a quantidade usada NESTE prato (a porção), não a embalagem comprada. Ex.: 40 g de mussarela → qty 40, unit "g"; 10 ml de azeite → qty 10, unit "ml"; 2 sachês → qty 2, unit "un".
+  · unitCost e costUnit: o preço de compra do insumo e a unidade desse preço (R$ 35,00 o quilo → unitCost 35, costUnit "kg"; R$ 0,46 o litro → costUnit "l"; R$ 1,12 a unidade → costUnit "un").
+  · lineCost: o custo da porção usada no prato, se a ficha mostrar.
+  · isPackaging = true para embalagens e descartáveis (caixa, pote, tampa, marmitex, sacola, papel bandeja, guardanapo, sachê, talher, copo, canudo).
+  · isRecipe = true quando o item for um preparo da casa que tem ficha própria.
 - steps: modo de preparo em passos curtos, se houver.
 Regras: não invente nada que não esteja no arquivo. Números no formato brasileiro (1.234,56 = 1234.56). Ignore linhas de total e subtotal. Escreva em warnings o que estiver ilegível, ambíguo ou incompleto, citando a ficha.`;
 
@@ -202,6 +208,44 @@ export function costPerBase(line: AiLine, base: { qty: number; unit: Unit }): nu
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
+
+const PORTION_RE = /\s*\(\s*(\d+(?:[.,]\d+)?)\s*(kg|g|gr|grs|gramas?|ml|l|lt|litros?|un|und|unid|unidades?)\b\.?[^)]*\)\s*$/i;
+// Só a unidade de compra genérica ("1 KG", "KG", "UND", "1 L"); medidas que identificam o produto ("350 ml") ficam
+const BUY_TOKEN_RE = /(?:^|\s)(1\s*(?:kg|kgs|l|lt|litro|und|unid|un)|kg|kgs|lt|litro|und|unid)\.?(?=\s|$)/gi;
+const PACKAGING_RE = /\b(embalage\w*|marmitex|pote|tampa|sacola|papel bandeja|bandeja|guardanapo|sach[eê]s?|talher\w*|garfo|faca descart\w*|colher descart\w*|copo|canudo|caixa|filme pvc|papel alum\w*)\b/i;
+
+export interface CleanName {
+  name: string;
+  portion?: { qty: number; unit: string }; // porção escrita no nome: "(40g)"
+  buyHint?: 'kg' | 'l' | 'un'; // "1 KG", "UND" no nome
+}
+
+/**
+ * Tira do nome do insumo a porção e a unidade de compra que muitas fichas trazem junto:
+ * "Carne de Sol 1 KG (60 g)" -> { name: "Carne de Sol", portion: 60 g, buyHint: kg }.
+ */
+export function cleanIngredientName(raw: string): CleanName {
+  let name = String(raw || '').replace(/\s+/g, ' ').trim();
+  let portion: CleanName['portion'];
+  const m = name.match(PORTION_RE);
+  if (m) {
+    portion = { qty: Number(m[1].replace(',', '.')), unit: m[2] };
+    name = name.slice(0, m.index).trim();
+  }
+  let buyHint: CleanName['buyHint'];
+  name = name
+    .replace(BUY_TOKEN_RE, (_, token: string) => {
+      const t = token.toLowerCase().replace(/^1\s*/, '');
+      buyHint = t.startsWith('k') ? 'kg' : t.startsWith('l') ? 'l' : 'un';
+      return ' ';
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { name: name || String(raw).trim(), ...(portion ? { portion } : {}), ...(buyHint ? { buyHint } : {}) };
+}
+
+/** É embalagem ou descartável pelo nome (quando a IA não marcou). */
+export const looksLikePackaging = (name: string) => PACKAGING_RE.test(name);
 
 function cleanName(s: string): string {
   const t = String(s || '').replace(/\s+/g, ' ').trim();
@@ -328,6 +372,8 @@ export interface ImportPlan {
 
 export interface PlanOptions {
   removeExample: boolean;
+  /** Apaga fichas, receitas, ingredientes, embalagens e combos atuais antes de gravar (despesas e equipe ficam). */
+  replaceAll?: boolean;
   salesMode: 'average' | 'last';
   now?: string;
 }
@@ -366,9 +412,12 @@ export function buildImportPlan(extraction: AiExtraction, data: PricingData, opt
   const now = options.now || new Date().toISOString();
   const warnings = [...extraction.warnings];
   const example = findExampleData(data);
-  const gone = options.removeExample
-    ? new Set([...example.remove.ingredients, ...example.remove.packaging, ...example.remove.recipes, ...example.remove.products])
-    : new Set<string>();
+  // Substituir tudo: as fichas da importação entram como cadastro novo, sem casar com o que existe
+  const gone = options.replaceAll
+    ? new Set([...data.ingredients, ...data.packaging, ...data.recipes, ...data.products].map((x) => x.id))
+    : options.removeExample
+      ? new Set([...example.remove.ingredients, ...example.remove.packaging, ...example.remove.recipes, ...example.remove.products])
+      : new Set<string>();
   const keep = <T extends { id: string }>(list: T[]) => list.filter((x) => !gone.has(x.id));
 
   const ingredients = keep(data.ingredients);
@@ -421,6 +470,7 @@ export function buildImportPlan(extraction: AiExtraction, data: PricingData, opt
       code: code(codes.ingredients, '', 4),
       name: cleanName(line.name),
       unit: base.unit,
+      buyUnit: base.unit === 'g' ? 'kg' : base.unit === 'ml' ? 'L' : 'un',
       purchaseQty,
       netQty: purchaseQty,
       price: cost !== null ? round2(cost * purchaseQty) : 0,
@@ -480,13 +530,34 @@ export function buildImportPlan(extraction: AiExtraction, data: PricingData, opt
   const buildLines = (f: AiFicha, entry: { ingredientIds: string[]; recipeIds: string[]; packagingIds: string[] }, selfId?: string) => {
     const lines: RecipeLine[] = [];
     const packs: PackLine[] = [];
-    for (const line of f.ingredients || []) {
-      if (!line?.name || !(Number(line.qty) > 0)) continue;
-      const base = toBase(Number(line.qty), line.unit);
-      if (!base.known) warnings.push(`${f.name}: unidade "${line.unit}" de "${line.name}" não reconhecida, considerei como unidade.`);
-      if (line.isPackaging) {
+    for (const raw of f.ingredients || []) {
+      if (!raw?.name) continue;
+      const clean = cleanIngredientName(raw.name);
+      const line: AiLine = {
+        ...raw,
+        name: clean.name,
+        ...(!raw.costUnit && Number(raw.unitCost) > 0 && clean.buyHint ? { costUnit: clean.buyHint } : {}),
+      };
+      let base = toBase(Number(raw.qty) || 0, raw.unit);
+      if (clean.portion) {
+        const p = toBase(clean.portion.qty, clean.portion.unit);
+        // A porção do nome vale quando a IA pegou a quantidade da compra (1000 ml de azeite, 1 un de calabresa)
+        const tookPurchase =
+          !(base.qty > 0) ||
+          (p.unit === base.unit && base.qty >= 1000 && p.qty < base.qty) ||
+          (p.unit !== base.unit && base.unit === 'un' && base.qty <= 1);
+        if (p.known && p.qty > 0 && tookPurchase) {
+          if (base.qty > 0) warnings.push(`${f.name}: "${clean.name}" entrou com ${p.qty} ${p.unit}, a porção escrita na ficha (a IA tinha lido ${base.qty} ${base.unit}).`);
+          base = p;
+        } else if (p.known && p.unit === base.unit && Math.abs(p.qty - base.qty) > 1e-9) {
+          warnings.push(`${f.name}: "${clean.name}" diz ${p.qty} ${p.unit} no nome e ${base.qty} ${base.unit} na quantidade. Ficou ${base.qty} ${base.unit}; confira.`);
+        }
+      }
+      if (!(base.qty > 0)) continue;
+      if (!base.known) warnings.push(`${f.name}: unidade "${raw.unit}" de "${clean.name}" não reconhecida, considerei como unidade.`);
+      if (line.isPackaging || looksLikePackaging(line.name)) {
         const p = resolvePackaging(line);
-        packs.push({ packagingId: p.id, qty: Number(line.qty) || 1 });
+        packs.push({ packagingId: p.id, qty: base.unit === 'un' ? base.qty : 1 });
         entry.packagingIds.push(p.id);
         continue;
       }
@@ -640,6 +711,7 @@ export interface PlanSelection {
   priceUpdates: Set<string>; // ingredient ids
   applySales: boolean;
   removeExample: boolean;
+  replaceAll?: boolean;
 }
 
 export interface PlanWrites {
@@ -700,20 +772,33 @@ export function planWrites(plan: ImportPlan, data: PricingData, sel: PlanSelecti
   ];
 
   const deletes: PlanWrites['deletes'] = [];
+  const deleted = new Set<string>();
+  const drop = (kind: PlanWrites['deletes'][number]['kind'], id: string) => {
+    if (deleted.has(`${kind}:${id}`)) return;
+    deleted.add(`${kind}:${id}`);
+    deletes.push({ kind, id });
+  };
+  if (sel.replaceAll) {
+    for (const c of data.combos) drop('combos', c.id);
+    for (const p of data.products) drop('products', p.id);
+    for (const r of data.recipes) drop('recipes', r.id);
+    for (const p of data.packaging) drop('packaging', p.id);
+    for (const i of data.ingredients) drop('ingredients', i.id);
+  }
   let config: Partial<PricingConfig> | null = null;
   if (sel.removeExample) {
     const r = plan.example.remove;
-    for (const id of r.combos) deletes.push({ kind: 'combos', id });
-    for (const id of r.products) deletes.push({ kind: 'products', id });
-    for (const id of r.recipes) deletes.push({ kind: 'recipes', id });
-    for (const id of r.packaging) deletes.push({ kind: 'packaging', id });
-    for (const id of r.ingredients) deletes.push({ kind: 'ingredients', id });
-    const drop = (list: Array<{ id: string }> | undefined, ids: string[]) => (list || []).filter((x) => !ids.includes(x.id));
+    for (const id of r.combos) drop('combos', id);
+    for (const id of r.products) drop('products', id);
+    for (const id of r.recipes) drop('recipes', id);
+    for (const id of r.packaging) drop('packaging', id);
+    for (const id of r.ingredients) drop('ingredients', id);
+    const without = (list: Array<{ id: string }> | undefined, ids: string[]) => (list || []).filter((x) => !ids.includes(x.id));
     config = {
-      expenses: drop(data.config.expenses, r.config.expenses) as PricingConfig['expenses'],
-      employees: drop(data.config.employees, r.config.employees) as PricingConfig['employees'],
-      equipment: drop(data.config.equipment, r.config.equipment) as PricingConfig['equipment'],
-      energy: drop(data.config.energy, r.config.energy) as PricingConfig['energy'],
+      expenses: without(data.config.expenses, r.config.expenses) as PricingConfig['expenses'],
+      employees: without(data.config.employees, r.config.employees) as PricingConfig['employees'],
+      equipment: without(data.config.equipment, r.config.equipment) as PricingConfig['equipment'],
+      energy: without(data.config.energy, r.config.energy) as PricingConfig['energy'],
     };
   }
   if (plan.newCategories.length) {
