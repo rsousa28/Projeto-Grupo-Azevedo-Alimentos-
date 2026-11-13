@@ -72,7 +72,7 @@ export default function SelectStore() {
         transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
         className="w-full max-w-6xl z-10 my-auto py-4 sm:py-8 flex-1 flex flex-col justify-center"
       >
-        <div className="text-center mb-8 sm:mb-12 px-2">
+        <div className="text-center mb-5 sm:mb-12 px-2">
           {/* Brand Logo Header */}
           <div className="inline-flex flex-col items-center justify-center mb-5 sm:mb-6">
             <div className="inline-block transform transition-transform duration-500 hover:scale-105">
@@ -89,7 +89,7 @@ export default function SelectStore() {
         </div>
 
         {/* 4 Cards Grid - Modern, Ergonomic, High Visual Breathing Room */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-5 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-6">
           {availableUnits.map((store, i) => {
             const isSelected = currentStore?.id === store.id;
             const info = getUnitCardInfo(store);
@@ -106,7 +106,7 @@ export default function SelectStore() {
                 <div
                   id={`btn-select-store-${store.code.toLowerCase()}`}
                   onClick={() => handleSelect(store)}
-                  className={`group relative p-6 sm:p-7 rounded-3xl border text-left flex flex-col justify-between cursor-pointer min-h-[290px] overflow-hidden transition-all duration-300 hover:-translate-y-1.5 ${
+                  className={`group relative p-4 sm:p-7 rounded-2xl sm:rounded-3xl border text-left flex flex-col justify-between cursor-pointer sm:min-h-[290px] overflow-hidden transition-all duration-300 hover:-translate-y-1.5 ${
                     isSelected
                       ? 'border-amber-500/70 bg-[#17171A] shadow-2xl shadow-amber-500/10 ring-1 ring-amber-500/40'
                       : isHolding 
@@ -122,9 +122,9 @@ export default function SelectStore() {
                   {/* Top Section */}
                   <div className="w-full z-10">
                     {/* Top Row: Icon on Left, Discreet Status Tag on Right */}
-                    <div className="w-full flex items-center justify-between gap-3 mb-5">
+                    <div className="w-full flex items-center justify-between gap-3 mb-3 sm:mb-5">
                       <div 
-                        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105 shadow-md shrink-0 ${
+                        className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105 shadow-md shrink-0 ${
                           isHolding
                             ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black shadow-amber-500/30'
                             : isVero
@@ -166,7 +166,7 @@ export default function SelectStore() {
                     </span>
 
                     {/* Unit Name in Bold Highlight */}
-                    <h3 className={`text-xl sm:text-2xl font-black leading-snug uppercase tracking-tight transition-colors mb-2 ${
+                    <h3 className={`text-lg sm:text-2xl font-black leading-snug uppercase tracking-tight transition-colors mb-2 ${
                       isHolding 
                         ? 'text-amber-400 group-hover:text-amber-300' 
                         : 'text-white group-hover:text-amber-400'
@@ -178,11 +178,13 @@ export default function SelectStore() {
                     <div className="flex items-center gap-1.5 text-slate-400 text-xs font-medium">
                       <MapPin className={`w-3.5 h-3.5 shrink-0 ${isHolding ? 'text-amber-500/70' : 'text-slate-500'}`} />
                       <span className="truncate">{info.location}</span>
+                      {/* No celular o cartão inteiro é o botão: só a seta indica a ação */}
+                      <ArrowRight className={`ml-auto w-4 h-4 shrink-0 sm:hidden ${isHolding ? 'text-amber-400' : 'text-slate-500'}`} />
                     </div>
                   </div>
 
                   {/* Card Bottom: Full integrated CTA button that reacts to card hover */}
-                  <div className="w-full mt-6 pt-3 border-t border-[#222226] group-hover:border-[#333338] z-10 transition-colors">
+                  <div className="hidden sm:block w-full mt-6 pt-3 border-t border-[#222226] group-hover:border-[#333338] z-10 transition-colors">
                     <div className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-between transition-all duration-300 border ${
                       isHolding
                         ? 'bg-amber-500/15 border-amber-500/30 text-amber-300 group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:border-amber-300 group-hover:shadow-lg group-hover:shadow-amber-500/20'

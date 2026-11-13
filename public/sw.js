@@ -20,6 +20,9 @@ try {
 
     const messaging = firebase.messaging();
     messaging.onBackgroundMessage((payload) => {
+      // O Firebase também repassa aqui os avisos do sistema (Web Push com VAPID), que o listener de
+      // 'push' abaixo já mostra com o texto certo. Só mensagens FCM com título viram notificação aqui.
+      if (!payload.notification?.title && !payload.data?.title) return;
       console.log('[SW] Firebase Background Push Message received:', payload);
       const title = payload.notification?.title || payload.data?.title || '🔔 Grupo Azevedo';
       const body = payload.notification?.body || payload.data?.body || 'Nova notificação do sistema.';
@@ -41,7 +44,7 @@ try {
   console.warn('[SW] Firebase messaging import in Service Worker warning:', e);
 }
 
-const CACHE_NAME = 'grupo-azevedo-v15';
+const CACHE_NAME = 'grupo-azevedo-v16';
 
 const PRECACHE_ASSETS = [
   '/',

@@ -137,6 +137,29 @@
   @apply flex items-center justify-center gap-2 text-xs font-black uppercase tracking-wider px-4 py-2.5 rounded-xl border transition-all active:scale-95 duration-150 cursor-pointer text-center whitespace-nowrap;
 }
 
+/* Celular: os dois botões do cabeçalho dividem a linha sem empurrar a tela para o lado */
+@media (max-width: 639px) {
+  .btn-save-primary,
+  .btn-save-secondary {
+    @apply min-w-0 px-3 tracking-normal whitespace-normal leading-tight;
+  }
+
+  /* Quadros desenhados para o computador (p-8, cantos de 40 px) ficam mais enxutos na área de conteúdo */
+  .app-content .p-10,
+  .app-content .p-8,
+  .app-content .p-7 {
+    padding: 1rem;
+  }
+  .app-content .p-6 {
+    padding: 0.875rem;
+  }
+  .app-content .rounded-\[2\.5rem\],
+  .app-content .rounded-\[2rem\],
+  .app-content .rounded-\[3rem\] {
+    border-radius: 1.5rem;
+  }
+}
+
 
 /* Ficha técnica da cozinha (Precificação PRO): só aparece na impressão */
 #ops-print-root { display: none; }

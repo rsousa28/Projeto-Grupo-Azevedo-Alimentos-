@@ -3374,10 +3374,10 @@ export default function AccountsPayable() {
       </div>
 
       {/* METRIC PILLS & KPI BENTO GRID */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-6">
         
         {/* KPI 1 - Hoje */}
-        <div className={`p-5 rounded-2xl border transition-all ${
+        <div className={`p-3.5 sm:p-5 rounded-2xl border min-w-0 transition-all ${
           isDarkMode ? 'bg-[#121212] border-[#222]' : 'bg-white border-slate-100 shadow-md shadow-slate-100/40'
         }`}>
           <div className="flex items-center justify-between mb-2">
@@ -3386,7 +3386,7 @@ export default function AccountsPayable() {
               <Calendar className="w-4 h-4 text-amber-500" />
             </div>
           </div>
-          <div className="text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
+          <div className="text-lg sm:text-2xl font-display font-extrabold tracking-tight text-slate-900 dark:text-white leading-none">
             {formatValueBrl(bentoTodayVal)}
           </div>
           <div className="mt-2.5 flex items-center justify-between gap-1 flex-wrap">
@@ -3406,7 +3406,7 @@ export default function AccountsPayable() {
         {/* KPI 2 - Vencidos */}
         <div 
           onClick={() => setShowOverdueModal(true)}
-          className={`p-5 rounded-2xl border transition-all cursor-pointer hover:shadow-lg hover:scale-[1.01] active:scale-95 duration-200 ${
+          className={`p-3.5 sm:p-5 rounded-2xl border min-w-0 transition-all cursor-pointer hover:shadow-lg hover:scale-[1.01] active:scale-95 duration-200 ${
             isDarkMode ? 'bg-[#121212] border-zinc-800 border-l-4 border-l-red-500 hover:border-red-500/30' : 'bg-white border-slate-100 border-l-4 border-l-red-500 hover:border-red-500/30 shadow-md shadow-slate-100/40'
           }`}
           title="Clique para ver boletos vencidos"
@@ -3417,7 +3417,7 @@ export default function AccountsPayable() {
               <AlertCircle className="w-4 h-4 text-red-500" />
             </div>
           </div>
-          <div className="text-2xl font-display font-extrabold tracking-tight text-red-600 dark:text-red-400 leading-none">
+          <div className="text-lg sm:text-2xl font-display font-extrabold tracking-tight text-red-600 dark:text-red-400 leading-none">
             {formatValueBrl(bentoOverdueVal)}
           </div>
           <div className="mt-2.5 flex items-center justify-between gap-1 flex-wrap">
@@ -3438,7 +3438,7 @@ export default function AccountsPayable() {
         {/* KPI 3 - Pagos no Mês */}
         <div 
           onClick={() => setShowPaidMonthModal(true)}
-          className={`p-5 rounded-2xl border transition-all cursor-pointer hover:shadow-lg hover:scale-[1.01] active:scale-95 duration-200 ${
+          className={`p-3.5 sm:p-5 rounded-2xl border min-w-0 transition-all cursor-pointer hover:shadow-lg hover:scale-[1.01] active:scale-95 duration-200 ${
             isDarkMode 
               ? 'bg-[#121212] border-zinc-800 border-l-4 border-l-emerald-500 hover:border-emerald-500/30' 
               : 'bg-white border-slate-100 border-l-4 border-l-emerald-500 hover:border-emerald-500/30 shadow-md shadow-slate-100/40'
@@ -3451,7 +3451,7 @@ export default function AccountsPayable() {
               <CheckCircle className="w-4 h-4 text-emerald-500" />
             </div>
           </div>
-          <div className="text-2xl font-display font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
+          <div className="text-lg sm:text-2xl font-display font-extrabold tracking-tight text-emerald-600 dark:text-emerald-400 leading-none">
             {formatValueBrl(bentoPaidMonthVal)}
           </div>
           <div className="mt-2.5 flex items-center justify-between gap-1 flex-wrap">
@@ -3467,7 +3467,7 @@ export default function AccountsPayable() {
         {/* KPI 4 - Próximos Vencimentos */}
         <div 
           onClick={() => setShowUpcomingModal(true)}
-          className={`p-5 rounded-2xl border transition-all cursor-pointer hover:shadow-lg hover:scale-[1.01] active:scale-95 duration-200 ${
+          className={`p-3.5 sm:p-5 rounded-2xl border min-w-0 transition-all cursor-pointer hover:shadow-lg hover:scale-[1.01] active:scale-95 duration-200 ${
             isDarkMode 
               ? 'bg-[#121212] border-zinc-800 hover:border-slate-700/50' 
               : 'bg-white border-slate-100 hover:border-slate-200/80 shadow-md shadow-slate-100/40'
@@ -3481,7 +3481,7 @@ export default function AccountsPayable() {
               <DollarSign className="w-4 h-4" style={{ color: themeButtonBg }} />
             </div>
           </div>
-          <div className="text-2xl font-display font-extrabold tracking-tight leading-none" style={{ color: themeButtonBg }}>
+          <div className="text-lg sm:text-2xl font-display font-extrabold tracking-tight leading-none" style={{ color: themeButtonBg }}>
             {formatValueBrl(bentoUpcomingVal)}
           </div>
           <div className="mt-2.5 flex items-center justify-between gap-1 flex-wrap">
@@ -3553,7 +3553,7 @@ export default function AccountsPayable() {
             </div>
 
             {/* Quick Status Tabs (Todos, Pendentes, Pagos / Boletos Quitados, Vencidos) */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2C2C2C] self-start sm:self-auto overflow-x-auto">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 dark:bg-[#1A1A1A] border border-slate-200 dark:border-[#2C2C2C] self-start sm:self-auto max-w-full overflow-x-auto">
               <button
                 type="button"
                 onClick={() => setFilterStatus('all')}

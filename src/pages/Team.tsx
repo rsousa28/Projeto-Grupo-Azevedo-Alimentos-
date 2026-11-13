@@ -277,15 +277,15 @@ export default function Team() {
           <p className={`text-sm font-bold italic ${isDarkMode ? 'text-slate-500' : 'text-slate-700'}`}>Controle de acesso e permissões do Grupo Azevedo</p>
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="relative min-w-0 flex-1 md:flex-initial">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text" 
               placeholder="Buscar usuário..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`pl-10 pr-4 py-3 rounded-xl border text-sm font-bold outline-none transition-all ${
+              className={`w-full pl-10 pr-4 py-3 rounded-xl border text-sm font-bold outline-none transition-all ${
                 isDarkMode ? 'bg-[#1E1E1E] border-[#333] text-white focus:ring-2 focus:ring-indigo-500/50' : 'bg-white border-slate-200 focus:ring-4 focus:ring-indigo-50/50'
               }`}
             />
@@ -293,7 +293,7 @@ export default function Team() {
           
           <button 
             onClick={() => handleOpenModal()}
-            className={`flex items-center gap-2 px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all active:scale-95 ${
+            className={`flex shrink-0 items-center gap-2 px-4 sm:px-6 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-xl transition-all active:scale-95 ${
               isDarkMode ? 'bg-[#FFCB05] text-black shadow-[#FFCB05]/20' : 'bg-black text-white shadow-black/20'
             }`}
           >

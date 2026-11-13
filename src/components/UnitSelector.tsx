@@ -170,7 +170,7 @@ export default function UnitSelector({
 
   // Helper render for card items in Grid or Modal view
   const renderCards = () => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-5">
       {unitsToDisplay.map((unit, index) => {
         const isSelected = currentStore.id === unit.id;
         const info = getUnitCardInfo(unit);
@@ -187,7 +187,7 @@ export default function UnitSelector({
             <div
               id={`unit-card-${unit.code.toLowerCase()}`}
               onClick={() => handleUnitClick(unit)}
-              className={`w-full group relative p-5 sm:p-6 rounded-2xl sm:rounded-3xl border transition-all duration-300 text-left flex flex-col justify-between cursor-pointer min-h-[250px] overflow-hidden ${
+              className={`w-full group relative p-4 sm:p-6 rounded-2xl sm:rounded-3xl border transition-all duration-300 text-left flex flex-col justify-between cursor-pointer sm:min-h-[250px] overflow-hidden ${
                 isSelected
                   ? 'border-amber-500/70 bg-[#17171A] shadow-xl shadow-amber-500/10 ring-1 ring-amber-500/40'
                   : isHolding
@@ -203,9 +203,9 @@ export default function UnitSelector({
               {/* Main Top Area */}
               <div className="w-full z-10">
                 {/* Row 1: Brand Icon on Left, Discreet Status Tag on Right */}
-                <div className="w-full flex items-center justify-between gap-3 mb-4">
+                <div className="w-full flex items-center justify-between gap-3 mb-3 sm:mb-4">
                   <div 
-                    className={`w-12 h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105 shadow-md shrink-0 ${
+                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center transition-transform duration-300 group-hover:scale-105 shadow-md shrink-0 ${
                       isHolding 
                         ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 font-black shadow-amber-500/25' 
                         : isVero
@@ -261,11 +261,13 @@ export default function UnitSelector({
                 <div className="flex items-center gap-1.5 text-xs text-slate-400 font-medium">
                   <MapPin className={`w-3.5 h-3.5 shrink-0 ${isHolding ? 'text-amber-500/70' : 'text-slate-500'}`} />
                   <span className="truncate">{info.location}</span>
+                  {/* No celular o cartão inteiro é o botão: só a seta indica a ação */}
+                  <ArrowRight className={`ml-auto w-4 h-4 shrink-0 sm:hidden ${isHolding ? 'text-amber-400' : 'text-slate-500'}`} />
                 </div>
               </div>
 
               {/* Bottom Standardized Action Bar */}
-              <div className="mt-6 pt-3.5 border-t border-[#222226] group-hover:border-[#333338] w-full z-10 transition-colors">
+              <div className="hidden sm:block mt-6 pt-3.5 border-t border-[#222226] group-hover:border-[#333338] w-full z-10 transition-colors">
                 <div className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-between transition-all duration-300 border ${
                   isHolding
                     ? 'bg-amber-500/15 border-amber-500/30 text-amber-300 group-hover:bg-amber-400 group-hover:text-slate-950 group-hover:border-amber-300 group-hover:shadow-lg group-hover:shadow-amber-500/20'
