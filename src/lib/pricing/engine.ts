@@ -2,6 +2,7 @@
 // para poder testar cada conta (tests/pricingEngine.test.ts).
 import type {
   BaseRecipe,
+  BuyUnit,
   Combo,
   EnergyLine,
   EnergySource,
@@ -13,6 +14,7 @@ import type {
   PricingData,
   Product,
   RecipeLine,
+  Unit,
 } from './types';
 
 export type Channel = 'salao' | 'delivery';
@@ -26,6 +28,28 @@ const safeDiv = (a: number, b: number) => (b > 0 && Number.isFinite(a) ? a / b :
 /** Custo por g/ml/un aproveitado: o preço pago dividido pela quantidade líquida. */
 export function ingredientUnitCost(ing: Ingredient): number {
   return safeDiv(ing.price, ing.netQty || ing.purchaseQty);
+}
+
+/** Unidades de compra: quantas unidades do cadastro (g / ml / un) cabem em 1. */
+export const BUY_UNITS: Record<BuyUnit, { base: Unit; factor: number }> = {
+  kg: { base: 'g', factor: 1000 },
+  g: { base: 'g', factor: 1 },
+  L: { base: 'ml', factor: 1000 },
+  ml: { base: 'ml', factor: 1 },
+  un: { base: 'un', factor: 1 },
+};
+
+/** Unidade de compra do ingrediente: a escolhida ou, sem escolha, kg / L a partir de 1000 g / ml. */
+export function buyUnitOf(ing: Pick<Ingredient, 'unit' | 'purchaseQty' | 'buyUnit'>): BuyUnit {
+  if (ing.buyUnit && BUY_UNITS[ing.buyUnit]?.base === ing.unit) return ing.buyUnit;
+  if (ing.unit === 'g') return ing.purchaseQty >= 1000 ? 'kg' : 'g';
+  if (ing.unit === 'ml') return ing.purchaseQty >= 1000 ? 'L' : 'ml';
+  return 'un';
+}
+
+/** Custo de 1 kg / 1 L / 1 un (na unidade de compra), já com a perda da limpeza. */
+export function ingredientBuyUnitCost(ing: Ingredient): number {
+  return ingredientUnitCost(ing) * BUY_UNITS[buyUnitOf(ing)].factor;
 }
 
 /** Fator de correção = bruta / líquida (1,05 = 5% de perda na limpeza). */

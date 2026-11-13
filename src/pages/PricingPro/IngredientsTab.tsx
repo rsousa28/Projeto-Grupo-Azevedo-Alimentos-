@@ -1,9 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { AlertCircle, AlertTriangle, Apple, History, Plus, Trash2, TrendingUp, Wheat, X } from 'lucide-react';
 import {
+  BUY_UNITS,
   NUTRIENT_KEYS,
   NUTRIENT_LABELS,
+  buyUnitOf,
   correctionFactor,
+  ingredientBuyUnitCost,
   ingredientPriceImpact,
   ingredientUnitCost,
   newId,
@@ -11,7 +14,7 @@ import {
   usagesOf,
   type PriceImpact,
 } from '../../lib/pricing/engine';
-import type { Ingredient, Nutrients, Unit } from '../../lib/pricing/types';
+import type { BuyUnit, Ingredient, Nutrients } from '../../lib/pricing/types';
 import { usePricing } from './PricingContext';
 import {
   Badge,
@@ -87,12 +90,22 @@ export default function IngredientsTab() {
         code: nextCode('', ingredients.map((i) => i.code), 4),
         name: 'Novo ingrediente',
         unit: 'g',
+        buyUnit: 'kg',
         purchaseQty: 1000,
         netQty: 1000,
         price: 0,
         updatedAt: '',
       }),
     );
+
+  // Trocar kg por g só muda como aparece (1 kg = 1000 g). Trocar de grandeza (kg -> L ou un) mantém o número digitado.
+  const changeBuyUnit = (ing: Ingredient, buyUnit: BuyUnit) => {
+    const from = BUY_UNITS[buyUnitOf(ing)];
+    const to = BUY_UNITS[buyUnit];
+    if (to.base === ing.unit) return update(ing, { buyUnit });
+    const scale = to.factor / from.factor;
+    return update(ing, { buyUnit, unit: to.base, purchaseQty: ing.purchaseQty * scale, netQty: ing.netQty * scale });
+  };
 
   const remove = (ing: Ingredient) => {
     const uses = usagesOf(store.data, 'ingredient', ing.id);
@@ -161,12 +174,12 @@ export default function IngredientsTab() {
               <tr>
                 <th className={th}>Cód</th>
                 <th className={th}>Nome</th>
+                <th className={th} title="Unidade em que você compra">Comprado em</th>
                 <th className={th} title="Quantidade que você compra">Qtd. bruta</th>
                 <th className={th} title="Quantidade aproveitada depois de limpar">Qtd. líquida</th>
-                <th className={th}>Unid.</th>
-                <th className={th}>Preço</th>
+                <th className={th} title="Preço pago pela quantidade bruta">Preço</th>
                 <th className={th} title="Bruta ÷ líquida">Fator</th>
-                <th className={`${th} text-right`}>Custo por un.</th>
+                <th className={`${th} text-right`} title="Custo do que é aproveitado, na unidade de compra">Custo real</th>
                 <th className={th}>Fornecedor</th>
                 <th className={th}>Uso</th>
                 <th className={th} />
@@ -175,23 +188,31 @@ export default function IngredientsTab() {
             <tbody className="divide-y divide-stone-100 dark:divide-white/5">
               {rows.map((i) => {
                 const factor = correctionFactor(i);
+                const bu = buyUnitOf(i);
+                const k = BUY_UNITS[bu].factor;
                 return (
                   <tr key={i.id} className="hover:bg-orange-50/40 dark:hover:bg-white/[0.02]">
                     <td className={`${td} w-16 font-mono text-xs text-stone-500`}>{i.code}</td>
                     <td className={`${td} min-w-[220px]`}><TextInput value={i.name} onChange={(name) => update(i, { name })} /></td>
-                    <td className={`${td} min-w-[100px]`}><NumInput value={i.purchaseQty} digits={3} onChange={(purchaseQty) => update(i, { purchaseQty })} /></td>
-                    <td className={`${td} min-w-[100px]`}><NumInput value={i.netQty} digits={3} onChange={(netQty) => update(i, { netQty })} /></td>
-                    <td className={`${td} min-w-[80px]`}>
-                      <Select value={i.unit} onChange={(e) => update(i, { unit: e.target.value as Unit })}>
+                    <td className={`${td} min-w-[96px]`}>
+                      <Select value={bu} onChange={(e) => changeBuyUnit(i, e.target.value as BuyUnit)} aria-label={`Unidade de compra de ${i.name}`}>
+                        <option value="kg">kg</option>
                         <option value="g">g</option>
+                        <option value="L">L</option>
                         <option value="ml">ml</option>
                         <option value="un">un</option>
                       </Select>
                     </td>
+                    <td className={`${td} min-w-[100px]`}><NumInput value={i.purchaseQty / k} digits={3} onChange={(v) => update(i, { purchaseQty: v * k })} /></td>
+                    <td className={`${td} min-w-[100px]`}><NumInput value={i.netQty / k} digits={3} onChange={(v) => update(i, { netQty: v * k })} /></td>
                     <td className={`${td} min-w-[130px]`}><NumInput mode="money" value={i.price} onChange={(price) => update(i, { price })} /></td>
                     <td className={`${td} w-16 font-bold tabular-nums ${factor > 1.001 ? 'text-orange-600' : 'text-stone-500'}`}>{num(factor, 2)}</td>
                     <td className={`${td} whitespace-nowrap text-right font-bold tabular-nums text-orange-600`}>
-                      {i.price > 0 ? `${brlUnit(ingredientUnitCost(i))}/${i.unit}` : <Badge tone="red">sem preço</Badge>}
+                      {i.price > 0 ? (
+                        <span title={`${brlUnit(ingredientUnitCost(i))} por ${i.unit}`}>{`${k > 1 ? brl(ingredientBuyUnitCost(i)) : brlUnit(ingredientBuyUnitCost(i))}/${bu}`}</span>
+                      ) : (
+                        <Badge tone="red">sem preço</Badge>
+                      )}
                     </td>
                     <td className={`${td} min-w-[170px]`}><TextInput value={i.supplier || ''} placeholder="—" onChange={(supplier) => update(i, { supplier })} /></td>
                     <td className={`${td} w-16 text-center text-xs text-stone-500`}>{usageCount.get(i.id) || 0}</td>

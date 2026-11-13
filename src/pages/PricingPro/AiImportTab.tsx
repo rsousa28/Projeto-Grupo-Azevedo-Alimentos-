@@ -117,6 +117,7 @@ export default function AiImportTab({ onDone }: { onDone: () => void }) {
   const [errors, setErrors] = useState<string[]>([]);
   const [extraction, setExtraction] = useState<AiExtraction | null>(null);
   const [removeExample, setRemoveExample] = useState(true);
+  const [replaceAll, setReplaceAll] = useState(false);
   const [salesMode, setSalesMode] = useState<'average' | 'last'>('average');
   const [applySales, setApplySales] = useState(true);
   // O que a pessoa desmarcou (o resto vai junto): sobrevive quando o plano é refeito
@@ -124,9 +125,11 @@ export default function AiImportTab({ onDone }: { onDone: () => void }) {
   const [saving, setSaving] = useState(false);
 
   const plan: ImportPlan | null = useMemo(
-    () => (extraction ? buildImportPlan(extraction, store.data, { removeExample, salesMode }) : null),
-    [extraction, store.data, removeExample, salesMode],
+    () => (extraction ? buildImportPlan(extraction, store.data, { removeExample, replaceAll, salesMode }) : null),
+    [extraction, store.data, removeExample, replaceAll, salesMode],
   );
+  const current = store.data;
+  const currentCount = current.products.length + current.recipes.length + current.ingredients.length + current.packaging.length + current.combos.length;
   const sel: PlanSelection | null = plan
     ? {
         products: new Set(plan.products.map((p) => p.key).filter((k) => !off.products.has(k))),
@@ -134,6 +137,7 @@ export default function AiImportTab({ onDone }: { onDone: () => void }) {
         priceUpdates: new Set(plan.priceUpdates.map((u) => u.id).filter((k) => !off.prices.has(k))),
         applySales,
         removeExample: removeExample && !!plan.example.present,
+        replaceAll: replaceAll && currentCount > 0,
       }
     : null;
   const preview = plan && sel ? planWrites(plan, store.data, sel) : null;
@@ -199,8 +203,18 @@ export default function AiImportTab({ onDone }: { onDone: () => void }) {
 
   const save = async () => {
     if (!plan || !sel || !preview) return;
-    const removing = sel.removeExample ? exampleSize(plan.example) : 0;
-    if (removing && !window.confirm(`Apagar ${plural(removing, 'item', 'itens')} do cardápio de exemplo? Isso não pode ser desfeito.`)) return;
+    if (sel.replaceAll) {
+      const what = [
+        plural(current.products.length, 'ficha', 'fichas'),
+        plural(current.recipes.length, 'receita base', 'receitas base'),
+        plural(current.ingredients.length, 'ingrediente', 'ingredientes'),
+        plural(current.packaging.length, 'embalagem', 'embalagens'),
+      ].join(', ');
+      if (!window.confirm(`Apagar o cadastro atual (${what}) e gravar no lugar o que a IA leu? Despesas e equipe ficam. Isso não pode ser desfeito.`)) return;
+    } else {
+      const removing = sel.removeExample ? exampleSize(plan.example) : 0;
+      if (removing && !window.confirm(`Apagar ${plural(removing, 'item', 'itens')} do cardápio de exemplo? Isso não pode ser desfeito.`)) return;
+    }
     setSaving(true);
     const c = preview.counts;
     const ok = await run(
@@ -339,7 +353,25 @@ export default function AiImportTab({ onDone }: { onDone: () => void }) {
         </div>
       </Panel>
 
-      {plan.example.present && (
+      {currentCount > 0 && (
+        <Panel className={cx('p-4 sm:p-5', replaceAll && 'border-rose-300 bg-rose-50/60 dark:border-rose-500/30 dark:bg-rose-500/5')}>
+          <label className="flex cursor-pointer gap-3">
+            <Check checked={replaceAll} onChange={setReplaceAll} label="Substituir o cadastro atual" />
+            <span>
+              <span className="flex items-center gap-1.5 font-semibold text-stone-900 dark:text-stone-100">
+                <RotateCcw className="h-4 w-4 text-rose-500" /> Substituir o cadastro atual
+              </span>
+              <span className="block text-sm text-stone-500">
+                Apaga as {plural(current.products.length, 'ficha', 'fichas')}, {plural(current.recipes.length, 'receita base', 'receitas base')},{' '}
+                {plural(current.ingredients.length, 'ingrediente', 'ingredientes')} e {plural(current.packaging.length, 'embalagem', 'embalagens')} de hoje e
+                grava no lugar só o que a IA leu agora. Use para refazer uma importação que veio errada. Despesas, equipe e notas fiscais ficam.
+              </span>
+            </span>
+          </label>
+        </Panel>
+      )}
+
+      {plan.example.present && !replaceAll && (
         <Panel className="p-4 sm:p-5">
           <label className="flex cursor-pointer gap-3">
             <Check checked={removeExample} onChange={setRemoveExample} label="Apagar o cardápio de exemplo" />

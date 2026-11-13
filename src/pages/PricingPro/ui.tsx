@@ -307,8 +307,24 @@ export function TextInput({
   );
 }
 
+/** Seta própria (appearance-none): no Safari a seta nativa cobria o valor em colunas estreitas. */
 export function Select({ className, ...rest }: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return <select className={cx(inputClass, 'pr-8', className)} {...rest} />;
+  const ownWidth = /(^|\s)w-/.test(className || '');
+  return (
+    <span className={cx('relative inline-block align-middle', !ownWidth && 'w-full')}>
+      <select className={cx(inputClass, 'cursor-pointer appearance-none pr-7', className)} {...rest} />
+      <svg
+        className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-stone-400"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        aria-hidden="true"
+      >
+        <path d="m6 9 6 6 6-6" />
+      </svg>
+    </span>
+  );
 }
 
 export function SearchBox({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder: string }) {

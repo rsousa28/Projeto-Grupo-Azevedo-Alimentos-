@@ -3,6 +3,8 @@
 // a partir do cadastro atual (engine.ts). Mudou o preço de um ingrediente, tudo recalcula.
 
 export type Unit = 'g' | 'ml' | 'un';
+/** Unidade em que o ingrediente é comprado e mostrado no cadastro (o custo é sempre guardado por g / ml / un). */
+export type BuyUnit = 'kg' | 'g' | 'L' | 'ml' | 'un';
 
 // Valores por 100 g (ou 100 ml) do ingrediente, como no rótulo / tabela TACO
 export interface Nutrients {
@@ -30,6 +32,7 @@ export interface Ingredient {
   code: string;
   name: string;
   unit: Unit;
+  buyUnit?: BuyUnit;   // como aparece no cadastro: 1 kg em vez de 1000 g (sem valor: kg/L a partir de 1000 g/ml)
   purchaseQty: number; // quantidade bruta comprada (ex: 1000 g)
   netQty: number;      // quantidade líquida aproveitada (ex: 950 g) -> fator = bruta / líquida
   price: number;       // preço pago pela quantidade bruta (R$)

@@ -185,10 +185,33 @@ export function nameTokens(name: string): string[] {
     .filter((t) => t.length > 1 && !STOP.has(t) && !/^\d/.test(t));
 }
 
+/** Diferença de no máximo uma letra (trocada, a mais ou a menos): "carnde" x "carne". */
+function oneEditApart(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false;
+  let i = 0;
+  let j = 0;
+  let edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++;
+      j++;
+      continue;
+    }
+    if (++edits > 1) return false;
+    if (a.length > b.length) i++;
+    else if (b.length > a.length) j++;
+    else {
+      i++;
+      j++;
+    }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1;
+}
+
 function tokenMatch(a: string, b: string): boolean {
   if (a === b) return true;
   const min = Math.min(a.length, b.length);
-  return min >= 4 && (a.startsWith(b) || b.startsWith(a));
+  return min >= 4 && (a.startsWith(b) || b.startsWith(a) || (min >= 5 && oneEditApart(a, b)));
 }
 
 /** Semelhança entre 0 e 1 (coeficiente de Dice sobre as palavras, aceitando abreviações por prefixo). */
