@@ -2,7 +2,7 @@
 // stores/{id}/accounts_payable/{accountId}; before the migration everything lived in the "all"
 // document (split into chunks above 1 MB), which is still read as a fallback.
 import type { Firestore } from "firebase-admin/firestore";
-import { parseAccountsChunks, parseAccountsDoc } from "./payableSummary";
+import { parseAccountsChunks, parseAccountsDoc } from "./payableSummary.js";
 
 export async function loadStorePayables(db: Firestore, storeId: string): Promise<any[]> {
   const col = db.collection("stores").doc(storeId).collection("accounts_payable");
